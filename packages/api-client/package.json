@@ -1,0 +1,15 @@
+{
+  "name": "@contentco-op/api-client",
+  "version": "0.1.0",
+  "private": true,
+  "main": "src/index.ts",
+  "types": "src/index.ts",
+  "scripts": {
+    "build": "echo \"api-client: source only\"",
+    "lint": "echo \"api-client lint\"",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@contentco-op/types": "0.1.0"
+  }
+}

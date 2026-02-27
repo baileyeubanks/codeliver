@@ -18,7 +18,6 @@ export default function LoginPage() {
         body: JSON.stringify({
           email: fd.get("email"),
           password: fd.get("password"),
-          invite_code: fd.get("invite_code"),
         }),
       });
       if (!res.ok) {
@@ -181,41 +180,6 @@ export default function LoginPage() {
                 required
                 placeholder="Password"
                 autoComplete="current-password"
-                style={{
-                  border: "1px solid #325276",
-                  borderRadius: 10,
-                  background: "#0d1a2e",
-                  color: "#e9f0ff",
-                  padding: ".65rem .75rem",
-                  fontSize: ".88rem",
-                  fontFamily: "inherit",
-                  outline: "none",
-                  transition: "border-color 140ms ease",
-                  width: "100%",
-                  boxSizing: "border-box" as const,
-                }}
-                onFocus={(e) => (e.currentTarget.style.borderColor = "#6b9fd4")}
-                onBlur={(e) => (e.currentTarget.style.borderColor = "#325276")}
-              />
-            </div>
-
-            <div style={{ display: "flex", flexDirection: "column", gap: ".28rem" }}>
-              <label
-                style={{
-                  fontSize: ".68rem",
-                  letterSpacing: ".1em",
-                  textTransform: "uppercase" as const,
-                  color: "#7a9bc4",
-                  fontWeight: 700,
-                }}
-              >
-                Invite code
-              </label>
-              <input
-                name="invite_code"
-                type="password"
-                required
-                placeholder="Invite code"
                 style={{
                   border: "1px solid #325276",
                   borderRadius: 10,

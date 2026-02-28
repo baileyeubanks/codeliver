@@ -14,10 +14,7 @@ export async function createSupabaseAuth() {
         setAll(cookiesToSet) {
           try {
             cookiesToSet.forEach(({ name, value, options }) => {
-              cookieStore.set(name, value, {
-                ...options,
-                domain: ".contentco-op.com",
-              });
+              cookieStore.set(name, value, options);
             });
           } catch {
             // setAll can fail in Server Components — safe to ignore

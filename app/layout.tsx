@@ -3,13 +3,18 @@ import type { Metadata } from "next";
 
 export const metadata: Metadata = {
   title: "Co-Deliver | Content Co-op",
-  description: "Client-facing delivery review. Timecoded comments, version control, and stakeholder sign-off."
+  description: "Executive content review and delivery platform. Timecoded feedback, version control, approval workflows, and stakeholder sign-off.",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en">
-      <body>{children}</body>
+      <head>
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+        <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+      </head>
+      <body className="min-h-screen bg-[var(--bg)]">{children}</body>
     </html>
   );
 }

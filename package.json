@@ -2,9 +2,6 @@
   "name": "codeliver",
   "version": "0.1.0",
   "private": true,
-  "workspaces": [
-    "packages/*"
-  ],
   "scripts": {
     "dev": "next dev -p 4103",
     "build": "next build",
@@ -13,7 +10,6 @@
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
-    "@contentco-op/types": "0.1.0",
     "@supabase/ssr": "^0.8.0",
     "@supabase/supabase-js": "^2.49.4",
     "lucide-react": "^0.575.0",

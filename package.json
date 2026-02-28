@@ -2,6 +2,9 @@
   "name": "codeliver",
   "version": "0.1.0",
   "private": true,
+  "engines": {
+    "node": ">=18"
+  },
   "scripts": {
     "dev": "next dev -p 4103",
     "build": "next build",

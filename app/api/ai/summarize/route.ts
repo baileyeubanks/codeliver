@@ -9,6 +9,25 @@ export async function POST(req: Request) {
   const { asset_id } = await req.json();
   if (!asset_id) return NextResponse.json({ error: "asset_id required" }, { status: 400 });
 
+  // Verify user owns the project containing this asset
+  const { data: asset } = await getSupabase()
+    .from("assets")
+    .select("project_id")
+    .eq("id", asset_id)
+    .single();
+
+  if (!asset) return NextResponse.json({ error: "Asset not found" }, { status: 404 });
+
+  const { data: project } = await getSupabase()
+    .from("projects")
+    .select("owner_id")
+    .eq("id", asset.project_id)
+    .single();
+
+  if (!project || project.owner_id !== user.id) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+
   // Get all comments for this asset
   const { data: comments } = await getSupabase()
     .from("comments")
@@ -40,7 +59,7 @@ export async function POST(req: Request) {
       "anthropic-version": "2023-06-01",
     },
     body: JSON.stringify({
-      model: "claude-sonnet-4-6-20250514",
+      model: "claude-sonnet-4-20250514",
       max_tokens: 500,
       messages: [
         {

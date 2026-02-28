@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth";
 import { getSupabase } from "@/lib/supabase";
+import { sendEmail, emailTemplates, getBaseUrl } from "@/lib/email";
 
 export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -50,6 +51,23 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
       action: "added_comment",
       details: { asset_title: asset.data.title, body: body.body.slice(0, 100) },
     });
+
+    // Send comment notification to asset owner
+    const project = await getSupabase().from("projects").select("owner_id").eq("id", asset.data.project_id).single();
+    if (project.data) {
+      const owner = await getSupabase().auth.admin.getUserById(project.data.owner_id);
+      if (owner.data?.user?.email) {
+        const reviewUrl = `${getBaseUrl()}/projects/${asset.data.project_id}/assets/${id}`;
+        const emailPayload = emailTemplates.commentNotification(
+          owner.data.user.email,
+          body.author_name || user?.email || "Anonymous",
+          asset.data.title,
+          body.body,
+          reviewUrl
+        );
+        await sendEmail({ to: owner.data.user.email, ...emailPayload });
+      }
+    }
   }
 
   return NextResponse.json(data, { status: 201 });

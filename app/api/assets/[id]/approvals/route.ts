@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth";
 import { getSupabase } from "@/lib/supabase";
+import { sendEmail, emailTemplates, getBaseUrl } from "@/lib/email";
 
 export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -34,6 +35,24 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     .single();
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+  // Send approval request email
+  if (data && body.assignee_email) {
+    const asset = await getSupabase().from("assets").select("title, project_id").eq("id", id).single();
+    const project = await getSupabase().from("projects").select("name").eq("id", asset.data?.project_id).single();
+
+    if (asset.data && project.data) {
+      const reviewUrl = `${getBaseUrl()}/projects/${asset.data.project_id}/assets/${id}`;
+      const emailPayload = emailTemplates.approvalRequest(
+        body.assignee_email,
+        asset.data.title,
+        project.data.name,
+        reviewUrl
+      );
+      await sendEmail({ to: body.assignee_email, ...emailPayload });
+    }
+  }
+
   return NextResponse.json(data, { status: 201 });
 }
 

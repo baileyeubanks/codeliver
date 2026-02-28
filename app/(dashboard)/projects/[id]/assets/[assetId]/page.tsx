@@ -103,6 +103,10 @@ export default function AssetReviewPage() {
   const [commentPin, setCommentPin] = useState<{ x: number; y: number } | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [activeTab, setActiveTab] = useState<"comments" | "approvals" | "versions">("comments");
+  const [replyingTo, setReplyingTo] = useState<string | null>(null);
+  const [summary, setSummary] = useState<string | null>(null);
+  const [loadingSummary, setLoadingSummary] = useState(false);
+  const [showSummary, setShowSummary] = useState(false);
 
   // Share modal
   const [showShare, setShowShare] = useState(false);
@@ -198,6 +202,7 @@ export default function AssetReviewPage() {
         timecode_seconds: currentTime > 0 ? currentTime : null,
         pin_x: commentPin?.x ?? null,
         pin_y: commentPin?.y ?? null,
+        parent_id: replyingTo ?? null,
       }),
     });
 
@@ -206,6 +211,7 @@ export default function AssetReviewPage() {
       setComments((prev) => [...prev, comment]);
       setCommentBody("");
       setCommentPin(null);
+      setReplyingTo(null);
     }
     setSubmitting(false);
   }
@@ -249,6 +255,23 @@ export default function AssetReviewPage() {
     }
   }
 
+  // Generate summary of comments
+  async function generateSummary() {
+    if (comments.length === 0) return;
+    setLoadingSummary(true);
+    const res = await fetch("/api/ai/summarize", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ asset_id: assetId }),
+    });
+    if (res.ok) {
+      const data = await res.json();
+      setSummary(data.summary);
+      setShowSummary(true);
+    }
+    setLoadingSummary(false);
+  }
+
   if (loading) {
     return (
       <div className="p-6 max-w-7xl mx-auto">
@@ -268,6 +291,11 @@ export default function AssetReviewPage() {
 
   const openComments = comments.filter((c) => c.status === "open" && !c.parent_id);
   const resolvedComments = comments.filter((c) => c.status === "resolved" && !c.parent_id);
+
+  // Helper to get replies for a comment
+  function getReplies(commentId: string) {
+    return comments.filter((c) => c.parent_id === commentId);
+  }
 
   return (
     <div className="flex h-screen overflow-hidden">
@@ -437,6 +465,29 @@ export default function AssetReviewPage() {
         <div className="flex-1 overflow-y-auto">
           {activeTab === "comments" && (
             <div className="p-4 space-y-3">
+              {showSummary && summary && (
+                <div className="bg-[var(--accent-dim)] border border-[var(--accent)] rounded-lg p-3">
+                  <div className="flex items-start justify-between mb-2">
+                    <p className="text-xs font-semibold text-[var(--accent)] uppercase">Summary</p>
+                    <button
+                      onClick={() => setShowSummary(false)}
+                      className="text-[var(--accent)] hover:text-[var(--ink)]"
+                    >
+                      <X size={14} />
+                    </button>
+                  </div>
+                  <p className="text-sm text-[var(--ink)] leading-relaxed">{summary}</p>
+                </div>
+              )}
+              {openComments.length > 0 && (
+                <button
+                  onClick={generateSummary}
+                  disabled={loadingSummary || comments.length === 0}
+                  className="w-full text-xs font-semibold py-2 px-3 border border-[var(--accent)] text-[var(--accent)] hover:bg-[var(--accent-dim)] rounded-lg transition-colors disabled:opacity-50"
+                >
+                  {loadingSummary ? "Summarizing..." : "Summarize Comments"}
+                </button>
+              )}
               {openComments.length === 0 && resolvedComments.length === 0 ? (
                 <div className="text-center py-8">
                   <MessageSquare size={28} className="mx-auto mb-2 text-[var(--dim)]" />
@@ -445,38 +496,62 @@ export default function AssetReviewPage() {
                 </div>
               ) : (
                 <>
-                  {openComments.map((c, i) => (
-                    <div key={c.id} className="bg-[var(--bg)] border border-[var(--border)] rounded-lg p-3">
-                      <div className="flex items-start gap-2">
-                        <div className="w-5 h-5 rounded-full bg-[var(--accent)] text-white text-[10px] font-bold flex items-center justify-center flex-shrink-0 mt-0.5">
-                          {i + 1}
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2 mb-1">
-                            <span className="text-xs font-semibold">{c.author_name}</span>
-                            {c.timecode_seconds != null && (
-                              <button
-                                onClick={() => seek(c.timecode_seconds!)}
-                                className="text-[10px] font-mono text-[var(--accent)] hover:underline"
-                              >
-                                {formatTime(c.timecode_seconds)}
-                              </button>
-                            )}
-                            <span className="text-[10px] text-[var(--dim)] ml-auto">{timeAgo(c.created_at)}</span>
+                  {openComments.map((c, i) => {
+                    const replies = getReplies(c.id);
+                    return (
+                      <div key={c.id} className="space-y-2">
+                        <div className="bg-[var(--bg)] border border-[var(--border)] rounded-lg p-3">
+                          <div className="flex items-start gap-2">
+                            <div className="w-5 h-5 rounded-full bg-[var(--accent)] text-white text-[10px] font-bold flex items-center justify-center flex-shrink-0 mt-0.5">
+                              {i + 1}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2 mb-1">
+                                <span className="text-xs font-semibold">{c.author_name}</span>
+                                {c.timecode_seconds != null && (
+                                  <button
+                                    onClick={() => seek(c.timecode_seconds!)}
+                                    className="text-[10px] font-mono text-[var(--accent)] hover:underline"
+                                  >
+                                    {formatTime(c.timecode_seconds)}
+                                  </button>
+                                )}
+                                <span className="text-[10px] text-[var(--dim)] ml-auto">{timeAgo(c.created_at)}</span>
+                              </div>
+                              <p className="text-sm text-[var(--ink)] leading-relaxed">{c.body}</p>
+                            </div>
                           </div>
-                          <p className="text-sm text-[var(--ink)] leading-relaxed">{c.body}</p>
+                          <div className="flex justify-end gap-2 mt-2">
+                            <button
+                              onClick={() => setReplyingTo(replyingTo === c.id ? null : c.id)}
+                              className="text-[10px] font-semibold text-[var(--accent)] hover:underline"
+                            >
+                              {replyingTo === c.id ? "Cancel" : "Reply"}
+                            </button>
+                            <button
+                              onClick={() => resolveComment(c.id)}
+                              className="text-[10px] font-semibold text-[var(--green)] hover:underline flex items-center gap-1"
+                            >
+                              <CheckCircle2 size={10} /> Resolve
+                            </button>
+                          </div>
                         </div>
+                        {replies.map((reply) => (
+                          <div key={reply.id} className="ml-6 bg-[var(--bg)] border border-[var(--border)] rounded-lg p-3">
+                            <div className="flex items-start gap-2">
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center gap-2 mb-1">
+                                  <span className="text-xs font-semibold">{reply.author_name}</span>
+                                  <span className="text-[10px] text-[var(--dim)] ml-auto">{timeAgo(reply.created_at)}</span>
+                                </div>
+                                <p className="text-sm text-[var(--ink)] leading-relaxed">{reply.body}</p>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
                       </div>
-                      <div className="flex justify-end mt-2">
-                        <button
-                          onClick={() => resolveComment(c.id)}
-                          className="text-[10px] font-semibold text-[var(--green)] hover:underline flex items-center gap-1"
-                        >
-                          <CheckCircle2 size={10} /> Resolve
-                        </button>
-                      </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                   {resolvedComments.length > 0 && (
                     <div className="pt-2">
                       <p className="text-xs font-semibold text-[var(--dim)] mb-2">
@@ -587,6 +662,14 @@ export default function AssetReviewPage() {
         {/* Comment input (always visible when on comments tab) */}
         {activeTab === "comments" && (
           <div className="border-t border-[var(--border)] p-3">
+            {replyingTo && (
+              <div className="flex items-center gap-2 mb-2 text-xs text-[var(--accent)] bg-[var(--bg)] border border-[var(--border)] rounded px-2 py-1">
+                <span>Replying to comment</span>
+                <button onClick={() => setReplyingTo(null)} className="ml-auto hover:text-[var(--ink)]">
+                  <X size={12} />
+                </button>
+              </div>
+            )}
             {commentPin && (
               <div className="flex items-center gap-2 mb-2 text-xs text-[var(--accent)]">
                 <MapPin size={12} />
@@ -596,7 +679,7 @@ export default function AssetReviewPage() {
                 </button>
               </div>
             )}
-            {currentTime > 0 && (
+            {currentTime > 0 && !replyingTo && (
               <div className="text-[10px] text-[var(--dim)] mb-1 font-mono">
                 @ {formatTime(currentTime)}
               </div>
@@ -606,7 +689,7 @@ export default function AssetReviewPage() {
                 value={commentBody}
                 onChange={(e) => setCommentBody(e.target.value)}
                 onKeyDown={(e) => e.key === "Enter" && !e.shiftKey && submitComment()}
-                placeholder="Add a comment..."
+                placeholder={replyingTo ? "Write a reply..." : "Add a comment..."}
                 className="flex-1 bg-[var(--bg)] border border-[var(--border)] rounded-lg px-3 py-2 text-sm text-[var(--ink)] placeholder:text-[var(--dim)] focus:border-[var(--accent)] outline-none"
               />
               <button

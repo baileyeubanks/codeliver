@@ -5,6 +5,26 @@ import { sendEmail, emailTemplates, getBaseUrl } from "@/lib/email";
 
 export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
+  const user = await requireAuth();
+  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+  // Verify user has access to this asset's project
+  const { data: asset } = await getSupabase()
+    .from("assets")
+    .select("project_id")
+    .eq("id", id)
+    .single();
+  if (!asset) return NextResponse.json({ error: "Asset not found" }, { status: 404 });
+
+  const { data: project } = await getSupabase()
+    .from("projects")
+    .select("owner_id")
+    .eq("id", asset.project_id)
+    .single();
+  if (!project || project.owner_id !== user.id) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+
   const { data, error } = await getSupabase()
     .from("comments")
     .select("*")

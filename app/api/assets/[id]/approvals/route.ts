@@ -3,8 +3,33 @@ import { requireAuth } from "@/lib/auth";
 import { getSupabase } from "@/lib/supabase";
 import { sendEmail, emailTemplates, getBaseUrl } from "@/lib/email";
 
+async function verifyAssetAccess(assetId: string, userId: string) {
+  const { data: asset } = await getSupabase()
+    .from("assets")
+    .select("project_id")
+    .eq("id", assetId)
+    .single();
+  if (!asset) return { allowed: false, status: 404, error: "Asset not found" } as const;
+
+  const { data: project } = await getSupabase()
+    .from("projects")
+    .select("owner_id")
+    .eq("id", asset.project_id)
+    .single();
+  if (!project || project.owner_id !== userId) {
+    return { allowed: false, status: 403, error: "Forbidden" } as const;
+  }
+  return { allowed: true } as const;
+}
+
 export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
+  const user = await requireAuth();
+  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+  const access = await verifyAssetAccess(id, user.id);
+  if (!access.allowed) return NextResponse.json({ error: access.error }, { status: access.status });
+
   const { data, error } = await getSupabase()
     .from("approvals")
     .select("*")
@@ -20,6 +45,10 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const { id } = await params;
+
+  const access = await verifyAssetAccess(id, user.id);
+  if (!access.allowed) return NextResponse.json({ error: access.error }, { status: access.status });
+
   const body = await req.json();
 
   const { data, error } = await getSupabase()

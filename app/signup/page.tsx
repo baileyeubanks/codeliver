@@ -127,7 +127,7 @@ export default function SignupPage() {
               lineHeight: 1.5,
             }}
           >
-            One account for Co-Edit, Co-Script, and Co-Deliver.
+            One account for co-cut, co-script, and co-deliver.
           </p>
 
           {success ? (

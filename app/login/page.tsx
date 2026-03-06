@@ -90,7 +90,7 @@ export default function LoginPage() {
               fontWeight: 700,
             }}
           >
-            Co-Deliver
+            co-deliver
           </div>
           <h1
             style={{

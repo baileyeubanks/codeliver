@@ -47,7 +47,7 @@ export default function Shell({ children }: { children: React.ReactNode }) {
           <div className="w-2 h-2 rounded-full bg-[var(--accent)] shadow-[0_0_0_4px_rgba(59,130,246,0.15)] flex-shrink-0" />
           {!collapsed && (
             <span className="text-sm font-bold tracking-wide text-[var(--ink)]">
-              Co-Deliver
+              co-deliver
             </span>
           )}
         </div>

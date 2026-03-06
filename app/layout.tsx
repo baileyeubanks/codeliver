@@ -2,7 +2,7 @@ import "./globals.css";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "Co-Deliver | Content Co-op",
+  title: "co-deliver | content co-op",
   description: "Executive content review and delivery platform. Timecoded feedback, version control, approval workflows, and stakeholder sign-off.",
 };
 

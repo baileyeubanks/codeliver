@@ -1,31 +1,37 @@
 @import "tailwindcss";
 
-/* ── Co-Deliver Design System ─────────────────────────────────── */
-/* Matches Co-Edit's dark slate-900 NLE aesthetic                  */
+/* ─── Content Co-op Product Palette (Dark) ─────────────────── */
+/* Source: ACS+CC_DESIGN_BRAND / cc-design-system.html          */
 
 :root {
-  --bg: #0f172a;
-  --surface: #1e293b;
-  --surface-2: #334155;
-  --surface-3: #475569;
-  --ink: #f1f5f9;
-  --muted: #94a3b8;
-  --dim: #64748b;
-  --border: #334155;
-  --border-light: #475569;
-  --accent: #3b82f6;
-  --accent-hover: #2563eb;
-  --green: #22c55e;
-  --green-dim: rgba(34, 197, 94, 0.12);
-  --orange: #f59e0b;
-  --orange-dim: rgba(245, 158, 11, 0.12);
-  --red: #ef4444;
-  --red-dim: rgba(239, 68, 68, 0.12);
-  --purple: #a855f7;
-  --purple-dim: rgba(168, 85, 247, 0.12);
+  --bg: #0c1322;
+  --surface: #101926;
+  --surface-2: #15202f;
+  --surface-3: #1c2b3f;
+  --ink: #edf3ff;
+  --muted: #9cadc8;
+  --dim: #7a8da8;
+  --border: #243248;
+  --border-light: #2e4260;
+  --accent: #8ba4c4;
+  --accent-hover: #9fb8d6;
+  --cta: #102641;
+  --cta-line: #3f618f;
+  --cta-ink: #e8f1ff;
+  --green: #3ec983;
+  --green-dim: rgba(62, 201, 131, 0.12);
+  --orange: #e4ad5b;
+  --orange-dim: rgba(228, 173, 91, 0.12);
+  --red: #de7676;
+  --red-dim: rgba(222, 118, 118, 0.12);
+  --purple: #a78bfa;
+  --purple-dim: rgba(167, 139, 250, 0.12);
+  --ring: #6889a78f;
   --radius: 12px;
   --radius-lg: 16px;
   --radius-sm: 8px;
+  --font-display: 'Poppins', 'Inter', sans-serif;
+  --font-body: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
 }
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -33,9 +39,14 @@
 html, body {
   background: var(--bg);
   color: var(--ink);
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-family: var(--font-body);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+}
+
+h1, h2, h3, h4, h5 {
+  font-family: var(--font-display);
+  letter-spacing: -0.02em;
 }
 
 a { color: inherit; text-decoration: none; }
@@ -104,7 +115,7 @@ a { color: inherit; text-decoration: none; }
 .status-dot.green { background: var(--green); box-shadow: 0 0 0 3px var(--green-dim); }
 .status-dot.orange { background: var(--orange); box-shadow: 0 0 0 3px var(--orange-dim); }
 .status-dot.red { background: var(--red); box-shadow: 0 0 0 3px var(--red-dim); }
-.status-dot.blue { background: var(--accent); box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.12); }
+.status-dot.blue { background: var(--accent); box-shadow: 0 0 0 3px rgba(139, 164, 196, 0.12); }
 
 /* ── Print ── */
 @media print {

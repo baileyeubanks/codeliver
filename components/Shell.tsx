@@ -44,10 +44,10 @@ export default function Shell({ children }: { children: React.ReactNode }) {
       >
         {/* Brand */}
         <div className="flex items-center gap-2 px-4 py-4 border-b border-[var(--border)]">
-          <div className="w-2 h-2 rounded-full bg-[var(--accent)] shadow-[0_0_0_4px_rgba(59,130,246,0.15)] flex-shrink-0" />
+          <div className="w-2 h-2 rounded-full bg-[var(--accent)] shadow-[0_0_0_4px_var(--ring)] flex-shrink-0" />
           {!collapsed && (
-            <span className="text-sm font-bold tracking-wide text-[var(--ink)]">
-              Co-Deliver
+            <span className="text-sm font-bold text-[var(--ink)]" style={{ fontFamily: "var(--font-display, inherit)", letterSpacing: "-0.02em" }}>
+              co-deliver
             </span>
           )}
         </div>
@@ -56,7 +56,7 @@ export default function Shell({ children }: { children: React.ReactNode }) {
         <div className="px-3 py-3">
           <Link
             href="/projects/new"
-            className={`flex items-center gap-2 rounded-lg bg-[var(--accent)] text-white text-xs font-semibold px-3 py-2 hover:bg-[var(--accent-hover)] transition-colors ${
+            className={`flex items-center gap-2 rounded-lg bg-[var(--cta)] text-[var(--cta-ink)] border border-[var(--cta-line)] text-xs font-semibold px-3 py-2 hover:-translate-y-px transition-all ${
               collapsed ? "justify-center" : ""
             }`}
           >

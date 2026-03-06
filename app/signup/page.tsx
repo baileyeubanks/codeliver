@@ -106,7 +106,7 @@ export default function SignupPage() {
               fontWeight: 700,
             }}
           >
-            Content Co-op
+            co-deliver
           </div>
           <h1
             style={{
@@ -127,7 +127,7 @@ export default function SignupPage() {
               lineHeight: 1.5,
             }}
           >
-            One account for Co-Edit, Co-Script, and Co-Deliver.
+            One account for co-edit, co-script, and co-deliver.
           </p>
 
           {success ? (

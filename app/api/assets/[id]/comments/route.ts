@@ -117,7 +117,11 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
 
     // Update version comment count
     if (body.version_id) {
-      await getSupabase().rpc("increment_comment_count", { vid: body.version_id }).catch(() => {});
+      try {
+        await getSupabase().rpc("increment_comment_count", { vid: body.version_id });
+      } catch {
+        // RPC may not exist yet — skip silently
+      }
     }
 
     // Send comment notification to asset owner

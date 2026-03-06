@@ -5,10 +5,8 @@ import { usePathname } from "next/navigation";
 import {
   LayoutDashboard,
   FolderOpen,
-  PlayCircle,
   Image,
   Activity,
-  Settings,
   LogOut,
   Plus,
   ChevronLeft,
@@ -35,49 +33,86 @@ export default function Shell({ children }: { children: React.ReactNode }) {
   }
 
   return (
-    <div className="flex h-screen overflow-hidden">
-      {/* Sidebar */}
+    <div style={{ display: "flex", minHeight: "100vh" }}>
       <aside
-        className={`flex flex-col border-r border-[var(--border)] bg-[var(--surface)] transition-all duration-200 ${
-          collapsed ? "w-16" : "w-56"
-        }`}
+        style={{
+          width: collapsed ? 64 : 220,
+          background: "var(--surface)",
+          borderRight: "1px solid var(--line)",
+          display: "flex",
+          flexDirection: "column",
+          transition: "width 0.2s",
+          flexShrink: 0,
+        }}
       >
-        {/* Brand */}
-        <div className="flex items-center gap-2 px-4 py-4 border-b border-[var(--border)]">
-          <div className="w-2 h-2 rounded-full bg-[var(--accent)] shadow-[0_0_0_4px_var(--ring)] flex-shrink-0" />
+        {/* ── Brand header ── */}
+        <div
+          style={{
+            padding: collapsed ? "1.25rem 0.5rem" : "1.25rem 1rem",
+            borderBottom: "1px solid var(--line)",
+            display: "flex",
+            alignItems: "center",
+            gap: "0.5rem",
+          }}
+        >
+          <div
+            style={{
+              width: 10,
+              height: 10,
+              borderRadius: "50%",
+              background: "var(--accent)",
+              boxShadow: "0 0 0 4px var(--accent-dim)",
+              flexShrink: 0,
+            }}
+          />
           {!collapsed && (
-            <span className="text-sm font-bold text-[var(--ink)]" style={{ fontFamily: "var(--font-display, inherit)", letterSpacing: "-0.02em" }}>
+            <span
+              style={{
+                fontWeight: 700,
+                fontSize: "0.9rem",
+                fontFamily: "var(--font-display, inherit)",
+                letterSpacing: "-0.02em",
+              }}
+            >
               co-deliver
             </span>
           )}
         </div>
 
-        {/* New Project */}
-        <div className="px-3 py-3">
+        {/* ── CTA button ── */}
+        {!collapsed && (
           <Link
             href="/projects/new"
-            className={`flex items-center gap-2 rounded-lg bg-[var(--cta)] text-[var(--cta-ink)] border border-[var(--cta-line)] text-xs font-semibold px-3 py-2 hover:-translate-y-px transition-all ${
-              collapsed ? "justify-center" : ""
-            }`}
+            className="btn btn-primary btn-sm"
+            style={{ margin: "0.75rem 1rem 0" }}
           >
-            <Plus size={16} />
-            {!collapsed && "New Project"}
+            <Plus size={14} /> New Project
           </Link>
-        </div>
+        )}
 
-        {/* Nav */}
-        <nav className="flex-1 px-3 space-y-1">
+        {/* ── Navigation ── */}
+        <nav style={{ flex: 1, padding: "0.75rem 0.5rem" }}>
           {NAV.map(({ href, label, icon: Icon }) => {
             const active = href === "/" ? pathname === "/" : pathname.startsWith(href);
             return (
               <Link
                 key={href}
                 href={href}
-                className={`flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors ${
-                  active
-                    ? "bg-[var(--accent)]/10 text-[var(--accent)]"
-                    : "text-[var(--muted)] hover:text-[var(--ink)] hover:bg-white/5"
-                } ${collapsed ? "justify-center" : ""}`}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "0.625rem",
+                  padding: collapsed ? "0.5rem" : "0.5rem 0.75rem",
+                  borderRadius: "var(--radius-sm)",
+                  marginBottom: "0.125rem",
+                  fontSize: "0.85rem",
+                  fontWeight: active ? 600 : 400,
+                  color: active ? "var(--accent)" : "var(--muted)",
+                  background: active ? "var(--accent-dim)" : "transparent",
+                  justifyContent: collapsed ? "center" : "flex-start",
+                  transition: "all 0.15s",
+                  textDecoration: "none",
+                }}
               >
                 <Icon size={18} />
                 {!collapsed && label}
@@ -86,31 +121,50 @@ export default function Shell({ children }: { children: React.ReactNode }) {
           })}
         </nav>
 
-        {/* Bottom */}
-        <div className="px-3 py-3 border-t border-[var(--border)] space-y-1">
-          <button
-            onClick={() => setCollapsed(!collapsed)}
-            className={`flex items-center gap-3 rounded-lg px-3 py-2 text-sm text-[var(--muted)] hover:text-[var(--ink)] hover:bg-white/5 transition-colors w-full ${
-              collapsed ? "justify-center" : ""
-            }`}
-          >
-            {collapsed ? <ChevronRight size={18} /> : <ChevronLeft size={18} />}
-            {!collapsed && "Collapse"}
-          </button>
+        {/* ── Bottom controls ── */}
+        <div style={{ padding: "0.75rem 0.5rem", borderTop: "1px solid var(--line)" }}>
           <button
             onClick={handleLogout}
-            className={`flex items-center gap-3 rounded-lg px-3 py-2 text-sm text-[var(--muted)] hover:text-[var(--red)] hover:bg-white/5 transition-colors w-full ${
-              collapsed ? "justify-center" : ""
-            }`}
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: "0.625rem",
+              padding: collapsed ? "0.5rem" : "0.5rem 0.75rem",
+              borderRadius: "var(--radius-sm)",
+              fontSize: "0.85rem",
+              color: "var(--muted)",
+              background: "transparent",
+              border: "none",
+              cursor: "pointer",
+              width: "100%",
+              justifyContent: collapsed ? "center" : "flex-start",
+            }}
           >
             <LogOut size={18} />
             {!collapsed && "Log out"}
           </button>
+          <button
+            onClick={() => setCollapsed(!collapsed)}
+            style={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              padding: "0.5rem",
+              borderRadius: "var(--radius-sm)",
+              color: "var(--muted)",
+              background: "transparent",
+              border: "none",
+              cursor: "pointer",
+              width: "100%",
+              marginTop: "0.25rem",
+            }}
+          >
+            {collapsed ? <ChevronRight size={16} /> : <ChevronLeft size={16} />}
+          </button>
         </div>
       </aside>
 
-      {/* Main content */}
-      <main className="flex-1 overflow-y-auto">{children}</main>
+      <main style={{ flex: 1, overflow: "auto" }}>{children}</main>
     </div>
   );
 }

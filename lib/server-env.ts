@@ -41,5 +41,9 @@ export function getSiteUrl(): string {
     }
   }
 
+  if (process.env.NODE_ENV === "production") {
+    return "https://deliver.contentco-op.com";
+  }
+
   return `http://localhost:${process.env.PORT ?? "4103"}`;
 }

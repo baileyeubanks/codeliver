@@ -13,8 +13,20 @@ const PUBLIC_ROUTES = [
   "/download/", // public download links
 ];
 
+const CANONICAL_HOST = "deliver.contentco-op.com";
+const LEGACY_HOSTS = new Set(["co-deliver.contentco-op.com", "codeliver.contentco-op.com"]);
+
 export async function proxy(req: NextRequest) {
   const { pathname } = req.nextUrl;
+  const host = req.headers.get("host")?.toLowerCase();
+
+  if (host && LEGACY_HOSTS.has(host)) {
+    const url = new URL(
+      `${req.nextUrl.pathname}${req.nextUrl.search}`,
+      `${(req.headers.get("x-forwarded-proto") || "https").replace(/:$/, "")}://${CANONICAL_HOST}`,
+    );
+    return NextResponse.redirect(url, 308);
+  }
 
   if (
     pathname.startsWith("/_next") ||

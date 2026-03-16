@@ -66,7 +66,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
       actor_name: user.email,
       action: "uploaded_asset",
       details: { asset_title: data.title },
-    }).then(() => {}).catch(() => {});
+    }).then(() => {}, () => {});
 
     return NextResponse.json(data, { status: 201 });
   } catch (e: any) {

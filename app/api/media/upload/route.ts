@@ -5,10 +5,11 @@ import { join, resolve, normalize, extname } from "path";
 import { getSupabase } from "@/lib/supabase";
 
 /**
- * NAS Media Upload API
+ * NAS Media Upload API — Legacy / Small-File Fallback
  *
- * Uploads files to the NAS filesystem at /volume1/media and
- * optionally creates an asset record in Supabase.
+ * For resumable uploads (recommended for all files), use the tus endpoint
+ * at /api/media/tus instead. This endpoint remains as a simple fallback
+ * for small files or integrations that don't support tus.
  *
  * POST /api/media/upload — multipart/form-data
  *   - file: the media file

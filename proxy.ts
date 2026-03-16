@@ -8,6 +8,7 @@ const PUBLIC_ROUTES = [
   "/signup",
   "/auth/callback",
   "/api/auth",
+  "/api/health",
   "/api/review", // public review API
   "/review/", // public review portal
   "/download/", // public download links

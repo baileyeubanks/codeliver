@@ -180,9 +180,96 @@ export async function recordApprovalDecision({
     assetStatus = "needs_changes";
   }
 
+  // ── Webhook emission: fire events to all registered webhooks ──
+  const webhookEvent = allApproved
+    ? "review.completed"
+    : APPROVED_STATUSES.has(status)
+      ? "asset.approved"
+      : "asset.changes_requested";
+
+  emitWebhookEvents(assetId, webhookEvent, {
+    asset_id: assetId,
+    asset_title: asset.data?.title,
+    approval_id: approvalId,
+    decision: status,
+    decided_by: actor.name,
+    all_approved: allApproved,
+    asset_status: assetStatus,
+  }).catch((err) => console.error("[webhooks] Emission error:", err));
+
   return {
     ok: true as const,
     data: updatedApproval,
     assetStatus,
   };
+}
+
+/**
+ * Emit webhook events to all active webhooks that subscribe to this event type.
+ * Fire-and-forget — failures are logged but don't block the response.
+ */
+async function emitWebhookEvents(
+  assetId: string,
+  event: string,
+  data: Record<string, unknown>
+): Promise<void> {
+  const supabase = getSupabase();
+
+  // Get the asset's project → team → webhooks chain
+  const { data: asset } = await supabase
+    .from("assets")
+    .select("project_id, projects(owner_id)")
+    .eq("id", assetId)
+    .single();
+
+  if (!asset) return;
+
+  // Find webhooks that subscribe to this event (or have empty events = all events)
+  const { data: webhooks } = await supabase
+    .from("webhooks")
+    .select("*")
+    .eq("active", true);
+
+  if (!webhooks || webhooks.length === 0) return;
+
+  const payload = {
+    event,
+    timestamp: new Date().toISOString(),
+    data,
+  };
+
+  for (const webhook of webhooks) {
+    // Check if webhook subscribes to this event
+    const events = webhook.events as string[];
+    if (events.length > 0 && !events.includes(event)) continue;
+
+    try {
+      const res = await fetch(webhook.url, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-CoDeliver-Signature": webhook.secret,
+          "X-CoDeliver-Event": event,
+        },
+        body: JSON.stringify(payload),
+        signal: AbortSignal.timeout(10000),
+      });
+
+      // Log delivery
+      await supabase.from("webhook_deliveries").insert({
+        webhook_id: webhook.id,
+        event,
+        payload,
+        response_code: res.status,
+      });
+    } catch (err) {
+      // Log failed delivery
+      await supabase.from("webhook_deliveries").insert({
+        webhook_id: webhook.id,
+        event,
+        payload,
+        response_code: 0,
+      });
+    }
+  }
 }

@@ -100,20 +100,20 @@ export default function AssetUpload({
           });
         },
         onSuccess() {
-          // Upload complete — asset record created server-side
+          // Upload complete — transcode auto-triggered server-side
           updateItem(item.id, {
             status: "processing",
             progress: 100,
           });
 
-          // Try to get asset info from the upload URL
-          // The server creates the asset on finalization
-          // Poll briefly for the asset to transition from processing to ready
+          // Trigger parent refresh so the asset card shows "Processing..."
+          onUploadComplete([]);
+
+          // Mark upload item as done after short delay
+          // (The asset card will continue showing transcode progress)
           setTimeout(() => {
             updateItem(item.id, { status: "done" });
-            // Trigger parent refresh
-            onUploadComplete([]);
-          }, 1000);
+          }, 2000);
         },
         onError(error) {
           console.error("[tus] Upload error:", error);

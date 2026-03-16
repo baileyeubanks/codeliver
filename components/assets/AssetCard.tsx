@@ -10,6 +10,8 @@ import {
   MessageSquare,
   GitBranch,
   CheckCircle2,
+  Loader2,
+  AlertTriangle,
 } from "lucide-react";
 import type { Tag } from "@/lib/types/codeliver";
 import { formatFileSize, formatDuration, timeAgo } from "@/lib/utils/media";
@@ -46,6 +48,9 @@ const STATUS_COLORS: Record<string, string> = {
   approved: "bg-[var(--green)]/20 text-[var(--green)]",
   needs_changes: "bg-[var(--red)]/20 text-[var(--red)]",
   final: "bg-[var(--purple)]/20 text-[var(--purple)]",
+  processing: "bg-[var(--accent)]/20 text-[var(--accent)]",
+  ready: "bg-[var(--green)]/20 text-[var(--green)]",
+  failed: "bg-[var(--red)]/20 text-[var(--red)]",
 };
 
 const STATUS_LABELS: Record<string, string> = {
@@ -54,6 +59,9 @@ const STATUS_LABELS: Record<string, string> = {
   approved: "Approved",
   needs_changes: "Changes",
   final: "Final",
+  processing: "Processing",
+  ready: "Ready",
+  failed: "Failed",
 };
 
 export default function AssetCard({
@@ -104,7 +112,17 @@ export default function AssetCard({
 
       {/* Thumbnail */}
       <div className="aspect-video bg-[var(--surface-2)] relative flex items-center justify-center">
-        {asset.thumbnail_url ? (
+        {asset.status === "processing" ? (
+          <div className="flex flex-col items-center gap-2">
+            <Loader2 size={28} className="text-[var(--accent)] animate-spin" />
+            <span className="text-xs text-[var(--muted)]">Processing...</span>
+          </div>
+        ) : asset.status === "failed" ? (
+          <div className="flex flex-col items-center gap-2">
+            <AlertTriangle size={28} className="text-[var(--red)]" />
+            <span className="text-xs text-[var(--red)]">Transcode failed</span>
+          </div>
+        ) : asset.thumbnail_url ? (
           <img
             src={asset.thumbnail_url}
             alt={asset.title}
@@ -113,7 +131,7 @@ export default function AssetCard({
         ) : (
           <Icon size={32} className="text-[var(--dim)]" />
         )}
-        {asset.duration_seconds && (
+        {asset.duration_seconds && asset.status !== "processing" && (
           <span className="absolute bottom-1 right-1 text-xs bg-black/70 text-white px-1.5 py-0.5 rounded">
             {formatDuration(asset.duration_seconds)}
           </span>

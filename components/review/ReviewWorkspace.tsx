@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import Link from "next/link";
 import {
   ArrowLeft,
@@ -34,6 +34,8 @@ import DownloadPanel from "./panels/DownloadPanel";
 import CaptionsPanel from "./panels/CaptionsPanel";
 import ActivityPanel from "./panels/ActivityPanel";
 import SharePanel from "./panels/SharePanel";
+import { useRealtimeComments } from "@/lib/hooks/useRealtimeComments";
+import { useRealtimePresence } from "@/lib/hooks/useRealtimePresence";
 
 type SidebarTab = "info" | "comments" | "reviewers" | "download" | "captions" | "activity" | "share";
 
@@ -47,6 +49,21 @@ const SIDEBAR_TABS: { key: SidebarTab; icon: typeof Info; label: string }[] = [
   { key: "share", icon: Share2, label: "Share" },
 ];
 
+interface ReviewComment {
+  id: string;
+  author_name: string;
+  body: string;
+  timecode_seconds?: number;
+  pin_x?: number;
+  pin_y?: number;
+  status: string;
+  created_at: string;
+  is_team_only?: boolean;
+  is_external?: boolean;
+  replies?: ReviewComment[];
+  attachments?: string[];
+}
+
 interface ReviewWorkspaceProps {
   assetId: string;
   projectId: string;
@@ -55,6 +72,8 @@ interface ReviewWorkspaceProps {
   thumbnailUrl?: string;
   versionNumber: number;
   backHref: string;
+  userId?: string;
+  userName?: string;
 }
 
 export default function ReviewWorkspace({
@@ -65,6 +84,8 @@ export default function ReviewWorkspace({
   thumbnailUrl,
   versionNumber,
   backHref,
+  userId = "",
+  userName = "",
 }: ReviewWorkspaceProps) {
   const [activeTab, setActiveTab] = useState<SidebarTab | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
@@ -75,8 +96,78 @@ export default function ReviewWorkspace({
   const [isMuted, setIsMuted] = useState(false);
   const [showVersionMenu, setShowVersionMenu] = useState(false);
   const [isTheaterMode, setIsTheaterMode] = useState(false);
+  const [comments, setComments] = useState<ReviewComment[]>([]);
   const videoRef = useRef<HTMLVideoElement>(null);
   const progressRef = useRef<HTMLDivElement>(null);
+
+  // ── Realtime: live comments ──
+  const onNewComment = useCallback((comment: ReviewComment) => {
+    setComments((prev) => {
+      // Deduplicate — might already exist from our own optimistic insert
+      if (prev.some((c) => c.id === comment.id)) return prev;
+      return [...prev, comment];
+    });
+  }, []);
+  useRealtimeComments(assetId, onNewComment as (c: unknown) => void);
+
+  // ── Realtime: presence (who's watching) ──
+  const presenceUsers = useRealtimePresence(assetId, userId, userName);
+
+  // ── Load initial comments from API ──
+  useEffect(() => {
+    if (!assetId) return;
+    fetch(`/api/assets/${assetId}/comments`)
+      .then((r) => (r.ok ? r.json() : { items: [] }))
+      .then((data) => setComments(data.items ?? data ?? []))
+      .catch(() => {});
+  }, [assetId]);
+
+  // ── Comment actions ──
+  const handleReply = useCallback(
+    async (commentId: string, text: string) => {
+      try {
+        const res = await fetch(`/api/assets/${assetId}/comments`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            body: text,
+            parent_id: commentId,
+          }),
+        });
+        if (res.ok) {
+          const reply = await res.json();
+          setComments((prev) =>
+            prev.map((c) =>
+              c.id === commentId
+                ? { ...c, replies: [...(c.replies ?? []), reply] }
+                : c
+            )
+          );
+        }
+      } catch {}
+    },
+    [assetId]
+  );
+
+  const handleResolve = useCallback(
+    async (commentId: string) => {
+      const comment = comments.find((c) => c.id === commentId);
+      const newStatus = comment?.status === "resolved" ? "open" : "resolved";
+      setComments((prev) =>
+        prev.map((c) =>
+          c.id === commentId ? { ...c, status: newStatus } : c
+        )
+      );
+      try {
+        await fetch(`/api/assets/${assetId}/comments/${commentId}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ status: newStatus }),
+        });
+      } catch {}
+    },
+    [assetId, comments]
+  );
 
   // Keyboard shortcuts
   useEffect(() => {
@@ -220,9 +311,9 @@ export default function ReviewWorkspace({
       case "comments":
         return (
           <CommentsPanel
-            comments={[]}
-            onReply={() => {}}
-            onResolve={() => {}}
+            comments={comments}
+            onReply={handleReply}
+            onResolve={handleResolve}
           />
         );
       case "reviewers":
@@ -230,7 +321,12 @@ export default function ReviewWorkspace({
           <ReviewersPanel
             approvers={[]}
             reviewers={[]}
-            others={[]}
+            others={presenceUsers.map((u) => ({
+              id: u.userId,
+              name: u.userName,
+              role: "viewer",
+              status: "online",
+            }))}
             approvalRequired={0}
             reviewRequired={0}
           />

@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import ReviewWorkspace from "@/components/review/ReviewWorkspace";
+import { createSupabaseBrowser } from "@/lib/supabase-browser";
 
 interface AssetData {
   id: string;
@@ -19,6 +20,19 @@ export default function InternalAssetReviewPage() {
   const assetId = params?.assetId as string;
   const [asset, setAsset] = useState<AssetData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [userId, setUserId] = useState("");
+  const [userName, setUserName] = useState("");
+
+  // Get current user for presence
+  useEffect(() => {
+    const supabase = createSupabaseBrowser();
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      if (user) {
+        setUserId(user.id);
+        setUserName(user.email || user.id.slice(0, 8));
+      }
+    });
+  }, []);
 
   useEffect(() => {
     if (!assetId) return;
@@ -72,6 +86,8 @@ export default function InternalAssetReviewPage() {
       thumbnailUrl={asset.thumbnail_url}
       versionNumber={asset.version_count}
       backHref={`/projects/${asset.project_id}`}
+      userId={userId}
+      userName={userName}
     />
   );
 }

@@ -39,6 +39,13 @@ const MIME_TYPES: Record<string, string> = {
   ".pdf": "application/pdf",
   ".srt": "text/plain",
   ".vtt": "text/vtt",
+  ".m3u8": "application/vnd.apple.mpegurl",
+  ".ts": "video/mp2t",
+  ".m4s": "video/iso.segment",
+  ".mp3": "audio/mpeg",
+  ".wav": "audio/wav",
+  ".aac": "audio/aac",
+  ".flac": "audio/flac",
 };
 
 function getMimeType(filePath: string): string {
@@ -77,6 +84,20 @@ export async function GET(req: NextRequest) {
 
   const mimeType = getMimeType(absolutePath);
   const fileSize = stat.size;
+  const isDownload = req.nextUrl.searchParams.get("download") === "1";
+
+  // Common headers
+  const baseHeaders: Record<string, string> = {
+    "Content-Type": mimeType,
+    "Accept-Ranges": "bytes",
+    "Cache-Control": "public, max-age=3600",
+  };
+
+  // Download mode: force browser download with Content-Disposition
+  if (isDownload) {
+    const fileName = normalizedPath.split("/").pop() || "download";
+    baseHeaders["Content-Disposition"] = `attachment; filename="${fileName}"`;
+  }
 
   // Handle range requests (for video seeking)
   const rangeHeader = req.headers.get("range");
@@ -93,11 +114,9 @@ export async function GET(req: NextRequest) {
     return new Response(webStream, {
       status: 206,
       headers: {
+        ...baseHeaders,
         "Content-Range": `bytes ${start}-${end}/${fileSize}`,
-        "Accept-Ranges": "bytes",
         "Content-Length": String(chunkSize),
-        "Content-Type": mimeType,
-        "Cache-Control": "public, max-age=3600",
       },
     });
   }
@@ -109,10 +128,8 @@ export async function GET(req: NextRequest) {
   return new Response(webStream, {
     status: 200,
     headers: {
+      ...baseHeaders,
       "Content-Length": String(fileSize),
-      "Content-Type": mimeType,
-      "Accept-Ranges": "bytes",
-      "Cache-Control": "public, max-age=3600",
     },
   });
 }

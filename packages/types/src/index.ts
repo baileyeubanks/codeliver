@@ -15,7 +15,7 @@ export interface CuratedFrame {
   imageUrl: string;
 }
 
-/* ─── Co-Edit ─── */
+/* ─── Co-Cut ─── */
 export type ReviewStatus = "In review" | "Needs changes" | "Ready to approve" | "Approved";
 
 export interface ReviewAsset {

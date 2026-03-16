@@ -20,6 +20,7 @@ interface PlayerStore {
   setVolume: (v: number) => void;
   setPlaybackRate: (r: number) => void;
   setFrameRate: (fps: number) => void;
+  reset: () => void;
 
   // Derived helpers
   currentFrame: () => number;
@@ -76,6 +77,16 @@ export const usePlayerStore = create<PlayerStore>((set, get) => ({
   setVolume: (v) => set({ volume: v, muted: v === 0 }),
   setPlaybackRate: (r) => set({ playbackRate: r }),
   setFrameRate: (fps) => set({ frameRate: fps }),
+  reset: () =>
+    set({
+      currentTime: 0,
+      duration: 0,
+      playing: false,
+      muted: false,
+      volume: 1,
+      playbackRate: 1,
+      frameRate: 30,
+    }),
 
   currentFrame: () => Math.floor(get().currentTime * get().frameRate),
   totalFrames: () => Math.floor(get().duration * get().frameRate),

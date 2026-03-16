@@ -14,6 +14,7 @@ export async function POST(req: Request) {
     .from("review_invites")
     .select("*")
     .eq("id", invite_id)
+    .eq("asset_id", asset_id)
     .single();
 
   if (inviteError || !invite) {

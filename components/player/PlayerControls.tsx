@@ -92,7 +92,7 @@ export default function PlayerControls({ videoRef }: PlayerControlsProps) {
   }
 
   return (
-    <div className="flex flex-col gap-2 rounded-b-[var(--radius)] bg-[var(--surface)] px-4 py-3">
+    <div className="flex flex-col gap-3 rounded-b-[var(--radius)] bg-[var(--surface)] px-3 py-3 sm:px-4">
       {/* Progress bar */}
       <div
         ref={progressRef}
@@ -117,7 +117,7 @@ export default function PlayerControls({ videoRef }: PlayerControlsProps) {
       </div>
 
       {/* Controls row */}
-      <div className="flex items-center gap-3">
+      <div className="flex flex-wrap items-center gap-3">
         {/* Transport */}
         <div className="flex items-center gap-1">
           <button
@@ -162,14 +162,14 @@ export default function PlayerControls({ videoRef }: PlayerControlsProps) {
         </div>
 
         {/* Time display */}
-        <span className="min-w-[80px] text-xs tabular-nums text-[var(--muted)]">
+        <span className="order-last w-full text-xs tabular-nums text-[var(--muted)] sm:order-none sm:w-auto sm:min-w-[80px]">
           {formatTime(currentTime)} / {formatTime(duration)}
         </span>
 
-        <div className="flex-1" />
+        <div className="hidden flex-1 sm:block" />
 
         {/* Volume */}
-        <div className="flex items-center gap-2">
+        <div className="hidden items-center gap-2 sm:flex">
           <button
             onClick={toggleMute}
             className="rounded-[var(--radius-sm)] p-1.5 text-[var(--muted)] transition-colors hover:bg-[var(--surface-2)] hover:text-[var(--ink)]"

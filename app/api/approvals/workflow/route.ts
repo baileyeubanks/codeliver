@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth";
+import { getOwnedAsset, getOwnedWorkflow } from "@/lib/access-control";
+import { normalizeReviewerEmail } from "@/lib/review-invites";
 import { getSupabase } from "@/lib/supabase";
 
 interface StepInput {
@@ -20,6 +22,11 @@ export async function GET(req: Request) {
       { error: "asset_id is required" },
       { status: 400 }
     );
+
+  const assetAccess = await getOwnedAsset(assetId, user.id);
+  if (!assetAccess.ok) {
+    return NextResponse.json({ error: assetAccess.error }, { status: assetAccess.status });
+  }
 
   const supabase = getSupabase();
 
@@ -64,6 +71,11 @@ export async function POST(req: Request) {
       { status: 400 }
     );
 
+  const assetAccess = await getOwnedAsset(asset_id, user.id);
+  if (!assetAccess.ok) {
+    return NextResponse.json({ error: assetAccess.error }, { status: assetAccess.status });
+  }
+
   const supabase = getSupabase();
 
   const { data: workflow, error: wErr } = await supabase
@@ -85,7 +97,7 @@ export async function POST(req: Request) {
     workflow_id: workflow.id,
     step_order: s.step_order,
     role_label: s.role_label,
-    assignee_email: s.assignee_email,
+    assignee_email: normalizeReviewerEmail(s.assignee_email),
     status: "pending",
   }));
 
@@ -121,6 +133,11 @@ export async function PUT(req: Request) {
       { status: 400 }
     );
 
+  const workflowAccess = await getOwnedWorkflow(workflow_id, user.id);
+  if (!workflowAccess.ok) {
+    return NextResponse.json({ error: workflowAccess.error }, { status: workflowAccess.status });
+  }
+
   const supabase = getSupabase();
 
   if (mode) {
@@ -144,11 +161,7 @@ export async function PUT(req: Request) {
       return NextResponse.json({ error: delErr.message }, { status: 500 });
 
     // Get the asset_id from the workflow
-    const { data: wf } = await supabase
-      .from("approval_workflows")
-      .select("asset_id")
-      .eq("id", workflow_id)
-      .single();
+    const wf = workflowAccess.data;
 
     if (wf) {
       const stepRows = steps.map((s) => ({
@@ -156,7 +169,7 @@ export async function PUT(req: Request) {
         workflow_id,
         step_order: s.step_order,
         role_label: s.role_label,
-        assignee_email: s.assignee_email,
+        assignee_email: normalizeReviewerEmail(s.assignee_email),
         status: "pending",
       }));
 
@@ -200,6 +213,11 @@ export async function DELETE(req: Request) {
       { error: "workflow_id is required" },
       { status: 400 }
     );
+
+  const workflowAccess = await getOwnedWorkflow(workflow_id, user.id);
+  if (!workflowAccess.ok) {
+    return NextResponse.json({ error: workflowAccess.error }, { status: workflowAccess.status });
+  }
 
   const supabase = getSupabase();
 

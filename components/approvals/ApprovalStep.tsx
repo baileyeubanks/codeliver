@@ -51,6 +51,7 @@ export default function ApprovalStepCard({
 
   const config = statusConfig[step.status];
   const StatusIcon = config.icon;
+  const assigneeLabel = step.assignee_email || (step.can_decide ? "Assigned to this review link" : null);
 
   async function handleDecide(decision: ApprovalDecision, note?: string) {
     if (!onDecide) return;
@@ -95,7 +96,7 @@ export default function ApprovalStepCard({
 
   return (
     <div
-      className={`p-4 rounded-[var(--radius)] bg-[var(--surface)] border transition-colors ${
+      className={`rounded-[var(--radius)] border bg-[var(--bg)]/72 p-4 transition-colors ${
         isActive
           ? "border-[var(--accent)] shadow-[0_0_0_1px_var(--accent)]"
           : "border-[var(--border)]"
@@ -118,9 +119,9 @@ export default function ApprovalStepCard({
                 {step.role_label}
               </span>
             </div>
-            <p className="text-xs text-[var(--muted)] truncate">
-              {step.assignee_email}
-            </p>
+            {assigneeLabel ? (
+              <p className="text-xs text-[var(--muted)] truncate">{assigneeLabel}</p>
+            ) : null}
           </div>
         </div>
         <span
@@ -132,7 +133,7 @@ export default function ApprovalStepCard({
       </div>
 
       {step.decision_note && (
-        <p className="mt-3 text-sm text-[var(--muted)] italic pl-11">
+        <p className="mt-3 pl-11 text-sm leading-6 text-[var(--muted)]">
           &ldquo;{step.decision_note}&rdquo;
         </p>
       )}

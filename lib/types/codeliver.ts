@@ -6,6 +6,7 @@ export type AnnotationType = "pin" | "rectangle" | "freehand" | "arrow" | "text"
 export type FileType = "video" | "image" | "audio" | "document" | "other";
 export type AssetStatus = "draft" | "in_review" | "approved" | "needs_changes" | "final";
 export type CommentStatus = "open" | "resolved" | "archived";
+export type CommentVisibility = "internal" | "external";
 export type ApprovalDecision = "pending" | "approved" | "approved_with_changes" | "changes_requested" | "rejected";
 export type WorkflowMode = "sequential" | "parallel";
 export type SharePermission = "view" | "comment" | "approve";
@@ -45,6 +46,7 @@ export type AnnotationData =
 export interface Comment {
   id: string;
   review_id: string | null;
+  review_invite_id: string | null;
   asset_id: string;
   parent_id: string | null;
   author_name: string;
@@ -58,6 +60,7 @@ export interface Comment {
   pin_y: number | null;
   mentions: string[];
   status: CommentStatus;
+  visibility: CommentVisibility;
   resolved_by: string | null;
   resolved_at: string | null;
   created_at: string;
@@ -97,6 +100,7 @@ export interface ApprovalStep {
   status: ApprovalDecision;
   decision_note: string | null;
   decided_at: string | null;
+  can_decide?: boolean;
   created_at: string;
 }
 

@@ -3,12 +3,12 @@
   "version": "0.1.0",
   "private": true,
   "engines": {
-    "node": ">=18"
+    "node": ">=20.9.0"
   },
   "scripts": {
-    "dev": "next dev -p 4103",
+    "dev": "next dev --port ${PORT:-4103}",
     "build": "next build",
-    "start": "next start -p 4103",
+    "start": "next start --port ${PORT:-4103}",
     "lint": "next lint",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
@@ -34,7 +34,6 @@
     "zustand": "^5.0.11"
   },
   "devDependencies": {
-    "@netlify/plugin-nextjs": "^5.15.8",
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20.19.16",
     "@types/react": "^19.2.2",

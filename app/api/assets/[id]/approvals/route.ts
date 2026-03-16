@@ -1,43 +1,48 @@
 import { NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth";
+import { getOwnedAsset } from "@/lib/access-control";
+import { recordApprovalDecision } from "@/lib/approval-decisions";
+import { createApprovalInvite, normalizeReviewerEmail } from "@/lib/review-invites";
 import { getSupabase } from "@/lib/supabase";
 import { sendEmail, emailTemplates, getBaseUrl } from "@/lib/email";
-
-async function verifyAssetAccess(assetId: string, userId: string) {
-  const { data: asset } = await getSupabase()
-    .from("assets")
-    .select("project_id")
-    .eq("id", assetId)
-    .single();
-  if (!asset) return { allowed: false, status: 404, error: "Asset not found" } as const;
-
-  const { data: project } = await getSupabase()
-    .from("projects")
-    .select("owner_id")
-    .eq("id", asset.project_id)
-    .single();
-  if (!project || project.owner_id !== userId) {
-    return { allowed: false, status: 403, error: "Forbidden" } as const;
-  }
-  return { allowed: true } as const;
-}
 
 export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const user = await requireAuth();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const access = await verifyAssetAccess(id, user.id);
-  if (!access.allowed) return NextResponse.json({ error: access.error }, { status: access.status });
+  const assetAccess = await getOwnedAsset(id, user.id);
+  if (!assetAccess.ok) {
+    return NextResponse.json({ error: assetAccess.error }, { status: assetAccess.status });
+  }
 
-  const { data, error } = await getSupabase()
-    .from("approvals")
-    .select("*")
-    .eq("asset_id", id)
-    .order("step_order", { ascending: true });
+  const supabase = getSupabase();
+  const [approvalsResult, workflowResult] = await Promise.all([
+    supabase
+      .from("approvals")
+      .select("*")
+      .eq("asset_id", id)
+      .order("step_order", { ascending: true }),
+    supabase
+      .from("approval_workflows")
+      .select("mode")
+      .eq("asset_id", id)
+      .eq("status", "active")
+      .maybeSingle(),
+  ]);
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-  return NextResponse.json({ items: data });
+  if (approvalsResult.error) {
+    return NextResponse.json({ error: approvalsResult.error.message }, { status: 500 });
+  }
+
+  if (workflowResult.error) {
+    return NextResponse.json({ error: workflowResult.error.message }, { status: 500 });
+  }
+
+  return NextResponse.json({
+    items: approvalsResult.data,
+    workflow_mode: workflowResult.data?.mode ?? null,
+  });
 }
 
 export async function POST(req: Request, { params }: { params: Promise<{ id: string }> }) {
@@ -45,11 +50,13 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const { id } = await params;
-
-  const access = await verifyAssetAccess(id, user.id);
-  if (!access.allowed) return NextResponse.json({ error: access.error }, { status: access.status });
+  const assetAccess = await getOwnedAsset(id, user.id);
+  if (!assetAccess.ok) {
+    return NextResponse.json({ error: assetAccess.error }, { status: assetAccess.status });
+  }
 
   const body = await req.json();
+  const assigneeEmail = normalizeReviewerEmail(body.assignee_email);
 
   const { data, error } = await getSupabase()
     .from("approvals")
@@ -57,7 +64,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
       asset_id: id,
       step_order: body.step_order || 1,
       role_label: body.role_label,
-      assignee_email: body.assignee_email || null,
+      assignee_email: assigneeEmail,
       assignee_id: body.assignee_id || null,
     })
     .select()
@@ -66,19 +73,29 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
   // Send approval request email
-  if (data && body.assignee_email) {
+  if (data && assigneeEmail) {
     const asset = await getSupabase().from("assets").select("title, project_id").eq("id", id).single();
     const project = await getSupabase().from("projects").select("name").eq("id", asset.data?.project_id).single();
 
     if (asset.data && project.data) {
-      const reviewUrl = `${getBaseUrl()}/projects/${asset.data.project_id}/assets/${id}`;
-      const emailPayload = emailTemplates.approvalRequest(
-        body.assignee_email,
-        asset.data.title,
-        project.data.name,
-        reviewUrl
-      );
-      await sendEmail({ to: body.assignee_email, ...emailPayload });
+      try {
+        const reviewInvite = await createApprovalInvite({
+          assetId: id,
+          reviewerEmail: assigneeEmail,
+          reviewerName: body.assignee_name || null,
+          createdBy: user.id,
+        });
+        const reviewUrl = `${getBaseUrl()}/review/${reviewInvite.token}`;
+        const emailPayload = emailTemplates.approvalRequest(
+          assigneeEmail,
+          asset.data.title,
+          project.data.name,
+          reviewUrl
+        );
+        await sendEmail({ to: assigneeEmail, ...emailPayload });
+      } catch (inviteError) {
+        console.error("Failed to create approval invite", inviteError);
+      }
     }
   }
 
@@ -90,50 +107,30 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const { id: assetId } = await params;
-  const body = await req.json();
-
-  const { data, error } = await getSupabase()
-    .from("approvals")
-    .update({
-      status: body.status,
-      decision_note: body.decision_note || null,
-      decided_at: new Date().toISOString(),
-    })
-    .eq("id", body.id)
-    .select()
-    .single();
-
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-
-  // Log activity
-  const asset = await getSupabase().from("assets").select("project_id, title").eq("id", assetId).single();
-  if (asset.data) {
-    await getSupabase().from("activity_log").insert({
-      project_id: asset.data.project_id,
-      asset_id: assetId,
-      actor_id: user.id,
-      actor_name: user.email,
-      action: body.status === "approved" ? "approved_asset" : "requested_changes",
-      details: { asset_title: asset.data.title, role: data.role_label },
-    });
-
-    // Check if all approvals are done — auto-update asset status
-    if (body.status === "approved") {
-      const { data: allApprovals } = await getSupabase()
-        .from("approvals")
-        .select("status")
-        .eq("asset_id", assetId);
-
-      const allApproved = allApprovals?.every((a) => a.status === "approved");
-      if (allApproved) {
-        await getSupabase().from("assets").update({ status: "approved" }).eq("id", assetId);
-      }
-    }
-
-    if (body.status === "changes_requested") {
-      await getSupabase().from("assets").update({ status: "needs_changes" }).eq("id", assetId);
-    }
+  const assetAccess = await getOwnedAsset(assetId, user.id);
+  if (!assetAccess.ok) {
+    return NextResponse.json({ error: assetAccess.error }, { status: assetAccess.status });
   }
 
-  return NextResponse.json(data);
+  const body = await req.json();
+
+  const decision = await recordApprovalDecision({
+    assetId,
+    approvalId: body.id,
+    status: body.status,
+    decisionNote: body.decision_note,
+    actor: {
+      id: user.id,
+      name: user.email ?? "Internal reviewer",
+    },
+  });
+
+  if (!decision.ok) {
+    return NextResponse.json({ error: decision.error }, { status: decision.statusCode });
+  }
+
+  return NextResponse.json({
+    approval: decision.data,
+    asset_status: decision.assetStatus,
+  });
 }

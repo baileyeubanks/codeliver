@@ -1,17 +1,23 @@
 import { NextResponse } from "next/server";
-import { requireAuth } from "@/lib/auth";
-import { getSupabase } from "@/lib/supabase";
+import { requireAuthWithClient } from "@/lib/auth-client";
 
 export async function GET() {
-  const user = await requireAuth();
+  const { user, supabase } = await requireAuthWithClient();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const { data, error } = await getSupabase()
-    .from("assets")
-    .select("*, projects!inner(owner_id)")
-    .eq("projects.owner_id", user.id)
-    .order("updated_at", { ascending: false });
+  try {
+    const { data, error } = await supabase
+      .from("assets")
+      .select("*, projects!inner(owner_id)")
+      .eq("projects.owner_id", user.id)
+      .order("updated_at", { ascending: false });
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-  return NextResponse.json({ items: data });
+    if (error) {
+      console.error("Assets API error:", error.message);
+      return NextResponse.json({ items: [] });
+    }
+    return NextResponse.json({ items: data ?? [] });
+  } catch (e) {
+    return NextResponse.json({ items: [] });
+  }
 }

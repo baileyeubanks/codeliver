@@ -11,6 +11,25 @@ interface BulkPayload {
   tag_id?: string;
 }
 
+async function verifyOwnedAssets(assetIds: string[], userId: string) {
+  const uniqueIds = Array.from(new Set(assetIds));
+  const { data, error } = await getSupabase()
+    .from("assets")
+    .select("id, projects!inner(owner_id)")
+    .in("id", uniqueIds)
+    .eq("projects.owner_id", userId);
+
+  if (error) {
+    return { ok: false as const, status: 500, error: error.message };
+  }
+
+  if ((data ?? []).length !== uniqueIds.length) {
+    return { ok: false as const, status: 404, error: "One or more assets were not found" };
+  }
+
+  return { ok: true as const };
+}
+
 export async function POST(request: NextRequest) {
   const user = await requireAuth();
   if (!user) {
@@ -25,6 +44,11 @@ export async function POST(request: NextRequest) {
       { error: "action and asset_ids are required" },
       { status: 400 }
     );
+  }
+
+  const ownership = await verifyOwnedAssets(asset_ids, user.id);
+  if (!ownership.ok) {
+    return NextResponse.json({ error: ownership.error }, { status: ownership.status });
   }
 
   const supabase = getSupabase();

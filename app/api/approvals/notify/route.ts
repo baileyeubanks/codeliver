@@ -1,7 +1,9 @@
 import { NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth";
+import { getOwnedAsset } from "@/lib/access-control";
 import { getSupabase } from "@/lib/supabase";
 import { sendEmail, emailTemplates, getBaseUrl } from "@/lib/email";
+import { createApprovalInvite } from "@/lib/review-invites";
 
 export async function POST(req: Request) {
   const user = await requireAuth();
@@ -14,12 +16,18 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "approval_id and asset_id are required" }, { status: 400 });
   }
 
+  const assetAccess = await getOwnedAsset(asset_id, user.id);
+  if (!assetAccess.ok) {
+    return NextResponse.json({ error: assetAccess.error }, { status: assetAccess.status });
+  }
+
   const supabase = getSupabase();
 
   const { data: step, error: stepErr } = await supabase
     .from("approvals")
     .select("*")
     .eq("id", approval_id)
+    .eq("asset_id", asset_id)
     .single();
 
   if (stepErr || !step) return NextResponse.json({ error: "Approval step not found" }, { status: 404 });
@@ -39,7 +47,12 @@ export async function POST(req: Request) {
     .eq("id", asset.project_id)
     .single();
 
-  const reviewUrl = `${getBaseUrl()}/projects/${asset.project_id}/assets/${asset_id}`;
+  const reviewInvite = await createApprovalInvite({
+    assetId: asset_id,
+    reviewerEmail: step.assignee_email,
+    createdBy: user.id,
+  });
+  const reviewUrl = `${getBaseUrl()}/review/${reviewInvite.token}`;
 
   const emailPayload = emailTemplates.approvalRequest(
     step.assignee_email,

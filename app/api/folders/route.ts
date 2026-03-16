@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireAuth } from "@/lib/auth";
-import { getSupabase } from "@/lib/supabase";
+import { requireAuthWithClient } from "@/lib/auth-client";
 
 type FolderRow = {
   id: string;
@@ -39,35 +38,49 @@ function buildTree(rows: FolderRow[]): FolderTree[] {
 }
 
 export async function GET(request: NextRequest) {
-  const user = await requireAuth();
+  const { user, supabase } = await requireAuthWithClient();
   if (!user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
   const projectId = request.nextUrl.searchParams.get("project_id");
+
+  // If no project_id, return all folders for projects the user owns
   if (!projectId) {
-    return NextResponse.json(
-      { error: "project_id is required" },
-      { status: 400 }
-    );
+    try {
+      const { data, error } = await supabase
+        .from("folders")
+        .select("*, projects!inner(owner_id)")
+        .eq("projects.owner_id", user.id)
+        .order("position", { ascending: true });
+
+      if (error) {
+        return NextResponse.json({ items: [] });
+      }
+      return NextResponse.json({ items: buildTree(data || []) });
+    } catch {
+      return NextResponse.json({ items: [] });
+    }
   }
 
-  const supabase = getSupabase();
-  const { data, error } = await supabase
-    .from("folders")
-    .select("*")
-    .eq("project_id", projectId)
-    .order("position", { ascending: true });
+  try {
+    const { data, error } = await supabase
+      .from("folders")
+      .select("*")
+      .eq("project_id", projectId)
+      .order("position", { ascending: true });
 
-  if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    if (error) {
+      return NextResponse.json({ error: error.message }, { status: 500 });
+    }
+    return NextResponse.json({ items: buildTree(data || []) });
+  } catch {
+    return NextResponse.json({ items: [] });
   }
-
-  return NextResponse.json(buildTree(data || []));
 }
 
 export async function POST(request: NextRequest) {
-  const user = await requireAuth();
+  const { user, supabase } = await requireAuthWithClient();
   if (!user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
@@ -81,8 +94,6 @@ export async function POST(request: NextRequest) {
       { status: 400 }
     );
   }
-
-  const supabase = getSupabase();
 
   // Get next position
   const { data: siblings } = await supabase
@@ -115,7 +126,7 @@ export async function POST(request: NextRequest) {
 }
 
 export async function PATCH(request: NextRequest) {
-  const user = await requireAuth();
+  const { user, supabase } = await requireAuthWithClient();
   if (!user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
@@ -139,7 +150,6 @@ export async function PATCH(request: NextRequest) {
     );
   }
 
-  const supabase = getSupabase();
   const { data, error } = await supabase
     .from("folders")
     .update(updates)
@@ -155,7 +165,7 @@ export async function PATCH(request: NextRequest) {
 }
 
 export async function DELETE(request: NextRequest) {
-  const user = await requireAuth();
+  const { user, supabase } = await requireAuthWithClient();
   if (!user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
@@ -166,8 +176,6 @@ export async function DELETE(request: NextRequest) {
   if (!id) {
     return NextResponse.json({ error: "id is required" }, { status: 400 });
   }
-
-  const supabase = getSupabase();
 
   // Get folder to find its parent
   const { data: folder } = await supabase

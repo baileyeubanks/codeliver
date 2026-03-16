@@ -182,6 +182,33 @@ export async function finalizeUpload(
         meta.assetId = data.id;
         meta.finalPath = relativePath;
         writeFileSync(metaPath(uploadId), JSON.stringify(meta, null, 2));
+
+        // Auto-enqueue transcode job for video/audio files
+        const needsTranscode = ["video", "audio"].includes(fileType);
+        if (needsTranscode) {
+          try {
+            const { enqueueTranscode } = await import("@/lib/workers/queue");
+            const { processJob } = await import("@/lib/workers/transcode");
+            const job = await enqueueTranscode({
+              assetId: data.id,
+              inputPath: relativePath,
+            });
+            if (job) {
+              // Fire-and-forget async processing
+              processJob(job).catch((e) =>
+                console.error("[tus] Transcode failed:", e)
+              );
+            }
+          } catch (e) {
+            console.error("[tus] Failed to enqueue transcode:", e);
+          }
+        } else {
+          // Non-media files go straight to ready
+          await getSupabase()
+            .from("assets")
+            .update({ status: "ready" })
+            .eq("id", data.id);
+        }
       } else {
         console.error("[tus] Failed to create asset record:", error);
       }
@@ -190,8 +217,6 @@ export async function finalizeUpload(
     }
   }
 
-  // Clean up metadata file (keep for 24h for debugging, or clean now)
-  // For now, keep it — a cleanup cron can handle stale uploads later
   return { relativePath, streamUrl, asset: assetRecord };
 }
 

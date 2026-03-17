@@ -12,6 +12,13 @@
   - `https://codeliver.contentco-op.com`
   - both should redirect to the canonical host at the app layer
 
+## Live Publishing Rule
+
+- Live branch: `main`
+- Live source control: GitHub
+- Live deploy plane: Coolify webhook-driven rebuild from `baileyeubanks/codeliver`
+- Standard publish path: clean repo -> `git push origin main` -> Coolify auto-deploy -> `/api/health` verify
+
 ## Required Environment
 
 | Variable | Required | Purpose |

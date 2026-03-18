@@ -30,9 +30,10 @@ export function getSiteUrl(): string {
   const candidates: Array<[string, string | undefined]> = [
     ["SITE_URL", process.env.SITE_URL],
     ["NEXT_PUBLIC_SITE_URL", process.env.NEXT_PUBLIC_SITE_URL],
+    ["APP_URL", process.env.APP_URL],
+    ["PUBLIC_URL", process.env.PUBLIC_URL],
     ["DEPLOY_PRIME_URL", process.env.DEPLOY_PRIME_URL],
     ["URL", process.env.URL],
-    ["VERCEL_URL", process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : undefined],
   ];
 
   for (const [name, value] of candidates) {

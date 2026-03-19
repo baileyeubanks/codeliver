@@ -6,10 +6,10 @@ import { useRouter } from "next/navigation";
 const B = {
   cream: "#f0ebe0", parchment: "#faf6ef", sand: "#d8cfc0",
   navy: "#0b1928", navyMid: "#0f2035",
-  accent: "#2a8a8e", accentDim: "#1f6d70",
-  slate: "#485670", periwinkle: "#b3c8f0", copper: "#5ba5a8",
+  accent: "#4c8ef5", accentDim: "#3a6fcc",
+  slate: "#485670", periwinkle: "#b3c8f0", copper: "#5b8fd4",
   text: "#edf3ff", textMuted: "#7a9bc4",
-  border: "#2b4263", borderFocus: "#2a8a8e", error: "#de7676",
+  border: "#2b4263", borderFocus: "#4c8ef5", error: "#de7676",
 };
 const SERIF = "'Fraunces', Georgia, serif";
 const SANS = "'Plus Jakarta Sans', 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif";

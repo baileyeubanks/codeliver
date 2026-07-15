@@ -14,6 +14,7 @@ import {
   type IntegrationPermission,
   type RegisterConfigurationCommand,
 } from "./contracts";
+import { InMemoryIntegrationLedger } from "./ledger";
 
 const ALL_PERMISSIONS = new Set<IntegrationPermission>([
   "integrations.inspect",
@@ -105,6 +106,11 @@ describe("provider-neutral integration control plane", () => {
 
     assert.equal(result.receipt.status, "configuration_registered_disabled");
     assert.equal(result.receipt.deliveryAttempted, false);
+    assert.equal(result.receipt.externalEffect, "none");
+    assert.equal(
+      result.receipt.compensationStatus,
+      "not_required_no_external_effect",
+    );
     assert.deepEqual(plane.listConfigurations(context()), [
       {
         integrationId: "editorial-output",
@@ -120,17 +126,25 @@ describe("provider-neutral integration control plane", () => {
       },
     ]);
     assert.equal(JSON.stringify(result).includes("providerName"), false);
-    assert.deepEqual(Object.keys(plane.toSafeAuditEvent(result.receipt)).sort(), [
+    const safeAudit = plane.toSafeAuditEvent(result.receipt);
+    assert.deepEqual(Object.keys(safeAudit).sort(), [
       "actorRef",
       "commandType",
+      "compensationStatus",
       "configurationVersion",
       "deliveryAttempted",
       "event",
+      "externalEffect",
       "integrationRef",
       "receiptId",
       "status",
       "tenantRef",
     ]);
+    assert.equal(Object.isFrozen(result.receipt), true);
+    assert.equal(JSON.stringify(safeAudit).includes("tenant-a"), false);
+    assert.equal(JSON.stringify(safeAudit).includes("actor-1"), false);
+    assert.equal(JSON.stringify(safeAudit).includes("editorial-output"), false);
+    assert.equal(JSON.stringify(safeAudit).includes("register-1"), false);
 
     const preview = plane.execute(context(), {
       schemaVersion: INTEGRATION_COMMAND_SCHEMA_VERSION,
@@ -197,6 +211,7 @@ describe("provider-neutral integration control plane", () => {
 
     assert.equal(first.receipt.status, "delivery_intent_recorded_not_delivered");
     assert.equal(first.receipt.deliveryAttempted, false);
+    assert.equal(first.receipt.reversibleBy, "cancel_intent");
     assert.equal("payload" in first.receipt, false);
     assert.match(first.receipt.payloadDigest ?? "", /^[a-f0-9]{64}$/);
     assert.equal(replay.replayed, true);
@@ -245,9 +260,12 @@ describe("provider-neutral integration control plane", () => {
       { secret: "not-accepted" },
       { api_key: "not-accepted" },
       { callbackUrl: "relative-is-still-not-accepted" },
+      { nestedSecretValue: "not-accepted" },
       { endpoint: "http://127.0.0.1/private" },
       { body: "Bearer abc.def.ghi" },
       { body: "http://169.254.169.254/latest" },
+      { body: "localhost:3000/private" },
+      { body: "sk-1234567890abcdef" },
     ];
 
     for (const [index, payload] of unsafePayloads.entries()) {
@@ -295,6 +313,23 @@ describe("provider-neutral integration control plane", () => {
     );
   });
 
+  test("accepts ordinary media metadata without mistaking clip or duration fields for connection data", () => {
+    const plane = fixedPlane();
+    plane.execute(context(), registration());
+    plane.execute(context(), enable());
+
+    const result = plane.execute(
+      context(),
+      requestDelivery("media-metadata", "cfg-2", {
+        clipId: "clip-7",
+        durationSeconds: 42,
+        description: "Approved cut",
+        thumbnailRef: "asset-thumb-2",
+      }),
+    );
+    assert.equal(result.receipt.status, "delivery_intent_recorded_not_delivered");
+  });
+
   test("cancel and restore are tenant-bound reversible receipt transitions", () => {
     const plane = fixedPlane();
     plane.execute(context(), registration());
@@ -322,6 +357,19 @@ describe("provider-neutral integration control plane", () => {
     });
     assert.equal(canceled.receipt.status, "intent_canceled");
     assert.equal(canceled.receipt.deliveryAttempted, false);
+    assert.equal(canceled.receipt.reversibleBy, "restore_intent");
+
+    assert.throws(
+      () =>
+        plane.execute(context(), {
+          schemaVersion: INTEGRATION_COMMAND_SCHEMA_VERSION,
+          type: "cancel_intent",
+          idempotencyKey: "cancel-race",
+          integrationId: "editorial-output",
+          targetReceiptId: intent.receipt.receiptId,
+        }),
+      expectCode("INVALID_INTENT_STATE"),
+    );
 
     const restored = plane.execute(context(), {
       schemaVersion: INTEGRATION_COMMAND_SCHEMA_VERSION,
@@ -332,6 +380,7 @@ describe("provider-neutral integration control plane", () => {
     });
     assert.equal(restored.receipt.status, "intent_restored");
     assert.equal(restored.receipt.deliveryAttempted, false);
+    assert.equal(restored.receipt.reversibleBy, "cancel_intent");
   });
 
   test("disable and re-enable require explicit version transitions", () => {
@@ -381,6 +430,151 @@ describe("provider-neutral integration control plane", () => {
     assert.throws(
       () => registryPlane.execute(context(), registration("register-2", "second")),
       expectCode("RESOURCE_LIMIT"),
+    );
+  });
+
+  test("keeps quotas tenant-scoped so one tenant cannot starve another", () => {
+    const receiptPlane = fixedPlane({ maxReceipts: 1 });
+    receiptPlane.execute(context("tenant-a"), registration("shared", "shared"));
+    receiptPlane.execute(context("tenant-b"), registration("shared", "shared"));
+    assert.equal(receiptPlane.listConfigurations(context("tenant-b")).length, 1);
+
+    const configurationPlane = fixedPlane({ maxConfigurations: 1 });
+    configurationPlane.execute(
+      context("tenant-a"),
+      registration("register-a", "integration-a"),
+    );
+    configurationPlane.execute(
+      context("tenant-b"),
+      registration("register-b", "integration-b"),
+    );
+    assert.equal(
+      configurationPlane.listConfigurations(context("tenant-a"))[0]?.integrationId,
+      "integration-a",
+    );
+    assert.equal(
+      configurationPlane.listConfigurations(context("tenant-b"))[0]?.integrationId,
+      "integration-b",
+    );
+  });
+
+  test("never reuses configuration versions or accepts no-op state transitions", () => {
+    const plane = fixedPlane();
+    plane.execute(context(), registration());
+
+    assert.throws(
+      () =>
+        plane.execute(context(), {
+          schemaVersion: INTEGRATION_COMMAND_SCHEMA_VERSION,
+          type: "disable_configuration",
+          idempotencyKey: "disable-already-disabled",
+          integrationId: "editorial-output",
+          expectedConfigurationVersion: "cfg-1",
+          nextConfigurationVersion: "cfg-unused",
+        }),
+      expectCode("INVALID_CONFIGURATION_STATE"),
+    );
+
+    plane.execute(context(), enable());
+    plane.execute(context(), {
+      schemaVersion: INTEGRATION_COMMAND_SCHEMA_VERSION,
+      type: "disable_configuration",
+      idempotencyKey: "disable-version-history",
+      integrationId: "editorial-output",
+      expectedConfigurationVersion: "cfg-2",
+      nextConfigurationVersion: "cfg-3",
+    });
+
+    assert.throws(
+      () => plane.execute(context(), enable("reuse-version", "cfg-3", "cfg-1")),
+      expectCode("CONFIGURATION_VERSION_REUSED"),
+    );
+  });
+
+  test("uses a replaceable in-memory ledger port without returning mutable storage", () => {
+    const ledger = new InMemoryIntegrationLedger();
+    const plane = fixedPlane({ ledger });
+    plane.execute(context(), registration());
+
+    const firstRead = ledger.getConfiguration("tenant-a", "editorial-output");
+    assert.ok(firstRead);
+    (firstRead.capabilities as string[]).push("content.write");
+
+    const secondRead = ledger.getConfiguration("tenant-a", "editorial-output");
+    assert.deepEqual(secondRead?.capabilities, ["message.submit", "status.receive"]);
+    assert.equal(ledger.countConfigurations("tenant-a"), 1);
+    assert.equal(ledger.countConfigurations("tenant-b"), 0);
+  });
+
+  test("provides stable machine codes plus plain-language recovery", () => {
+    const plane = fixedPlane();
+    let captured: unknown;
+    try {
+      plane.execute(context(), requestDelivery("missing"));
+    } catch (error) {
+      captured = error;
+    }
+
+    assert.ok(captured instanceof IntegrationControlError);
+    assert.equal(captured.code, "NOT_FOUND");
+    assert.match(captured.message, /not found/i);
+    assert.match(captured.recovery, /verify/i);
+  });
+
+  test("rejects malformed, cyclic, and structurally excessive command input", () => {
+    const plane = fixedPlane();
+    assert.throws(
+      () => plane.execute(context(), { ...registration(), unexpected: true }),
+      expectCode("INVALID_COMMAND"),
+    );
+
+    const cyclic: Record<string, unknown> = {};
+    cyclic.self = cyclic;
+    assert.throws(
+      () => plane.execute(context(), cyclic),
+      expectCode("INVALID_COMMAND"),
+    );
+
+    let deeplyNested: Record<string, unknown> = { value: "bounded" };
+    for (let depth = 0; depth < 20; depth += 1) {
+      deeplyNested = { child: deeplyNested };
+    }
+    assert.throws(
+      () =>
+        plane.execute(context(), {
+          ...registration("deep-command"),
+          configuration: deeplyNested,
+        }),
+      expectCode("RESOURCE_LIMIT"),
+    );
+
+    plane.execute(context(), registration());
+    plane.execute(context(), enable());
+    assert.throws(
+      () =>
+        plane.execute(
+          context(),
+          requestDelivery("deep", "cfg-2", {
+            a: { b: { c: { d: { e: { f: { g: "too deep" } } } } } },
+          }),
+        ),
+      expectCode("RESOURCE_LIMIT"),
+    );
+  });
+
+  test("rejects secret-like material smuggled through identifiers or versions", () => {
+    const plane = fixedPlane();
+    assert.throws(
+      () => plane.execute(context(), registration("sk-1234567890abcdef")),
+      expectCode("UNSAFE_INPUT"),
+    );
+    assert.throws(
+      () =>
+        plane.execute(
+          context(),
+          registration("safe-key", "editorial-output", "https://internal.invalid"),
+        ),
+      expectCode("UNSAFE_INPUT"),
     );
   });
 });

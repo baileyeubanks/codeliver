@@ -128,6 +128,14 @@ export interface IntegrationReceipt {
   configurationVersion: string | null;
   status: IntegrationReceiptStatus;
   deliveryAttempted: false;
+  externalEffect: "none";
+  compensationStatus: "not_required_no_external_effect";
+  reversibleBy:
+    | "enable_configuration"
+    | "disable_configuration"
+    | "cancel_intent"
+    | "restore_intent"
+    | null;
   occurredAt: string;
   targetReceiptId?: string;
   payloadDigest?: string;
@@ -159,4 +167,6 @@ export interface SafeIntegrationAuditEvent {
   status: IntegrationReceiptStatus;
   configurationVersion: string | null;
   deliveryAttempted: false;
+  externalEffect: "none";
+  compensationStatus: "not_required_no_external_effect";
 }

@@ -19,8 +19,16 @@ import {
   type RegisterConfigurationCommand,
   type SafeIntegrationAuditEvent,
 } from "./contracts";
+import {
+  InMemoryIntegrationLedger,
+  type IntegrationLedgerPort,
+  type StoredIntegrationConfiguration,
+  type StoredIntentState,
+} from "./ledger";
 
 const MAX_COMMAND_BYTES = 16_384;
+const MAX_COMMAND_DEPTH = 12;
+const MAX_COMMAND_NODES = 512;
 const MAX_PAYLOAD_BYTES = 8_192;
 const MAX_PAYLOAD_DEPTH = 6;
 const MAX_PAYLOAD_NODES = 256;
@@ -32,7 +40,7 @@ const MAX_RECEIPTS = 5_000;
 const CAPABILITY_SET = new Set<string>(INTEGRATION_CAPABILITIES);
 const SAFE_IDENTIFIER = /^[A-Za-z0-9][A-Za-z0-9._:-]{0,95}$/;
 const SAFE_VERSION = /^[A-Za-z0-9][A-Za-z0-9._:/-]{0,63}$/;
-const FORBIDDEN_FIELD_PARTS = new Set([
+const FORBIDDEN_FIELD_WORDS = new Set([
   "accesskey",
   "address",
   "apikey",
@@ -55,17 +63,23 @@ const FORBIDDEN_FIELD_PARTS = new Set([
   "url",
   "webhook",
 ]);
-
-interface StoredConfiguration {
-  tenantId: string;
-  integrationId: string;
-  configurationVersion: string;
-  capabilities: IntegrationCapability[];
-  payloadSchemaBindings: Partial<Record<IntegrationCapability, string>>;
-  enabled: boolean;
-}
-
-type IntentState = "recorded_not_delivered" | "canceled";
+const FORBIDDEN_FIELD_FRAGMENTS = [
+  "accesskey",
+  "apikey",
+  "authorization",
+  "callback",
+  "cookie",
+  "credential",
+  "endpoint",
+  "hostname",
+  "password",
+  "passwd",
+  "privatekey",
+  "secret",
+  "setcookie",
+  "token",
+  "webhook",
+] as const;
 
 export type IntegrationControlErrorCode =
   | "INVALID_CONTEXT"
@@ -74,7 +88,9 @@ export type IntegrationControlErrorCode =
   | "FORBIDDEN"
   | "NOT_FOUND"
   | "ALREADY_EXISTS"
+  | "CONFIGURATION_VERSION_REUSED"
   | "CONFIGURATION_DISABLED"
+  | "INVALID_CONFIGURATION_STATE"
   | "STALE_CONFIGURATION"
   | "CAPABILITY_NOT_CONFIGURED"
   | "PAYLOAD_SCHEMA_MISMATCH"
@@ -88,6 +104,7 @@ export class IntegrationControlError extends Error {
     public readonly code: IntegrationControlErrorCode,
     public readonly status: number,
     message: string,
+    public readonly recovery: string,
   ) {
     super(message);
     this.name = "IntegrationControlError";
@@ -98,14 +115,34 @@ export interface IntegrationControlPlaneOptions {
   now?: () => Date;
   maxConfigurations?: number;
   maxReceipts?: number;
+  ledger?: IntegrationLedgerPort;
 }
+
+const ERROR_RECOVERY: Record<IntegrationControlErrorCode, string> = {
+  INVALID_CONTEXT: "Refresh your tenant session and try again.",
+  INVALID_COMMAND: "Correct the command fields and submit a new idempotency key.",
+  UNSUPPORTED_SCHEMA_VERSION: "Use a schema version supported by this control plane.",
+  FORBIDDEN: "Ask a tenant administrator for the required permission.",
+  NOT_FOUND: "Verify the tenant, integration, and receipt identifiers.",
+  ALREADY_EXISTS: "Inspect the existing configuration before changing it.",
+  CONFIGURATION_VERSION_REUSED: "Choose a configuration version that has never been used.",
+  CONFIGURATION_DISABLED: "Enable dry-run planning with a new configuration version first.",
+  INVALID_CONFIGURATION_STATE: "Refresh the configuration and request a real state change.",
+  STALE_CONFIGURATION: "Refresh the configuration and bind the current version.",
+  CAPABILITY_NOT_CONFIGURED: "Choose a capability declared by the bound configuration.",
+  PAYLOAD_SCHEMA_MISMATCH: "Use the payload schema bound to the current configuration.",
+  UNSAFE_INPUT: "Remove connection details or secret-like material from the payload.",
+  RESOURCE_LIMIT: "Reduce the request size or retry after tenant capacity is available.",
+  IDEMPOTENCY_KEY_REUSED: "Retry with a new idempotency key for the changed command.",
+  INVALID_INTENT_STATE: "Refresh the receipt state before requesting another transition.",
+};
 
 function fail(
   code: IntegrationControlErrorCode,
   status: number,
   message: string,
 ): never {
-  throw new IntegrationControlError(code, status, message);
+  throw new IntegrationControlError(code, status, message, ERROR_RECOVERY[code]);
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -132,6 +169,9 @@ function requireString(
   if (typeof value !== "string" || !pattern.test(value)) {
     fail("INVALID_COMMAND", 400, `${label} is invalid.`);
   }
+  if (containsUnsafeString(value)) {
+    fail("UNSAFE_INPUT", 400, `${label} contains unsafe connection or secret material.`);
+  }
   return value;
 }
 
@@ -149,17 +189,48 @@ function requireSchemaVersion(value: unknown) {
   }
 }
 
-function canonicalize(value: unknown): string {
+function canonicalize(
+  value: unknown,
+  ancestors = new Set<object>(),
+  depth = 0,
+  nodes = { count: 0 },
+): string {
+  nodes.count += 1;
+  if (nodes.count > MAX_COMMAND_NODES || depth > MAX_COMMAND_DEPTH) {
+    fail("RESOURCE_LIMIT", 413, "The command is more complex than the safe limit.");
+  }
   if (Array.isArray(value)) {
-    return `[${value.map(canonicalize).join(",")}]`;
+    if (ancestors.has(value)) {
+      fail("INVALID_COMMAND", 400, "The command must not contain cycles.");
+    }
+    const nextAncestors = new Set(ancestors).add(value);
+    return `[${value
+      .map((item) => canonicalize(item, nextAncestors, depth + 1, nodes))
+      .join(",")}]`;
   }
   if (isRecord(value)) {
+    if (ancestors.has(value)) {
+      fail("INVALID_COMMAND", 400, "The command must not contain cycles.");
+    }
+    const nextAncestors = new Set(ancestors).add(value);
     return `{${Object.keys(value)
       .sort()
-      .map((key) => `${JSON.stringify(key)}:${canonicalize(value[key])}`)
+      .map(
+        (key) =>
+          `${JSON.stringify(key)}:${canonicalize(
+            value[key],
+            nextAncestors,
+            depth + 1,
+            nodes,
+          )}`,
+      )
       .join(",")}}`;
   }
-  return JSON.stringify(value);
+  const serialized = JSON.stringify(value);
+  if (serialized === undefined) {
+    fail("INVALID_COMMAND", 400, "The command contains an unsupported value.");
+  }
+  return serialized;
 }
 
 function digest(value: string): string {
@@ -172,6 +243,33 @@ function shortDigest(value: string): string {
 
 function normalizedFieldPart(key: string): string {
   return key.replace(/[^a-zA-Z0-9]/g, "").toLowerCase();
+}
+
+function containsForbiddenFieldPart(key: string): boolean {
+  const normalized = normalizedFieldPart(key);
+  const words = key
+    .replace(/([a-z0-9])([A-Z])/g, "$1 $2")
+    .split(/[^A-Za-z0-9]+/)
+    .map((word) => word.toLowerCase())
+    .filter(Boolean);
+  return (
+    words.some((word) => FORBIDDEN_FIELD_WORDS.has(word)) ||
+    FORBIDDEN_FIELD_FRAGMENTS.some((part) => normalized.includes(part))
+  );
+}
+
+function containsUnsafeString(value: string): boolean {
+  return (
+    /(?:^|\s)Bearer\s+[A-Za-z0-9._~+/-]+=*/i.test(value) ||
+    /-----BEGIN [A-Z ]*PRIVATE KEY-----/.test(value) ||
+    /(?:https?|file|ftp):\/\//i.test(value) ||
+    /(?:^|[\s/])(?:localhost|127(?:\.\d{1,3}){3}|0\.0\.0\.0|169\.254\.169\.254|::1)(?:[\s/:]|$)/i.test(
+      value,
+    ) ||
+    /(?:^|[^A-Za-z0-9])(?:sk-[A-Za-z0-9_-]{12,}|gh[pousr]_[A-Za-z0-9]{12,}|AKIA[A-Z0-9]{12,})(?:$|[^A-Za-z0-9])/i.test(
+      value,
+    )
+  );
 }
 
 function assertPayloadSafe(payload: unknown) {
@@ -191,14 +289,7 @@ function assertPayloadSafe(payload: unknown) {
       if (value.length > MAX_STRING_LENGTH) {
         fail("RESOURCE_LIMIT", 413, "A payload value is larger than the safe limit.");
       }
-      if (
-        /(?:^|\s)Bearer\s+[A-Za-z0-9._~+/-]+=*/i.test(value) ||
-        /-----BEGIN [A-Z ]*PRIVATE KEY-----/.test(value) ||
-        /(?:https?|file|ftp):\/\//i.test(value) ||
-        /(?:^|\s)(?:127\.0\.0\.1|0\.0\.0\.0|169\.254\.169\.254|::1)(?:\s|$|\/)/.test(
-          value,
-        )
-      ) {
+      if (containsUnsafeString(value)) {
         fail("UNSAFE_INPUT", 400, "The payload contains unsafe connection or secret material.");
       }
       return;
@@ -222,7 +313,7 @@ function assertPayloadSafe(payload: unknown) {
 
     if (isRecord(value)) {
       for (const [key, child] of Object.entries(value)) {
-        if (!SAFE_IDENTIFIER.test(key) || FORBIDDEN_FIELD_PARTS.has(normalizedFieldPart(key))) {
+        if (!SAFE_IDENTIFIER.test(key) || containsForbiddenFieldPart(key)) {
           fail("UNSAFE_INPUT", 400, "The payload contains a restricted field.");
         }
         visit(child, depth + 1);
@@ -453,21 +544,16 @@ function assertContext(context: IntegrationExecutionContext) {
 }
 
 export class IntegrationControlPlane {
-  private readonly configurations = new Map<string, StoredConfiguration>();
-  private readonly receiptsByIdempotency = new Map<
-    string,
-    { fingerprint: string; receipt: IntegrationReceipt }
-  >();
-  private readonly receiptsById = new Map<string, IntegrationReceipt>();
-  private readonly intentStates = new Map<string, IntentState>();
   private readonly now: () => Date;
   private readonly maxConfigurations: number;
   private readonly maxReceipts: number;
+  private readonly ledger: IntegrationLedgerPort;
 
   constructor(options: IntegrationControlPlaneOptions = {}) {
     this.now = options.now ?? (() => new Date());
     this.maxConfigurations = options.maxConfigurations ?? MAX_CONFIGURATIONS;
     this.maxReceipts = options.maxReceipts ?? MAX_RECEIPTS;
+    this.ledger = options.ledger ?? new InMemoryIntegrationLedger();
   }
 
   execute(context: IntegrationExecutionContext, input: unknown): IntegrationCommandResult {
@@ -479,8 +565,10 @@ export class IntegrationControlPlane {
     }
 
     const fingerprint = digest(canonicalize(command));
-    const idempotencyLookupKey = canonicalize([context.tenantId, command.idempotencyKey]);
-    const prior = this.receiptsByIdempotency.get(idempotencyLookupKey);
+    const prior = this.ledger.getReceiptByIdempotency(
+      context.tenantId,
+      command.idempotencyKey,
+    );
     if (prior) {
       if (prior.fingerprint !== fingerprint) {
         fail(
@@ -495,13 +583,15 @@ export class IntegrationControlPlane {
         message: "The original receipt was returned; no action was repeated.",
       };
     }
-    if (this.receiptsByIdempotency.size >= this.maxReceipts) {
+    if (this.ledger.countReceipts(context.tenantId) >= this.maxReceipts) {
       fail("RESOURCE_LIMIT", 503, "The command ledger is at its safe capacity.");
     }
 
     const receipt = this.applyCommand(context, command, fingerprint);
-    this.receiptsByIdempotency.set(idempotencyLookupKey, { fingerprint, receipt });
-    this.receiptsById.set(receipt.receiptId, receipt);
+    this.ledger.putReceipt(context.tenantId, command.idempotencyKey, {
+      fingerprint,
+      receipt,
+    });
     return {
       receipt,
       replayed: false,
@@ -514,9 +604,9 @@ export class IntegrationControlPlane {
     if (!context.permissions.has("integrations.inspect")) {
       fail("FORBIDDEN", 403, "You do not have permission to inspect integrations.");
     }
-    return [...this.configurations.entries()]
-      .filter(([, configuration]) => configuration.tenantId === context.tenantId)
-      .map(([, configuration]) => this.toView(configuration))
+    return this.ledger
+      .listConfigurations(context.tenantId)
+      .map((configuration) => this.toView(configuration))
       .sort((left, right) => left.integrationId.localeCompare(right.integrationId));
   }
 
@@ -531,6 +621,8 @@ export class IntegrationControlPlane {
       status: receipt.status,
       configurationVersion: receipt.configurationVersion,
       deliveryAttempted: false,
+      externalEffect: "none",
+      compensationStatus: "not_required_no_external_effect",
     };
   }
 
@@ -560,17 +652,17 @@ export class IntegrationControlPlane {
     command: RegisterConfigurationCommand,
     fingerprint: string,
   ) {
-    const key = this.configurationKey(context.tenantId, command.integrationId);
-    if (this.configurations.has(key)) {
+    if (this.ledger.getConfiguration(context.tenantId, command.integrationId)) {
       fail("ALREADY_EXISTS", 409, "The integration configuration already exists.");
     }
-    if (this.configurations.size >= this.maxConfigurations) {
+    if (this.ledger.countConfigurations(context.tenantId) >= this.maxConfigurations) {
       fail("RESOURCE_LIMIT", 503, "The configuration registry is at its safe capacity.");
     }
-    this.configurations.set(key, {
+    this.ledger.putConfiguration({
       tenantId: context.tenantId,
       integrationId: command.integrationId,
       configurationVersion: command.configuration.configurationVersion,
+      usedConfigurationVersions: [command.configuration.configurationVersion],
       capabilities: [...command.configuration.capabilities],
       payloadSchemaBindings: { ...command.configuration.payloadSchemaBindings },
       enabled: false,
@@ -591,8 +683,31 @@ export class IntegrationControlPlane {
   ) {
     const configuration = this.requireConfiguration(context.tenantId, command.integrationId);
     this.assertCurrentVersion(configuration, command.expectedConfigurationVersion);
-    configuration.configurationVersion = command.nextConfigurationVersion;
-    configuration.enabled = command.type === "enable_configuration";
+    if (configuration.usedConfigurationVersions.includes(command.nextConfigurationVersion)) {
+      fail(
+        "CONFIGURATION_VERSION_REUSED",
+        409,
+        "The next configuration version was already used.",
+      );
+    }
+    const nextEnabled = command.type === "enable_configuration";
+    if (configuration.enabled === nextEnabled) {
+      fail(
+        "INVALID_CONFIGURATION_STATE",
+        409,
+        "The configuration is already in the requested state.",
+      );
+    }
+    const nextConfiguration: StoredIntegrationConfiguration = {
+      ...configuration,
+      configurationVersion: command.nextConfigurationVersion,
+      usedConfigurationVersions: [
+        ...configuration.usedConfigurationVersions,
+        command.nextConfigurationVersion,
+      ],
+      enabled: nextEnabled,
+    };
+    this.ledger.putConfiguration(nextConfiguration);
     return this.createReceipt(
       context,
       command,
@@ -600,7 +715,7 @@ export class IntegrationControlPlane {
       command.type === "enable_configuration"
         ? "configuration_enabled_for_dry_run"
         : "configuration_disabled",
-      configuration.configurationVersion,
+      nextConfiguration.configurationVersion,
     );
   }
 
@@ -634,7 +749,11 @@ export class IntegrationControlPlane {
       { payloadDigest: digest(canonicalize(command.payload)) },
     );
     if (command.type === "request_delivery") {
-      this.intentStates.set(this.intentKey(context.tenantId, receipt.receiptId), "recorded_not_delivered");
+      this.ledger.putIntentState(
+        context.tenantId,
+        receipt.receiptId,
+        "recorded_not_delivered",
+      );
     }
     return receipt;
   }
@@ -644,7 +763,10 @@ export class IntegrationControlPlane {
     command: IntentTransitionCommand,
     fingerprint: string,
   ) {
-    const target = this.receiptsById.get(command.targetReceiptId);
+    const target = this.ledger.getReceiptById(
+      context.tenantId,
+      command.targetReceiptId,
+    );
     if (
       !target ||
       target.tenantId !== context.tenantId ||
@@ -653,15 +775,18 @@ export class IntegrationControlPlane {
     ) {
       fail("NOT_FOUND", 404, "The delivery intent was not found.");
     }
-    const key = this.intentKey(context.tenantId, command.targetReceiptId);
-    const currentState = this.intentStates.get(key);
-    const expectedState: IntentState =
+    const currentState = this.ledger.getIntentState(
+      context.tenantId,
+      command.targetReceiptId,
+    );
+    const expectedState: StoredIntentState =
       command.type === "cancel_intent" ? "recorded_not_delivered" : "canceled";
     if (currentState !== expectedState) {
       fail("INVALID_INTENT_STATE", 409, "The delivery intent is not in the required state.");
     }
-    this.intentStates.set(
-      key,
+    this.ledger.putIntentState(
+      context.tenantId,
+      command.targetReceiptId,
       command.type === "cancel_intent" ? "canceled" : "recorded_not_delivered",
     );
     return this.createReceipt(
@@ -675,14 +800,17 @@ export class IntegrationControlPlane {
   }
 
   private requireConfiguration(tenantId: string, integrationId: string) {
-    const configuration = this.configurations.get(this.configurationKey(tenantId, integrationId));
+    const configuration = this.ledger.getConfiguration(tenantId, integrationId);
     if (!configuration) {
       fail("NOT_FOUND", 404, "The integration configuration was not found.");
     }
     return configuration;
   }
 
-  private assertCurrentVersion(configuration: StoredConfiguration, expectedVersion: string) {
+  private assertCurrentVersion(
+    configuration: StoredIntegrationConfiguration,
+    expectedVersion: string,
+  ) {
     if (configuration.configurationVersion !== expectedVersion) {
       fail("STALE_CONFIGURATION", 409, "The configuration version is stale.");
     }
@@ -710,12 +838,17 @@ export class IntegrationControlPlane {
       configurationVersion,
       status,
       deliveryAttempted: false,
+      externalEffect: "none",
+      compensationStatus: "not_required_no_external_effect",
+      reversibleBy: this.reversalFor(command.type),
       occurredAt: this.now().toISOString(),
       ...extra,
     });
   }
 
-  private toView(configuration: StoredConfiguration): IntegrationConfigurationView {
+  private toView(
+    configuration: StoredIntegrationConfiguration,
+  ): IntegrationConfigurationView {
     return {
       integrationId: configuration.integrationId,
       schemaVersion: INTEGRATION_CONFIGURATION_SCHEMA_VERSION,
@@ -727,11 +860,22 @@ export class IntegrationControlPlane {
     };
   }
 
-  private configurationKey(tenantId: string, integrationId: string) {
-    return canonicalize([tenantId, integrationId]);
-  }
-
-  private intentKey(tenantId: string, receiptId: string) {
-    return canonicalize([tenantId, receiptId]);
+  private reversalFor(
+    commandType: IntegrationCommand["type"],
+  ): IntegrationReceipt["reversibleBy"] {
+    switch (commandType) {
+      case "enable_configuration":
+        return "disable_configuration";
+      case "disable_configuration":
+        return "enable_configuration";
+      case "request_delivery":
+      case "restore_intent":
+        return "cancel_intent";
+      case "cancel_intent":
+        return "restore_intent";
+      case "register_configuration":
+      case "preview_delivery":
+        return null;
+    }
   }
 }

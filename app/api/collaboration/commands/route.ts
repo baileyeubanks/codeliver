@@ -25,7 +25,7 @@ export async function POST(request: Request) {
   let body: unknown;
   try {
     const text = await request.text();
-    if (text.length > MAX_COMMAND_BYTES) throw new Error("payload_too_large");
+    if (Buffer.byteLength(text, "utf8") > MAX_COMMAND_BYTES) throw new Error("payload_too_large");
     body = JSON.parse(text) as unknown;
   } catch {
     return problemResponse({

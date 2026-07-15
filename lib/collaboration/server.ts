@@ -54,10 +54,19 @@ export async function authorizeCollaborationScope(
   }
 
   const assetAccess = await getOwnedAsset(scope.assetId, user.id);
+  if (!assetAccess.ok && assetAccess.status >= 500) {
+    return {
+      ok: false,
+      status: 503,
+      code: "authorization_unavailable",
+      message: "Collaboration authorization is temporarily unavailable.",
+      recovery: "Wait briefly and retry without changing the command or idempotency key.",
+    };
+  }
   if (!assetAccess.ok || assetAccess.data.project_id !== scope.projectId) {
     return {
       ok: false,
-      status: assetAccess.ok ? 404 : assetAccess.status,
+      status: 404,
       code: "unauthorized_scope",
       message: "The collaboration resource was not found in the authorized scope.",
       recovery: "Return to an authorized workspace and select the project, asset, and version again.",

@@ -111,7 +111,7 @@ export type ControlPlaneResult<T> =
   | { ok: true; value: T }
   | { ok: false; problem: CollaborationProblem };
 
-interface StoredIdempotency {
+export interface StoredIdempotency {
   fingerprint: string;
   receipt: CollaborationReceipt;
 }

@@ -103,41 +103,40 @@ First-wave worker receipts accepted into this integration branch:
   `5df414116f66384cbab38696c016da1aa63b1986`.
 
 Repository typechecking and `git diff --check` pass after all three accepted
-pillars. The second wave is active on `m4/portfolio-analytics`,
-`m4/integration-control-plane`, and `m4/enterprise-operations`; none is accepted
-until its owned-path check, attack suite, and combined typecheck pass.
+first-wave pillars.
 
 Second-wave receipts:
 
-- Portfolio analytics: worker commit `927bc24`; integration commit `29a524e`;
-  12 of 12 attack tests and combined typechecking pass. The slice is read-only
-  and binds deterministic metric receipts and pagination to an exact version
-  snapshot.
-- Provider-neutral integrations: worker commit `7c32537`; integration commit
-  `35ee04d`; 10 of 10 attack tests and combined typechecking pass. The exact
-  commit was revalidated from a detached proof worktree after later uncommitted
-  edits appeared in the worker worktree. A production-source scan found no
-  network, transport, environment-secret, send, or notification primitive.
-- Enterprise operations: no worker commit and no integration. An unauthorized
-  concurrent writer changed the owned worktree during implementation. The mixed
-  untracked state is preserved, fails typechecking, and remains ineligible.
+- Portfolio analytics: worker commits `927bc24` and `a259ad7f`; integration
+  commits `29a524e` and `339e0ca`; 19 of 19 attack tests pass. The read-only
+  query binds deterministic metric receipts, corrections, and pagination to an
+  exact version snapshot.
+- Provider-neutral integrations: worker commits `7c32537` and `a5f51c6`;
+  integration commits `35ee04d` and `9fc3805`; 17 of 17 attack tests pass. A
+  production-source scan found no network, transport, environment-secret, or
+  send primitive. Delivery commands can only record dry-run intent receipts.
+- Enterprise operations: worker commit `f0f71eb`; integration commit `14e59b6`;
+  12 of 12 attack tests pass. Recovery output is owner-only, cancelable,
+  snapshot-bound, explicitly `not_executed`, and has no executor.
 
-## Concurrency incident ledger
+The final combined gate at code head `9fc3805` passes repository typechecking,
+`git diff --check`, and 83 of 83 executable tests across all six pillars.
 
-During the first wave, unowned changes appeared in the catalog worktree after
-the assigned worker's writes. The assigned worker stopped without committing.
-Local commits `af61b6c`, `0932e1c`, and `c6decd1`, followed by integration
-commits `83b6d19`, `0a0c764`, `2d91826`, and `4e3075d`, then appeared from a
-second process not represented in the coordinator's worker roster. The
-coordinator preserved history and independently reran the enterprise (16/16),
-catalog (9/9), and collaboration (10/10) attack suites plus repository
-typechecking before retaining those commits.
+## Concurrency reconciliation ledger
 
-The same external-writer pattern later affected the integrations worktree after
-its clean worker commit, and the operations worktree before any commit. No
-unknown uncommitted state from either worktree was integrated. These incidents
-remain a coordination blocker for further slices until there is one confirmed
-writer per worktree.
+The shared host briefly had two coordinators attempt the same local integration
+steps, producing empty cherry-pick sequencer states but no content conflict.
+Duplicate base commits were skipped only after stable patch IDs proved exact
+equivalence: collaboration `5df414116f66384cbab38696c016da1aa63b1986`,
+portfolio analytics `aa47988c88e42cdb892a5fa59628e787fd94804e`, and
+integrations `cf5c29f44e8ae3226f9a8b076e8c4f22357ff0f7`. The missing hardening
+commits were then applied normally.
+
+Recovered in-scope files in enterprise, catalog, portfolio analytics,
+integrations, and operations were preserved and reconciled rather than reset.
+Only committed owned-path snapshots were integrated, every accepted snapshot
+was independently retested on the integration branch, and no unknown
+uncommitted state was included. All seven worktrees finish clean.
 
 ## Prohibited actions
 

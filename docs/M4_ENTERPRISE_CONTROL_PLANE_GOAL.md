@@ -107,6 +107,38 @@ pillars. The second wave is active on `m4/portfolio-analytics`,
 `m4/integration-control-plane`, and `m4/enterprise-operations`; none is accepted
 until its owned-path check, attack suite, and combined typecheck pass.
 
+Second-wave receipts:
+
+- Portfolio analytics: worker commit `927bc24`; integration commit `29a524e`;
+  12 of 12 attack tests and combined typechecking pass. The slice is read-only
+  and binds deterministic metric receipts and pagination to an exact version
+  snapshot.
+- Provider-neutral integrations: worker commit `7c32537`; integration commit
+  `35ee04d`; 10 of 10 attack tests and combined typechecking pass. The exact
+  commit was revalidated from a detached proof worktree after later uncommitted
+  edits appeared in the worker worktree. A production-source scan found no
+  network, transport, environment-secret, send, or notification primitive.
+- Enterprise operations: no worker commit and no integration. An unauthorized
+  concurrent writer changed the owned worktree during implementation. The mixed
+  untracked state is preserved, fails typechecking, and remains ineligible.
+
+## Concurrency incident ledger
+
+During the first wave, unowned changes appeared in the catalog worktree after
+the assigned worker's writes. The assigned worker stopped without committing.
+Local commits `af61b6c`, `0932e1c`, and `c6decd1`, followed by integration
+commits `83b6d19`, `0a0c764`, `2d91826`, and `4e3075d`, then appeared from a
+second process not represented in the coordinator's worker roster. The
+coordinator preserved history and independently reran the enterprise (16/16),
+catalog (9/9), and collaboration (10/10) attack suites plus repository
+typechecking before retaining those commits.
+
+The same external-writer pattern later affected the integrations worktree after
+its clean worker commit, and the operations worktree before any commit. No
+unknown uncommitted state from either worktree was integrated. These incidents
+remain a coordination blocker for further slices until there is one confirmed
+writer per worktree.
+
 ## Prohibited actions
 
 This lane does not deploy or push. It does not run live migrations, obtain or

@@ -1,6 +1,7 @@
 import { canonicalJson, digest } from "./canonical";
 import { PortfolioAnalyticsError } from "./errors";
 import {
+  PORTFOLIO_ANALYTICS_ACCESS_VERSION,
   PORTFOLIO_ANALYTICS_READ_PERMISSION,
   PORTFOLIO_LIMITS,
   type PortfolioAnalyticsPrincipal,
@@ -36,7 +37,7 @@ function normalizeTimestamp(value: string, field: string): string {
   return new Date(parsed).toISOString();
 }
 
-function normalizeFact(fact: PortfolioVersionFact): PortfolioVersionFact {
+export function normalizePortfolioFact(fact: PortfolioVersionFact): PortfolioVersionFact {
   if (!fact || typeof fact !== "object") sourceFailure("Analytics source returned a malformed fact");
   for (const [field, value] of [
     ["tenantId", fact.tenantId],
@@ -71,8 +72,8 @@ function normalizeFact(fact: PortfolioVersionFact): PortfolioVersionFact {
   };
 }
 
-function factFingerprint(fact: PortfolioVersionFact): string {
-  return digest("portfolio-analytics-fact-v1", fact);
+export function fingerprintPortfolioFact(fact: PortfolioVersionFact): string {
+  return digest("portfolio-analytics-fact-v1", normalizePortfolioFact(fact));
 }
 
 export function authorizePortfolioAnalytics(
@@ -80,6 +81,8 @@ export function authorizePortfolioAnalytics(
   query: PortfolioAnalyticsQuery,
 ): void {
   if (
+    principal.accessVersion !== PORTFOLIO_ANALYTICS_ACCESS_VERSION ||
+    !["tenant_owner", "portfolio_analyst", "portfolio_viewer"].includes(principal.role) ||
     !principal.permissions.includes(PORTFOLIO_ANALYTICS_READ_PERMISSION) ||
     principal.tenantId !== query.tenantId
   ) {
@@ -135,7 +138,7 @@ function normalizeAndDeduplicate(
   let duplicateCount = 0;
 
   for (const rawFact of facts) {
-    const fact = normalizeFact(rawFact);
+    const fact = normalizePortfolioFact(rawFact);
     if (fact.tenantId !== query.tenantId || !requestedProjects.has(fact.projectId)) {
       throw new PortfolioAnalyticsError("FORBIDDEN", "Analytics source crossed the authorized scope", 403);
     }
@@ -196,7 +199,7 @@ function createBinding(query: PortfolioAnalyticsQuery, facts: readonly Portfolio
     window: query.window,
     filters: query.filters,
     facts: facts
-      .map((fact) => ({ versionId: fact.versionId, fingerprint: factFingerprint(fact) }))
+      .map((fact) => ({ versionId: fact.versionId, fingerprint: fingerprintPortfolioFact(fact) }))
       .sort((left, right) => left.versionId.localeCompare(right.versionId)),
   };
 }
@@ -399,6 +402,7 @@ export function analyzePortfolio(
       snapshotId,
       resultDigest,
       idempotencyKeyDigest,
+      accessVersion: principal.accessVersion,
       sourceFactCount: sourceFacts.length,
       acceptedFactCount: normalized.facts.length,
       duplicateFactCount: normalized.duplicateCount,

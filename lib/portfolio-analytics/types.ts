@@ -1,5 +1,7 @@
 export const PORTFOLIO_ANALYTICS_CONTRACT_VERSION = "m4.portfolio-analytics.v1" as const;
+export const PORTFOLIO_ANALYTICS_ACCESS_VERSION = "m4.portfolio-analytics.access.v1" as const;
 export const PORTFOLIO_ANALYTICS_READ_PERMISSION = "portfolio.analytics.read" as const;
+export const PORTFOLIO_ANALYTICS_CORRECT_PERMISSION = "portfolio.analytics.correct" as const;
 
 export const PORTFOLIO_LIMITS = {
   maxProjects: 25,
@@ -11,10 +13,13 @@ export const PORTFOLIO_LIMITS = {
 } as const;
 
 export type PortfolioFileType = "audio" | "document" | "image" | "other" | "video";
+export type PortfolioAnalyticsRole = "tenant_owner" | "portfolio_analyst" | "portfolio_viewer";
 
 export interface PortfolioAnalyticsPrincipal {
   subjectId: string;
   tenantId: string;
+  role: PortfolioAnalyticsRole;
+  accessVersion: typeof PORTFOLIO_ANALYTICS_ACCESS_VERSION;
   permissions: readonly string[];
 }
 
@@ -109,11 +114,23 @@ export interface PortfolioAnalyticsReceipt {
   snapshotId: string;
   resultDigest: string;
   idempotencyKeyDigest: string;
+  accessVersion: typeof PORTFOLIO_ANALYTICS_ACCESS_VERSION;
   sourceFactCount: number;
   acceptedFactCount: number;
   duplicateFactCount: number;
   generatedAt: string;
   readOnly: true;
+}
+
+export interface PortfolioSourceRevisionReceipt {
+  receiptId: string;
+  action: "corrected" | "reactivated" | "unchanged";
+  tenantDigest: string;
+  versionId: string;
+  previousFingerprint: string;
+  activeFingerprint: string;
+  accessVersion: typeof PORTFOLIO_ANALYTICS_ACCESS_VERSION;
+  reversible: true;
 }
 
 export interface PortfolioAnalyticsResult {

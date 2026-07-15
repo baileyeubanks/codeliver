@@ -1,10 +1,15 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { analyzePortfolio } from "./analyze";
+import { deriveM2OwnerPortfolioPrincipal } from "./access";
 import { PortfolioAnalyticsError } from "./errors";
+import { InMemoryPortfolioAnalyticsExecutionLedger } from "./idempotency";
+import { InMemoryPortfolioAnalyticsSource } from "./in-memory-source";
 import { executePortfolioAnalytics } from "./service";
 import {
+  PORTFOLIO_ANALYTICS_ACCESS_VERSION,
   PORTFOLIO_ANALYTICS_CONTRACT_VERSION,
+  PORTFOLIO_ANALYTICS_CORRECT_PERMISSION,
   PORTFOLIO_ANALYTICS_READ_PERMISSION,
   type PortfolioAnalyticsPrincipal,
   type PortfolioAnalyticsQuery,
@@ -22,6 +27,8 @@ const projectId = id(2);
 const principal: PortfolioAnalyticsPrincipal = {
   subjectId: id(3),
   tenantId,
+  role: "tenant_owner",
+  accessVersion: PORTFOLIO_ANALYTICS_ACCESS_VERSION,
   permissions: [PORTFOLIO_ANALYTICS_READ_PERMISSION],
 };
 
@@ -76,7 +83,16 @@ test("rejects forged tenants before touching the source", async () => {
       return [];
     },
   };
-  await assert.rejects(() => executePortfolioAnalytics(principal, forged, source), expectCode("FORBIDDEN"));
+  await assert.rejects(
+    () =>
+      executePortfolioAnalytics(
+        principal,
+        forged,
+        source,
+        new InMemoryPortfolioAnalyticsExecutionLedger(),
+      ),
+    expectCode("FORBIDDEN"),
+  );
   assert.equal(reads, 0);
 });
 
@@ -86,6 +102,17 @@ test("rejects privilege escalation without the explicit read permission", () => 
     () => analyzePortfolio({ ...principal, permissions: [] }, query, []),
     expectCode("FORBIDDEN"),
   );
+});
+
+test("derives the M2 owner role and permission only from the authenticated server subject", () => {
+  assert.deepEqual(deriveM2OwnerPortfolioPrincipal(tenantId.toUpperCase()), {
+    subjectId: tenantId,
+    tenantId,
+    role: "tenant_owner",
+    accessVersion: PORTFOLIO_ANALYTICS_ACCESS_VERSION,
+    permissions: [PORTFOLIO_ANALYTICS_READ_PERMISSION],
+  });
+  assert.throws(() => deriveM2OwnerPortfolioPrincipal("owner@example.com"), expectCode("FORBIDDEN"));
 });
 
 test("rejects a cross-tenant fact even after authorization", () => {
@@ -117,6 +144,60 @@ test("is deterministic for an identical idempotent capture", () => {
     analyzePortfolio(principal, query, facts),
     analyzePortfolio(principal, query, [...facts].reverse()),
   );
+});
+
+test("coalesces concurrent idempotent executions and rejects changed intent", async () => {
+  const query = parsePortfolioAnalyticsQuery(rawQuery({ page: { limit: 10 } }));
+  const ledger = new InMemoryPortfolioAnalyticsExecutionLedger();
+  let reads = 0;
+  const source: PortfolioAnalyticsSource = {
+    async loadCaptureFacts() {
+      reads += 1;
+      await Promise.resolve();
+      return [fact(1)];
+    },
+    async loadReplayFacts() {
+      reads += 1;
+      return [fact(1)];
+    },
+  };
+  const [first, duplicate] = await Promise.all([
+    executePortfolioAnalytics(principal, query, source, ledger),
+    executePortfolioAnalytics(principal, query, source, ledger),
+  ]);
+  assert.deepEqual(duplicate, first);
+  assert.equal(reads, 1);
+  assert.equal(ledger.size, 1);
+
+  const changedIntent = parsePortfolioAnalyticsQuery(rawQuery({ page: { limit: 9 } }));
+  await assert.rejects(
+    () => executePortfolioAnalytics(principal, changedIntent, source, ledger),
+    expectCode("IDEMPOTENCY_CONFLICT"),
+  );
+  assert.equal(reads, 1);
+});
+
+test("releases failed idempotency claims so the same intent can be retried", async () => {
+  const query = parsePortfolioAnalyticsQuery(rawQuery({ page: { limit: 10 } }));
+  const ledger = new InMemoryPortfolioAnalyticsExecutionLedger();
+  let reads = 0;
+  const source: PortfolioAnalyticsSource = {
+    async loadCaptureFacts() {
+      reads += 1;
+      if (reads === 1) throw new PortfolioAnalyticsError("SOURCE_FAILURE", "Temporary source failure", 502);
+      return [fact(1)];
+    },
+    async loadReplayFacts() {
+      return [];
+    },
+  };
+  await assert.rejects(
+    () => executePortfolioAnalytics(principal, query, source, ledger),
+    expectCode("SOURCE_FAILURE"),
+  );
+  const recovered = await executePortfolioAnalytics(principal, query, source, ledger);
+  assert.equal(recovered.totals.versionCount, 1);
+  assert.equal(reads, 2);
 });
 
 test("replays a captured binding while ignoring later unbound versions", () => {
@@ -168,6 +249,105 @@ test("rejects conflicting duplicate events", () => {
   );
 });
 
+test("keeps corrected source revisions replayable and reverses by active-pointer reactivation", async () => {
+  const original = fact(1);
+  const source = new InMemoryPortfolioAnalyticsSource([original]);
+  const correctionPrincipal: PortfolioAnalyticsPrincipal = {
+    ...principal,
+    permissions: [PORTFOLIO_ANALYTICS_READ_PERMISSION, PORTFOLIO_ANALYTICS_CORRECT_PERMISSION],
+  };
+  const originalQuery = parsePortfolioAnalyticsQuery(
+    rawQuery({ idempotencyKey: "portfolio-original-0001", page: { limit: 10 } }),
+  );
+  const originalResult = await executePortfolioAnalytics(
+    principal,
+    originalQuery,
+    source,
+    new InMemoryPortfolioAnalyticsExecutionLedger(),
+  );
+  const originalFingerprint = originalResult.snapshot.binding.facts[0]!.fingerprint;
+
+  const correction = source.recordCorrection(
+    correctionPrincipal,
+    originalFingerprint,
+    { ...original, fileSizeBytes: "8", durationMilliseconds: "12" },
+  );
+  assert.equal(correction.action, "corrected");
+  assert.equal(correction.reversible, true);
+  assert.notEqual(correction.activeFingerprint, originalFingerprint);
+
+  const correctedQuery = parsePortfolioAnalyticsQuery(
+    rawQuery({ idempotencyKey: "portfolio-corrected-0001", page: { limit: 10 } }),
+  );
+  const corrected = await executePortfolioAnalytics(
+    principal,
+    correctedQuery,
+    source,
+    new InMemoryPortfolioAnalyticsExecutionLedger(),
+  );
+  assert.equal(corrected.totals.storageBytesAdded, "8");
+  assert.notEqual(corrected.snapshot.id, originalResult.snapshot.id);
+
+  const replayQuery: PortfolioAnalyticsQuery = {
+    ...originalQuery,
+    idempotencyKey: "portfolio-replay-old-0001",
+    snapshot: { mode: "replay", binding: originalResult.snapshot.binding },
+  };
+  const replayedOriginal = await executePortfolioAnalytics(
+    principal,
+    replayQuery,
+    source,
+    new InMemoryPortfolioAnalyticsExecutionLedger(),
+  );
+  assert.equal(replayedOriginal.snapshot.id, originalResult.snapshot.id);
+  assert.equal(replayedOriginal.totals.storageBytesAdded, original.fileSizeBytes);
+
+  const reversal = source.reactivateRevision(
+    correctionPrincipal,
+    original.versionId,
+    correction.activeFingerprint,
+    originalFingerprint,
+  );
+  assert.equal(reversal.action, "reactivated");
+  const recaptured = await executePortfolioAnalytics(
+    principal,
+    { ...originalQuery, idempotencyKey: "portfolio-recaptured-0001" },
+    source,
+    new InMemoryPortfolioAnalyticsExecutionLedger(),
+  );
+  assert.equal(recaptured.snapshot.id, originalResult.snapshot.id);
+});
+
+test("fails closed on stale, cross-tenant, identity-changing, or unauthorized corrections", () => {
+  const original = fact(1);
+  const source = new InMemoryPortfolioAnalyticsSource([original]);
+  const correctionPrincipal: PortfolioAnalyticsPrincipal = {
+    ...principal,
+    permissions: [PORTFOLIO_ANALYTICS_READ_PERMISSION, PORTFOLIO_ANALYTICS_CORRECT_PERMISSION],
+  };
+  const fingerprint = analyzePortfolio(
+    principal,
+    parsePortfolioAnalyticsQuery(rawQuery()),
+    [original],
+  ).snapshot.binding.facts[0]!.fingerprint;
+  assert.throws(
+    () => source.recordCorrection(correctionPrincipal, "0".repeat(64), { ...original, fileSizeBytes: "8" }),
+    expectCode("SNAPSHOT_CONFLICT"),
+  );
+  assert.throws(
+    () => source.recordCorrection(correctionPrincipal, fingerprint, { ...original, tenantId: id(999) }),
+    expectCode("FORBIDDEN"),
+  );
+  assert.throws(
+    () => source.recordCorrection(correctionPrincipal, fingerprint, { ...original, assetId: id(999) }),
+    expectCode("SNAPSHOT_CONFLICT"),
+  );
+  assert.throws(
+    () => source.recordCorrection(principal, fingerprint, { ...original, fileSizeBytes: "8" }),
+    expectCode("FORBIDDEN"),
+  );
+});
+
 test("binds opaque pagination cursors to one snapshot", () => {
   const captureQuery = parsePortfolioAnalyticsQuery(rawQuery({ page: { limit: 1 } }));
   const facts = [fact(1), fact(2)];
@@ -207,10 +387,46 @@ test("fails closed on malformed ranges, filters, and out-of-window facts", () =>
     () => parsePortfolioAnalyticsQuery(rawQuery({ filters: { fileTypes: ["executable"] } })),
     expectCode("INVALID_QUERY"),
   );
+  assert.throws(
+    () =>
+      parsePortfolioAnalyticsQuery(
+        rawQuery({
+          window: {
+            from: "2026-02-30T00:00:00Z",
+            to: "2026-03-02T00:00:00Z",
+            asOf: "2026-03-03T00:00:00Z",
+          },
+        }),
+      ),
+    expectCode("INVALID_QUERY"),
+  );
+  assert.throws(
+    () => parsePortfolioAnalyticsQuery(rawQuery({ requestedRole: "tenant_owner" })),
+    expectCode("INVALID_QUERY"),
+  );
   const query = parsePortfolioAnalyticsQuery(rawQuery());
   assert.throws(
     () => analyzePortfolio(principal, query, [fact(1, { versionCreatedAt: "2025-01-01T00:00:00Z" })]),
     expectCode("SOURCE_FAILURE"),
+  );
+});
+
+test("rejects manipulated metric encodings and stale access-decision versions", () => {
+  const query = parsePortfolioAnalyticsQuery(rawQuery());
+  for (const fileSizeBytes of ["-1", "01", "1e9", "9".repeat(41)]) {
+    assert.throws(
+      () => analyzePortfolio(principal, query, [fact(1, { fileSizeBytes })]),
+      expectCode("SOURCE_FAILURE"),
+    );
+  }
+  assert.throws(
+    () =>
+      analyzePortfolio(
+        { ...principal, accessVersion: "stale.access.v0" as typeof PORTFOLIO_ANALYTICS_ACCESS_VERSION },
+        query,
+        [],
+      ),
+    expectCode("FORBIDDEN"),
   );
 });
 
@@ -249,5 +465,18 @@ test("is API-only and declares no user-interface accessibility impact", () => {
   const result = analyzePortfolio(principal, parsePortfolioAnalyticsQuery(rawQuery()), []);
   assert.deepEqual(result.accessibility, { surface: "api-only", userInterfaceChanged: false });
   assert.equal(result.receipt.readOnly, true);
+  assert.equal(result.receipt.accessVersion, PORTFOLIO_ANALYTICS_ACCESS_VERSION);
   assert.match(result.snapshot.rollback, /source drift fails closed/);
+});
+
+test("receipts and errors expose recovery proof without raw subject or idempotency PII", () => {
+  const query = parsePortfolioAnalyticsQuery(rawQuery({ idempotencyKey: "private-request-key-0001" }));
+  const result = analyzePortfolio(principal, query, [fact(1)]);
+  const serialized = JSON.stringify(result);
+  assert.equal(serialized.includes(principal.subjectId), false);
+  assert.equal(serialized.includes(query.idempotencyKey), false);
+  assert.match(result.receipt.receiptId, /^[0-9a-f]{64}$/);
+  assert.match(result.receipt.traceId, /^[0-9a-f]{32}$/);
+  const error = new PortfolioAnalyticsError("IDEMPOTENCY_CONFLICT", "Conflict", 409);
+  assert.match(error.recovery, /new idempotency key/);
 });

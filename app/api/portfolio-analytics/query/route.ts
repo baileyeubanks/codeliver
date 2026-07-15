@@ -2,15 +2,18 @@ import { NextResponse } from "next/server";
 import { requireAuthWithClient } from "@/lib/auth-client";
 import {
   PORTFOLIO_ANALYTICS_CONTRACT_VERSION,
-  PORTFOLIO_ANALYTICS_READ_PERMISSION,
   PORTFOLIO_LIMITS,
+  InMemoryPortfolioAnalyticsExecutionLedger,
   PortfolioAnalyticsError,
   SupabasePortfolioAnalyticsSource,
+  deriveM2OwnerPortfolioPrincipal,
   executePortfolioAnalytics,
   parsePortfolioAnalyticsQuery,
 } from "@/lib/portfolio-analytics";
 
 export const runtime = "nodejs";
+
+const executionLedger = new InMemoryPortfolioAnalyticsExecutionLedger();
 
 async function readBoundedJson(request: Request): Promise<unknown> {
   const contentLength = request.headers.get("content-length");
@@ -62,6 +65,7 @@ function errorResponse(error: unknown): NextResponse {
         error: {
           code: error.code,
           message: error.message,
+          recovery: error.recovery,
           ...(error.details ? { details: error.details } : {}),
         },
         contractVersion: PORTFOLIO_ANALYTICS_CONTRACT_VERSION,
@@ -72,7 +76,11 @@ function errorResponse(error: unknown): NextResponse {
   console.error("Portfolio analytics query failed", { error: "unexpected" });
   return NextResponse.json(
     {
-      error: { code: "SOURCE_FAILURE", message: "Portfolio analytics source unavailable" },
+      error: {
+        code: "SOURCE_FAILURE",
+        message: "Portfolio analytics source unavailable",
+        recovery: "Retry later; if the failure persists, provide the receipt or trace identifier to support.",
+      },
       contractVersion: PORTFOLIO_ANALYTICS_CONTRACT_VERSION,
     },
     { status: 502, headers: { "Cache-Control": "no-store" } },
@@ -84,7 +92,11 @@ export async function POST(request: Request): Promise<NextResponse> {
   if (!user) {
     return NextResponse.json(
       {
-        error: { code: "UNAUTHORIZED", message: "Authentication required" },
+        error: {
+          code: "UNAUTHORIZED",
+          message: "Authentication required",
+          recovery: "Sign in and retry the same request.",
+        },
         contractVersion: PORTFOLIO_ANALYTICS_CONTRACT_VERSION,
       },
       { status: 401, headers: { "Cache-Control": "no-store" } },
@@ -94,13 +106,10 @@ export async function POST(request: Request): Promise<NextResponse> {
   try {
     const query = parsePortfolioAnalyticsQuery(await readBoundedJson(request));
     const result = await executePortfolioAnalytics(
-      {
-        subjectId: user.id,
-        tenantId: user.id,
-        permissions: [PORTFOLIO_ANALYTICS_READ_PERMISSION],
-      },
+      deriveM2OwnerPortfolioPrincipal(user.id),
       query,
       new SupabasePortfolioAnalyticsSource(supabase),
+      executionLedger,
     );
     console.info("Portfolio analytics receipt", {
       receiptId: result.receipt.receiptId,

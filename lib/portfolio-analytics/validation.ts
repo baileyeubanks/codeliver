@@ -28,6 +28,14 @@ function record(value: unknown, field: string): Record<string, unknown> {
   return value as Record<string, unknown>;
 }
 
+function allowedKeys(input: Record<string, unknown>, field: string, allowed: readonly string[]): void {
+  const allowedSet = new Set(allowed);
+  const unknown = Object.keys(input).filter((key) => !allowedSet.has(key)).sort();
+  if (unknown.length > 0) {
+    invalidQuery(`${field} contains unsupported field ${unknown[0]}`, `${field}.${unknown[0]}`);
+  }
+}
+
 function string(value: unknown, field: string, maxLength = 256): string {
   if (typeof value !== "string" || value.length === 0 || value.length > maxLength) {
     invalidQuery(`${field} must be a non-empty string no longer than ${maxLength} characters`, field);
@@ -49,7 +57,14 @@ function iso(value: unknown, field: string): string {
   if (!ISO_PATTERN.test(parsed) || !Number.isFinite(milliseconds)) {
     invalidQuery(`${field} must be an ISO-8601 UTC timestamp`, field);
   }
-  return new Date(milliseconds).toISOString();
+  const normalized = new Date(milliseconds).toISOString();
+  const canonicalInput = parsed.includes(".")
+    ? parsed.replace(/\.(\d{1,3})Z$/, (_, fraction: string) => `.${fraction.padEnd(3, "0")}Z`)
+    : parsed.replace(/Z$/, ".000Z");
+  if (normalized !== canonicalInput) {
+    invalidQuery(`${field} must be a real calendar timestamp`, field);
+  }
+  return normalized;
 }
 
 function uniqueSortedUuids(value: unknown, field: string, max: number): string[] {
@@ -65,6 +80,7 @@ function uniqueSortedUuids(value: unknown, field: string, max: number): string[]
 
 function parseWindow(value: unknown, field: string): PortfolioWindow {
   const input = record(value, field);
+  allowedKeys(input, field, ["from", "to", "asOf"]);
   const from = iso(input.from, `${field}.from`);
   const to = iso(input.to, `${field}.to`);
   const asOf = iso(input.asOf, `${field}.asOf`);
@@ -83,6 +99,7 @@ function parseWindow(value: unknown, field: string): PortfolioWindow {
 function parseFilters(value: unknown, field: string): PortfolioAnalyticsFilters {
   if (value === undefined) return {};
   const input = record(value, field);
+  allowedKeys(input, field, ["fileTypes"]);
   if (input.fileTypes === undefined) return {};
   if (!Array.isArray(input.fileTypes) || input.fileTypes.length === 0 || input.fileTypes.length > FILE_TYPES.size) {
     invalidQuery(`${field}.fileTypes must contain between 1 and ${FILE_TYPES.size} values`, `${field}.fileTypes`);
@@ -106,6 +123,7 @@ function parseFactBindings(value: unknown, field: string): PortfolioFactBinding[
   const seen = new Set<string>();
   const bindings = value.map((entry, index) => {
     const input = record(entry, `${field}[${index}]`);
+    allowedKeys(input, `${field}[${index}]`, ["versionId", "fingerprint"]);
     const versionId = uuid(input.versionId, `${field}[${index}].versionId`);
     const fingerprint = string(input.fingerprint, `${field}[${index}].fingerprint`, 64);
     if (!DIGEST_PATTERN.test(fingerprint)) {
@@ -120,6 +138,7 @@ function parseFactBindings(value: unknown, field: string): PortfolioFactBinding[
 
 function parseBinding(value: unknown, field: string): PortfolioSnapshotBinding {
   const input = record(value, field);
+  allowedKeys(input, field, ["contractVersion", "tenantId", "projectIds", "window", "filters", "facts"]);
   if (input.contractVersion !== PORTFOLIO_ANALYTICS_CONTRACT_VERSION) {
     invalidQuery(`${field}.contractVersion is unsupported`, `${field}.contractVersion`);
   }
@@ -135,6 +154,16 @@ function parseBinding(value: unknown, field: string): PortfolioSnapshotBinding {
 
 export function parsePortfolioAnalyticsQuery(value: unknown): PortfolioAnalyticsQuery {
   const input = record(value, "body");
+  allowedKeys(input, "body", [
+    "contractVersion",
+    "tenantId",
+    "idempotencyKey",
+    "projectIds",
+    "window",
+    "filters",
+    "page",
+    "snapshot",
+  ]);
   if (input.contractVersion !== PORTFOLIO_ANALYTICS_CONTRACT_VERSION) {
     invalidQuery("contractVersion is unsupported", "contractVersion");
   }
@@ -144,6 +173,7 @@ export function parsePortfolioAnalyticsQuery(value: unknown): PortfolioAnalytics
   }
 
   const pageInput = input.page === undefined ? {} : record(input.page, "page");
+  allowedKeys(pageInput, "page", ["limit", "cursor"]);
   const limit = pageInput.limit === undefined ? 50 : pageInput.limit;
   if (!Number.isInteger(limit) || (limit as number) < 1 || (limit as number) > PORTFOLIO_LIMITS.maxPageSize) {
     invalidQuery(`page.limit must be an integer from 1 to ${PORTFOLIO_LIMITS.maxPageSize}`, "page.limit");
@@ -153,8 +183,10 @@ export function parsePortfolioAnalyticsQuery(value: unknown): PortfolioAnalytics
   const snapshotInput = input.snapshot === undefined ? { mode: "capture" } : record(input.snapshot, "snapshot");
   let snapshot: PortfolioAnalyticsQuery["snapshot"];
   if (snapshotInput.mode === "capture") {
+    allowedKeys(snapshotInput, "snapshot", ["mode"]);
     snapshot = { mode: "capture" };
   } else if (snapshotInput.mode === "replay") {
+    allowedKeys(snapshotInput, "snapshot", ["mode", "binding"]);
     snapshot = { mode: "replay", binding: parseBinding(snapshotInput.binding, "snapshot.binding") };
   } else {
     invalidQuery("snapshot.mode must be capture or replay", "snapshot.mode");

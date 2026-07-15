@@ -13,7 +13,9 @@ does not change roles, policies, projects, assets, or database state.
 - The requested policy version must equal the operator-selected active immutable
   version. `enterprise-governance/2026-07-14.0` remains registered as the rollback
   target; changing the server-selected version is an explicit code/configuration
-  operation, not a client-controlled fallback.
+  operation, not a client-controlled fallback. Runtime selection of any
+  unregistered version denies with `INVALID_POLICY_CONFIGURATION` and binds its
+  receipt to the known active version.
 - The idempotency key is SHA-256 over the canonical request without the key.
   Identical evaluation under the same role and policy yields the same decision id;
   changing the payload while reusing a key fails closed.
@@ -36,12 +38,17 @@ The route emits a structured server log and sends `Cache-Control: no-store`.
 Rollback selects the immutable previous policy version; attack tests prove both
 stale-version rejection and explicit rollback evaluation.
 
+The route rejects bodies above 16 KiB using their UTF-8 byte count, rejects
+malformed JSON without entering authorization evaluation, and returns stable
+recovery guidance alongside machine-readable reasons.
+
 ## Accessibility
 
 This slice is API-only and renders no user interface. JSON errors include both a
 plain-language explanation and a stable machine-readable reason; invalid input
-also includes field-level issues so an accessible client can associate errors
-with its own controls without parsing prose.
+also includes field-level issues and every rejection includes plain-language
+recovery guidance so an accessible client can associate errors with its own
+controls without parsing prose.
 
 ## Proof command
 
@@ -49,6 +56,7 @@ with its own controls without parsing prose.
 node --test lib/enterprise/authorization.attack.test.mjs
 ```
 
-The proof attacks cross-tenant scope, stale versions, admin escalation, owner
-self-demotion, replay/key reuse, unknown privilege fields, malformed role input,
-and target/action confusion.
+The proof attacks cross-tenant scope, stale and unregistered versions, admin
+escalation, owner self-demotion, replay/key reuse, unknown privilege fields,
+malformed JSON and role input, overlong identifiers, multibyte resource
+exhaustion, and target/action confusion.

@@ -6,6 +6,15 @@ export const ACTIVE_ENTERPRISE_POLICY_VERSION =
   "enterprise-governance/2026-07-14.1" as const;
 export const PREVIOUS_ENTERPRISE_POLICY_VERSION =
   "enterprise-governance/2026-07-14.0" as const;
+export const MAX_ENTERPRISE_AUTHORIZATION_BODY_BYTES = 16 * 1024;
+
+export const REGISTERED_ENTERPRISE_POLICY_VERSIONS = Object.freeze([
+  ACTIVE_ENTERPRISE_POLICY_VERSION,
+  PREVIOUS_ENTERPRISE_POLICY_VERSION,
+] as const);
+
+export type EnterprisePolicyVersion =
+  (typeof REGISTERED_ENTERPRISE_POLICY_VERSIONS)[number];
 
 export type EnterpriseRole = "owner" | "admin" | "member" | "viewer";
 
@@ -55,6 +64,7 @@ export interface EnterpriseActor {
 
 export type EnterpriseDecisionReason =
   | "ALLOWED"
+  | "INVALID_POLICY_CONFIGURATION"
   | "TENANT_MISMATCH"
   | "STALE_POLICY_VERSION"
   | "IDEMPOTENCY_KEY_MISMATCH"
@@ -76,7 +86,7 @@ export interface EnterpriseAuthorizationDecision {
   binding: {
     tenantId: string;
     targetKind: EnterpriseAuthorizationTarget["kind"];
-    policyVersion: string;
+    policyVersion: EnterprisePolicyVersion;
     previousPolicyVersion: typeof PREVIOUS_ENTERPRISE_POLICY_VERSION;
     idempotencyKey: string;
   };
@@ -90,12 +100,20 @@ export interface EnterpriseDecisionContext {
   requestId: string;
   evaluatedAt?: string;
   /** Allows an operator-controlled rollback to an immutable registered policy. */
-  activePolicyVersion?: string;
+  activePolicyVersion?: EnterprisePolicyVersion;
 }
 
 export type EnterpriseRequestParseResult =
   | { ok: true; value: EnterpriseAuthorizationRequest }
   | { ok: false; issues: string[] };
+
+export type EnterpriseJsonParseResult =
+  | { ok: true; value: EnterpriseAuthorizationRequest }
+  | {
+      ok: false;
+      reason: "BODY_TOO_LARGE" | "MALFORMED_JSON" | "INVALID_REQUEST";
+      issues: string[];
+    };
 
 const ACTIONS = new Set<EnterpriseAction>([
   "tenant.read",
@@ -132,6 +150,47 @@ export function isEnterpriseRole(value: unknown): value is EnterpriseRole {
     value === "member" ||
     value === "viewer"
   );
+}
+
+export function isRegisteredEnterprisePolicyVersion(
+  value: unknown,
+): value is EnterprisePolicyVersion {
+  return REGISTERED_ENTERPRISE_POLICY_VERSIONS.some(
+    (version) => version === value,
+  );
+}
+
+export function parseEnterpriseAuthorizationJson(
+  text: string,
+): EnterpriseJsonParseResult {
+  if (
+    Buffer.byteLength(text, "utf8") > MAX_ENTERPRISE_AUTHORIZATION_BODY_BYTES
+  ) {
+    return {
+      ok: false,
+      reason: "BODY_TOO_LARGE",
+      issues: [
+        `body must not exceed ${MAX_ENTERPRISE_AUTHORIZATION_BODY_BYTES} UTF-8 bytes`,
+      ],
+    };
+  }
+
+  let input: unknown;
+  try {
+    input = JSON.parse(text) as unknown;
+  } catch {
+    return {
+      ok: false,
+      reason: "MALFORMED_JSON",
+      issues: ["body must be valid JSON"],
+    };
+  }
+
+  const parsed = parseEnterpriseAuthorizationRequest(input);
+  if (!parsed.ok) {
+    return { ok: false, reason: "INVALID_REQUEST", issues: parsed.issues };
+  }
+  return parsed;
 }
 
 export function computeEnterpriseIdempotencyKey(
@@ -203,8 +262,17 @@ export function evaluateEnterpriseAuthorization(
   actor: EnterpriseActor,
   context: EnterpriseDecisionContext,
 ): EnterpriseAuthorizationDecision {
-  const activePolicyVersion =
+  const configuredPolicyVersion: unknown =
     context.activePolicyVersion ?? ACTIVE_ENTERPRISE_POLICY_VERSION;
+  const policyConfigurationValid = isRegisteredEnterprisePolicyVersion(
+    configuredPolicyVersion,
+  );
+  // A bad operator selection must never become an authorization namespace.
+  // Bind the denial receipt to the known active version while reporting the
+  // configuration failure as the highest-priority reason.
+  const activePolicyVersion = policyConfigurationValid
+    ? configuredPolicyVersion
+    : ACTIVE_ENTERPRISE_POLICY_VERSION;
   const expectedIdempotencyKey = computeEnterpriseIdempotencyKey({
     schemaVersion: request.schemaVersion,
     tenantId: request.tenantId,
@@ -215,7 +283,9 @@ export function evaluateEnterpriseAuthorization(
 
   let reason: EnterpriseDecisionReason = "ALLOWED";
 
-  if (
+  if (!policyConfigurationValid) {
+    reason = "INVALID_POLICY_CONFIGURATION";
+  } else if (
     actor.tenantId !== request.tenantId ||
     request.target.tenantId !== request.tenantId
   ) {

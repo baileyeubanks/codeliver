@@ -83,6 +83,30 @@ M2 behavior and pass, at minimum, repository typechecking plus every pillar's
 executable attack tests. Conflicts, shared-file edits, ambiguous authorization,
 or missing proof fail closed and remain unintegrated.
 
+## Local run ledger
+
+The lane started from the clean checkout at
+`/Users/_mxappservice/Projects/content-co-op/cco-codeliver-enterprise`, with
+`origin/main` at `585a703d6bfbee6a2a6c0bd46f93b30a4dd7f298` and remote
+`git@github.com:baileyeubanks/codeliver.git`. The repository remained local-only.
+
+First-wave worker receipts accepted into this integration branch:
+
+- Enterprise identity/governance: worker commits `0e87d9b` and `0932e1c`;
+  integration commits `0fd1052` and `0a0c764`; 16 of 16 attack tests pass.
+- Media catalog intelligence: worker commit `af61b6c`; integration commit
+  `83b6d19`; 9 of 9 executable tests pass, covering 57 assertions including 18
+  explicit attack/rejection checks.
+- Realtime collaboration: worker commits `c064b6f` and `c6decd1`; integration
+  commits `7ff778f` and `2d91826`; 10 of 10 attack tests pass. The worker and
+  integration base commits have identical stable patch ID
+  `5df414116f66384cbab38696c016da1aa63b1986`.
+
+Repository typechecking and `git diff --check` pass after all three accepted
+pillars. The second wave is active on `m4/portfolio-analytics`,
+`m4/integration-control-plane`, and `m4/enterprise-operations`; none is accepted
+until its owned-path check, attack suite, and combined typecheck pass.
+
 ## Prohibited actions
 
 This lane does not deploy or push. It does not run live migrations, obtain or

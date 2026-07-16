@@ -1,81 +1,151 @@
 import { NextResponse } from "next/server";
+import { getAssetAccess } from "@/lib/access-control";
+import {
+  buildReviewSummaryPrompt,
+  normalizeReviewSummaryRequest,
+  parseAnthropicReviewResponse,
+  parseReviewSummaryResult,
+  prepareReviewComments,
+  REVIEW_SUMMARY_MAX_COMMENTS,
+} from "@/lib/ai/review-summary";
 import { requireAuth } from "@/lib/auth";
 import { getSupabase } from "@/lib/supabase";
 
-export async function POST(req: Request) {
+const MAX_REQUEST_BYTES = 4_096;
+const PROVIDER_TIMEOUT_MS = 30_000;
+
+function noStoreJson(value: unknown, init?: ResponseInit) {
+  const headers = new Headers(init?.headers);
+  headers.set("Cache-Control", "no-store");
+  return NextResponse.json(value, { ...init, headers });
+}
+
+export async function POST(request: Request) {
   const user = await requireAuth();
-  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (!user) return noStoreJson({ error: "Unauthorized" }, { status: 401 });
 
-  const { asset_id } = await req.json();
-  if (!asset_id) return NextResponse.json({ error: "asset_id required" }, { status: 400 });
+  const contentLength = Number(request.headers.get("content-length") ?? "0");
+  if (Number.isFinite(contentLength) && contentLength > MAX_REQUEST_BYTES) {
+    return noStoreJson({ error: "Request body is too large" }, { status: 413 });
+  }
+  const body = await request.json().catch(() => null);
+  const input = normalizeReviewSummaryRequest(body);
+  if (!input.ok) return noStoreJson({ error: input.error }, { status: 400 });
 
-  // Verify user owns the project containing this asset
-  const { data: asset } = await getSupabase()
-    .from("assets")
-    .select("project_id")
-    .eq("id", asset_id)
-    .single();
-
-  if (!asset) return NextResponse.json({ error: "Asset not found" }, { status: 404 });
-
-  const { data: project } = await getSupabase()
-    .from("projects")
-    .select("owner_id")
-    .eq("id", asset.project_id)
-    .single();
-
-  if (!project || project.owner_id !== user.id) {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  const { assetId, versionId, mode } = input.value;
+  const supabase = getSupabase();
+  const access = await getAssetAccess(assetId, user.id, "member", supabase);
+  if (!access.ok) {
+    return noStoreJson({ error: access.error }, { status: access.status });
   }
 
-  // Get all comments for this asset
-  const { data: comments } = await getSupabase()
-    .from("comments")
-    .select("body, author_name, timecode_seconds, status")
-    .eq("asset_id", asset_id)
-    .order("created_at", { ascending: true });
-
-  if (!comments || comments.length === 0) {
-    return NextResponse.json({ summary: "No comments to summarize." });
+  const { data: version, error: versionError } = await supabase
+    .from("versions")
+    .select("id")
+    .eq("id", versionId)
+    .eq("asset_id", assetId)
+    .maybeSingle();
+  if (versionError) {
+    return noStoreJson({ error: "Version access could not be verified" }, { status: 500 });
   }
+  if (!version) return noStoreJson({ error: "Version not found" }, { status: 404 });
 
-  const commentText = comments
-    .map((c) => {
-      const time = c.timecode_seconds ? `[${Math.floor(c.timecode_seconds / 60)}:${String(Math.floor(c.timecode_seconds % 60)).padStart(2, "0")}]` : "";
-      return `${c.author_name} ${time}: ${c.body} (${c.status})`;
-    })
-    .join("\n");
-
-  const apiKey = process.env.ANTHROPIC_API_KEY;
+  if (process.env.CODELIVER_AI_EXTERNAL_PROCESSING_ENABLED !== "true") {
+    return noStoreJson(
+      { error: "External AI processing is disabled for this environment" },
+      { status: 503 },
+    );
+  }
+  const apiKey = process.env.ANTHROPIC_API_KEY?.trim();
   if (!apiKey) {
-    return NextResponse.json({ error: "AI not configured" }, { status: 500 });
+    return noStoreJson({ error: "AI service is not configured" }, { status: 503 });
   }
 
-  const response = await fetch("https://api.anthropic.com/v1/messages", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "x-api-key": apiKey,
-      "anthropic-version": "2023-06-01",
-    },
-    body: JSON.stringify({
-      model: "claude-sonnet-4-20250514",
-      max_tokens: 500,
-      messages: [
-        {
-          role: "user",
-          content: `Summarize these review comments into a concise executive brief. Group by theme, note any action items, and highlight unresolved issues.\n\nComments:\n${commentText}`,
-        },
-      ],
-    }),
-  });
-
-  if (!response.ok) {
-    return NextResponse.json({ error: "AI request failed" }, { status: 500 });
+  const { data: commentRows, error: commentsError } = await supabase
+    .from("comments")
+    .select("body, status, timecode_seconds")
+    .eq("asset_id", assetId)
+    .eq("version_id", versionId)
+    .order("created_at", { ascending: true })
+    .limit(REVIEW_SUMMARY_MAX_COMMENTS + 1);
+  if (commentsError) {
+    return noStoreJson({ error: "Review comments could not be loaded" }, { status: 500 });
   }
 
-  const data = await response.json();
-  const summary = data.content?.[0]?.text ?? "Could not generate summary.";
+  const prepared = prepareReviewComments(commentRows ?? []);
+  if (!prepared.ok) {
+    const status = prepared.error.startsWith("Too many") || prepared.error.includes("limit")
+      ? 413
+      : 500;
+    return noStoreJson({ error: prepared.error }, { status });
+  }
+  if (prepared.value.length === 0) {
+    return noStoreJson(
+      mode === "summary"
+        ? {
+            sentiment: "neutral",
+            themes: [],
+            action_items: [],
+            summary: "No comments to summarize.",
+          }
+        : { suggestions: [] },
+    );
+  }
 
-  return NextResponse.json({ summary });
+  const prompt = buildReviewSummaryPrompt(mode, prepared.value);
+  try {
+    const response = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-api-key": apiKey,
+        "anthropic-version": "2023-06-01",
+      },
+      body: JSON.stringify({
+        model: process.env.ANTHROPIC_MODEL || "claude-sonnet-4-20250514",
+        max_tokens: mode === "summary" ? 1_024 : 1_536,
+        system: prompt.system,
+        messages: [{ role: "user", content: prompt.user }],
+      }),
+      signal: AbortSignal.timeout(PROVIDER_TIMEOUT_MS),
+    });
+    if (!response.ok) {
+      return noStoreJson({ error: "The AI provider rejected the request" }, { status: 502 });
+    }
+
+    const providerBody = await response.json().catch(() => null);
+    const providerResult = parseAnthropicReviewResponse(providerBody);
+    if (!providerResult.ok) {
+      return noStoreJson({ error: providerResult.error }, { status: 502 });
+    }
+
+    let decoded: unknown;
+    try {
+      decoded = JSON.parse(providerResult.value.text);
+    } catch {
+      return noStoreJson({ error: "The AI provider returned invalid JSON" }, { status: 502 });
+    }
+    const result = parseReviewSummaryResult(decoded, mode, prepared.value.length);
+    if (!result.ok) return noStoreJson({ error: result.error }, { status: 502 });
+
+    return noStoreJson({
+      ...result.value,
+      scope: { asset_id: assetId, version_id: versionId },
+      usage: {
+        operation: "ai_generation",
+        input_tokens: providerResult.value.inputTokens,
+        output_tokens: providerResult.value.outputTokens,
+        state: "observed_not_committed",
+      },
+    });
+  } catch (error) {
+    const timedOut =
+      error instanceof Error &&
+      (error.name === "TimeoutError" || error.name === "AbortError");
+    console.error("AI review-summary request failed", error instanceof Error ? error.name : "unknown");
+    return noStoreJson(
+      { error: timedOut ? "The AI request timed out" : "AI review analysis failed" },
+      { status: timedOut ? 504 : 500 },
+    );
+  }
 }

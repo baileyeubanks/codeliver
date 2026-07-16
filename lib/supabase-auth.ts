@@ -1,5 +1,6 @@
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
+import { getSupabaseDataSchema } from "@/lib/data-authority";
 import { getSupabaseAnonKey, getSupabasePublicUrl } from "@/lib/public-env";
 
 export async function createSupabaseAuth() {
@@ -8,6 +9,7 @@ export async function createSupabaseAuth() {
     getSupabasePublicUrl(),
     getSupabaseAnonKey(),
     {
+      db: { schema: getSupabaseDataSchema() },
       cookies: {
         getAll() {
           return cookieStore.getAll();

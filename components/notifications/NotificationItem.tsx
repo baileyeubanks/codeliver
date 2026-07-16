@@ -68,8 +68,11 @@ export default function NotificationItem({
     // Navigate if we have project/asset context
     const projectId = notification.data.project_id as string | undefined;
     const assetId = notification.data.asset_id as string | undefined;
+    const actionUrl = notification.data.action_url;
 
-    if (projectId && assetId) {
+    if (typeof actionUrl === "string" && actionUrl.startsWith("/") && !actionUrl.startsWith("//")) {
+      router.push(actionUrl);
+    } else if (projectId && assetId) {
       router.push(`/projects/${projectId}/assets/${assetId}`);
     } else if (projectId) {
       router.push(`/projects/${projectId}`);

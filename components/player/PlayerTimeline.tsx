@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, useState, useCallback } from "react";
+import { Scissors } from "lucide-react";
 import { usePlayerStore } from "@/lib/stores/playerStore";
 
 interface TimelineComment {
@@ -11,10 +12,28 @@ interface TimelineComment {
 
 interface PlayerTimelineProps {
   comments?: TimelineComment[];
+  cutMarkers?: Array<{
+    id: string;
+    time: number;
+    status?: "proposed" | "accepted" | "rejected" | "applied";
+    pending?: boolean;
+  }>;
   onSeek?: (time: number) => void;
 }
 
-export default function PlayerTimeline({ comments = [], onSeek }: PlayerTimelineProps) {
+function getCommentMarkerAriaLabel(comment: TimelineComment, timeSeconds: number) {
+  const timeLabel = Number.isFinite(timeSeconds)
+    ? `${timeSeconds.toFixed(1)} seconds`
+    : "unknown time";
+  const statusLabel = comment.status.trim() || "open";
+  const body = comment.body.trim().replace(/\s+/g, " ");
+
+  return body
+    ? `Comment at ${timeLabel}, ${statusLabel}: ${body}`
+    : `Comment at ${timeLabel}, ${statusLabel}`;
+}
+
+export default function PlayerTimeline({ comments = [], cutMarkers = [], onSeek }: PlayerTimelineProps) {
   const { currentTime, duration } = usePlayerStore();
   const barRef = useRef<HTMLDivElement>(null);
   const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
@@ -62,9 +81,14 @@ export default function PlayerTimeline({ comments = [], onSeek }: PlayerTimeline
           const tc = comment.timecode_seconds as number;
           const pos = duration > 0 ? (tc / duration) * 100 : 0;
           return (
-            <div
+            <button
               key={idx}
-              className="absolute top-1/2 -translate-x-1/2 -translate-y-1/2"
+              type="button"
+              className={`absolute top-1/2 h-2.5 w-2.5 -translate-x-1/2 -translate-y-1/2 appearance-none cursor-pointer rounded-full border border-[var(--surface)] p-0 transition-transform hover:scale-125 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)] ${
+                comment.status === "resolved"
+                  ? "bg-[var(--green)]"
+                  : "bg-[var(--orange)]"
+              }`}
               style={{ left: `${pos}%` }}
               onMouseEnter={(e) => {
                 setHoveredIndex(idx);
@@ -79,15 +103,37 @@ export default function PlayerTimeline({ comments = [], onSeek }: PlayerTimeline
                 e.stopPropagation();
                 onSeek?.(tc);
               }}
-            >
-              <div
-                className={`h-2.5 w-2.5 cursor-pointer rounded-full border border-[var(--surface)] transition-transform hover:scale-125 ${
-                  comment.status === "resolved"
+              aria-label={getCommentMarkerAriaLabel(comment, tc)}
+            />
+          );
+        })}
+
+        {cutMarkers.map((marker) => {
+          const pos = duration > 0 ? Math.max(0, Math.min(100, (marker.time / duration) * 100)) : 0;
+          const status = marker.pending ? "saving" : marker.status ?? "proposed";
+          return (
+            <button
+              key={marker.id}
+              type="button"
+              className={`absolute top-1/2 grid h-5 w-5 -translate-x-1/2 -translate-y-1/2 place-items-center rounded-[var(--radius-sm)] border border-white/80 text-white shadow-sm transition-transform hover:scale-110 ${
+                marker.pending
+                  ? "bg-[var(--muted)] opacity-70 motion-safe:animate-pulse"
+                  : marker.status === "accepted"
                     ? "bg-[var(--green)]"
-                    : "bg-[var(--orange)]"
-                }`}
-              />
-            </div>
+                    : marker.status === "applied"
+                      ? "bg-[var(--purple)]"
+                      : "bg-[var(--accent)]"
+              }`}
+              style={{ left: `${pos}%` }}
+              onClick={(event) => {
+                event.stopPropagation();
+                onSeek?.(marker.time);
+              }}
+              title={`Cut decision at ${marker.time.toFixed(1)} seconds · ${status}`}
+              aria-label={`Cut decision at ${marker.time.toFixed(1)} seconds, ${status}`}
+            >
+              <Scissors size={10} />
+            </button>
           );
         })}
       </div>

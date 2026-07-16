@@ -1,0 +1,71 @@
+{
+  "schemaVersion": 1,
+  "kind": "journey",
+  "id": "review-annotation-approval",
+  "title": "Frame-accurate review, annotation, edit decisions, and approval",
+  "horizon": 1,
+  "proofTtlDays": 7,
+  "routes": [
+    "/reviews",
+    "/projects/[id]/assets/[assetId]",
+    "/api/assets/[id]",
+    "/api/assets/[id]/comments",
+    "/api/assets/[id]/edit-decisions",
+    "/api/assets/[id]/approvals",
+    "/api/versions/compare"
+  ],
+  "states": [
+    "paused",
+    "playing",
+    "point comment draft",
+    "comment persisted",
+    "edit decision recorded",
+    "approval pending",
+    "changes requested",
+    "approved"
+  ],
+  "viewports": [
+    { "id": "mobile", "width": 390, "height": 844 },
+    { "id": "desktop", "width": 1440, "height": 1000 }
+  ],
+  "accessibility": [
+    "Space, arrow, and submission shortcuts do not conflict with text entry",
+    "Player controls have names, states, and minimum touch targets",
+    "Annotation location and timecode are available without color alone",
+    "Automated critical and serious accessibility violations equal zero"
+  ],
+  "securityInvariants": [
+    "Review mutations require asset and project authority",
+    "Approval cannot target a superseded or ambiguous version",
+    "Client-provided actor identity is not trusted"
+  ],
+  "persistence": [
+    "Submitted point comments preserve timecode and normalized coordinates",
+    "Edit decisions and approval state survive reload and session renewal"
+  ],
+  "concurrency": [
+    "Concurrent comments are not lost or reordered ambiguously",
+    "Approval and version creation conflicts resolve deterministically"
+  ],
+  "degradedDependencies": [
+    "Realtime loss falls back to bounded polling without duplicate comments",
+    "Media stream failure preserves authored draft text",
+    "AI transcript outage does not disable manual review"
+  ],
+  "rollback": [
+    "Failed annotation submission leaves a retryable local draft",
+    "Approval rollback is an explicit audited action, never an overwrite"
+  ],
+  "performanceBudgets": [
+    { "metric": "player-control-input-delay-p75-ms", "operator": "<=", "value": 100 },
+    { "metric": "comment-mutation-p95-ms", "operator": "<=", "value": 750 },
+    { "metric": "seek-to-frame-p95-ms", "operator": "<=", "value": 500 }
+  ],
+  "checks": [
+    "evidence.ingest-review-approval",
+    "consistency.approval-status-contract",
+    "resilience.version-transaction",
+    "evidence.viewport-proof",
+    "evidence.accessibility-proof"
+  ]
+}

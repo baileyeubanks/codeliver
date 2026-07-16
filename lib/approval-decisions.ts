@@ -1,4 +1,6 @@
 import type { ApprovalDecision } from "@/lib/types/codeliver";
+import { deliverSignedWebhook } from "@/lib/security/webhook-delivery";
+import { recoverWebhookSecret } from "@/lib/security/webhook-secret";
 import { getSupabase } from "@/lib/supabase";
 
 const APPROVED_STATUSES = new Set<ApprovalDecision>([
@@ -180,7 +182,7 @@ export async function recordApprovalDecision({
     assetStatus = "needs_changes";
   }
 
-  // ── Webhook emission: fire events to all registered webhooks ──
+  // ── Webhook emission: fire events to the owning team's webhooks ──
   const webhookEvent = allApproved
     ? "review.completed"
     : APPROVED_STATUSES.has(status)
@@ -205,7 +207,7 @@ export async function recordApprovalDecision({
 }
 
 /**
- * Emit webhook events to all active webhooks that subscribe to this event type.
+ * Emit webhook events to the owning team's active webhooks that subscribe to this event type.
  * Fire-and-forget — failures are logged but don't block the response.
  */
 async function emitWebhookEvents(
@@ -215,19 +217,36 @@ async function emitWebhookEvents(
 ): Promise<void> {
   const supabase = getSupabase();
 
-  // Get the asset's project → team → webhooks chain
-  const { data: asset } = await supabase
+  // Resolve authority from persisted relationships only: asset -> project owner -> team.
+  const { data: asset, error: assetError } = await supabase
     .from("assets")
     .select("project_id, projects(owner_id)")
     .eq("id", assetId)
     .single();
 
-  if (!asset) return;
+  if (assetError || !asset) return;
 
-  // Find webhooks that subscribe to this event (or have empty events = all events)
+  const project = Array.isArray(asset.projects)
+    ? asset.projects[0]
+    : asset.projects;
+  const projectOwnerId = project?.owner_id;
+
+  if (!projectOwnerId) return;
+
+  const { data: owningTeams, error: teamError } = await supabase
+    .from("teams")
+    .select("id")
+    .eq("owner_id", projectOwnerId)
+    .limit(2);
+
+  // Projects have no direct team_id, so ambiguous owner-to-team mappings must fail closed.
+  if (teamError || owningTeams?.length !== 1 || !owningTeams[0]?.id) return;
+
+  // Find owning-team webhooks that subscribe to this event (empty events = all events).
   const { data: webhooks } = await supabase
     .from("webhooks")
     .select("*")
+    .eq("team_id", owningTeams[0].id)
     .eq("active", true);
 
   if (!webhooks || webhooks.length === 0) return;
@@ -244,15 +263,11 @@ async function emitWebhookEvents(
     if (events.length > 0 && !events.includes(event)) continue;
 
     try {
-      const res = await fetch(webhook.url, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "X-CoDeliver-Signature": webhook.secret,
-          "X-CoDeliver-Event": event,
-        },
-        body: JSON.stringify(payload),
-        signal: AbortSignal.timeout(10000),
+      const result = await deliverSignedWebhook({
+        url: webhook.url,
+        secret: recoverWebhookSecret(webhook as Record<string, unknown>),
+        event,
+        payload,
       });
 
       // Log delivery
@@ -260,9 +275,9 @@ async function emitWebhookEvents(
         webhook_id: webhook.id,
         event,
         payload,
-        response_code: res.status,
+        response_code: result.responseCode,
       });
-    } catch (err) {
+    } catch {
       // Log failed delivery
       await supabase.from("webhook_deliveries").insert({
         webhook_id: webhook.id,

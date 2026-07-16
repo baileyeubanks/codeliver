@@ -22,9 +22,11 @@
     ],
     "baseUrl": ".",
     "paths": {
-      "@/*": [
-        "./*"
-      ]
+      "@/*": ["./*"],
+      "@contentco-op/ui": ["./packages/ui/src"],
+      "@contentco-op/brand": ["./packages/brand/src"],
+      "@contentco-op/types": ["./packages/types/src"],
+      "@contentco-op/api-client": ["./packages/api-client/src"]
     },
     "plugins": [
       {

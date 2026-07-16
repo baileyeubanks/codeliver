@@ -1,0 +1,30 @@
+- main:
+  - generic: Content Co-op
+  - generic: Co-Deliver
+  - link "suite overview ↗":
+    - /url: https://contentco-op.com/suite#co-deliver
+  - generic: Step 3 / Review and delivery
+  - heading "Ship the work without losing the thread." [level=1]:
+    - text: Ship the work
+    - text: without losing
+    - text: the
+    - emphasis: thread.
+  - paragraph: Timecoded review, version control, and stakeholder sign-off in one place. Co-Deliver closes the loop between your team and your client — no more scattered email threads or lost approvals.
+  - generic: Agency + client alignment
+  - generic: Review to approval
+  - generic: Delivery without the email hunt
+  - generic: © Content Co-op LLC
+  - generic: Sign in
+  - heading "Open Co-Deliver." [level=2]
+  - paragraph: Timecoded review links, version control, approval tracking, and client-safe final delivery — built for agency-client teams.
+  - generic: Email
+  - textbox
+  - generic: Password
+  - textbox
+  - button "Sign in"
+  - paragraph: Review links are public and token-based. AI transcription and comment summaries should be described as beta features.
+  - paragraph:
+    - link "See the full Co-Apps workflow ↗":
+      - /url: https://contentco-op.com/suite#co-deliver
+- button "Open Next.js Dev Tools":
+- alert

@@ -96,7 +96,7 @@ export default function ApprovalStepCard({
 
   return (
     <div
-      className={`rounded-[var(--radius)] border bg-[var(--bg)]/72 p-4 transition-colors ${
+      className={`approval-step-card rounded-[var(--radius)] border bg-[var(--bg)]/72 p-4 transition-colors ${
         isActive
           ? "border-[var(--accent)] shadow-[0_0_0_1px_var(--accent)]"
           : "border-[var(--border)]"
@@ -115,17 +115,17 @@ export default function ApprovalStepCard({
               <span className="text-xs text-[var(--dim)]">
                 Step {step.step_order}
               </span>
-              <span className="text-sm font-medium text-[var(--ink)] truncate">
+              <span className="approval-step-role text-sm font-medium leading-5 text-[var(--ink)]">
                 {step.role_label}
               </span>
             </div>
             {assigneeLabel ? (
-              <p className="text-xs text-[var(--muted)] truncate">{assigneeLabel}</p>
+              <p className="break-all text-xs text-[var(--muted)]">{assigneeLabel}</p>
             ) : null}
           </div>
         </div>
         <span
-          className="text-xs font-medium px-2 py-0.5 rounded-full shrink-0"
+          className="shrink-0 rounded-[var(--radius-sm)] px-2 py-0.5 text-xs font-medium"
           style={{ backgroundColor: `${config.color}20`, color: config.color }}
         >
           {config.label}
@@ -145,7 +145,7 @@ export default function ApprovalStepCard({
       )}
 
       {isActive && step.status === "pending" && onDecide && (
-        <div className="mt-4 pl-11">
+        <div className="approval-step-actions mt-4 pl-11">
           <ApprovalActions onDecide={handleDecide} loading={deciding} />
         </div>
       )}

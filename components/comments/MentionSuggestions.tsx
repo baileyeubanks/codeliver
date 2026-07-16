@@ -41,9 +41,7 @@ export default function MentionSuggestions({
       u.email.toLowerCase().includes(query.toLowerCase())
   );
 
-  useEffect(() => {
-    setActiveIndex(0);
-  }, [query]);
+  const safeActiveIndex = Math.min(activeIndex, Math.max(0, filtered.length - 1));
 
   useEffect(() => {
     if (!visible) return;
@@ -55,15 +53,15 @@ export default function MentionSuggestions({
       } else if (e.key === "ArrowUp") {
         e.preventDefault();
         setActiveIndex((i) => Math.max(i - 1, 0));
-      } else if (e.key === "Enter" && filtered[activeIndex]) {
+      } else if (e.key === "Enter" && filtered[safeActiveIndex]) {
         e.preventDefault();
-        onSelect(filtered[activeIndex].name, filtered[activeIndex].email);
+        onSelect(filtered[safeActiveIndex].name, filtered[safeActiveIndex].email);
       }
     }
 
     window.addEventListener("keydown", handleKey);
     return () => window.removeEventListener("keydown", handleKey);
-  }, [visible, activeIndex, filtered, onSelect]);
+  }, [visible, safeActiveIndex, filtered, onSelect]);
 
   if (!visible || filtered.length === 0) return null;
 
@@ -78,7 +76,7 @@ export default function MentionSuggestions({
           type="button"
           onClick={() => onSelect(user.name, user.email)}
           className={`flex w-full items-center gap-2.5 px-3 py-2 text-left transition-colors ${
-            i === activeIndex
+            i === safeActiveIndex
               ? "bg-[var(--accent)]/10 text-[var(--ink)]"
               : "text-[var(--muted)] hover:bg-[var(--surface-2)]"
           }`}

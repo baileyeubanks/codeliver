@@ -1,11 +1,16 @@
 import crypto from "crypto";
 import type {
-  ApprovalDecision,
   ApprovalStep,
   SharePermission,
   WorkflowMode,
 } from "@/lib/types/codeliver";
 import { getSupabase } from "@/lib/supabase";
+import {
+  opaqueTokenLookup,
+  persistedOpaqueTokenFields,
+  withoutPersistedTokenSecrets,
+} from "@/lib/security/opaque-token";
+import { resolveAssetVersion } from "@/lib/versions";
 
 interface ReviewInviteAsset {
   id: string;
@@ -13,13 +18,16 @@ interface ReviewInviteAsset {
   file_type: string;
   file_url: string | null;
   status: string;
-  projects: { name: string } | null;
+  projects: { id: string; name: string } | null;
 }
 
 export interface ReviewInviteRecord {
   id: string;
   asset_id: string;
-  token: string;
+  version_id: string | null;
+  token?: string;
+  token_hash?: string;
+  token_ciphertext?: string;
   reviewer_name: string | null;
   reviewer_email: string | null;
   permissions: SharePermission;
@@ -46,10 +54,11 @@ export function normalizeReviewerEmail(value?: string | null) {
 }
 
 export async function getReviewInviteByToken(token: string) {
+  const lookup = opaqueTokenLookup(token);
   const { data, error } = await getSupabase()
     .from("review_invites")
-    .select("*, assets(*, projects(name))")
-    .eq("token", token)
+    .select("*, assets(*, projects(id, name))")
+    .eq(lookup.column, lookup.value)
     .maybeSingle();
 
   if (error || !data) {
@@ -60,7 +69,9 @@ export async function getReviewInviteByToken(token: string) {
     };
   }
 
-  const invite = data as ReviewInviteRecord;
+  const invite = withoutPersistedTokenSecrets(
+    data as Record<string, unknown>,
+  ) as unknown as ReviewInviteRecord;
 
   if (invite.expires_at && new Date(invite.expires_at) < new Date()) {
     return {
@@ -201,12 +212,18 @@ export async function createApprovalInvite({
     throw new Error("Approval invites require a reviewer email");
   }
 
+  const versionLookup = await resolveAssetVersion({ assetId });
+  if (!versionLookup.ok) {
+    throw new Error(versionLookup.error);
+  }
+
   const token = crypto.randomBytes(16).toString("hex");
   const { data, error } = await getSupabase()
     .from("review_invites")
     .insert({
       asset_id: assetId,
-      token,
+      version_id: versionLookup.version.id,
+      ...persistedOpaqueTokenFields(token),
       permissions: "approve" satisfies SharePermission,
       created_by: createdBy ?? null,
       reviewer_email: normalizedEmail,
@@ -222,5 +239,8 @@ export async function createApprovalInvite({
     throw new Error(error?.message || "Could not create approval invite");
   }
 
-  return data as ReviewInviteRecord;
+  return {
+    ...withoutPersistedTokenSecrets(data as Record<string, unknown>),
+    token,
+  } as unknown as ReviewInviteRecord;
 }

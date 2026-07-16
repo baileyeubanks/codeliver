@@ -1,0 +1,70 @@
+.brand {
+  position: relative;
+  display: block;
+  flex: 0 0 auto;
+  width: min(100%, var(--co-production-brand-width, var(--brand-default-width)));
+  max-width: 100%;
+  overflow: hidden;
+  aspect-ratio: var(--crop-width) / var(--crop-height);
+  background: #ffffff;
+  contain: layout paint;
+}
+
+.image {
+  position: absolute;
+  top: var(--image-top);
+  left: var(--image-left);
+  display: block;
+  width: var(--image-width);
+  height: auto;
+  max-width: none;
+  pointer-events: none;
+  user-select: none;
+}
+
+.horizontal {
+  --brand-default-width: 172px;
+  --crop-x: 560;
+  --crop-y: 1220;
+  --crop-width: 6400;
+  --crop-height: 1470;
+  --image-width: 114%;
+  --image-left: -8.75%;
+  --image-top: -82.9932%;
+}
+
+.stacked {
+  --brand-default-width: 300px;
+  --crop-x: 1660;
+  --crop-y: 965;
+  --crop-width: 4050;
+  --crop-height: 1975;
+  --image-width: 180.1481%;
+  --image-left: -40.9877%;
+  --image-top: -48.8608%;
+}
+
+.compactMark {
+  --brand-default-width: 44px;
+  --crop-x: 620;
+  --crop-y: 1240;
+  --crop-width: 1560;
+  --crop-height: 1430;
+  --image-width: 467.6923%;
+  --image-left: -39.7436%;
+  --image-top: -86.7133%;
+}
+
+@media (max-width: 480px) {
+  .horizontal {
+    --brand-default-width: 152px;
+  }
+
+  .stacked {
+    --brand-default-width: 260px;
+  }
+
+  .compactMark {
+    --brand-default-width: 40px;
+  }
+}

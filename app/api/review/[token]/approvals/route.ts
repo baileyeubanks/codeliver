@@ -31,39 +31,52 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ token:
       return NextResponse.json({ error: "Invalid approval decision" }, { status: 400 });
     }
 
-    const approval = demoReviewPayload.approvals.find((item) => item.id === body.id);
-    if (!approval) {
-      return NextResponse.json({ error: "Approval step not found" }, { status: 404 });
+    const demoInvite = {
+      ...demoReviewPayload.invite,
+      asset_id: demoReviewPayload.asset.id,
+      version_id: null,
+      token,
+      reviewer_name: demoReviewPayload.reviewer_name,
+      reviewer_email: demoReviewPayload.reviewer_email,
+      permissions: demoReviewPayload.permissions,
+      password_hash: null,
+      expires_at: demoReviewPayload.expires_at,
+      watermark_enabled: demoReviewPayload.watermark_enabled,
+      watermark_text: demoReviewPayload.watermark_text,
+      download_enabled: demoReviewPayload.download_enabled,
+      view_count: demoReviewPayload.invite.view_count,
+      max_views: demoReviewPayload.invite.max_views,
+      last_viewed_at: null,
+    };
+    const approvalAccess = canInviteDecideApproval({
+      approvalId: body.id,
+      approvals: demoReviewPayload.approvals,
+      invite: demoInvite,
+      workflowMode: demoReviewPayload.workflow_mode,
+    });
+
+    if (!approvalAccess.ok) {
+      return NextResponse.json(
+        { error: approvalAccess.error },
+        { status: approvalAccess.statusCode },
+      );
     }
 
+    const approval = approvalAccess.approval;
+    const decidedAt = new Date().toISOString();
     const updatedApprovals = demoReviewPayload.approvals.map((item) =>
       item.id === body.id
         ? {
             ...item,
             status: body.status,
             decision_note: body.decision_note || null,
-            decided_at: new Date().toISOString(),
+            decided_at: decidedAt,
           }
         : item,
     );
     const approvalState = getExternalApprovalState({
       approvals: updatedApprovals,
-      invite: {
-        ...demoReviewPayload.invite,
-        asset_id: demoReviewPayload.asset.id,
-        token,
-        reviewer_name: demoReviewPayload.reviewer_name,
-        reviewer_email: demoReviewPayload.reviewer_email,
-        permissions: demoReviewPayload.permissions,
-        password_hash: null,
-        expires_at: demoReviewPayload.expires_at,
-        watermark_enabled: demoReviewPayload.watermark_enabled,
-        watermark_text: demoReviewPayload.watermark_text,
-        download_enabled: demoReviewPayload.download_enabled,
-        view_count: demoReviewPayload.invite.view_count,
-        max_views: demoReviewPayload.invite.max_views,
-        last_viewed_at: null,
-      },
+      invite: demoInvite,
       workflowMode: demoReviewPayload.workflow_mode,
     });
     const assetStatus =
@@ -81,7 +94,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ token:
         ...approval,
         status: body.status,
         decision_note: body.decision_note || null,
-        decided_at: new Date().toISOString(),
+        decided_at: decidedAt,
       },
       asset_status: assetStatus,
       active_approval_ids: approvalState.activeApprovalIds,

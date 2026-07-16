@@ -1,0 +1,375 @@
+- banner:
+  - link "Content Co-op home":
+    - /url: /
+    - img "Content Co-op"
+  - navigation "Primary navigation":
+    - link "home":
+      - /url: /
+    - link "portfolio":
+      - /url: /portfolio
+    - link "creative brief":
+      - /url: /brief
+- main:
+  - generic "Industrial energy production footage"
+  - heading "Minimal disruption, maximum signal." [level=1]:
+    - generic: Minimal disruption,
+    - emphasis: maximum signal.
+  - paragraph:
+    - generic: Houston-based commercial video production.
+    - generic: Built around active operations.
+  - link "See our work":
+    - /url: /portfolio
+  - link "Start the Creative Brief":
+    - /url: /brief
+  - region "Trusted by":
+    - img "BP"
+    - img "Shell"
+    - img "Schneider Electric"
+    - img "ABB"
+    - img "Maersk"
+    - img "CITGO"
+    - img "Copart"
+    - img "Conexon"
+    - img "Wendy's"
+    - img "UBS"
+    - img "Kodiak Gas Services"
+    - img "Facebook"
+    - img "Mueller"
+    - img "Pierpont"
+    - img "Nature Conferences"
+  - figure "Production Whiting Refinery":
+    - 'link "Open full-size photo: Whiting Refinery"':
+      - /url: /?photo=%2Fcc%2Fphotos%2Fgallery-control-room.jpg
+      - generic: ↗
+      - generic: Open full-size photo
+    - img "BP control room operator monitoring screens"
+    - img "Content Co-op field production photo 41"
+    - generic: Production
+    - generic: Whiting Refinery
+  - figure "BTS Aerial Unit":
+    - 'link "Open full-size photo: Aerial Unit"':
+      - /url: /?photo=%2Fcc%2Fphotos%2Fgallery-drone-platform.jpg
+      - generic: ↗
+      - generic: Open full-size photo
+    - img "DJI Inspire drone on offshore platform"
+    - img "Content Co-op field production photo 42"
+    - generic: BTS
+    - generic: Aerial Unit
+  - figure "BTS BP Whiting":
+    - 'link "Open full-size photo: BP Whiting"':
+      - /url: /?photo=%2Fcc%2Fphotos%2Fgallery-crew-refinery.jpg
+      - generic: ↗
+      - generic: Open full-size photo
+    - img "CC crew prepping gimbal at refinery"
+    - img "Content Co-op field production photo 43"
+    - generic: BTS
+    - generic: BP Whiting
+  - figure "BTS Fowler Ridge":
+    - 'link "Open full-size photo: Fowler Ridge"':
+      - /url: /?photo=%2Fcc%2Fphotos%2Fgallery-crew-field-shoot.jpg
+      - generic: ↗
+      - generic: Open full-size photo
+    - img "CC crew shooting in tall grass"
+    - img "Content Co-op field production photo 44"
+    - generic: BTS
+    - generic: Fowler Ridge
+  - figure "Industrial Precision MFG":
+    - 'link "Open full-size photo: Precision MFG"':
+      - /url: /?photo=%2Fcc%2Fphotos%2Fgallery-machinist-cnc.jpg
+      - generic: ↗
+      - generic: Open full-size photo
+    - img "Machinist operating CNC mill"
+    - img "Content Co-op field production photo 45"
+    - generic: Industrial
+    - generic: Precision MFG
+  - figure "Safety First Response":
+    - 'link "Open full-size photo: First Response"':
+      - /url: /?photo=%2Fcc%2Fphotos%2Fgallery-fire-gear-rack.jpg
+      - generic: ↗
+      - generic: Open full-size photo
+    - img "Fire gear rack with American flag patch"
+    - img "Content Co-op field production photo 46"
+    - generic: Safety
+    - generic: First Response
+  - figure "Upstream Permian Basin":
+    - 'link "Open full-size photo: Permian Basin"':
+      - /url: /?photo=%2Fcc%2Fphotos%2Fgallery-kodiak-crew.jpg
+      - generic: ↗
+      - generic: Open full-size photo
+    - img "Kodiak field crew in hard hats"
+    - img "Content Co-op field production photo 47"
+    - generic: Upstream
+    - generic: Permian Basin
+  - figure "Production Wind Farm":
+    - 'link "Open full-size photo: Wind Farm"':
+      - /url: /?photo=%2Fcc%2Fphotos%2Fgallery-lineman-boom.jpg
+      - generic: ↗
+      - generic: Open full-size photo
+    - img "Lineman with boom mic reflector"
+    - img "Content Co-op field production photo 48"
+    - generic: Production
+    - generic: Wind Farm
+  - figure "Corporate BP Houston":
+    - 'link "Open full-size photo: BP Houston"':
+      - /url: /?photo=%2Fcc%2Fphotos%2Fgallery-campus-sunflare.jpg
+      - generic: ↗
+      - generic: Open full-size photo
+    - img "Corporate campus walkway at golden hour"
+    - img "Content Co-op field production photo 49"
+    - generic: Corporate
+    - generic: BP Houston
+  - figure "Events CeraWeek":
+    - 'link "Open full-size photo: CeraWeek"':
+      - /url: /?photo=%2Fcc%2Fphotos%2Fgallery-ceraweek-speaker.jpg
+      - generic: ↗
+      - generic: Open full-size photo
+    - img "CeraWeek conference speaker"
+    - img "Content Co-op field production photo 50"
+    - generic: Events
+    - generic: CeraWeek
+  - figure "Wind Fowler Ridge":
+    - 'link "Open full-size photo: Fowler Ridge"':
+      - /url: /?photo=%2Fcc%2Fphotos%2Ffowler-wind-turbine.jpg
+      - generic: ↗
+      - generic: Open full-size photo
+    - img "Wind turbine blade assembly at Fowler Ridge"
+    - img "Content Co-op field production photo 51"
+    - generic: Wind
+    - generic: Fowler Ridge
+  - figure "Downstream Whiting Refinery":
+    - 'link "Open full-size photo: Whiting Refinery"':
+      - /url: /?photo=%2Fcc%2Fphotos%2Fwhiting-refinery-sunset.jpg
+      - generic: ↗
+      - generic: Open full-size photo
+    - img "Whiting Refinery skyline at golden hour"
+    - img "Content Co-op field production photo 52"
+    - generic: Downstream
+    - generic: Whiting Refinery
+  - figure "Wind Crane Lift":
+    - 'link "Open full-size photo: Crane Lift"':
+      - /url: /?photo=%2Fcc%2Fphotos%2Fgallery-wind-turbine-crane.jpg
+      - generic: ↗
+      - generic: Open full-size photo
+    - img "Wind turbine crane lift at height"
+    - img "Content Co-op field production photo 53"
+    - generic: Wind
+    - generic: Crane Lift
+  - figure "Downstream Cherry Point":
+    - 'link "Open full-size photo: Cherry Point"':
+      - /url: /?photo=%2Fcc%2Fphotos%2Fgallery-refinery-mountains.jpg
+      - generic: ↗
+      - generic: Open full-size photo
+    - img "Refinery with snow-capped mountains"
+    - img "Content Co-op field production photo 54"
+    - generic: Downstream
+    - generic: Cherry Point
+  - figure "Offshore Atlantis":
+    - 'link "Open full-size photo: Atlantis"':
+      - /url: /?photo=%2Fcc%2Fphotos%2Fgallery-helipad-sunset.jpg
+      - generic: ↗
+      - generic: Open full-size photo
+    - img "Offshore helipad at golden hour"
+    - img "Content Co-op field production photo 55"
+    - generic: Offshore
+    - generic: Atlantis
+  - figure "Renewables Solar Array":
+    - 'link "Open full-size photo: Solar Array"':
+      - /url: /?photo=%2Fcc%2Fphotos%2Fgallery-aerial-solar.jpg
+      - generic: ↗
+      - generic: Open full-size photo
+    - img "Aerial view of solar farm"
+    - img "Content Co-op field production photo 56"
+    - generic: Renewables
+    - generic: Solar Array
+  - figure "Corporate Houston HQ":
+    - 'link "Open full-size photo: Houston HQ"':
+      - /url: /?photo=%2Fcc%2Fphotos%2Fgallery-bp-tower-drone.jpg
+      - generic: ↗
+      - generic: Open full-size photo
+    - img "BP tower drone shot at dusk"
+    - img "Content Co-op field production photo 57"
+    - generic: Corporate
+    - generic: Houston HQ
+  - figure "Upstream Permian Basin":
+    - 'link "Open full-size photo: Permian Basin"':
+      - /url: /?photo=%2Fcc%2Fphotos%2Fgallery-desert-tanks.jpg
+      - generic: ↗
+      - generic: Open full-size photo
+    - img "Desert storage tanks at golden hour"
+    - img "Content Co-op field production photo 58"
+    - generic: Upstream
+    - generic: Permian Basin
+  - figure "Downstream Whiting":
+    - 'link "Open full-size photo: Whiting"':
+      - /url: /?photo=%2Fcc%2Fphotos%2Fgallery-refinery-pink-sunset.jpg
+      - generic: ↗
+      - generic: Open full-size photo
+    - img "Refinery skyline with pink sunset and steam"
+    - img "Content Co-op field production photo 59"
+    - generic: Downstream
+    - generic: Whiting
+  - figure "Downstream Retail":
+    - 'link "Open full-size photo: Retail"':
+      - /url: /?photo=%2Fcc%2Fphotos%2Fgallery-gas-station-sunset.jpg
+      - generic: ↗
+      - generic: Open full-size photo
+    - img "Gas station at sunset"
+    - img "Content Co-op field production photo 28"
+    - generic: Downstream
+    - generic: Retail
+  - figure "Offshore Project Seagull":
+    - 'link "Open full-size photo: Project Seagull"':
+      - /url: /?photo=%2Fcc%2Fphotos%2Fseagull-rope-access.jpg
+      - generic: ↗
+      - generic: Open full-size photo
+    - img "Rope access workers on offshore platform"
+    - img "Content Co-op field production photo 29"
+    - generic: Offshore
+    - generic: Project Seagull
+  - figure "BTS On Set":
+    - 'link "Open full-size photo: On Set"':
+      - /url: /?photo=%2Fcc%2Fphotos%2Fbailey-red-camera.jpg
+      - generic: ↗
+      - generic: Open full-size photo
+    - img "Bailey Eubanks with RED cinema camera"
+    - img "Content Co-op field production photo 30"
+    - generic: BTS
+    - generic: On Set
+  - figure "Safety Safety Training":
+    - 'link "Open full-size photo: Safety Training"':
+      - /url: /?photo=%2Fcc%2Fphotos%2Fgallery-pipe-whip-fast.jpg
+      - generic: ↗
+      - generic: Open full-size photo
+    - img "Fast pipe whip safety training"
+    - img "Content Co-op field production photo 31"
+    - generic: Safety
+    - generic: Safety Training
+  - figure "Renewables Solar Install":
+    - 'link "Open full-size photo: Solar Install"':
+      - /url: /?photo=%2Fcc%2Fphotos%2Fsolar-panel-workers.jpg
+      - generic: ↗
+      - generic: Open full-size photo
+    - img "Solar panel installation crew"
+    - img "Content Co-op field production photo 32"
+    - generic: Renewables
+    - generic: Solar Install
+  - figure "Field Field Archive 01":
+    - 'link "Open full-size photo: Field Archive 01"':
+      - /url: /?photo=%2Fcc%2Fphotos%2Fhome-wall%2Fcco-new-01.jpg
+      - generic: ↗
+      - generic: Open full-size photo
+    - img "Content Co-op field production photo 01"
+    - img "Content Co-op field production photo 33"
+    - generic: Field
+    - generic: Field Archive 01
+  - figure "Field Field Archive 02":
+    - 'link "Open full-size photo: Field Archive 02"':
+      - /url: /?photo=%2Fcc%2Fphotos%2Fhome-wall%2Fcco-new-02.jpg
+      - generic: ↗
+      - generic: Open full-size photo
+    - img "Content Co-op field production photo 02"
+    - img "Content Co-op field production photo 34"
+    - generic: Field
+    - generic: Field Archive 02
+  - figure "Field Field Archive 03":
+    - 'link "Open full-size photo: Field Archive 03"':
+      - /url: /?photo=%2Fcc%2Fphotos%2Fhome-wall%2Fcco-new-03.jpg
+      - generic: ↗
+      - generic: Open full-size photo
+    - img "Content Co-op field production photo 03"
+    - img "Content Co-op field production photo 35"
+    - generic: Field
+    - generic: Field Archive 03
+  - figure "Field Field Archive 04":
+    - 'link "Open full-size photo: Field Archive 04"':
+      - /url: /?photo=%2Fcc%2Fphotos%2Fhome-wall%2Fcco-new-04.jpg
+      - generic: ↗
+      - generic: Open full-size photo
+    - img "Content Co-op field production photo 04"
+    - img "Content Co-op field production photo 36"
+    - generic: Field
+    - generic: Field Archive 04
+  - figure "Field Field Archive 05":
+    - 'link "Open full-size photo: Field Archive 05"':
+      - /url: /?photo=%2Fcc%2Fphotos%2Fhome-wall%2Fcco-new-05.jpg
+      - generic: ↗
+      - generic: Open full-size photo
+    - img "Content Co-op field production photo 05"
+    - img "Content Co-op field production photo 37"
+    - generic: Field
+    - generic: Field Archive 05
+  - figure "Field Field Archive 06":
+    - 'link "Open full-size photo: Field Archive 06"':
+      - /url: /?photo=%2Fcc%2Fphotos%2Fhome-wall%2Fcco-new-06.jpg
+      - generic: ↗
+      - generic: Open full-size photo
+    - img "Content Co-op field production photo 06"
+    - img "Content Co-op field production photo 38"
+    - generic: Field
+    - generic: Field Archive 06
+  - figure "Field Field Archive 07":
+    - 'link "Open full-size photo: Field Archive 07"':
+      - /url: /?photo=%2Fcc%2Fphotos%2Fhome-wall%2Fcco-new-07.jpg
+      - generic: ↗
+      - generic: Open full-size photo
+    - img "Content Co-op field production photo 07"
+    - img "Content Co-op field production photo 39"
+    - generic: Field
+    - generic: Field Archive 07
+  - figure "Field Field Archive 08":
+    - 'link "Open full-size photo: Field Archive 08"':
+      - /url: /?photo=%2Fcc%2Fphotos%2Fhome-wall%2Fcco-new-08.jpg
+      - generic: ↗
+      - generic: Open full-size photo
+    - img "Content Co-op field production photo 08"
+    - img "Content Co-op field production photo 40"
+    - generic: Field
+    - generic: Field Archive 08
+  - region "Brief to boardroom.":
+    - paragraph: The Co-Apps Suite
+    - heading "Brief to boardroom." [level=2]:
+      - text: Brief to
+      - emphasis: boardroom.
+    - paragraph: "These are not side quests. Every project moves through the same three rooms: plan the story, shape the film, and deliver the work without losing the thread."
+    - 'link "Co-Script Align the story. Co-Script turns a brief into production intelligence: client language, research, interview targets, shot lists, constraints, and script drafts in one place. AI helps surface angles and gaps, while the human team keeps the message accurate and on brand. Request access"':
+      - /url: /co-script
+      - heading "Co-Script" [level=3]
+      - paragraph: Align the story.
+      - paragraph: "Co-Script turns a brief into production intelligence: client language, research, interview targets, shot lists, constraints, and script drafts in one place. AI helps surface angles and gaps, while the human team keeps the message accurate and on brand."
+      - generic: Request access
+    - 'link "Co-Cut Shape the film. Co-Cut keeps post-production legible: media ingest, transcript-driven selects, edit versions, captions, exports, and frame-specific feedback. AI supports transcripts and selects so the editor can spend more time shaping the film, not chasing notes. Request access"':
+      - /url: /co-cut
+      - heading "Co-Cut" [level=3]
+      - paragraph: Shape the film.
+      - paragraph: "Co-Cut keeps post-production legible: media ingest, transcript-driven selects, edit versions, captions, exports, and frame-specific feedback. AI supports transcripts and selects so the editor can spend more time shaping the film, not chasing notes."
+      - generic: Request access
+    - 'link "Co-Deliver Control the handoff. Co-Deliver is the client-ready review and delivery layer: approval gates, comments, share links, downloads, final versions, and archive trails. AI helps summarize decisions and flag loose ends so the final handoff stays clean. Request access"':
+      - /url: /co-deliver
+      - heading "Co-Deliver" [level=3]
+      - paragraph: Control the handoff.
+      - paragraph: "Co-Deliver is the client-ready review and delivery layer: approval gates, comments, share links, downloads, final versions, and archive trails. AI helps summarize decisions and flag loose ends so the final handoff stays clean."
+      - generic: Request access
+  - blockquote: For enterprise teams, the final video is only half the job. The other half is a production process that shows up prepared, communicates clearly, protects the schedule, and delivers work stakeholders can actually use.
+  - img "Bailey Eubanks"
+  - img "Bailey Eubanks"
+  - generic: Founder & Executive Producer
+- contentinfo:
+  - navigation "Footer links":
+    - link "Home":
+      - /url: /
+    - link "Portfolio":
+      - /url: /portfolio
+    - link "Creative Brief":
+      - /url: /brief
+    - link "Privacy":
+      - /url: /privacy
+  - generic "Contact information":
+    - link "service@contentco-op.com":
+      - /url: mailto:service@contentco-op.com
+    - generic: ·
+    - link "501-351-5927":
+      - /url: tel:+15013515927
+  - generic: Houston, Texas
+  - generic: ·
+  - generic: © 2026
+- alert

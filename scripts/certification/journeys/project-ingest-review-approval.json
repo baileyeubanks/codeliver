@@ -1,0 +1,85 @@
+{
+  "schemaVersion": 1,
+  "kind": "journey",
+  "id": "project-ingest-review-approval",
+  "title": "Create project, ingest media, review, version, and approve",
+  "horizon": 1,
+  "proofTtlDays": 7,
+  "routes": [
+    "/projects",
+    "/projects/new",
+    "/projects/[id]",
+    "/projects/[id]/assets/[assetId]",
+    "/api/projects",
+    "/api/projects/[id]",
+    "/api/projects/[id]/assets",
+    "/api/media/upload",
+    "/api/media/tus",
+    "/api/assets/[id]",
+    "/api/assets/[id]/comments",
+    "/api/assets/[id]/versions",
+    "/api/assets/[id]/approvals"
+  ],
+  "states": [
+    "empty project",
+    "upload queued",
+    "uploading",
+    "processing",
+    "ready for review",
+    "commented",
+    "new version",
+    "changes requested",
+    "approved",
+    "failed and retryable"
+  ],
+  "viewports": [
+    { "id": "mobile", "width": 390, "height": 844 },
+    { "id": "desktop", "width": 1440, "height": 1000 }
+  ],
+  "accessibility": [
+    "Upload progress and failures are announced without stealing focus",
+    "Player, timeline, comments, and approval controls are keyboard operable",
+    "Timecoded annotations expose text alternatives and logical reading order",
+    "Automated critical and serious accessibility violations equal zero"
+  ],
+  "securityInvariants": [
+    "Project and asset identifiers cannot cross tenant boundaries",
+    "Filenames and object keys cannot escape the configured storage root",
+    "Media type, size, quota, and malware policy are enforced before commit",
+    "Approval status and version identity are server-authoritative"
+  ],
+  "persistence": [
+    "Upload progress recovers after reload or reconnect",
+    "Comment, annotation, decision, version, and approval survive reload",
+    "Acknowledged mutations have durable activity and audit records"
+  ],
+  "concurrency": [
+    "Parallel chunks cannot corrupt or exceed the declared upload",
+    "Two version creators receive unique ordered version numbers",
+    "Duplicate approval submissions are idempotent"
+  ],
+  "degradedDependencies": [
+    "Storage capacity exhaustion rejects before partial commit",
+    "Transcode failure preserves the original and a retryable state",
+    "Database loss during finalization rolls back or reconciles the object",
+    "Notification outage does not roll back an otherwise durable approval"
+  ],
+  "rollback": [
+    "Failed version creation leaves the previous version authoritative",
+    "Failed deploy can roll back without orphaning in-flight upload sessions",
+    "Object and database reconciliation has a documented compensating action"
+  ],
+  "performanceBudgets": [
+    { "metric": "upload-control-response-p95-ms", "operator": "<=", "value": 750 },
+    { "metric": "review-metadata-response-p95-ms", "operator": "<=", "value": 500 },
+    { "metric": "media-first-playable-frame-p95-ms", "operator": "<=", "value": 2000 }
+  ],
+  "checks": [
+    "evidence.ingest-review-approval",
+    "security.upload-filename-boundary",
+    "security.upload-tenant-authority",
+    "consistency.approval-status-contract",
+    "resilience.version-transaction",
+    "resilience.concurrency-idempotency"
+  ]
+}

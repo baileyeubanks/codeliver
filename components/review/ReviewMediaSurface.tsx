@@ -9,10 +9,13 @@ interface ReviewMediaSurfaceProps {
   assetType: string;
   assetTitle: string;
   assetUrl: string | null;
+  poster?: string;
   videoRef: RefObject<HTMLVideoElement | null>;
   pinMode: boolean;
+  annotationEnabled?: boolean;
   overlay: ReactNode;
-  onFramePin?: (x: number, y: number) => void;
+  onFramePin?: (x: number, y: number, timeSeconds: number) => void;
+  onCutMarker?: (time: number) => void;
   onImagePin?: MouseEventHandler<HTMLDivElement>;
   timeline?: {
     label: string;
@@ -26,22 +29,27 @@ export default function ReviewMediaSurface({
   assetType,
   assetTitle,
   assetUrl,
+  poster,
   videoRef,
   pinMode,
+  annotationEnabled = false,
   overlay,
   onFramePin,
+  onCutMarker,
   onImagePin,
   timeline,
   fallbackAction,
 }: ReviewMediaSurfaceProps) {
   if (assetType === "video" && assetUrl) {
     return (
-      <>
-        <div className="bg-black/90 p-3 sm:p-4">
+      <div className="review-video-surface">
+        <div className="review-video-frame">
           <VideoPlayer
             src={assetUrl}
+            poster={poster}
             videoRef={videoRef}
-            onFrameClick={pinMode ? onFramePin : undefined}
+            onFrameClick={annotationEnabled ? onFramePin : undefined}
+            onCutMarker={onCutMarker}
           >
             {overlay}
           </VideoPlayer>
@@ -50,7 +58,7 @@ export default function ReviewMediaSurface({
         <PlayerControls videoRef={videoRef} />
 
         {timeline ? (
-          <div className="border-t border-[var(--border)]">
+          <div className="review-video-timeline border-t border-[var(--border)]">
             <div className="flex items-center justify-between px-4 pt-3 text-xs text-[var(--muted)]">
               <span>{timeline.label}</span>
               <span>{timeline.countLabel}</span>
@@ -58,7 +66,7 @@ export default function ReviewMediaSurface({
             {timeline.content}
           </div>
         ) : null}
-      </>
+      </div>
     );
   }
 

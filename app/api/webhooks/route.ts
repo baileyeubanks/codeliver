@@ -1,7 +1,18 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth";
+import { getSupabaseDataSchema } from "@/lib/data-authority";
 import { getSupabase } from "@/lib/supabase";
 import { requireTeamRole } from "@/lib/middleware/rbac";
+import {
+  assertSafeWebhookUrl,
+  deliverSignedWebhook,
+  normalizeWebhookEvents,
+} from "@/lib/security/webhook-delivery";
+import {
+  persistedWebhookSecretFields,
+  recoverWebhookSecret,
+  withoutPersistedWebhookSecrets,
+} from "@/lib/security/webhook-secret";
 import { nanoid } from "nanoid";
 
 interface WebhookRow {
@@ -9,9 +20,41 @@ interface WebhookRow {
   team_id: string;
   url: string;
   events: string[];
-  secret: string;
+  secret?: string;
+  secret_ciphertext?: string;
   active: boolean;
   created_at: string;
+}
+
+type JsonObjectResult =
+  | { ok: true; body: Record<string, unknown> }
+  | { ok: false; status: number; error: string };
+
+async function readJsonObject(request: Request): Promise<JsonObjectResult> {
+  const contentLength = Number(request.headers.get("content-length") ?? 0);
+  if (Number.isFinite(contentLength) && contentLength > 65_536) {
+    return { ok: false, status: 413, error: "Request body is too large" };
+  }
+  try {
+    const body = await request.json();
+    if (!body || typeof body !== "object" || Array.isArray(body)) {
+      return { ok: false, status: 400, error: "Request body must be an object" };
+    }
+    return { ok: true, body: body as Record<string, unknown> };
+  } catch {
+    return { ok: false, status: 400, error: "Request body must be valid JSON" };
+  }
+}
+
+function invalidBody(result: Extract<JsonObjectResult, { ok: false }>) {
+  return NextResponse.json({ error: result.error }, { status: result.status });
+}
+
+function serializeWebhook(row: Record<string, unknown>) {
+  return {
+    ...withoutPersistedWebhookSecrets(row),
+    signing_secret_configured: Boolean(row.secret || row.secret_ciphertext),
+  };
 }
 
 /* ── GET — list webhooks for a team ── */
@@ -45,7 +88,11 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
-  return NextResponse.json({ items: (data as WebhookRow[]) ?? [] });
+  return NextResponse.json({
+    items: ((data as WebhookRow[]) ?? []).map((webhook) =>
+      serializeWebhook(webhook as unknown as Record<string, unknown>),
+    ),
+  });
 }
 
 /* ── POST — create webhook or send test ── */
@@ -55,12 +102,20 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const body = await request.json();
+  const bodyResult = await readJsonObject(request);
+  if (!bodyResult.ok) return invalidBody(bodyResult);
+  const body = bodyResult.body;
   const supabase = getSupabase();
 
   // Test webhook
   if (body.webhook_id && !body.url) {
-    const { webhook_id } = body as { webhook_id: string };
+    const webhook_id = body.webhook_id;
+    if (typeof webhook_id !== "string") {
+      return NextResponse.json(
+        { error: "webhook_id must be a string" },
+        { status: 400 },
+      );
+    }
 
     const { data: webhook, error: whErr } = await supabase
       .from("webhooks")
@@ -88,59 +143,57 @@ export async function POST(request: NextRequest) {
       event: "test",
       timestamp: new Date().toISOString(),
       team_id: (webhook as WebhookRow).team_id,
-      data: { message: "This is a test webhook from CoDeliver" },
+      data: { message: "This is a test webhook from Co-Production Pro" },
     };
 
     let responseCode = 0;
+    let deliveryError: string | null = null;
     try {
-      const res = await fetch((webhook as WebhookRow).url, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "X-CoDeliver-Signature": (webhook as WebhookRow).secret,
-          "X-CoDeliver-Event": "test",
-        },
-        body: JSON.stringify(testPayload),
+      const result = await deliverSignedWebhook({
+        url: (webhook as WebhookRow).url,
+        secret: recoverWebhookSecret(webhook as Record<string, unknown>),
+        event: "test",
+        payload: testPayload,
       });
-      responseCode = res.status;
-    } catch {
-      responseCode = 0;
+      responseCode = result.responseCode;
+    } catch (error) {
+      deliveryError =
+        error instanceof Error ? error.message : "Webhook delivery failed";
     }
 
     // Log delivery
+    const success = responseCode >= 200 && responseCode < 300;
     await supabase.from("webhook_deliveries").insert({
       webhook_id,
       event: "test",
       payload: testPayload,
       response_code: responseCode,
+      ...(getSupabaseDataSchema() === "co_production" && !success
+        ? { error_code: deliveryError ? "delivery_failed" : "http_failure" }
+        : {}),
     });
 
     return NextResponse.json({
-      ok: true,
+      ok: success,
       response_code: responseCode,
-      success: responseCode >= 200 && responseCode < 300,
+      success,
+      error: deliveryError ? "Webhook delivery failed" : null,
     });
   }
 
   // Create webhook
-  const { team_id, url, events } = body as {
-    team_id?: string;
-    url?: string;
-    events?: string[];
-  };
+  const { team_id, url, events } = body;
 
-  if (!team_id || !url) {
+  if (typeof team_id !== "string" || typeof url !== "string") {
     return NextResponse.json(
       { error: "team_id and url are required" },
       { status: 400 }
     );
   }
 
-  // Validate URL
-  try {
-    new URL(url);
-  } catch {
-    return NextResponse.json({ error: "Invalid URL" }, { status: 400 });
+  const parsedEvents = normalizeWebhookEvents(events);
+  if (!parsedEvents.ok) {
+    return NextResponse.json({ error: parsedEvents.error }, { status: 400 });
   }
 
   const check = await requireTeamRole(team_id, user.id, "admin");
@@ -148,16 +201,28 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
+  let safeUrl: string;
+  try {
+    safeUrl = await assertSafeWebhookUrl(url);
+  } catch (error) {
+    return NextResponse.json(
+      { error: error instanceof Error ? error.message : "Invalid webhook URL" },
+      { status: 400 },
+    );
+  }
+
   const secret = `whsec_${nanoid(40)}`;
+  const dataSchema = getSupabaseDataSchema();
 
   const { data, error } = await supabase
     .from("webhooks")
     .insert({
       team_id,
-      url,
-      events: events ?? [],
-      secret,
+      url: safeUrl,
+      events: parsedEvents.events,
+      ...persistedWebhookSecretFields(secret, dataSchema),
       active: true,
+      ...(dataSchema === "co_production" ? { created_by: user.id } : {}),
     })
     .select()
     .single();
@@ -170,10 +235,16 @@ export async function POST(request: NextRequest) {
     actor_id: user.id,
     actor_name: user.email ?? "Unknown",
     action: "webhook_created",
-    details: { team_id, url, events: events ?? [] },
+    details: { team_id, url: safeUrl, events: parsedEvents.events },
   });
 
-  return NextResponse.json(data, { status: 201 });
+  return NextResponse.json(
+    {
+      webhook: serializeWebhook(data as Record<string, unknown>),
+      signing_secret: secret,
+    },
+    { status: 201 },
+  );
 }
 
 /* ── PATCH — update webhook ── */
@@ -183,15 +254,11 @@ export async function PATCH(request: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const body = await request.json();
-  const { webhook_id, url, events, active } = body as {
-    webhook_id?: string;
-    url?: string;
-    events?: string[];
-    active?: boolean;
-  };
+  const bodyResult = await readJsonObject(request);
+  if (!bodyResult.ok) return invalidBody(bodyResult);
+  const { webhook_id, url, events, active } = bodyResult.body;
 
-  if (!webhook_id) {
+  if (typeof webhook_id !== "string") {
     return NextResponse.json(
       { error: "webhook_id is required" },
       { status: 400 }
@@ -220,15 +287,34 @@ export async function PATCH(request: NextRequest) {
 
   const updates: Record<string, unknown> = {};
   if (url !== undefined) {
-    try {
-      new URL(url);
-    } catch {
-      return NextResponse.json({ error: "Invalid URL" }, { status: 400 });
+    if (typeof url !== "string") {
+      return NextResponse.json({ error: "url must be a string" }, { status: 400 });
     }
-    updates.url = url;
+    try {
+      updates.url = await assertSafeWebhookUrl(url);
+    } catch (error) {
+      return NextResponse.json(
+        { error: error instanceof Error ? error.message : "Invalid webhook URL" },
+        { status: 400 },
+      );
+    }
   }
-  if (events !== undefined) updates.events = events;
-  if (active !== undefined) updates.active = active;
+  if (events !== undefined) {
+    const parsedEvents = normalizeWebhookEvents(events);
+    if (!parsedEvents.ok) {
+      return NextResponse.json({ error: parsedEvents.error }, { status: 400 });
+    }
+    updates.events = parsedEvents.events;
+  }
+  if (active !== undefined) {
+    if (typeof active !== "boolean") {
+      return NextResponse.json(
+        { error: "active must be a boolean" },
+        { status: 400 },
+      );
+    }
+    updates.active = active;
+  }
 
   if (Object.keys(updates).length === 0) {
     return NextResponse.json(
@@ -248,7 +334,9 @@ export async function PATCH(request: NextRequest) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
-  return NextResponse.json(data);
+  return NextResponse.json({
+    webhook: serializeWebhook(data as Record<string, unknown>),
+  });
 }
 
 /* ── DELETE — delete webhook ── */
@@ -258,10 +346,11 @@ export async function DELETE(request: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const body = await request.json();
-  const { webhook_id } = body as { webhook_id?: string };
+  const bodyResult = await readJsonObject(request);
+  if (!bodyResult.ok) return invalidBody(bodyResult);
+  const { webhook_id } = bodyResult.body;
 
-  if (!webhook_id) {
+  if (typeof webhook_id !== "string") {
     return NextResponse.json(
       { error: "webhook_id is required" },
       { status: 400 }

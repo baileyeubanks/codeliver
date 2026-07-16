@@ -1,25 +1,22 @@
+import { constants } from "node:fs";
+import { open } from "node:fs/promises";
+import { basename, extname } from "node:path";
+import { Readable } from "node:stream";
+
 import { NextRequest, NextResponse } from "next/server";
+
 import { requireAuth } from "@/lib/auth";
-import { createReadStream, existsSync, statSync } from "fs";
-import { join, normalize, resolve } from "path";
-import { Readable } from "stream";
+import { resolveTrustedSurfaceRole } from "@/lib/auth/host-surface";
+import {
+  resolveExistingMediaPath,
+  SafeMediaPathError,
+  sanitizeMediaFilename,
+} from "@/lib/storage/safe-media-path";
 
 /**
- * NAS Media Streaming API
- * 
- * Serves media files from the NAS filesystem at /volume1/media.
- * When deployed on the NAS via Coolify, Co-Deliver has direct
- * filesystem access to the media volume.
- * 
- * Usage: GET /api/media/stream?path=BP/video.mp4
- * 
- * Supports:
- * - Range requests for video seeking
- * - MIME type detection
- * - Path traversal protection
+ * Staff-only raw NAS media streaming.
+ * Public token-based review delivery is handled by separate review routes.
  */
-
-const MEDIA_ROOT = process.env.NAS_MEDIA_ROOT || "/volume1/media";
 
 const MIME_TYPES: Record<string, string> = {
   ".mp4": "video/mp4",
@@ -48,88 +45,153 @@ const MIME_TYPES: Record<string, string> = {
   ".flac": "audio/flac",
 };
 
+interface ByteRange {
+  start: number;
+  end: number;
+}
+
 function getMimeType(filePath: string): string {
-  const ext = filePath.substring(filePath.lastIndexOf(".")).toLowerCase();
-  return MIME_TYPES[ext] || "application/octet-stream";
+  return MIME_TYPES[extname(filePath).toLowerCase()] || "application/octet-stream";
+}
+
+function parseByteRange(header: string, fileSize: number): ByteRange | null {
+  if (fileSize <= 0 || header.includes(",")) return null;
+  const match = /^bytes=(\d*)-(\d*)$/.exec(header.trim());
+  if (!match || (!match[1] && !match[2])) return null;
+
+  if (!match[1]) {
+    const suffixLength = Number(match[2]);
+    if (!Number.isSafeInteger(suffixLength) || suffixLength <= 0) return null;
+    return {
+      start: Math.max(0, fileSize - suffixLength),
+      end: fileSize - 1,
+    };
+  }
+
+  const start = Number(match[1]);
+  const requestedEnd = match[2] ? Number(match[2]) : fileSize - 1;
+  if (
+    !Number.isSafeInteger(start) ||
+    !Number.isSafeInteger(requestedEnd) ||
+    start < 0 ||
+    start >= fileSize ||
+    requestedEnd < start
+  ) {
+    return null;
+  }
+
+  return { start, end: Math.min(requestedEnd, fileSize - 1) };
+}
+
+function mediaPathErrorResponse(error: unknown): NextResponse | null {
+  if (!(error instanceof SafeMediaPathError)) return null;
+
+  switch (error.code) {
+    case "MEDIA_ROOT_UNCONFIGURED":
+    case "MEDIA_ROOT_UNAVAILABLE":
+      return NextResponse.json(
+        {
+          error: "Media storage is not configured or unavailable.",
+          code: "MEDIA_STORAGE_UNAVAILABLE",
+        },
+        { status: 503 }
+      );
+    case "MEDIA_PATH_NOT_FOUND":
+      return NextResponse.json({ error: "File not found" }, { status: 404 });
+    case "MEDIA_PATH_NOT_FILE":
+      return NextResponse.json({ error: "Not a file" }, { status: 400 });
+    default:
+      return NextResponse.json({ error: "Invalid path" }, { status: 403 });
+  }
 }
 
 export async function GET(req: NextRequest) {
-  // Auth check
   const user = await requireAuth();
   if (!user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
+  if (resolveTrustedSurfaceRole(user) !== "staff") {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
 
-  const relativePath = req.nextUrl.searchParams.get("path");
-  if (!relativePath) {
+  const requestedPath = req.nextUrl.searchParams.get("path");
+  if (!requestedPath) {
     return NextResponse.json({ error: "Missing path parameter" }, { status: 400 });
   }
 
-  // Prevent path traversal
-  const normalizedPath = normalize(relativePath).replace(/^(\.\.[/\\])+/, "");
-  const absolutePath = resolve(join(MEDIA_ROOT, normalizedPath));
-  if (!absolutePath.startsWith(resolve(MEDIA_ROOT))) {
-    return NextResponse.json({ error: "Invalid path" }, { status: 403 });
-  }
+  let fileHandle: Awaited<ReturnType<typeof open>> | null = null;
+  try {
+    const mediaPath = await resolveExistingMediaPath(requestedPath, "file");
+    const noFollow = "O_NOFOLLOW" in constants ? constants.O_NOFOLLOW : 0;
+    fileHandle = await open(mediaPath.absolutePath, constants.O_RDONLY | noFollow);
+    const status = await fileHandle.stat();
+    if (!status.isFile()) {
+      await fileHandle.close();
+      fileHandle = null;
+      return NextResponse.json({ error: "Not a file" }, { status: 400 });
+    }
 
-  // Check file exists
-  if (!existsSync(absolutePath)) {
-    return NextResponse.json({ error: "File not found" }, { status: 404 });
-  }
+    const fileSize = status.size;
+    const baseHeaders: Record<string, string> = {
+      "Content-Type": getMimeType(mediaPath.relativePath),
+      "Accept-Ranges": "bytes",
+      "Cache-Control": "private, no-store",
+      "X-Content-Type-Options": "nosniff",
+      Vary: "Cookie, Authorization",
+    };
 
-  const stat = statSync(absolutePath);
-  if (!stat.isFile()) {
-    return NextResponse.json({ error: "Not a file" }, { status: 400 });
-  }
+    if (req.nextUrl.searchParams.get("download") === "1") {
+      const fileName = sanitizeMediaFilename(basename(mediaPath.relativePath));
+      baseHeaders["Content-Disposition"] = `attachment; filename="${fileName}"`;
+    }
 
-  const mimeType = getMimeType(absolutePath);
-  const fileSize = stat.size;
-  const isDownload = req.nextUrl.searchParams.get("download") === "1";
+    const rangeHeader = req.headers.get("range");
+    let responseStatus = 200;
+    let streamOptions: { start?: number; end?: number } = {};
 
-  // Common headers
-  const baseHeaders: Record<string, string> = {
-    "Content-Type": mimeType,
-    "Accept-Ranges": "bytes",
-    "Cache-Control": "public, max-age=3600",
-  };
+    if (rangeHeader) {
+      const range = parseByteRange(rangeHeader, fileSize);
+      if (!range) {
+        await fileHandle.close();
+        fileHandle = null;
+        return new NextResponse(null, {
+          status: 416,
+          headers: {
+            ...baseHeaders,
+            "Content-Range": `bytes */${fileSize}`,
+          },
+        });
+      }
 
-  // Download mode: force browser download with Content-Disposition
-  if (isDownload) {
-    const fileName = normalizedPath.split("/").pop() || "download";
-    baseHeaders["Content-Disposition"] = `attachment; filename="${fileName}"`;
-  }
+      responseStatus = 206;
+      streamOptions = range;
+      baseHeaders["Content-Range"] = `bytes ${range.start}-${range.end}/${fileSize}`;
+      baseHeaders["Content-Length"] = String(range.end - range.start + 1);
+    } else {
+      baseHeaders["Content-Length"] = String(fileSize);
+    }
 
-  // Handle range requests (for video seeking)
-  const rangeHeader = req.headers.get("range");
-
-  if (rangeHeader) {
-    const parts = rangeHeader.replace(/bytes=/, "").split("-");
-    const start = parseInt(parts[0], 10);
-    const end = parts[1] ? parseInt(parts[1], 10) : fileSize - 1;
-    const chunkSize = end - start + 1;
-
-    const stream = createReadStream(absolutePath, { start, end });
+    const stream = fileHandle.createReadStream(streamOptions);
+    fileHandle = null;
     const webStream = Readable.toWeb(stream) as ReadableStream;
-
     return new Response(webStream, {
-      status: 206,
-      headers: {
-        ...baseHeaders,
-        "Content-Range": `bytes ${start}-${end}/${fileSize}`,
-        "Content-Length": String(chunkSize),
-      },
+      status: responseStatus,
+      headers: baseHeaders,
     });
+  } catch (error) {
+    if (fileHandle) {
+      await fileHandle.close().catch(() => undefined);
+    }
+    const storageResponse = mediaPathErrorResponse(error);
+    if (storageResponse) return storageResponse;
+
+    const code = (error as NodeJS.ErrnoException).code;
+    if (code === "ENOENT") {
+      return NextResponse.json({ error: "File not found" }, { status: 404 });
+    }
+    if (code === "ELOOP") {
+      return NextResponse.json({ error: "Invalid path" }, { status: 403 });
+    }
+    return NextResponse.json({ error: "Failed to read file" }, { status: 500 });
   }
-
-  // Full file response
-  const stream = createReadStream(absolutePath);
-  const webStream = Readable.toWeb(stream) as ReadableStream;
-
-  return new Response(webStream, {
-    status: 200,
-    headers: {
-      ...baseHeaders,
-      "Content-Length": String(fileSize),
-    },
-  });
 }

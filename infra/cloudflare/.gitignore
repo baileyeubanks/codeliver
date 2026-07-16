@@ -1,0 +1,9 @@
+# Rendered configuration and Cloudflare credential material never belong in git.
+config.yml
+config.yaml
+generated/
+*.json
+*.pem
+*.token
+*.log
+

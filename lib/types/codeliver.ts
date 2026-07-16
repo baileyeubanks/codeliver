@@ -11,6 +11,23 @@ export type ApprovalDecision = "pending" | "approved" | "approved_with_changes" 
 export type WorkflowMode = "sequential" | "parallel";
 export type SharePermission = "view" | "comment" | "approve";
 export type TeamRole = "owner" | "admin" | "member" | "viewer";
+export type EditDecisionType =
+  | "cut"
+  | "trim"
+  | "mute"
+  | "lift"
+  | "ripple_delete"
+  | "remove_silence"
+  | "remove_filler"
+  | "replace";
+export type EditDecisionSource =
+  | "keyboard"
+  | "manual"
+  | "transcript_ai"
+  | "silence_scan"
+  | "filler_scan"
+  | "import";
+export type EditDecisionStatus = "proposed" | "accepted" | "rejected" | "applied";
 export type NotificationType =
   | "comment_added"
   | "comment_resolved"
@@ -48,6 +65,7 @@ export interface Comment {
   review_id: string | null;
   review_invite_id: string | null;
   asset_id: string;
+  version_id: string | null;
   parent_id: string | null;
   author_name: string;
   author_email: string | null;
@@ -131,6 +149,7 @@ export interface Version {
 export interface ShareLink {
   id: string;
   asset_id: string;
+  version_id: string | null;
   token: string;
   password_hash: string | null;
   reviewer_name: string | null;
@@ -145,6 +164,26 @@ export interface ShareLink {
   expires_at: string | null;
   created_by: string | null;
   created_at: string;
+}
+
+export interface EditDecision {
+  id: string;
+  asset_id: string;
+  version_id: string;
+  review_invite_id: string | null;
+  created_by: string | null;
+  created_by_name: string;
+  decision_type: EditDecisionType;
+  source: EditDecisionSource;
+  status: EditDecisionStatus;
+  start_seconds: number;
+  end_seconds: number | null;
+  label: string | null;
+  confidence: number | null;
+  client_request_id: string;
+  metadata: Record<string, unknown>;
+  created_at: string;
+  updated_at: string;
 }
 
 export interface Notification {

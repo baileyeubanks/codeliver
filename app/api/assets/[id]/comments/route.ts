@@ -1,23 +1,49 @@
 import { NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth";
-import { getAssetComment, getOwnedAsset } from "@/lib/access-control";
+import {
+  getAssetAccess,
+  getAssetComment,
+  PROJECT_ROLE_RANK,
+} from "@/lib/access-control";
 import { sendEmail, emailTemplates, getBaseUrl } from "@/lib/email";
 import { getSupabase } from "@/lib/supabase";
+import { resolveAssetVersion } from "@/lib/versions";
 
-export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
+function authenticatedAuthorName(user: {
+  email?: string | null;
+  user_metadata?: Record<string, unknown>;
+}) {
+  const metadata = user.user_metadata ?? {};
+  for (const key of ["full_name", "name", "display_name"]) {
+    const value = metadata[key];
+    if (typeof value === "string" && value.trim()) return value.trim().slice(0, 120);
+  }
+  return (user.email || "Team reviewer").slice(0, 120);
+}
+
+export async function GET(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const user = await requireAuth();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const assetAccess = await getOwnedAsset(id, user.id);
+  const assetAccess = await getAssetAccess(id, user.id, "viewer");
   if (!assetAccess.ok) {
     return NextResponse.json({ error: assetAccess.error }, { status: assetAccess.status });
+  }
+
+  const versionLookup = await resolveAssetVersion({
+    assetId: id,
+    versionId: new URL(req.url).searchParams.get("version_id"),
+  });
+  if (!versionLookup.ok) {
+    return NextResponse.json({ error: versionLookup.error }, { status: versionLookup.status });
   }
 
   const { data, error } = await getSupabase()
     .from("comments")
     .select("*")
     .eq("asset_id", id)
+    .eq("version_id", versionLookup.version.id)
     .order("created_at", { ascending: true });
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
@@ -29,14 +55,53 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
   const user = await requireAuth();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const assetAccess = await getOwnedAsset(id, user.id);
+  const assetAccess = await getAssetAccess(id, user.id, "reviewer");
   if (!assetAccess.ok) {
     return NextResponse.json({ error: assetAccess.error }, { status: assetAccess.status });
   }
 
-  const body = await req.json();
-  if (!body.body?.trim()) {
+  const body = await req.json().catch(() => null);
+  if (!body || typeof body !== "object" || Array.isArray(body)) {
+    return NextResponse.json({ error: "Comment body must be an object" }, { status: 400 });
+  }
+  if (
+    typeof body.body !== "string" ||
+    !body.body.trim() ||
+    body.body.trim().length > 10_000
+  ) {
     return NextResponse.json({ error: "Comment body is required" }, { status: 400 });
+  }
+  if (
+    body.timecode_seconds !== undefined &&
+    body.timecode_seconds !== null &&
+    (typeof body.timecode_seconds !== "number" ||
+      !Number.isFinite(body.timecode_seconds) ||
+      body.timecode_seconds < 0 ||
+      body.timecode_seconds > 604_800)
+  ) {
+    return NextResponse.json({ error: "timecode_seconds is invalid" }, { status: 400 });
+  }
+  for (const field of ["pin_x", "pin_y"] as const) {
+    const value = body[field];
+    if (
+      value !== undefined &&
+      value !== null &&
+      (typeof value !== "number" || !Number.isFinite(value) || value < 0 || value > 1)
+    ) {
+      return NextResponse.json({ error: `${field} is invalid` }, { status: 400 });
+    }
+  }
+  if (body.parent_id !== undefined && body.parent_id !== null && typeof body.parent_id !== "string") {
+    return NextResponse.json({ error: "parent_id is invalid" }, { status: 400 });
+  }
+  const authorName = authenticatedAuthorName(user);
+
+  const versionLookup = await resolveAssetVersion({
+    assetId: id,
+    versionId: typeof body.version_id === "string" ? body.version_id : null,
+  });
+  if (!versionLookup.ok) {
+    return NextResponse.json({ error: versionLookup.error }, { status: versionLookup.status });
   }
 
   if (body.parent_id) {
@@ -51,15 +116,23 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
         { status: 400 },
       );
     }
+
+    if (parent.data.version_id !== versionLookup.version.id) {
+      return NextResponse.json(
+        { error: "Replies must stay on the same media version" },
+        { status: 400 },
+      );
+    }
   }
 
   const { data, error } = await getSupabase()
     .from("comments")
     .insert({
       asset_id: id,
+      version_id: versionLookup.version.id,
       body: body.body.trim(),
-      author_name: body.author_name || user.email || "Anonymous",
-      author_email: body.author_email || user.email || null,
+      author_name: authorName,
+      author_email: user.email || null,
       author_id: user.id,
       timecode_seconds: body.timecode_seconds ?? null,
       pin_x: body.pin_x ?? null,
@@ -80,19 +153,23 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
       project_id: asset.data.project_id,
       asset_id: id,
       actor_id: user.id,
-      actor_name: body.author_name || user.email || "Anonymous",
+      actor_name: authorName,
       action: "added_comment",
-      details: { asset_title: asset.data.title, body: body.body.slice(0, 100) },
+      details: {
+        asset_title: asset.data.title,
+        body: body.body.slice(0, 100),
+        version_id: versionLookup.version.id,
+      },
     });
 
     const project = await getSupabase().from("projects").select("owner_id").eq("id", asset.data.project_id).single();
-    if (project.data) {
+    if (project.data && project.data.owner_id !== user.id) {
       const owner = await getSupabase().auth.admin.getUserById(project.data.owner_id);
       if (owner.data?.user?.email) {
         const reviewUrl = `${getBaseUrl()}/projects/${asset.data.project_id}/assets/${id}`;
         const emailPayload = emailTemplates.commentNotification(
           owner.data.user.email,
-          body.author_name || user.email || "Anonymous",
+          authorName,
           asset.data.title,
           body.body,
           reviewUrl
@@ -110,30 +187,96 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
   const user = await requireAuth();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const assetAccess = await getOwnedAsset(assetId, user.id);
+  const assetAccess = await getAssetAccess(assetId, user.id, "reviewer");
   if (!assetAccess.ok) {
     return NextResponse.json({ error: assetAccess.error }, { status: assetAccess.status });
   }
 
   const body = await req.json();
-  const nextStatus = body.status;
-
-  if (nextStatus !== "open" && nextStatus !== "resolved" && nextStatus !== "archived") {
-    return NextResponse.json({ error: "Invalid comment status" }, { status: 400 });
+  if (typeof body.id !== "string" || !body.id.trim()) {
+    return NextResponse.json({ error: "Comment id is required" }, { status: 400 });
   }
 
-  const { data, error } = await getSupabase()
+  const requestedVersionId =
+    typeof body.version_id === "string"
+      ? body.version_id
+      : new URL(req.url).searchParams.get("version_id");
+  const versionLookup = await resolveAssetVersion({
+    assetId,
+    versionId: requestedVersionId,
+  });
+  if (!versionLookup.ok) {
+    return NextResponse.json({ error: versionLookup.error }, { status: versionLookup.status });
+  }
+
+  const { data: comment, error: commentError } = await getSupabase()
     .from("comments")
-    .update({
-      status: nextStatus,
-      resolved_by: nextStatus === "resolved" ? user.id : null,
-      resolved_at: nextStatus === "resolved" ? new Date().toISOString() : null,
-    })
+    .select("id, asset_id, version_id, author_id, visibility, status")
     .eq("id", body.id)
     .eq("asset_id", assetId)
-    .select()
-    .single();
+    .eq("version_id", versionLookup.version.id)
+    .maybeSingle();
+
+  if (commentError) {
+    return NextResponse.json({ error: commentError.message }, { status: 500 });
+  }
+  if (!comment) {
+    return NextResponse.json({ error: "Comment not found" }, { status: 404 });
+  }
+
+  const isAuthor = comment.visibility === "internal" && comment.author_id === user.id;
+  const canModerate = assetAccess.data.access_rank >= PROJECT_ROLE_RANK.editor;
+  if (!isAuthor && !canModerate) {
+    return NextResponse.json({ error: "You cannot edit this comment" }, { status: 403 });
+  }
+
+  const updates: Record<string, unknown> = {};
+  const includesBody = Object.prototype.hasOwnProperty.call(body, "body");
+  const includesStatus = Object.prototype.hasOwnProperty.call(body, "status");
+
+  if (includesBody) {
+    if (!isAuthor) {
+      return NextResponse.json(
+        { error: "Only the comment author can edit comment text" },
+        { status: 403 },
+      );
+    }
+    if (typeof body.body !== "string" || !body.body.trim()) {
+      return NextResponse.json({ error: "Comment body is required" }, { status: 400 });
+    }
+    updates.body = body.body.trim();
+  }
+
+  if (includesStatus) {
+    const nextStatus = body.status;
+    if (nextStatus !== "open" && nextStatus !== "resolved" && nextStatus !== "archived") {
+      return NextResponse.json({ error: "Invalid comment status" }, { status: 400 });
+    }
+    updates.status = nextStatus;
+    updates.resolved_by = nextStatus === "resolved" ? user.id : null;
+    updates.resolved_at = nextStatus === "resolved" ? new Date().toISOString() : null;
+  }
+
+  if (!includesBody && !includesStatus) {
+    return NextResponse.json({ error: "No supported comment changes were provided" }, { status: 400 });
+  }
+
+  updates.updated_at = new Date().toISOString();
+
+  let updateQuery = getSupabase()
+    .from("comments")
+    .update(updates)
+    .eq("id", body.id)
+    .eq("asset_id", assetId)
+    .eq("version_id", versionLookup.version.id);
+
+  if (!canModerate) {
+    updateQuery = updateQuery.eq("author_id", user.id);
+  }
+
+  const { data, error } = await updateQuery.select().maybeSingle();
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (!data) return NextResponse.json({ error: "Comment not found" }, { status: 404 });
   return NextResponse.json(data);
 }

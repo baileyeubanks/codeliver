@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useParams, useSearchParams } from "next/navigation";
 import {
+  ArrowLeft,
   CheckCircle2,
   Download,
   MapPin,
@@ -14,6 +15,12 @@ import FrameIndicator from "@/components/player/FrameIndicator";
 import ReviewMediaSurface from "@/components/review/ReviewMediaSurface";
 import ReviewWorkspace from "@/components/review/PublicReviewWorkspace";
 import PublicReviewComposer from "@/components/review/PublicReviewComposer";
+import InlineReviewComment from "@/components/review/InlineReviewComment";
+import {
+  addDemoReviewCutMarker,
+  recordDemoPublicReviewApproval,
+  useDemoWorkspace,
+} from "@/lib/demo/workspace-store";
 import { demoReviewPayload } from "@/lib/review/demoReview";
 import {
   deriveReviewState,
@@ -31,10 +38,13 @@ import type {
   ApprovalDecision,
   ApprovalStep,
   Comment as ReviewComment,
+  EditDecision,
   SharePermission,
+  Version,
   WorkflowMode,
 } from "@/lib/types/codeliver";
 import PlayerTimeline from "@/components/player/PlayerTimeline";
+import { useDemoMediaObjectUrl } from "@/lib/demo/media-blob-store";
 
 interface Asset {
   id: string;
@@ -59,6 +69,8 @@ interface ReviewInvite {
 
 interface ReviewPayload {
   asset: Asset;
+  version: Version;
+  edit_decisions: EditDecision[];
   approvals: ApprovalStep[];
   active_approval_ids?: string[];
   approval_access_message?: string | null;
@@ -79,6 +91,13 @@ interface ReviewPayload {
 }
 
 type CommentFilter = "open" | "all" | "resolved";
+
+interface CutMarker {
+  id: string;
+  time: number;
+  status?: EditDecision["status"];
+  pending?: boolean;
+}
 
 function formatShortDate(value?: string | null): string | null {
   if (!value) return null;
@@ -122,12 +141,14 @@ export default function PublicReviewPage() {
   const { token } = useParams<{ token: string }>();
   const searchParams = useSearchParams();
   const videoRef = useRef<HTMLVideoElement>(null);
+  const demoWorkspace = useDemoWorkspace();
 
   const currentTime = usePlayerStore((state) => state.currentTime);
   const duration = usePlayerStore((state) => state.duration);
   const resetPlayer = usePlayerStore((state) => state.reset);
 
   const [asset, setAsset] = useState<Asset | null>(null);
+  const [version, setVersion] = useState<Version | null>(null);
   const [invite, setInvite] = useState<ReviewInvite | null>(null);
   const [approvals, setApprovals] = useState<ApprovalStep[]>([]);
   const [activeApprovalIds, setActiveApprovalIds] = useState<string[]>([]);
@@ -140,13 +161,26 @@ export default function PublicReviewPage() {
   const [selectedCommentId, setSelectedCommentId] = useState<string | null>(null);
   const [filter, setFilter] = useState<CommentFilter>("open");
   const [pinMode, setPinMode] = useState(false);
-  const [commentPin, setCommentPin] = useState<{ x: number; y: number } | null>(null);
+  const [commentPin, setCommentPin] = useState<{
+    x: number;
+    y: number;
+    timeSeconds: number | null;
+  } | null>(null);
+  const [cutMarkers, setCutMarkers] = useState<CutMarker[]>([]);
+  const [cutMarkerError, setCutMarkerError] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [approvalSubmitting, setApprovalSubmitting] = useState(false);
   const [approvalError, setApprovalError] = useState("");
-  const demoMode =
-    process.env.NODE_ENV !== "production" && (token === "demo" || searchParams.get("demo") === "1");
+  const demoMode = token === "demo" || searchParams.get("demo") === "1";
+  const requestedDemoShareToken = demoMode ? searchParams.get("share") : null;
+  const requestedDemoShare = requestedDemoShareToken
+    ? demoWorkspace.shareLinks.find((link) => link.token === requestedDemoShareToken)
+    : null;
+  const requestedDemoAssetId = demoMode
+    ? searchParams.get("asset") ?? requestedDemoShare?.asset_ids[0] ?? null
+    : null;
+  const demoMediaUrl = useDemoMediaObjectUrl(requestedDemoAssetId);
 
   useEffect(() => {
     resetPlayer();
@@ -154,12 +188,38 @@ export default function PublicReviewPage() {
   }, [resetPlayer]);
 
   useEffect(() => {
+    if (!demoMode || !asset?.id) return;
+    setCutMarkers(
+      demoWorkspace.reviewCutMarkers
+        .filter((marker) => marker.asset_id === asset.id)
+        .map((marker) => ({ id: marker.id, time: marker.time_seconds, status: "accepted" })),
+    );
+  }, [asset?.id, demoMode, demoWorkspace.reviewCutMarkers]);
+
+  useEffect(() => {
     let cancelled = false;
 
     async function loadReview() {
       try {
         if (demoMode) {
+          if (requestedDemoShareToken && !requestedDemoShare) {
+            throw new Error("This review link is invalid or no longer available.");
+          }
+          if (requestedDemoShare && !requestedDemoShare.is_active) {
+            throw new Error("This review link has been revoked.");
+          }
+
+          const workspaceAsset = demoWorkspace.assets.find(
+            (candidate) => candidate.id === requestedDemoAssetId,
+          );
+          const workspaceProject = demoWorkspace.projects.find(
+            (candidate) => candidate.id === workspaceAsset?.project_id,
+          );
+          const publicAssetId = workspaceAsset?.id ?? demoReviewPayload.asset.id;
+          const publicProjectId = workspaceAsset?.project_id ?? "demo";
+          const publicVersionId = `demo-version-${workspaceAsset?.version_count ?? 4}`;
           const requestedIntent =
+            requestedDemoShare?.share_intent ??
             normalizeShareIntent(searchParams.get("intent")) ??
             deriveShareIntent({
               permissions: demoReviewPayload.permissions,
@@ -169,24 +229,122 @@ export default function PublicReviewPage() {
           const intentDefaults = resolveShareIntentDefaults(requestedIntent);
           const review = {
             ...demoReviewPayload,
-            permissions: intentDefaults.permissions,
-            download_enabled: intentDefaults.downloadEnabled,
-            watermark_enabled: intentDefaults.watermarkEnabled,
+            asset: {
+              ...demoReviewPayload.asset,
+              id: publicAssetId,
+              title: workspaceAsset?.title ?? demoReviewPayload.asset.title,
+              file_url: demoMediaUrl ?? demoReviewPayload.asset.file_url,
+              status: workspaceAsset?.status ?? demoReviewPayload.asset.status,
+              projects: {
+                name: workspaceProject
+                  ? `${workspaceProject.name} / Client Review`
+                  : demoReviewPayload.asset.projects?.name ?? "Client Review",
+              },
+            },
+            permissions: requestedDemoShare?.permission ?? intentDefaults.permissions,
+            expires_at: requestedDemoShare?.expires_at ?? demoReviewPayload.expires_at,
+            download_enabled:
+              requestedDemoShare?.allow_downloads ?? intentDefaults.downloadEnabled,
+            watermark_enabled:
+              requestedDemoShare?.watermark_enabled ?? intentDefaults.watermarkEnabled,
+            watermark_text:
+              requestedDemoShare?.reviewer_name ??
+              requestedDemoShare?.reviewer_email ??
+              demoReviewPayload.watermark_text,
             reviewer_name:
-              requestedIntent === "approval_needed" ? demoReviewPayload.reviewer_name : "Maya Chen",
+              requestedDemoShare?.reviewer_name ??
+              (requestedIntent === "approval_needed"
+                ? demoReviewPayload.reviewer_name
+                : "Client Reviewer"),
             reviewer_email:
-              requestedIntent === "approval_needed" ? demoReviewPayload.reviewer_email : null,
+              requestedDemoShare?.reviewer_email ??
+              (requestedIntent === "approval_needed" ? demoReviewPayload.reviewer_email : null),
+            approvals: demoReviewPayload.approvals.map((approval) => ({
+              ...approval,
+              asset_id: publicAssetId,
+            })),
+            comments: demoReviewPayload.comments.map((comment) => ({
+              ...comment,
+              asset_id: publicAssetId,
+              version_id: publicVersionId,
+            })),
+            invite: {
+              ...demoReviewPayload.invite,
+              id: requestedDemoShare?.id ?? demoReviewPayload.invite.id,
+              view_count: 0,
+              max_views: requestedDemoShare?.max_views ?? demoReviewPayload.invite.max_views,
+            },
           };
-          const rootComments = review.comments.filter((comment) => !comment.parent_id);
+          const persistedApprovalState = demoWorkspace.publicReviewStates.find(
+            (state) =>
+              state.project_id === publicProjectId &&
+              state.asset_id === publicAssetId &&
+              state.version_id === publicVersionId &&
+              state.review_invite_id === review.invite.id,
+          );
+          const persistedComments: ReviewComment[] = demoWorkspace.reviewComments
+            .filter(
+              (comment) =>
+                comment.project_id === publicProjectId &&
+                comment.asset_id === publicAssetId &&
+                comment.version_id === publicVersionId,
+            )
+            .map((comment) => ({
+              id: comment.id,
+              review_id: null,
+              review_invite_id: comment.review_invite_id ?? review.invite.id,
+              asset_id: comment.asset_id,
+              version_id: comment.version_id ?? publicVersionId,
+              parent_id: null,
+              author_name: comment.author_name,
+              author_email: comment.author_email ?? null,
+              author_id: null,
+              body: comment.body,
+              rich_body: null,
+              timecode_seconds:
+                review.asset.file_type === "video" ? comment.time_seconds : null,
+              frame_number: null,
+              pin_x: comment.pin_x ?? null,
+              pin_y: comment.pin_y ?? null,
+              mentions: [],
+              status: comment.status,
+              visibility: "external",
+              resolved_by: null,
+              resolved_at: null,
+              created_at: comment.created_at,
+              updated_at: comment.created_at,
+            }));
+          const restoredComments = [...review.comments, ...persistedComments];
+          const restoredApprovals = persistedApprovalState?.approvals ?? review.approvals;
+          const restoredAsset = {
+            ...review.asset,
+            status: persistedApprovalState?.asset_status ?? review.asset.status,
+          };
+          const demoVersion: Version = {
+            id: publicVersionId,
+            asset_id: publicAssetId,
+            version_number: workspaceAsset?.version_count ?? 4,
+            file_url: review.asset.file_url ?? "",
+            file_size: null,
+            thumbnail_url: "/demo/ceraweek-speaker.jpg",
+            duration_seconds: workspaceAsset?.duration_seconds ?? null,
+            resolution: "1920 x 1080",
+            is_current: true,
+            notes: "Local demo review version",
+            uploaded_by: null,
+            created_at: workspaceAsset?.created_at ?? new Date().toISOString(),
+          };
+          const rootComments = restoredComments.filter((comment) => !comment.parent_id);
           const initialSelection =
             rootComments.find((comment) => comment.status === "open")?.id ??
             rootComments[0]?.id ??
             null;
 
-          setAsset(review.asset);
+          setAsset(restoredAsset);
+          setVersion(demoVersion);
           setInvite({
             id: review.invite.id,
-            reviewer_name: review.reviewer_name,
+            reviewer_name: persistedApprovalState?.reviewer_name ?? review.reviewer_name,
             expires_at: review.expires_at,
             permissions: review.permissions,
             download_enabled: review.download_enabled,
@@ -195,16 +353,21 @@ export default function PublicReviewPage() {
             view_count: review.invite.view_count,
             max_views: review.invite.max_views,
           });
-          setApprovals(review.approvals);
+          setApprovals(restoredApprovals);
           setActiveApprovalIds(
-            defaultActiveApprovalIds(review.approvals, review.workflow_mode, review.reviewer_email),
+            persistedApprovalState?.active_approval_ids ??
+              defaultActiveApprovalIds(
+                restoredApprovals,
+                review.workflow_mode,
+                review.reviewer_email,
+              ),
           );
-          setApprovalAccessMessage("");
-          setComments(review.comments);
+          setApprovalAccessMessage(persistedApprovalState?.approval_access_message ?? "");
+          setComments(restoredComments);
           setPermissions(review.permissions);
           setShareIntent(requestedIntent);
           setWorkflowMode(review.workflow_mode);
-          setReviewerName(review.reviewer_name ?? "");
+          setReviewerName(persistedApprovalState?.reviewer_name ?? review.reviewer_name ?? "");
           setSelectedCommentId(initialSelection);
           setLoading(false);
           return;
@@ -227,6 +390,7 @@ export default function PublicReviewPage() {
           null;
 
         setAsset(review.asset);
+        setVersion(review.version ?? null);
         setInvite({
           id: review.invite.id,
           reviewer_name: review.reviewer_name,
@@ -245,6 +409,18 @@ export default function PublicReviewPage() {
         );
         setApprovalAccessMessage(review.approval_access_message ?? "");
         setComments(review.comments ?? []);
+        setCutMarkers(
+          (review.edit_decisions ?? [])
+            .filter(
+              (decision) =>
+                decision.decision_type === "cut" && decision.status !== "rejected",
+            )
+            .map((decision) => ({
+              id: decision.id,
+              time: decision.start_seconds,
+              status: decision.status,
+            })),
+        );
         setPermissions(review.permissions);
         setShareIntent(review.share_intent);
         setWorkflowMode(review.workflow_mode);
@@ -263,7 +439,20 @@ export default function PublicReviewPage() {
     return () => {
       cancelled = true;
     };
-  }, [demoMode, searchParams, token]);
+  }, [
+    demoMediaUrl,
+    demoMode,
+    demoWorkspace.assets,
+    demoWorkspace.projects,
+    demoWorkspace.publicReviewStates,
+    demoWorkspace.reviewComments,
+    demoWorkspace.shareLinks,
+    requestedDemoAssetId,
+    requestedDemoShare,
+    requestedDemoShareToken,
+    searchParams,
+    token,
+  ]);
 
   const canComment = permissions === "comment" || permissions === "approve";
   const rootComments = comments.filter((comment) => !comment.parent_id);
@@ -281,9 +470,6 @@ export default function PublicReviewPage() {
     repliesByParent.set(comment.parent_id, existing);
   });
 
-  const pinnedThreads = rootComments.filter(
-    (comment) => comment.pin_x != null && comment.pin_y != null,
-  ).length;
   const timedThreads = rootComments.filter((comment) => comment.timecode_seconds != null).length;
 
   const filteredComments = rootComments
@@ -317,41 +503,36 @@ export default function PublicReviewPage() {
   const shareMeta = formatShareIntentMeta(shareIntent);
   const pageDescription =
     shareIntent === "final_delivery"
-      ? "This link is a final handoff. Review the delivery details, then download the approved asset."
+      ? "Approved delivery and review history."
       : shareIntent === "approval_needed"
-        ? "Review the asset, leave any final notes, and record your decision when your approval step is active."
+        ? "Client approval is active for this version."
         : shareIntent === "internal_review"
-          ? "Review the working cut, pause where direction is needed, and leave notes tied to the right frame or moment."
-          : "Watch the cut first, pause where feedback is needed, then leave notes that stay tied to the moment or frame.";
-  const stageTitle =
-    shareIntent === "final_delivery" ? "Delivery view" : "Player first. Feedback second.";
+          ? "Internal review is active for this version."
+          : "Client review is active for this version.";
+  const stageTitle = shareIntent === "final_delivery" ? "Delivery player" : "Review player";
   const stageDescription = pinMode
-    ? "Pin mode is active. Click the frame to lock your note to a precise spot."
+    ? "Pin mode active"
+    : cutMarkers.length > 0
+      ? `${cutMarkers.length} cut ${cutMarkers.length === 1 ? "decision" : "decisions"} marked`
     : shareIntent === "final_delivery"
-      ? "Use the player to review the approved asset, then move to the rail for delivery details and any prior review history."
-      : canComment
-        ? "Use the player to find the right moment, then add notes from the rail without losing context."
-        : "Use the player and comment list together to move through the review.";
+      ? "Approved version and delivery history"
+      : `Version ${version?.version_number ?? 1} · Client review`;
   const railTitle =
-    shareIntent === "final_delivery"
-      ? "Delivery rail"
-      : shareIntent === "approval_needed"
-        ? "Review and approval"
-        : "Review rail";
+    shareIntent === "final_delivery" ? "Delivery" : "Review";
   const railHeading =
     shareIntent === "final_delivery"
-      ? "Delivery details and history"
+      ? "Final delivery"
       : shareIntent === "approval_needed"
-        ? "Watch, comment, approve"
-        : "Watch and respond";
+        ? "Comments and approval"
+        : "Comments";
   const railDescription =
     shareIntent === "final_delivery"
-      ? "This panel explains the handoff and keeps the prior review record visible."
+      ? `${rootComments.length} notes in the review history.`
       : permissions === "approve"
-        ? "Everything needed to review and sign off stays beside the player."
+        ? `${openThreads} open notes before sign-off.`
         : canComment
-          ? "Everything needed to review and leave notes stays beside the player."
-          : "Use this rail to follow the current review conversation.";
+          ? `${openThreads} open notes on this version.`
+          : `${rootComments.length} notes on this version.`;
   const stepThreeText =
     shareIntent === "final_delivery"
       ? "Download the approved file when you are ready to hand it off or use it."
@@ -382,8 +563,9 @@ export default function PublicReviewPage() {
     }
   }
 
-  function handleFramePin(x: number, y: number) {
-    setCommentPin({ x, y });
+  function handleFramePin(x: number, y: number, timeSeconds: number) {
+    if (!canComment) return;
+    setCommentPin({ x, y, timeSeconds });
     setPinMode(false);
   }
 
@@ -394,7 +576,7 @@ export default function PublicReviewPage() {
     const x = ((event.clientX - rect.left) / rect.width) * 100;
     const y = ((event.clientY - rect.top) / rect.height) * 100;
 
-    setCommentPin({ x, y });
+    setCommentPin({ x, y, timeSeconds: null });
     setPinMode(false);
   }
 
@@ -414,10 +596,91 @@ export default function PublicReviewPage() {
   }
 
   function handleCommentCreated(comment: ReviewComment) {
-    setComments((current) => [...current, comment]);
+    setComments((current) =>
+      current.some((candidate) => candidate.id === comment.id) ? current : [...current, comment],
+    );
     setSelectedCommentId(comment.id);
     setCommentPin(null);
     setPinMode(false);
+
+    if (asset?.file_type === "video" && videoRef.current) {
+      const video = videoRef.current;
+      (video.closest("[data-player-root]") as HTMLElement | null)?.focus({ preventScroll: true });
+      void video.play().catch(() => {
+        video.muted = true;
+        usePlayerStore.getState().setMuted(true);
+        void video.play().catch(() => undefined);
+      });
+    }
+  }
+
+  async function handleCutMarker(time: number) {
+    const normalizedTime = Math.max(0, Number(time.toFixed(3)));
+    if (cutMarkers.some((marker) => Math.abs(marker.time - normalizedTime) < 0.25)) return;
+    setCutMarkerError("");
+
+    if (demoMode && asset) {
+      const workspaceAsset = demoWorkspace.assets.find((candidate) => candidate.id === asset.id);
+      addDemoReviewCutMarker({
+        projectId: workspaceAsset?.project_id ?? "demo",
+        assetId: asset.id,
+        timeSeconds: normalizedTime,
+      });
+      return;
+    }
+
+    if (!asset || !version) {
+      setCutMarkerError("This review is not bound to a media version yet.");
+      return;
+    }
+
+    const clientRequestId = crypto.randomUUID();
+    const optimisticId = `pending-${clientRequestId}`;
+    setCutMarkers((current) => [
+      ...current,
+      { id: optimisticId, time: normalizedTime, status: "proposed", pending: true },
+    ]);
+
+    try {
+      const response = await fetch(`/api/review/${token}/edit-decisions`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          decision_type: "cut",
+          source: "keyboard",
+          start_seconds: normalizedTime,
+          end_seconds: null,
+          label: "Cut",
+          confidence: null,
+          client_request_id: clientRequestId,
+          metadata: { input: "ArrowDown", version_number: version.version_number },
+          reviewer_name: reviewerName,
+        }),
+      });
+      const payload = await response.json().catch(() => null);
+
+      if (!response.ok) {
+        throw new Error(payload?.error || "Could not save the cut decision.");
+      }
+
+      const decision = payload as EditDecision;
+      setCutMarkers((current) =>
+        current.map((marker) =>
+          marker.id === optimisticId
+            ? {
+                id: decision.id,
+                time: decision.start_seconds,
+                status: decision.status,
+              }
+            : marker,
+        ),
+      );
+    } catch (saveError) {
+      setCutMarkers((current) => current.filter((marker) => marker.id !== optimisticId));
+      setCutMarkerError(
+        saveError instanceof Error ? saveError.message : "Could not save the cut decision.",
+      );
+    }
   }
 
   async function handleApprovalDecision(
@@ -435,6 +698,45 @@ export default function PublicReviewPage() {
     setApprovalError("");
 
     try {
+      if (demoMode) {
+        if (!asset || !version || !invite) {
+          throw new Error("This demo review is not bound to a media version yet.");
+        }
+
+        const workspaceAsset = demoWorkspace.assets.find(
+          (candidate) => candidate.id === asset.id,
+        );
+        const demoDecision = recordDemoPublicReviewApproval({
+          projectId: workspaceAsset?.project_id ?? "demo",
+          assetId: asset.id,
+          versionId: version.id,
+          reviewInviteId: invite.id,
+          reviewerName: reviewerName.trim(),
+          reviewerEmail:
+            requestedDemoShare?.reviewer_email ??
+            (permissions === "approve" ? demoReviewPayload.reviewer_email : null),
+          permission: permissions,
+          workflowMode,
+          approvals,
+          initialAssetStatus: asset.status,
+          approvalId,
+          decision,
+          note,
+        });
+
+        if (!demoDecision.ok) {
+          throw new Error(demoDecision.error);
+        }
+
+        setApprovals(demoDecision.approvals);
+        setAsset((current) =>
+          current ? { ...current, status: demoDecision.assetStatus } : current,
+        );
+        setActiveApprovalIds(demoDecision.activeApprovalIds);
+        setApprovalAccessMessage(demoDecision.approvalAccessMessage);
+        return;
+      }
+
       const response = await fetch(`/api/review/${token}/approvals`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
@@ -512,7 +814,7 @@ export default function PublicReviewPage() {
                 event.stopPropagation();
                 handleCommentSelect(comment);
               }}
-              className={`absolute -translate-x-1/2 -translate-y-full rounded-full border-2 px-2 py-1 text-[11px] font-bold shadow-lg transition-transform hover:scale-105 ${
+              className={`pointer-events-auto absolute -translate-x-1/2 -translate-y-full rounded-full border-2 px-2 py-1 text-[11px] font-bold shadow-lg transition-transform hover:scale-105 ${
                 selected
                   ? "border-white bg-[var(--accent)] text-white"
                   : resolved
@@ -529,11 +831,24 @@ export default function PublicReviewPage() {
 
         {commentPin ? (
           <div
-            className="pointer-events-none absolute -translate-x-1/2 -translate-y-full rounded-full border-2 border-dashed border-white bg-[var(--accent)] px-2 py-1 text-[11px] font-bold text-white shadow-lg"
+            className="review-pending-pin pointer-events-none absolute"
             style={{ left: `${commentPin.x}%`, top: `${commentPin.y}%` }}
-          >
-            New
-          </div>
+            aria-hidden="true"
+          />
+        ) : null}
+
+        {commentPin && asset?.file_type === "video" && canComment ? (
+          <InlineReviewComment
+            token={token}
+            demoMode={demoMode}
+            assetId={asset.id}
+            reviewerName={reviewerName}
+            onReviewerNameChange={setReviewerName}
+            timecode={commentPin.timeSeconds ?? currentTime}
+            pin={commentPin}
+            onCancel={clearPin}
+            onCommentCreated={handleCommentCreated}
+          />
         ) : null}
       </div>
     );
@@ -545,62 +860,60 @@ export default function PublicReviewPage() {
     <ReviewWorkspace
       loading={loading}
       error={workspaceError}
+      brand={demoMode ? demoWorkspace.settings.brand : undefined}
       header={
         <>
-          <div className="min-w-0">
-            <div className="flex flex-wrap items-center gap-2">
-              <span className="review-kicker rounded-full border border-[var(--accent)]/30 bg-[var(--accent)]/10 px-3 py-1 text-[var(--accent)]">
-                Co-Deliver
+          <div className="client-review-title-block">
+            <div className="client-review-breadcrumbs">
+              {demoMode ? (
+                <span className="client-review-back-link" aria-label="External review">
+                  <ArrowLeft size={13} />
+                  Shared review
+                </span>
+              ) : null}
+              {demoMode ? <span aria-hidden="true">/</span> : null}
+              <span className="client-review-project-name">
+                {asset?.projects?.name ?? "Project"}
               </span>
-              <span className="rounded-full border border-[var(--border)] bg-[var(--bg)] px-3 py-1 text-xs text-[var(--muted)]">
+              <span className="client-review-intent-badge">
                 {shareMeta.label}
               </span>
-              {demoMode ? (
-                <span className="rounded-full border border-[var(--accent)]/20 bg-[var(--accent)]/10 px-3 py-1 text-xs text-[var(--accent)]">
-                  Demo mode
+            </div>
+
+            <div className="client-review-title-row">
+              <h1 className="review-display">
+                {asset?.title ?? "Review"}
+              </h1>
+              {asset ? (
+                <span className="client-review-status-badge">
+                  {formatAssetStatusLabel(asset.status)}
                 </span>
               ) : null}
             </div>
-
-            <div className="mt-3 min-w-0">
-              <p className="text-sm text-[var(--muted)]">{asset?.projects?.name ?? "Project"}</p>
-              <h1 className="review-display mt-1 truncate text-2xl font-semibold text-[var(--ink)]">
-                {asset?.title ?? "Review"}
-              </h1>
-              <p className="mt-2 max-w-3xl text-sm text-[var(--muted)]">{pageDescription}</p>
-            </div>
+            <p className="client-review-page-description">{pageDescription}</p>
           </div>
 
-          <div className="flex flex-wrap items-center gap-2 xl:justify-end">
-            {asset ? (
-              <span className="rounded-full border border-[var(--border)] bg-[var(--bg)] px-3 py-1 text-xs capitalize text-[var(--ink)]">
-                {formatAssetStatusLabel(asset.status)}
-              </span>
-            ) : null}
-            <span className="rounded-full border border-[var(--border)] bg-[var(--bg)] px-3 py-1 text-xs text-[var(--muted)]">
+          <div className="client-review-header-summary">
+            <div className="client-review-access-row">
+              <span className="client-review-state-badge">
               {reviewState.label}
-            </span>
-            <span className="rounded-full border border-[var(--border)] bg-[var(--bg)] px-3 py-1 text-xs text-[var(--muted)]">
-              {shareMeta.permissionsLabel}
-            </span>
+              </span>
+              <span>{shareMeta.permissionsLabel}</span>
+            </div>
             {reviewerName || invite?.reviewer_name ? (
-              <span className="rounded-full border border-[var(--border)] bg-[var(--bg)] px-3 py-1 text-xs text-[var(--muted)]">
-                Reviewing as <span className="font-medium text-[var(--ink)]">{reviewerName || invite?.reviewer_name}</span>
-              </span>
+              <p className="client-review-reviewer">
+                Reviewing as <strong>{reviewerName || invite?.reviewer_name}</strong>
+              </p>
             ) : null}
-            <span className="rounded-full border border-[var(--border)] bg-[var(--bg)] px-3 py-1 text-xs text-[var(--muted)]">
-              {invite?.view_count ?? 0} views
-            </span>
-            {expiresLabel ? (
-              <span className="rounded-full border border-[var(--border)] bg-[var(--bg)] px-3 py-1 text-xs text-[var(--muted)]">
-                Expires {expiresLabel}
-              </span>
-            ) : null}
+            <div className="client-review-link-meta">
+              <span>{invite?.view_count ?? 0} views</span>
+              {expiresLabel ? <span>Expires {expiresLabel}</span> : null}
+            </div>
             {invite?.download_enabled && asset?.file_url ? (
               <a
                 href={asset.file_url}
                 download
-                className="inline-flex items-center gap-2 rounded-full border border-[var(--border)] bg-[var(--bg)] px-3 py-1.5 text-sm font-medium text-[var(--ink)] transition-colors hover:border-[var(--accent)] hover:text-[var(--accent)]"
+                className="client-review-download"
               >
                 <Download size={13} />
                 Download
@@ -617,7 +930,7 @@ export default function PublicReviewPage() {
           `${openThreads} open`,
           `${resolvedThreads} resolved`,
           `${timedThreads} timeline notes`,
-          `${pinnedThreads} pinned`,
+          `${cutMarkers.length} cut ${cutMarkers.length === 1 ? "decision" : "decisions"}`,
         ],
         context: selectedComment ? (
           <>
@@ -649,7 +962,7 @@ export default function PublicReviewPage() {
             <button
               type="button"
               onClick={() => setSelectedCommentId(null)}
-              className="mt-3 inline-flex items-center gap-1 text-xs text-[var(--muted)] transition-colors hover:text-[var(--ink)]"
+              className="mt-2 inline-flex min-h-11 items-center gap-1 rounded-[var(--radius-sm)] px-2 text-xs text-[var(--muted)] transition-colors hover:bg-[var(--surface-2)] hover:text-[var(--ink)] sm:min-h-8"
             >
               Clear selection
               <X size={12} />
@@ -670,15 +983,34 @@ export default function PublicReviewPage() {
             assetType={asset?.file_type ?? "other"}
             assetTitle={asset?.title ?? "Review"}
             assetUrl={asset?.file_url ?? null}
+            poster={demoMode ? "/demo/ceraweek-speaker.jpg" : undefined}
             videoRef={videoRef}
             pinMode={canComment && pinMode}
+            annotationEnabled={canComment && asset?.file_type === "video"}
             overlay={renderPins()}
             onFramePin={handleFramePin}
+            onCutMarker={canComment ? handleCutMarker : undefined}
             onImagePin={handleImagePin}
             timeline={{
               label: "Timeline feedback",
-              countLabel: `${timedThreads} markers`,
-              content: <PlayerTimeline comments={rootComments} onSeek={seekTo} />,
+              countLabel: `${timedThreads} notes · ${cutMarkers.length} cuts`,
+              content: (
+                <div className="grid gap-2">
+                  <PlayerTimeline comments={rootComments} cutMarkers={cutMarkers} onSeek={seekTo} />
+                  <p
+                    className={`min-h-5 text-xs ${
+                      cutMarkerError ? "text-[var(--red)]" : "text-[var(--dim)]"
+                    }`}
+                    role={cutMarkerError ? "alert" : "status"}
+                    aria-live="polite"
+                  >
+                    {cutMarkerError ||
+                      (canComment
+                        ? "Press Down to propose a version-bound cut at the playhead."
+                        : "Cut decisions are read-only for this link.")}
+                  </p>
+                </div>
+              ),
             }}
             fallbackAction={
               invite?.download_enabled && asset?.file_url ? (
@@ -823,12 +1155,14 @@ export default function PublicReviewPage() {
         composer: asset ? (
           <PublicReviewComposer
             token={token}
+            demoMode={demoMode}
+            assetId={asset.id}
             assetType={asset.file_type}
             shareIntent={shareIntent}
             canComment={canComment}
             reviewerName={reviewerName}
             onReviewerNameChange={setReviewerName}
-            timecode={currentTime}
+            timecode={commentPin?.timeSeconds ?? currentTime}
             pin={commentPin}
             pinMode={pinMode}
             onTogglePinMode={togglePinMode}

@@ -1,0 +1,21 @@
+- banner:
+  - button "Menu":
+  - link "Content Co-op":
+    - /url: /projects?demo=1
+    - generic: Content Co-op
+  - navigation:
+    - link "Dashboard":
+      - /url: /?demo=1
+    - link "Projects":
+      - /url: /projects?demo=1
+    - link "Reviews":
+      - /url: /reviews?demo=1
+  - button "Help & Feedback":
+  - button "Search":
+  - button:
+- main:
+  - heading "Activity" [level=1]
+  - paragraph: Recent activity across all projects
+  - paragraph: No activity yet
+- button "Open Next.js Dev Tools":
+- alert

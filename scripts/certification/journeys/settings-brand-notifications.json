@@ -1,0 +1,69 @@
+{
+  "schemaVersion": 1,
+  "kind": "journey",
+  "id": "settings-brand-notifications",
+  "title": "User preferences, workspace branding, and notification policy",
+  "horizon": 1,
+  "proofTtlDays": 7,
+  "routes": [
+    "/settings",
+    "/api/notifications",
+    "/api/notifications/preferences",
+    "/api/notifications/send",
+    "/api/teams",
+    "/api/teams/invites",
+    "/api/teams/audit"
+  ],
+  "states": [
+    "preferences loaded",
+    "dirty form",
+    "saved",
+    "reloaded",
+    "brand preview",
+    "notification suppressed",
+    "notification delivered",
+    "signed out"
+  ],
+  "viewports": [
+    { "id": "mobile", "width": 390, "height": 844 },
+    { "id": "desktop", "width": 1440, "height": 1000 }
+  ],
+  "accessibility": [
+    "Tabs, toggles, color controls, and save feedback expose names and states",
+    "Focus remains visible and returns predictably after dialogs",
+    "Brand contrast is validated for the public player",
+    "Automated critical and serious accessibility violations equal zero"
+  ],
+  "securityInvariants": [
+    "Only authorized workspace roles can change shared branding",
+    "A caller cannot select another tenant notification recipient",
+    "Secrets and provider credentials never enter client state or health output"
+  ],
+  "persistence": [
+    "Saved preferences and branding survive reload, new browser session, and another device",
+    "Notification opt-out is enforced by every delivery adapter"
+  ],
+  "concurrency": [
+    "Concurrent preference edits use version or conflict semantics",
+    "Duplicate send requests produce one durable delivery intent"
+  ],
+  "degradedDependencies": [
+    "Email outage queues or records a retryable failure",
+    "Messaging outage does not claim delivery",
+    "Brand asset storage outage preserves the previous active brand"
+  ],
+  "rollback": [
+    "Brand changes can restore the previous published configuration",
+    "Notification policy migrations preserve explicit opt-outs"
+  ],
+  "performanceBudgets": [
+    { "metric": "settings-load-p95-ms", "operator": "<=", "value": 750 },
+    { "metric": "settings-save-p95-ms", "operator": "<=", "value": 750 }
+  ],
+  "checks": [
+    "evidence.settings-brand-notifications",
+    "product.production-settings-authority",
+    "security.notification-recipient-authorization",
+    "resilience.outbox-delivery"
+  ]
+}

@@ -30,6 +30,8 @@ interface ProjectToolbarProps {
   onNewFolder: () => void;
   thumbnailSize: number;
   onThumbnailSize: (v: number) => void;
+  onUpload: () => void;
+  uploading?: boolean;
 }
 
 export default function ProjectToolbar({
@@ -44,6 +46,8 @@ export default function ProjectToolbar({
   onNewFolder,
   thumbnailSize,
   onThumbnailSize,
+  onUpload,
+  uploading = false,
 }: ProjectToolbarProps) {
   const [viewMenuOpen, setViewMenuOpen] = useState(false);
   const [uploadMenuOpen, setUploadMenuOpen] = useState(false);
@@ -92,16 +96,21 @@ export default function ProjectToolbar({
       <div className="flex-1" />
 
       {/* New folder */}
-      <button onClick={onNewFolder} className="btn btn-secondary" title="New folder">
+      <button onClick={onNewFolder} className="btn btn-secondary" title="New production workspace">
         <FolderPlus size={14} />
-        New Folder
+        New workspace
       </button>
 
       {/* Upload split button */}
       <div className="relative flex">
-        <button className="btn-upload" style={{ borderRadius: "var(--radius-sm) 0 0 var(--radius-sm)" }}>
+        <button
+          className="btn-upload"
+          style={{ borderRadius: "var(--radius-sm) 0 0 var(--radius-sm)" }}
+          onClick={onUpload}
+          disabled={uploading}
+        >
           <Upload size={14} />
-          Upload
+          {uploading ? "Uploading" : "Upload"}
         </button>
         <button
           onClick={() => setUploadMenuOpen(!uploadMenuOpen)}
@@ -116,8 +125,14 @@ export default function ProjectToolbar({
         </button>
         {uploadMenuOpen && (
           <div className="dropdown" style={{ right: 0, top: "calc(100% + 4px)" }}>
-            <button className="dropdown-item" onClick={() => setUploadMenuOpen(false)}>
-              <CloudDownload size={14} /> Import from cloud
+            <button
+              className="dropdown-item"
+              disabled
+              aria-disabled="true"
+              title="Cloud import is not connected in this workspace yet"
+              onClick={() => setUploadMenuOpen(false)}
+            >
+              <CloudDownload size={14} /> Cloud import not connected
             </button>
           </div>
         )}

@@ -3,6 +3,7 @@ import { getExternalApprovalState, getReviewInviteByToken } from "@/lib/review-i
 import { deriveShareIntent } from "@/lib/sharing/share-intent";
 import { getSupabase } from "@/lib/supabase";
 import type { ApprovalStep, SharePermission } from "@/lib/types/codeliver";
+import { resolveAssetVersion } from "@/lib/versions";
 
 export async function GET(_req: Request, { params }: { params: Promise<{ token: string }> }) {
   const { token } = await params;
@@ -17,12 +18,24 @@ export async function GET(_req: Request, { params }: { params: Promise<{ token: 
 
   const { invite } = inviteLookup;
   const supabase = getSupabase();
+  const versionLookup = await resolveAssetVersion({
+    assetId: invite.asset_id,
+    versionId: invite.version_id,
+  });
 
-  const [commentsResult, approvalsResult, workflowResult] = await Promise.all([
+  if (!versionLookup.ok) {
+    return NextResponse.json(
+      { error: versionLookup.error },
+      { status: versionLookup.status },
+    );
+  }
+
+  const [commentsResult, approvalsResult, workflowResult, editDecisionsResult] = await Promise.all([
     supabase
       .from("comments")
       .select("*")
       .eq("asset_id", invite.asset_id)
+      .eq("version_id", versionLookup.version.id)
       .eq("visibility", "external")
       .order("created_at", { ascending: true }),
     supabase
@@ -36,6 +49,15 @@ export async function GET(_req: Request, { params }: { params: Promise<{ token: 
       .eq("asset_id", invite.asset_id)
       .eq("status", "active")
       .maybeSingle(),
+    supabase
+      .from("edit_decisions")
+      .select(
+        "id, asset_id, version_id, review_invite_id, created_by_name, decision_type, source, status, start_seconds, end_seconds, label, confidence, client_request_id, created_at, updated_at",
+      )
+      .eq("asset_id", invite.asset_id)
+      .eq("version_id", versionLookup.version.id)
+      .or(`review_invite_id.eq.${invite.id},status.in.(accepted,applied)`)
+      .order("start_seconds", { ascending: true }),
   ]);
 
   if (commentsResult.error) {
@@ -48,6 +70,10 @@ export async function GET(_req: Request, { params }: { params: Promise<{ token: 
 
   if (workflowResult.error) {
     return NextResponse.json({ error: workflowResult.error.message }, { status: 500 });
+  }
+
+  if (editDecisionsResult.error) {
+    return NextResponse.json({ error: editDecisionsResult.error.message }, { status: 500 });
   }
 
   const nextViewCount = (invite.view_count ?? 0) + 1;
@@ -66,7 +92,14 @@ export async function GET(_req: Request, { params }: { params: Promise<{ token: 
   });
 
   return NextResponse.json({
-    asset: invite.assets,
+    asset: invite.assets
+      ? {
+          ...invite.assets,
+          file_url: versionLookup.version.file_url,
+        }
+      : null,
+    version: versionLookup.version,
+    edit_decisions: editDecisionsResult.data ?? [],
     approvals: approvalState.approvals,
     active_approval_ids: approvalState.activeApprovalIds,
     approval_access_message: approvalState.approvalAccessMessage,

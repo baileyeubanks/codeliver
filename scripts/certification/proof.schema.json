@@ -1,0 +1,45 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contentco-op.com/schemas/codeliver-certification-proof-v1.json",
+  "title": "Co-Deliver journey proof",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "journeyId", "commit", "sourceFingerprint", "capturedAt", "checks"],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "journeyId": { "type": "string" },
+    "commit": { "type": "string", "pattern": "^[0-9a-f]{7,40}$" },
+    "sourceFingerprint": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+    "capturedAt": { "type": "string", "format": "date-time" },
+    "environment": { "type": "string" },
+    "checks": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["desktop", "mobile", "accessibility", "persistence", "security", "performance"],
+      "properties": {
+        "desktop": { "$ref": "#/$defs/proofCheck" },
+        "mobile": { "$ref": "#/$defs/proofCheck" },
+        "accessibility": { "$ref": "#/$defs/proofCheck" },
+        "persistence": { "$ref": "#/$defs/proofCheck" },
+        "security": { "$ref": "#/$defs/proofCheck" },
+        "performance": { "$ref": "#/$defs/proofCheck" },
+        "degradedDependencies": { "$ref": "#/$defs/proofCheck" },
+        "concurrency": { "$ref": "#/$defs/proofCheck" },
+        "rollback": { "$ref": "#/$defs/proofCheck" }
+      }
+    }
+  },
+  "$defs": {
+    "proofCheck": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status", "artifacts"],
+      "properties": {
+        "status": { "enum": ["pass", "fail"] },
+        "artifacts": { "type": "array", "items": { "type": "string" } },
+        "metrics": { "type": "object" },
+        "notes": { "type": "string" }
+      }
+    }
+  }
+}

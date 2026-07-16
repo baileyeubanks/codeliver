@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth";
-import { getOwnedAsset } from "@/lib/access-control";
+import { getAssetAccess } from "@/lib/access-control";
+import { normalizeMediaReference } from "@/lib/security/media-reference";
 import { getSupabase } from "@/lib/supabase";
 
 export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
@@ -8,14 +9,16 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
   const user = await requireAuth();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const assetAccess = await getOwnedAsset(id, user.id);
+  const assetAccess = await getAssetAccess(id, user.id, "viewer");
   if (!assetAccess.ok) {
     return NextResponse.json({ error: assetAccess.error }, { status: assetAccess.status });
   }
 
   const { data, error } = await getSupabase()
     .from("versions")
-    .select("*")
+    .select(
+      "id, asset_id, version_number, file_url, file_size, notes, uploaded_by, is_current, thumbnail_url, duration_seconds, resolution, created_at, updated_at",
+    )
     .eq("asset_id", id)
     .order("version_number", { ascending: false });
 
@@ -28,52 +31,168 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const { id } = await params;
-  const assetAccess = await getOwnedAsset(id, user.id);
+  const assetAccess = await getAssetAccess(id, user.id, "editor");
   if (!assetAccess.ok) {
     return NextResponse.json({ error: assetAccess.error }, { status: assetAccess.status });
   }
 
-  const body = await req.json();
+  let body: Record<string, unknown>;
+  try {
+    const value = await req.json();
+    if (!value || typeof value !== "object" || Array.isArray(value)) throw new Error();
+    body = value as Record<string, unknown>;
+  } catch {
+    return NextResponse.json(
+      { error: "Request body must be a JSON object" },
+      { status: 400 },
+    );
+  }
+
+  let fileUrl: string;
+  let thumbnailUrl: string | null = null;
+  try {
+    fileUrl = normalizeMediaReference(body.file_url, "file_url");
+    if (body.thumbnail_url !== undefined && body.thumbnail_url !== null) {
+      thumbnailUrl = normalizeMediaReference(body.thumbnail_url, "thumbnail_url");
+    }
+  } catch (error) {
+    return NextResponse.json(
+      { error: error instanceof Error ? error.message : "Media URL is invalid" },
+      { status: 400 },
+    );
+  }
+  const fileSize = body.file_size ?? null;
+  if (
+    fileSize !== null &&
+    (!Number.isSafeInteger(fileSize) || Number(fileSize) < 0)
+  ) {
+    return NextResponse.json({ error: "file_size is invalid" }, { status: 400 });
+  }
+  const durationSeconds = body.duration_seconds ?? null;
+  if (
+    durationSeconds !== null &&
+    (typeof durationSeconds !== "number" ||
+      !Number.isFinite(durationSeconds) ||
+      durationSeconds < 0 ||
+      durationSeconds > 604_800)
+  ) {
+    return NextResponse.json(
+      { error: "duration_seconds is invalid" },
+      { status: 400 },
+    );
+  }
+  const notes = body.notes === undefined || body.notes === null ? null : body.notes;
+  if (notes !== null && (typeof notes !== "string" || notes.length > 2_000)) {
+    return NextResponse.json({ error: "notes is invalid" }, { status: 400 });
+  }
+  const resolution =
+    body.resolution === undefined || body.resolution === null
+      ? null
+      : body.resolution;
+  if (
+    resolution !== null &&
+    (typeof resolution !== "string" || resolution.length > 64)
+  ) {
+    return NextResponse.json({ error: "resolution is invalid" }, { status: 400 });
+  }
 
   // Get next version number
   const { data: existing } = await getSupabase()
     .from("versions")
-    .select("version_number")
+    .select("id, version_number")
     .eq("asset_id", id)
     .order("version_number", { ascending: false })
     .limit(1);
 
   const nextVersion = (existing?.[0]?.version_number ?? 0) + 1;
+  const previousVersionId = existing?.[0]?.id ?? null;
 
   const { data, error } = await getSupabase()
     .from("versions")
     .insert({
       asset_id: id,
       version_number: nextVersion,
-      file_url: body.file_url,
-      file_size: body.file_size || null,
-      notes: body.notes || null,
+      file_url: fileUrl,
+      file_size: fileSize,
+      notes: typeof notes === "string" ? notes.trim() || null : null,
       uploaded_by: user.id,
+      is_current: false,
+      thumbnail_url: thumbnailUrl,
+      duration_seconds: durationSeconds,
+      resolution,
     })
     .select()
     .single();
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error?.code === "23505") {
+    return NextResponse.json(
+      { error: "A new version was added at the same time; refresh and retry" },
+      { status: 409 },
+    );
+  }
+  if (error || !data) {
+    return NextResponse.json(
+      { error: "The version could not be created" },
+      { status: 503 },
+    );
+  }
+
+  const currentReset = await getSupabase()
+    .from("versions")
+    .update({ is_current: false, updated_at: new Date().toISOString() })
+    .eq("asset_id", id);
+  if (currentReset.error) {
+    return NextResponse.json(
+      { error: "The version could not be activated" },
+      { status: 503 },
+    );
+  }
+  const currentUpdate = await getSupabase()
+    .from("versions")
+    .update({ is_current: true, updated_at: new Date().toISOString() })
+    .eq("id", data.id);
+  if (currentUpdate.error) {
+    if (previousVersionId) {
+      await getSupabase()
+        .from("versions")
+        .update({ is_current: true, updated_at: new Date().toISOString() })
+        .eq("id", previousVersionId);
+    }
+    return NextResponse.json(
+      { error: "The version could not be activated" },
+      { status: 503 },
+    );
+  }
 
   // Update asset file_url to latest version
-  await getSupabase().from("assets").update({
-    file_url: body.file_url,
-    status: "in_review",
-    updated_at: new Date().toISOString(),
-  }).eq("id", id);
+  const assetUpdate = await getSupabase()
+    .from("assets")
+    .update({
+      file_url: fileUrl,
+      file_size: fileSize,
+      duration_seconds:
+        durationSeconds ?? assetAccess.data.duration_seconds ?? null,
+      status: "in_review",
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", id);
+  if (assetUpdate.error) {
+    return NextResponse.json(
+      { error: "The asset could not be advanced to the new version" },
+      { status: 503 },
+    );
+  }
 
   // ── Comment carry-forward: copy unresolved comments from previous version ──
   const prevVersion = nextVersion - 1;
-  if (prevVersion >= 1) {
+  if (previousVersionId) {
     const { data: unresolvedComments } = await getSupabase()
       .from("comments")
-      .select("*")
+      .select(
+        "author_name, author_email, author_id, body, rich_body, timecode_seconds, frame_number, pin_x, pin_y, mentions, visibility",
+      )
       .eq("asset_id", id)
+      .eq("version_id", previousVersionId)
       .neq("status", "resolved")
       .is("parent_id", null); // Only top-level comments
 
@@ -81,16 +200,20 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
       const carried = unresolvedComments.map((c) => ({
         asset_id: id,
         version_id: data.id,
+        review_id: null,
+        review_invite_id: null,
         author_name: c.author_name,
+        author_email: c.author_email,
         author_id: c.author_id,
         body: `[from v${prevVersion}] ${c.body}`,
+        rich_body: c.rich_body,
         timecode_seconds: c.timecode_seconds,
+        frame_number: c.frame_number,
         pin_x: c.pin_x,
         pin_y: c.pin_y,
+        mentions: c.mentions ?? [],
         status: "open",
-        is_team_only: c.is_team_only,
-        is_external: c.is_external,
-        metadata: { carried_from_version: prevVersion, original_comment_id: c.id },
+        visibility: c.visibility ?? "internal",
       }));
 
       await getSupabase().from("comments").insert(carried);
@@ -99,7 +222,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
 
   // ── Approval reset: invalidate all pending/approved approvals on new version ──
   await getSupabase()
-    .from("approval_steps")
+    .from("approvals")
     .update({
       status: "pending",
       decided_at: null,
@@ -115,7 +238,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
       actor_id: user.id,
       actor_name: user.email,
       action: "uploaded_version",
-      details: { version_number: nextVersion, notes: body.notes },
+      details: { version_number: nextVersion, notes },
     },
     {
       asset_id: id,
@@ -126,5 +249,5 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     },
   ]);
 
-  return NextResponse.json(data, { status: 201 });
+  return NextResponse.json({ ...data, is_current: true }, { status: 201 });
 }

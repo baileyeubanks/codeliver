@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth";
-import { getOwnedAsset } from "@/lib/access-control";
+import { getAssetAccess } from "@/lib/access-control";
 import { getSupabase } from "@/lib/supabase";
 import { sendEmail, emailTemplates, getBaseUrl } from "@/lib/email";
 import { createApprovalInvite } from "@/lib/review-invites";
@@ -16,12 +16,16 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "approval_id and asset_id are required" }, { status: 400 });
   }
 
-  const assetAccess = await getOwnedAsset(asset_id, user.id);
+  const supabase = getSupabase();
+  const assetAccess = await getAssetAccess(
+    asset_id,
+    user.id,
+    "producer",
+    supabase,
+  );
   if (!assetAccess.ok) {
     return NextResponse.json({ error: assetAccess.error }, { status: assetAccess.status });
   }
-
-  const supabase = getSupabase();
 
   const { data: step, error: stepErr } = await supabase
     .from("approvals")

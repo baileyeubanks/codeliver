@@ -1,17 +1,34 @@
 import Link from "next/link";
+import { ArrowRight, SearchX } from "lucide-react";
+import CoProductionBrand from "@/components/brand/CoProductionBrand";
 
 export default function NotFound() {
   return (
-    <div className="min-h-screen flex items-center justify-center bg-[var(--bg)]">
-      <div className="text-center">
-        <h1 className="text-4xl font-bold mb-2">404</h1>
-        <p className="text-[var(--muted)] mb-4">Page not found</p>
-        <Link
-          href="/"
-          className="text-sm text-[var(--accent)] hover:underline"
-        >
-          Go to dashboard
-        </Link>
+    <div className="exterior-state exterior-state--not-found">
+      <div className="exterior-state__panel">
+        <CoProductionBrand
+          variant="stacked"
+          label="Co-Production Pro by Content Co-op"
+          priority
+        />
+        <div className="exterior-state__icon" aria-hidden="true">
+          <SearchX size={18} />
+        </div>
+        <p className="exterior-state__eyebrow">Workspace route unavailable</p>
+        <h1>This Co-Production Pro surface is not available.</h1>
+        <p>
+          The workspace link may have moved, expired, or require a different
+          project permission.
+        </p>
+        <div className="exterior-state__actions">
+          <Link className="exterior-state__primary" href="/projects">
+            Projects
+            <ArrowRight size={15} aria-hidden="true" />
+          </Link>
+          <Link className="exterior-state__secondary" href="/login">
+            Sign in
+          </Link>
+        </div>
       </div>
     </div>
   );

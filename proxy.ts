@@ -1,44 +1,297 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { createServerClient } from "@supabase/ssr";
-import { getSupabaseAnonKey, getSupabasePublicUrl } from "@/lib/public-env";
+import {
+  buildProtectedReturnPath,
+  hostForSurface,
+  LOGIN_PATH,
+  resolveHostSurface,
+  resolveTrustedSurfaceRole,
+  roleCanAccessSurface,
+} from "@/lib/auth/host-surface";
+import {
+  getSupabaseAnonKey,
+  getSupabasePublicUrl,
+  hasSupabasePublicConfig,
+} from "@/lib/public-env";
 
-const PUBLIC_ROUTES = [
-  "/login",
+const PUBLIC_EXACT_ROUTES = [
+  LOGIN_PATH,
   "/signup",
   "/auth/callback",
+  "/api/notifications/provider-events",
+];
+const PUBLIC_ROUTE_PREFIXES = [
   "/api/auth",
   "/api/health",
   "/api/review", // public review API
-  "/review/", // public review portal
-  "/download/", // public download links
+  "/review", // public review portal
+  "/download", // public download links
+];
+const LOCAL_DEVELOPMENT_HOST_PATTERN =
+  /^(?:localhost|127\.0\.0\.1|\[::1\])(?::([0-9]{1,5}))?$/i;
+const UUID_PATH_SEGMENT =
+  "[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12}";
+
+const CLIENT_API_ROUTE_PATTERNS = [
+  /^\/api\/auth\/(?:login|logout|session|signup)$/,
+  /^\/api\/health(?:\/(?:dependencies|live|ready))?$/,
+  /^\/api\/review\/[^/]+(?:\/(?:approvals|comments|edit-decisions))?$/,
 ];
 
-const CANONICAL_HOST = "deliver.contentco-op.com";
-const LEGACY_HOSTS = new Set(["co-deliver.contentco-op.com", "codeliver.contentco-op.com"]);
+const ADMIN_API_ROUTE_PATTERNS = [
+  ...CLIENT_API_ROUTE_PATTERNS,
+  /^\/api\/activity$/,
+  /^\/api\/ai\/summarize$/,
+  /^\/api\/analytics\/(?:project|export(?:\/pdf)?)$/,
+  /^\/api\/approvals\/(?:notify|workflow)$/,
+  /^\/api\/assets$/,
+  /^\/api\/assets\/(?:batch-share|bulk)$/,
+  new RegExp(`^/api/assets/${UUID_PATH_SEGMENT}$`),
+  new RegExp(
+    `^/api/assets/${UUID_PATH_SEGMENT}/(?:approvals|comments|edit-decisions|export|share|versions)$`,
+  ),
+  new RegExp(
+    `^/api/assets/${UUID_PATH_SEGMENT}/analysis(?:/(?:batch|composition|decisions))?$`,
+  ),
+  new RegExp(`^/api/assets/${UUID_PATH_SEGMENT}/transcript(?:/batch)?$`),
+  /^\/api\/folders$/,
+  /^\/api\/notifications(?:\/(?:preferences|send))?$/,
+  /^\/api\/projects$/,
+  new RegExp(`^/api/projects/${UUID_PATH_SEGMENT}(?:/assets)?$`),
+  /^\/api\/sharing\/analytics$/,
+  /^\/api\/storage\/readiness$/,
+  /^\/api\/teams(?:\/(?:audit|invites))?$/,
+  /^\/api\/transcode$/,
+  new RegExp(`^/api/transcode/jobs/${UUID_PATH_SEGMENT}$`),
+  /^\/api\/upload\/tus$/,
+  new RegExp(`^/api/upload/tus/${UUID_PATH_SEGMENT}$`),
+  /^\/api\/webhooks$/,
+];
+
+const UNSAFE_LEGACY_API_ROUTE_PATTERNS = [
+  /^\/api\/media(?:\/|$)/,
+  /^\/api\/usage(?:\/|$)/,
+  /^\/api\/vault(?:\/|$)/,
+  /^\/api\/ai\/(?:transcribe|brand-check)$/,
+  /^\/api\/assets\/tags$/,
+  /^\/api\/versions\/compare$/,
+  /^\/api\/comments(?:\/|$)/,
+  /^\/api\/sharing\/watermark$/,
+];
+
+const SERVICE_API_ROUTES = [
+  {
+    pathname: "/api/notifications/provider-events",
+    methods: ["POST"],
+    credentialHeader: "x-cco-notification-signature",
+  },
+  {
+    pathname: "/api/transcode/worker",
+    methods: ["GET", "POST"],
+    credentialHeader: "x-codeliver-media-worker-token",
+  },
+] as const;
+
+export { buildProtectedReturnPath };
+
+function isPathAtOrBelow(pathname: string, route: string): boolean {
+  const base = route.endsWith("/") ? route.slice(0, -1) : route;
+  return pathname === base || pathname.startsWith(`${base}/`);
+}
+
+function isPublicRoute(pathname: string): boolean {
+  return (
+    PUBLIC_EXACT_ROUTES.includes(pathname) ||
+    PUBLIC_ROUTE_PREFIXES.some((route) => isPathAtOrBelow(pathname, route))
+  );
+}
+
+function apiLaunchGateDenied() {
+  return NextResponse.json(
+    {
+      error: "This API route is not enabled for this production surface",
+      code: "API_LAUNCH_GATED",
+    },
+    {
+      status: 403,
+      headers: { "Cache-Control": "no-store" },
+    },
+  );
+}
+
+function isApiLikePath(pathname: string): boolean {
+  let decoded = pathname;
+
+  try {
+    for (let pass = 0; pass < 3; pass += 1) {
+      const next = decodeURIComponent(decoded);
+      if (next === decoded) break;
+      decoded = next;
+    }
+  } catch {
+    return /^\/api(?:\/|$)/i.test(pathname);
+  }
+
+  return /^\/api(?:\/|$)/i.test(decoded);
+}
+
+function productionApiLaunchGate(
+  req: NextRequest,
+  hostSurface: NonNullable<ReturnType<typeof resolveHostSurface>>,
+) {
+  const { pathname } = req.nextUrl;
+  if (!isApiLikePath(pathname)) return null;
+
+  // Canonical TUS uploads persist this exact staff-only stream URL. The route
+  // handler performs its own staff check and safe NAS path validation.
+  if (hostSurface === "admin" && pathname === "/api/media/stream") {
+    return null;
+  }
+
+  const serviceRoute = SERVICE_API_ROUTES.find((route) => route.pathname === pathname);
+  if (serviceRoute) {
+    const credential = req.headers.get(serviceRoute.credentialHeader)?.trim();
+    if (
+      hostSurface !== "admin" ||
+      !serviceRoute.methods.some((method) => method === req.method) ||
+      !credential
+    ) {
+      return apiLaunchGateDenied();
+    }
+
+    // The route handler remains responsible for validating the HMAC or token value.
+    return NextResponse.next();
+  }
+
+  if (UNSAFE_LEGACY_API_ROUTE_PATTERNS.some((pattern) => pattern.test(pathname))) {
+    return apiLaunchGateDenied();
+  }
+
+  const allowedPatterns =
+    hostSurface === "admin" ? ADMIN_API_ROUTE_PATTERNS : CLIENT_API_ROUTE_PATTERNS;
+  if (allowedPatterns.some((pattern) => pattern.test(pathname))) return null;
+
+  return hostSurface === "client"
+    ? surfaceAccessDenied(pathname)
+    : apiLaunchGateDenied();
+}
+
+function isLocalDevelopmentHost(hostHeader: string | null | undefined): boolean {
+  const value = hostHeader?.trim();
+  if (!value) return false;
+
+  const match = LOCAL_DEVELOPMENT_HOST_PATTERN.exec(value);
+  if (!match) return false;
+
+  const port = match[1];
+  return port === undefined || Number(port) <= 65_535;
+}
+
+function buildLoginUrl(
+  req: NextRequest,
+  hostSurface: ReturnType<typeof resolveHostSurface>,
+): URL {
+  const baseUrl = hostSurface
+    ? `https://${hostForSurface(hostSurface)}`
+    : req.nextUrl.origin;
+  return new URL(LOGIN_PATH, baseUrl);
+}
+
+function surfaceAccessDenied(pathname: string) {
+  if (isApiLikePath(pathname)) {
+    return NextResponse.json(
+      { error: "This account is not authorized for this surface", code: "SURFACE_FORBIDDEN" },
+      { status: 403 },
+    );
+  }
+
+  return new NextResponse(
+    "This signed-in account is not authorized for this Content Co-op surface. Sign out and use the correct account.",
+    {
+      status: 403,
+      headers: {
+        "Cache-Control": "no-store",
+        "Content-Type": "text/plain; charset=utf-8",
+      },
+    },
+  );
+}
+
+function hostAccessDenied(pathname: string) {
+  if (isApiLikePath(pathname)) {
+    return NextResponse.json(
+      {
+        error: "This hostname is not an approved Content Co-op surface",
+        code: "HOST_FORBIDDEN",
+      },
+      { status: 403 },
+    );
+  }
+
+  return new NextResponse("This hostname is not an approved Content Co-op surface.", {
+    status: 403,
+    headers: {
+      "Cache-Control": "no-store",
+      "Content-Type": "text/plain; charset=utf-8",
+    },
+  });
+}
 
 export async function proxy(req: NextRequest) {
   const { pathname } = req.nextUrl;
-  const host = req.headers.get("host")?.toLowerCase();
+  const host = req.headers.get("host");
+  const hostSurface = resolveHostSurface(host);
+  const localDevelopment = isLocalDevelopmentHost(host);
+  const localDemo =
+    req.nextUrl.searchParams.get("demo") === "1" &&
+    localDevelopment;
 
-  if (host && LEGACY_HOSTS.has(host)) {
-    const url = new URL(
-      `${req.nextUrl.pathname}${req.nextUrl.search}`,
-      `${(req.headers.get("x-forwarded-proto") || "https").replace(/:$/, "")}://${CANONICAL_HOST}`,
-    );
-    return NextResponse.redirect(url, 308);
+  if (!hostSurface && !localDevelopment) {
+    return hostAccessDenied(pathname);
+  }
+
+  if (hostSurface) {
+    const launchGateResponse = productionApiLaunchGate(req, hostSurface);
+    if (launchGateResponse) return launchGateResponse;
   }
 
   if (
-    pathname.startsWith("/_next") ||
-    pathname.startsWith("/favicon") ||
-    pathname.includes(".")
+    isPathAtOrBelow(pathname, "/_next") ||
+    pathname === "/favicon.ico" ||
+    isPathAtOrBelow(pathname, "/demo") ||
+    isPathAtOrBelow(pathname, "/brand")
   ) {
     return NextResponse.next();
   }
 
-  if (PUBLIC_ROUTES.some((route) => pathname.startsWith(route))) {
+  if (isPublicRoute(pathname)) {
     return NextResponse.next();
+  }
+
+  if (localDemo) {
+    return NextResponse.next();
+  }
+
+  const pathnameWithSanitizedQuery = buildProtectedReturnPath(pathname, req.nextUrl.search);
+
+  if (!hasSupabasePublicConfig()) {
+    if (pathname.startsWith("/api/")) {
+      return NextResponse.json(
+        {
+          error: "Authentication is not configured for this environment",
+          code: "AUTH_NOT_CONFIGURED",
+        },
+        { status: 503 },
+      );
+    }
+
+    const loginUrl = buildLoginUrl(req, hostSurface);
+    loginUrl.searchParams.set("next", pathnameWithSanitizedQuery);
+    if (localDevelopment) {
+      loginUrl.searchParams.set("demo", "1");
+    }
+    return NextResponse.redirect(loginUrl);
   }
 
   const res = NextResponse.next();
@@ -61,12 +314,30 @@ export async function proxy(req: NextRequest) {
   } = await supabase.auth.getUser();
 
   if (!user) {
-    return NextResponse.redirect(new URL("/login", req.url));
+    if (pathname.startsWith("/api/")) {
+      return NextResponse.json(
+        { error: "Authentication required", code: "AUTH_REQUIRED" },
+        { status: 401 },
+      );
+    }
+
+    const loginUrl = buildLoginUrl(req, hostSurface);
+    loginUrl.searchParams.set("next", pathnameWithSanitizedQuery);
+    return NextResponse.redirect(loginUrl);
+  }
+
+  if (hostSurface) {
+    const role = resolveTrustedSurfaceRole(user);
+    if (!role) return surfaceAccessDenied(pathname);
+
+    if (!roleCanAccessSurface(role, hostSurface)) {
+      return surfaceAccessDenied(pathname);
+    }
   }
 
   return res;
 }
 
 export const config = {
-  matcher: ["/((?!_next/static|_next/image|favicon.ico).*)"],
+  matcher: ["/:path*"],
 };

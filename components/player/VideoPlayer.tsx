@@ -1,14 +1,16 @@
 "use client";
 
-import { useRef, useEffect, useCallback, type ReactNode, type RefObject } from "react";
+import { useCallback, useRef, useEffect, type ReactNode, type RefObject } from "react";
 import Hls from "hls.js";
+import { normalizeReviewShortcutKey, projectPointIntoMedia, shouldIgnoreReviewShortcut } from "@/lib/review/player-policy";
 import { usePlayerStore } from "@/lib/stores/playerStore";
 
 interface VideoPlayerProps {
   src: string;
   poster?: string;
   onTimeUpdate?: (time: number) => void;
-  onFrameClick?: (x: number, y: number) => void;
+  onFrameClick?: (x: number, y: number, timeSeconds: number) => void;
+  onCutMarker?: (time: number) => void;
   children?: ReactNode;
   videoRef?: RefObject<HTMLVideoElement | null>;
 }
@@ -18,6 +20,7 @@ export default function VideoPlayer({
   poster,
   onTimeUpdate,
   onFrameClick,
+  onCutMarker,
   children,
   videoRef: externalRef,
 }: VideoPlayerProps) {
@@ -32,13 +35,22 @@ export default function VideoPlayer({
     volume,
     playbackRate,
     frameRate,
+    seekStepSeconds,
     setCurrentTime,
     setDuration,
     setPlaying,
-    togglePlay,
+    setMuted,
     toggleMute,
     setPlaybackRate,
   } = usePlayerStore();
+
+  const playWithMutedFallback = useCallback((video: HTMLVideoElement) => {
+    void video.play().catch(() => {
+      video.muted = true;
+      setMuted(true);
+      void video.play().catch(() => setPlaying(false));
+    });
+  }, [setMuted, setPlaying]);
 
   // Attach HLS or native source
   useEffect(() => {
@@ -129,39 +141,72 @@ export default function VideoPlayer({
     };
   }, [videoRef, setCurrentTime, setDuration, setPlaying, onTimeUpdate]);
 
-  // Click on video: pause + fire coordinate callback
-  const handleVideoClick = useCallback(
-    (e: React.MouseEvent<HTMLVideoElement>) => {
-      const video = videoRef.current;
-      if (!video) return;
+  function handleVideoClick() {
+    const video = videoRef.current;
+    if (!video) return;
 
-      const rect = video.getBoundingClientRect();
-      const xPct = ((e.clientX - rect.left) / rect.width) * 100;
-      const yPct = ((e.clientY - rect.top) / rect.height) * 100;
-
+    if (video.paused) {
+      playWithMutedFallback(video);
+    } else {
       video.pause();
-      onFrameClick?.(xPct, yPct);
-    },
-    [videoRef, onFrameClick],
-  );
+    }
+  }
+
+  function handleOverlayClick(e: React.MouseEvent<HTMLDivElement>) {
+    const video = videoRef.current;
+    if (!video || !onFrameClick) return;
+
+    const rect = e.currentTarget.getBoundingClientRect();
+    const point = projectPointIntoMedia({
+      localX: e.clientX - rect.left,
+      localY: e.clientY - rect.top,
+      containerWidth: rect.width,
+      containerHeight: rect.height,
+      mediaWidth: video.videoWidth || rect.width,
+      mediaHeight: video.videoHeight || rect.height,
+    });
+
+    if (!point) return;
+
+    video.pause();
+    onFrameClick(point.x, point.y, video.currentTime);
+  }
 
   // Keyboard shortcuts
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      const target = e.target as HTMLElement;
-      if (target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.isContentEditable)
+      const target = e.target instanceof HTMLElement ? e.target : null;
+      const insideControl = target?.closest(
+        "input, textarea, select, button, a, [contenteditable='true'], [role='button'], [role='slider']",
+      );
+      const key = normalizeReviewShortcutKey(e.key);
+      if (shouldIgnoreReviewShortcut({
+        key,
+        insideControl: Boolean(insideControl),
+        defaultPrevented: e.defaultPrevented,
+        isComposing: e.isComposing,
+        altKey: e.altKey,
+        ctrlKey: e.ctrlKey,
+        metaKey: e.metaKey,
+        repeat: e.repeat,
+      })) {
         return;
+      }
 
       const video = videoRef.current;
       if (!video) return;
 
       const frameDuration = 1 / frameRate;
 
-      switch (e.key) {
+      switch (key) {
         case " ":
         case "k":
           e.preventDefault();
-          togglePlay();
+          if (video.paused) {
+            playWithMutedFallback(video);
+          } else {
+            video.pause();
+          }
           break;
         case "j":
           e.preventDefault();
@@ -173,11 +218,16 @@ export default function VideoPlayer({
           break;
         case "ArrowLeft":
           e.preventDefault();
-          video.currentTime = Math.max(0, video.currentTime - frameDuration);
+          video.currentTime = Math.max(0, video.currentTime - seekStepSeconds);
           break;
         case "ArrowRight":
           e.preventDefault();
-          video.currentTime = Math.min(video.duration, video.currentTime + frameDuration);
+          video.currentTime = Math.min(video.duration, video.currentTime + seekStepSeconds);
+          break;
+        case "ArrowDown":
+          if (!onCutMarker) break;
+          e.preventDefault();
+          onCutMarker(video.currentTime);
           break;
         case "m":
           e.preventDefault();
@@ -220,12 +270,16 @@ export default function VideoPlayer({
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [videoRef, frameRate, playbackRate, togglePlay, toggleMute, setPlaybackRate]);
+  }, [videoRef, frameRate, playbackRate, seekStepSeconds, toggleMute, setPlaybackRate, playWithMutedFallback, onCutMarker]);
 
   return (
     <div
       ref={containerRef}
-      className="relative w-full overflow-hidden rounded-[var(--radius)] bg-black"
+      data-player-root
+      tabIndex={0}
+      role="group"
+      aria-label="Review media player"
+      className="relative w-full overflow-hidden rounded-[var(--radius)] bg-black outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] focus-visible:ring-offset-2 focus-visible:ring-offset-black"
     >
       <video
         ref={videoRef}
@@ -236,8 +290,12 @@ export default function VideoPlayer({
         preload="metadata"
       />
       {/* Overlay container for annotation canvas / frame indicator */}
-      <div className="pointer-events-none absolute inset-0">
-        <div className="pointer-events-auto h-full w-full">{children}</div>
+      <div
+        data-review-overlay
+        className={`absolute inset-0 ${onFrameClick ? "cursor-crosshair" : "pointer-events-none"}`}
+        onClick={onFrameClick ? handleOverlayClick : undefined}
+      >
+        <div className="h-full w-full">{children}</div>
       </div>
     </div>
   );

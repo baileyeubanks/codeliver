@@ -12,23 +12,22 @@ import {
   mkdirSync,
   writeFileSync,
   readFileSync,
+  readdirSync,
   unlinkSync,
   renameSync,
-  statSync,
   appendFileSync,
 } from "fs";
-import { join, resolve, extname } from "path";
+import { join, extname } from "path";
 import { randomUUID } from "crypto";
 import { getSupabase } from "@/lib/supabase";
 import { detectFileType } from "@/lib/utils/media";
-
-const MEDIA_ROOT = process.env.NAS_MEDIA_ROOT || "/volume1/media";
-const UPLOAD_DIR = join(MEDIA_ROOT, ".tus-uploads");
-
-// Ensure upload staging directory exists
-if (!existsSync(UPLOAD_DIR)) {
-  mkdirSync(UPLOAD_DIR, { recursive: true });
-}
+import {
+  ensureUploadStagingDirectory,
+  isSafeUploadId,
+  requireConfiguredMediaRoot,
+  resolveMediaPath,
+  uploadStagingDirectory,
+} from "@/lib/storage/media-root";
 
 export interface TusUploadMeta {
   id: string;
@@ -46,11 +45,13 @@ export interface TusUploadMeta {
 }
 
 function metaPath(uploadId: string): string {
-  return join(UPLOAD_DIR, `${uploadId}.json`);
+  if (!isSafeUploadId(uploadId)) throw new Error("Invalid upload id");
+  return join(uploadStagingDirectory(requireConfiguredMediaRoot()), `${uploadId}.json`);
 }
 
 function chunkPath(uploadId: string): string {
-  return join(UPLOAD_DIR, `${uploadId}.bin`);
+  if (!isSafeUploadId(uploadId)) throw new Error("Invalid upload id");
+  return join(uploadStagingDirectory(requireConfiguredMediaRoot()), `${uploadId}.bin`);
 }
 
 export function createUpload(params: {
@@ -61,6 +62,7 @@ export function createUpload(params: {
   folderId?: string;
   userId: string;
 }): TusUploadMeta {
+  ensureUploadStagingDirectory();
   const id = randomUUID();
   const meta: TusUploadMeta = {
     id,
@@ -81,6 +83,7 @@ export function createUpload(params: {
 }
 
 export function getUpload(uploadId: string): TusUploadMeta | null {
+  if (!isSafeUploadId(uploadId)) return null;
   const path = metaPath(uploadId);
   if (!existsSync(path)) return null;
   try {
@@ -134,7 +137,7 @@ export async function finalizeUpload(
 
   // Determine destination folder
   const folder = meta.projectId || "uploads";
-  const destDir = resolve(join(MEDIA_ROOT, folder));
+  const destDir = resolveMediaPath(folder, requireConfiguredMediaRoot());
   if (!existsSync(destDir)) {
     mkdirSync(destDir, { recursive: true });
   }
@@ -238,9 +241,9 @@ export function deleteUpload(uploadId: string): boolean {
  * Called by cleanup cron or on-demand.
  */
 export function cleanStaleUploads(maxAgeMs: number = 24 * 60 * 60 * 1000): number {
-  if (!existsSync(UPLOAD_DIR)) return 0;
-  const { readdirSync } = require("fs");
-  const files = readdirSync(UPLOAD_DIR) as string[];
+  const uploadDirectory = uploadStagingDirectory(requireConfiguredMediaRoot());
+  if (!existsSync(uploadDirectory)) return 0;
+  const files = readdirSync(uploadDirectory);
   let cleaned = 0;
   const now = Date.now();
 

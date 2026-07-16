@@ -1,0 +1,44 @@
+- banner:
+  - button "Menu":
+  - link:
+    - /url: /projects?demo=1
+  - navigation:
+    - link "Dashboard":
+      - /url: /?demo=1
+    - link "Projects":
+      - /url: /projects?demo=1
+    - link "Reviews":
+      - /url: /reviews?demo=1
+  - button "Help & Feedback":
+  - button "Search":
+  - button:
+- main:
+  - heading "Settings" [level=1]
+  - button "Profile":
+    - text: Profile
+  - button "Preferences"
+  - generic: Avatar
+  - button "Update"
+  - button "Remove"
+  - generic: Reviewer Color
+  - button
+  - button
+  - button
+  - button
+  - button
+  - button
+  - button
+  - button
+  - button
+  - button
+  - button
+  - button
+  - generic: First Name
+  - textbox "First name"
+  - generic: Last Name
+  - textbox "Last name"
+  - button "Cancel"
+  - button "Save":
+    - text: Save
+- button "Open Next.js Dev Tools":
+- alert

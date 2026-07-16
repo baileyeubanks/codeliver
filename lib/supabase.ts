@@ -1,27 +1,33 @@
 import { createClient, SupabaseClient } from "@supabase/supabase-js";
+import { getSupabaseDataSchema } from "@/lib/data-authority";
+import {
+  getSupabaseServiceKey,
+  getSupabaseServiceUrl,
+} from "@/lib/server-env";
 
-let _client: SupabaseClient | null = null;
+export type DataSupabaseClient = SupabaseClient<any, any, any>;
 
-export function getSupabase(): SupabaseClient {
+let _client: DataSupabaseClient | null = null;
+
+export function getSupabase(): DataSupabaseClient {
   if (!_client) {
-    const url = process.env.SUPABASE_URL ?? process.env.NEXT_PUBLIC_SUPABASE_URL;
-    // Prefer service key for server-side admin access, fall back to anon key
-    const key =
-      process.env.SUPABASE_SERVICE_KEY ||
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-
-    if (!url || !key) {
-      throw new Error(
-        "Missing Supabase config: set SUPABASE_URL/NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_KEY or NEXT_PUBLIC_SUPABASE_ANON_KEY"
-      );
-    }
-
-    _client = createClient(url, key);
+    _client = createClient(
+      getSupabaseServiceUrl(),
+      getSupabaseServiceKey(),
+      {
+        db: { schema: getSupabaseDataSchema() },
+        auth: {
+          autoRefreshToken: false,
+          detectSessionInUrl: false,
+          persistSession: false,
+        },
+      },
+    );
   }
   return _client;
 }
 
-export const supabase = new Proxy({} as SupabaseClient, {
+export const supabase = new Proxy({} as DataSupabaseClient, {
   get(_target, prop) {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     return (getSupabase() as any)[prop];

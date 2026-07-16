@@ -31,6 +31,7 @@
 | `RESEND_API_KEY` | Optional | Review invite / notification email sending |
 | `RESEND_FROM_EMAIL` | Optional | From-address for review notifications |
 | `ANTHROPIC_API_KEY` | Optional | AI-assisted review routes |
+| `NAS_MEDIA_ROOT` | Yes at runtime for uploads, streaming, exports, and transcodes | Absolute CCNAS media path; no directory is created during build |
 | `PORT` | Optional | Runtime port; defaults to `4103` |
 
 ## Build and Runtime
@@ -40,6 +41,11 @@ npm ci
 npm run build
 npx next start --hostname 0.0.0.0 --port 4103
 ```
+
+The build must pass without a mounted NAS volume. Storage directories are
+created lazily when an authenticated upload begins. Runtime media operations
+must fail closed if `NAS_MEDIA_ROOT` is unavailable or not writable; they must
+not report an upload, export, or delivery as successful.
 
 ## Public Runtime Rule
 

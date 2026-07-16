@@ -1,24 +1,20 @@
 "use client";
 
 import Link from "next/link";
-import { useParams, useRouter } from "next/navigation";
+import { useParams } from "next/navigation";
 import { useEffect, useState, useRef } from "react";
+import { ArrowRight, LoaderCircle, SearchX } from "lucide-react";
+import { useDemoMode } from "@/lib/demo/mode";
+import { buildInternalDemoAssetHref } from "@/lib/demo/workspace";
 import {
-  ArrowLeft,
-  Upload,
-  Play,
-  Image as ImageIcon,
-  FileText,
-  Music,
-  MoreVertical,
-  Plus,
-  Share2,
-  CheckCircle2,
-  Clock,
-  AlertTriangle,
-  Trash2,
-} from "lucide-react";
-import { createSupabaseBrowser } from "@/lib/supabase-browser";
+  addDemoAssets,
+  useDemoWorkspace,
+} from "@/lib/demo/workspace-store";
+import ProjectCockpit, { type CockpitUploadStatus } from "@/components/projects/ProjectCockpit";
+import AssetUpload from "@/components/assets/AssetUpload";
+import CoProductionBrand from "@/components/brand/CoProductionBrand";
+import type { MediaAsset } from "@/components/projects/MediaCard";
+import { putDemoMediaBlob } from "@/lib/demo/media-blob-store";
 
 interface Project {
   id: string;
@@ -30,6 +26,7 @@ interface Project {
 
 interface Asset {
   id: string;
+  project_id: string;
   title: string;
   file_type: string;
   file_url: string | null;
@@ -37,158 +34,286 @@ interface Asset {
   status: string;
   file_size: number | null;
   duration_seconds: number | null;
+  created_at?: string;
   updated_at: string;
+  version_count?: number;
   comments: { count: number }[];
-  approvals: { id: string; status: string }[];
-}
-
-function fileIcon(type: string) {
-  switch (type) {
-    case "video": return <Play size={20} className="text-[var(--accent)]" />;
-    case "image": return <ImageIcon size={20} className="text-[var(--purple)]" />;
-    case "audio": return <Music size={20} className="text-[var(--green)]" />;
-    default: return <FileText size={20} className="text-[var(--muted)]" />;
-  }
-}
-
-function statusBadge(status: string) {
-  switch (status) {
-    case "approved":
-    case "final":
-      return (
-        <span className="inline-flex items-center gap-1 text-xs font-medium text-[var(--green)] bg-[var(--green-dim)] px-2 py-0.5 rounded-full">
-          <CheckCircle2 size={10} /> {status === "final" ? "Final" : "Approved"}
-        </span>
-      );
-    case "in_review":
-      return (
-        <span className="inline-flex items-center gap-1 text-xs font-medium text-[var(--orange)] bg-[var(--orange-dim)] px-2 py-0.5 rounded-full">
-          <Clock size={10} /> In Review
-        </span>
-      );
-    case "needs_changes":
-      return (
-        <span className="inline-flex items-center gap-1 text-xs font-medium text-[var(--red)] bg-[var(--red-dim)] px-2 py-0.5 rounded-full">
-          <AlertTriangle size={10} /> Changes
-        </span>
-      );
-    default:
-      return (
-        <span className="text-xs font-medium text-[var(--dim)] bg-[var(--surface-2)]/50 px-2 py-0.5 rounded-full">
-          Draft
-        </span>
-      );
-  }
-}
-
-function formatSize(bytes: number | null) {
-  if (!bytes) return "";
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} KB`;
-  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-}
-
-function timeAgo(iso: string) {
-  const diff = Date.now() - new Date(iso).getTime();
-  const mins = Math.floor(diff / 60000);
-  if (mins < 1) return "just now";
-  if (mins < 60) return `${mins}m ago`;
-  const hrs = Math.floor(mins / 60);
-  if (hrs < 24) return `${hrs}h ago`;
-  return `${Math.floor(hrs / 24)}d ago`;
+  approvals: Array<{
+    id: string;
+    status: string;
+    role_label?: string | null;
+    assignee_email?: string | null;
+    step_order?: number | null;
+  }>;
+  versions?: { count: number }[];
+  href?: string;
 }
 
 export default function ProjectWorkspace() {
   const { id } = useParams<{ id: string }>();
-  const router = useRouter();
+  const demoMode = useDemoMode();
+  const demoWorkspace = useDemoWorkspace();
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const [project, setProject] = useState<Project | null>(null);
-  const [assets, setAssets] = useState<Asset[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [remoteProject, setRemoteProject] = useState<Project | null>(null);
+  const [remoteProjects, setRemoteProjects] = useState<Project[]>([]);
+  const [remoteAssets, setRemoteAssets] = useState<Asset[]>([]);
+  const [viewer, setViewer] = useState({ name: "Content Co-op", email: "" });
+  const [remoteLoading, setRemoteLoading] = useState(true);
+  const [remoteError, setRemoteError] = useState("");
   const [uploading, setUploading] = useState(false);
+  const [uploadStatus, setUploadStatus] = useState<CockpitUploadStatus | null>(null);
+  const demoProject = demoWorkspace.projects.find((candidate) => candidate.id === id);
+  const project: Project | null = demoMode
+    ? demoProject
+      ? {
+          ...demoProject,
+          description: "Content review, versioning, approvals, and delivery.",
+          status: "active",
+          created_at: "2026-07-14T19:00:00.000Z",
+        }
+      : null
+    : remoteProject;
+  const cockpitAssets: MediaAsset[] = demoMode
+    ? demoWorkspace.assets
+        .filter((asset) => asset.project_id === id)
+    : remoteAssets.map((asset) => ({
+        id: asset.id,
+        project_id: asset.project_id || id,
+        title: asset.title,
+        file_url: asset.file_url,
+        thumbnail_url: asset.thumbnail_url ?? undefined,
+        file_type: asset.file_type,
+        duration_seconds: asset.duration_seconds ?? undefined,
+        status: asset.status,
+        version_count: asset.versions?.[0]?.count ?? asset.version_count,
+        reviewer_count: asset.approvals?.length ?? 0,
+        reviewer_done: asset.approvals?.filter((approval) => approval.status === "approved").length ?? 0,
+        approval_records: asset.approvals ?? [],
+        comment_count: asset.comments?.[0]?.count ?? 0,
+        created_at: asset.created_at ?? asset.updated_at,
+      }));
+  const loading = demoMode ? false : remoteLoading;
+  const authoritativeUploadInputId = `project-${id}-asset-upload`;
 
   useEffect(() => {
-    if (!id) return;
+    if (!id || demoMode) return;
+    const controller = new AbortController();
+    let current = true;
+    setRemoteLoading(true);
+    setRemoteError("");
+    setRemoteProject(null);
+    setRemoteAssets([]);
     Promise.all([
-      fetch(`/api/projects/${id}`).then((r) => r.json()),
-      fetch(`/api/projects/${id}/assets`).then((r) => r.json()),
+      fetch(`/api/projects/${id}`, { cache: "no-store", signal: controller.signal }),
+      fetch(`/api/projects/${id}/assets`, { cache: "no-store", signal: controller.signal }),
+      fetch("/api/projects", { cache: "no-store", signal: controller.signal }),
+      fetch("/api/auth/session", { cache: "no-store", signal: controller.signal }),
     ])
-      .then(([p, a]) => {
-        setProject(p);
-        setAssets(a.items ?? []);
+      .then(async ([projectResponse, assetsResponse, projectsResponse, sessionResponse]) => {
+        if (!projectResponse.ok) throw new Error("Project could not be loaded.");
+        const [projectPayload, assetsPayload, projectsPayload, sessionPayload] = await Promise.all([
+          projectResponse.json(),
+          assetsResponse.ok ? assetsResponse.json() : { items: [] },
+          projectsResponse.ok ? projectsResponse.json() : { items: [] },
+          sessionResponse.ok ? sessionResponse.json() : {},
+        ]);
+        if (!current) return;
+        if (projectPayload.id !== id) throw new Error("Project response did not match the requested workspace.");
+        setRemoteProject(projectPayload);
+        setRemoteAssets(Array.isArray(assetsPayload.items) ? assetsPayload.items : []);
+        const availableProjects = Array.isArray(projectsPayload.items) ? projectsPayload.items : [];
+        setRemoteProjects(
+          availableProjects.some((candidate: Project) => candidate.id === projectPayload.id)
+            ? availableProjects
+            : [projectPayload, ...availableProjects],
+        );
+        const session = sessionPayload as Record<string, unknown>;
+        const email = typeof session.email === "string" ? session.email : "";
+        const displayName = typeof session.name === "string" && session.name.trim()
+          ? session.name.trim()
+          : email.split("@")[0]?.replace(/[._-]+/g, " ") || "Content Co-op";
+        setViewer({ name: displayName, email });
       })
-      .catch(() => {})
-      .finally(() => setLoading(false));
-  }, [id]);
+      .catch((error) => {
+        if (!current || error instanceof DOMException && error.name === "AbortError") return;
+        setRemoteError(error instanceof Error ? error.message : "Project could not be loaded.");
+      })
+      .finally(() => {
+        if (current) setRemoteLoading(false);
+      });
+    return () => {
+      current = false;
+      controller.abort();
+    };
+  }, [demoMode, id]);
 
   async function handleUpload(files: FileList | null) {
-    if (!files || files.length === 0) return;
+    if (!demoMode || !files || files.length === 0) return;
     setUploading(true);
+    const selectedFiles = Array.from(files);
+    let keepTerminalStatus = false;
+    const wait = (milliseconds: number) =>
+      new Promise((resolve) => window.setTimeout(resolve, milliseconds));
 
-    const supabase = createSupabaseBrowser();
+    try {
+      if (demoMode) {
+        const uploadStartedAt = Date.now();
+        const added = selectedFiles.map((file, index) => {
+          const assetId = `local-upload-${uploadStartedAt}-${index}`;
+          return {
+            id: assetId,
+            project_id: id,
+            title: file.name.replace(/\.[^.]+$/, ""),
+            thumbnail_url: "/demo/refinery-sunset.jpg",
+            file_type: file.type.startsWith("image/") ? "image" : "video",
+            duration_seconds: file.type.startsWith("video/") ? 64 : undefined,
+            status: "draft",
+            version_count: 1,
+            reviewer_count: 0,
+            reviewer_done: 0,
+            comment_count: 0,
+            created_at: new Date().toISOString(),
+            href: buildInternalDemoAssetHref(id, assetId),
+          };
+        });
 
-    for (const file of Array.from(files)) {
-      const ext = file.name.split(".").pop() ?? "";
-      const fileType = file.type.startsWith("video/")
-        ? "video"
-        : file.type.startsWith("image/")
-        ? "image"
-        : file.type.startsWith("audio/")
-        ? "audio"
-        : "document";
+        for (const [index, file] of selectedFiles.entries()) {
+          const base = index / selectedFiles.length;
+          const updatePhase = async (
+            phase: CockpitUploadStatus["phase"],
+            fraction: number,
+            message: string,
+            duration: number,
+          ) => {
+            setUploadStatus({
+              fileName: file.name,
+              phase,
+              progress: Math.round((base + fraction / selectedFiles.length) * 100),
+              completed: index,
+              total: selectedFiles.length,
+              mode: "demo",
+              message,
+            });
+            await wait(duration);
+          };
 
-      // Upload to Supabase Storage
-      const path = `${id}/${Date.now()}-${file.name}`;
-      const { error: uploadError } = await supabase.storage
-        .from("deliverables")
-        .upload(path, file);
+          await updatePhase(
+            "validating",
+            0.12,
+            "Checking format, size, and review compatibility.",
+            280,
+          );
+          await updatePhase(
+            "transferring",
+            0.35,
+            "Registering the file in this local preview workspace.",
+            320,
+          );
+          const storageResult = await putDemoMediaBlob(added[index].id, file);
+          if (!storageResult.persistent) {
+            setUploadStatus({
+              fileName: file.name,
+              phase: "transferring",
+              progress: Math.round((base + 0.48 / selectedFiles.length) * 100),
+              completed: index,
+              total: selectedFiles.length,
+              mode: "demo",
+              message:
+                "Browser disk storage is unavailable, so this source will remain available for the current session only.",
+            });
+            await wait(280);
+          }
+          await updatePhase(
+            "proxy",
+            0.68,
+            "Preparing a browser-friendly review representation.",
+            420,
+          );
+          await updatePhase(
+            "indexing",
+            0.92,
+            "Adding the asset to search, activity, and project views.",
+            300,
+          );
+        }
 
-      if (uploadError) {
-        console.error("Upload failed:", uploadError);
-        continue;
+        addDemoAssets(added);
+        setUploadStatus({
+          fileName: selectedFiles.at(-1)?.name ?? "Media",
+          phase: "complete",
+          progress: 100,
+          completed: selectedFiles.length,
+          total: selectedFiles.length,
+          mode: "demo",
+          message: "The new version is ready in this project and listed in Version history.",
+        });
+        keepTerminalStatus = true;
+        return;
       }
 
-      const { data: urlData } = supabase.storage
-        .from("deliverables")
-        .getPublicUrl(path);
-
-      // Create asset record
-      const res = await fetch(`/api/projects/${id}/assets`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          title: file.name.replace(`.${ext}`, ""),
-          file_type: fileType,
-          file_url: urlData.publicUrl,
-          file_size: file.size,
-        }),
+    } catch (uploadError) {
+      keepTerminalStatus = true;
+      setUploadStatus({
+        fileName: selectedFiles.at(-1)?.name ?? "Media",
+        phase: "error",
+        progress: 0,
+        completed: 0,
+        total: selectedFiles.length,
+        mode: demoMode ? "demo" : "production",
+        message: uploadError instanceof Error ? uploadError.message : "Media ingest failed unexpectedly.",
       });
-
-      if (res.ok) {
-        const asset = await res.json();
-        setAssets((prev) => [asset, ...prev]);
-      }
+    } finally {
+      setUploading(false);
+      if (!keepTerminalStatus) setUploadStatus(null);
+      if (fileInputRef.current) fileInputRef.current.value = "";
     }
-
-    setUploading(false);
   }
 
-  async function deleteAsset(assetId: string) {
-    if (!confirm("Delete this asset?")) return;
-    const res = await fetch(`/api/assets/${assetId}`, { method: "DELETE" });
-    if (res.ok) {
-      setAssets((prev) => prev.filter((a) => a.id !== assetId));
-    }
+  function dismissUploadStatus() {
+    setUploading(false);
+    setUploadStatus(null);
+  }
+
+  function refreshRemoteAssets() {
+    void fetch(`/api/projects/${id}/assets`, { cache: "no-store" })
+      .then(async (response) => {
+        if (!response.ok) return;
+        const payload = (await response.json()) as { items?: Asset[] };
+        setRemoteAssets(payload.items ?? []);
+      })
+      .catch(() => undefined);
   }
 
   if (loading) {
     return (
-      <div className="p-6 max-w-7xl mx-auto">
-        <div className="skeleton h-8 w-48 mb-4 rounded-lg" />
-        <div className="skeleton h-4 w-72 mb-8 rounded-lg" />
-        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {[1, 2, 3].map((i) => (
-            <div key={i} className="skeleton h-48 rounded-xl" />
-          ))}
+      <div className="project-state project-state--loading" aria-busy="true">
+        <div className="project-state__topline">
+          <CoProductionBrand
+            variant="horizontal"
+            label="Co-Production Pro by Content Co-op"
+            priority
+          />
+          <span>
+            <LoaderCircle size={13} aria-hidden="true" />
+            Loading project cockpit
+          </span>
+        </div>
+        <div className="project-state__layout" aria-hidden="true">
+          <div className="project-state__rail">
+            {[1, 2, 3, 4].map((item) => (
+              <span key={item} />
+            ))}
+          </div>
+          <div className="project-state__canvas">
+            <span className="project-state__bar project-state__bar--wide" />
+            <span className="project-state__video" />
+            <span className="project-state__timeline" />
+          </div>
+          <div className="project-state__review">
+            {[1, 2, 3].map((item) => (
+              <span key={item} />
+            ))}
+          </div>
         </div>
       </div>
     );
@@ -196,141 +321,77 @@ export default function ProjectWorkspace() {
 
   if (!project) {
     return (
-      <div className="p-6 max-w-7xl mx-auto text-center py-20">
-        <p className="text-[var(--muted)]">Project not found</p>
-        <Link href="/projects" className="text-[var(--accent)] text-sm mt-2 inline-block">
-          Back to projects
-        </Link>
+      <div className="project-state project-state--empty">
+        <div className="project-state__panel">
+          <CoProductionBrand
+            variant="stacked"
+            label="Co-Production Pro by Content Co-op"
+            priority
+          />
+          <div className="project-state__icon" aria-hidden="true">
+            <SearchX size={18} />
+          </div>
+          <p className="project-state__eyebrow">Project unavailable</p>
+          <h1>{remoteError || "This project cockpit is not available."}</h1>
+          <p>
+            Check the workspace link or return to the project list to continue
+            review, upload, and approval work.
+          </p>
+          <Link
+            href={demoMode ? "/projects?demo=1" : "/projects"}
+            className="project-state__primary"
+          >
+            Back to projects
+            <ArrowRight size={15} aria-hidden="true" />
+          </Link>
+        </div>
       </div>
     );
   }
 
+  if (demoMode && demoProject) {
+    return (
+      <>
+        <input
+          ref={fileInputRef}
+          type="file"
+          multiple
+          accept="video/*,image/*,audio/*,.pdf,.doc,.docx"
+          className="hidden"
+          onChange={(event) => handleUpload(event.target.files)}
+        />
+        <ProjectCockpit
+          project={demoProject}
+          assets={demoWorkspace.assets.filter((asset) => asset.project_id === id)}
+          demoMode
+          projects={demoWorkspace.projects}
+          uploading={uploading}
+          uploadStatus={uploadStatus}
+          onUpload={() => fileInputRef.current?.click()}
+          onUploadDismiss={dismissUploadStatus}
+        />
+      </>
+    );
+  }
+
   return (
-    <div className="p-6 max-w-7xl mx-auto">
-      {/* Back nav */}
-      <Link
-        href="/projects"
-        className="flex items-center gap-2 text-sm text-[var(--muted)] hover:text-[var(--ink)] mb-4 transition-colors"
-      >
-        <ArrowLeft size={16} /> Projects
-      </Link>
-
-      {/* Project header */}
-      <div className="flex items-start justify-between mb-6">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight">{project.name}</h1>
-          {project.description && (
-            <p className="text-sm text-[var(--muted)] mt-1">{project.description}</p>
-          )}
-        </div>
-        <div className="flex items-center gap-2">
-          <button
-            onClick={() => fileInputRef.current?.click()}
-            disabled={uploading}
-            className="flex items-center gap-2 bg-[var(--accent)] hover:bg-[var(--accent-hover)] text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors disabled:opacity-50"
-          >
-            <Upload size={16} />
-            {uploading ? "Uploading..." : "Upload"}
-          </button>
-        </div>
-      </div>
-
-      <input
-        ref={fileInputRef}
-        type="file"
-        multiple
-        accept="video/*,image/*,audio/*,.pdf,.doc,.docx"
-        className="hidden"
-        onChange={(e) => handleUpload(e.target.files)}
+    <>
+      <ProjectCockpit
+        project={{ id: project.id, name: project.name }}
+        projects={remoteProjects.map((candidate) => ({ id: candidate.id, name: candidate.name }))}
+        assets={cockpitAssets}
+        demoMode={false}
+        viewer={viewer}
+        uploading={false}
+        uploadStatus={null}
+        onUpload={() => document.getElementById(authoritativeUploadInputId)?.click()}
       />
-
-      {/* Drop zone / assets grid */}
-      {assets.length === 0 ? (
-        <div
-          className="border-2 border-dashed border-[var(--border)] rounded-xl p-12 text-center cursor-pointer hover:border-[var(--accent)] transition-colors"
-          onClick={() => fileInputRef.current?.click()}
-        >
-          <Upload size={40} className="mx-auto mb-4 text-[var(--dim)]" />
-          <h3 className="text-lg font-semibold mb-2">Upload your first asset</h3>
-          <p className="text-sm text-[var(--muted)]">
-            Drag and drop files here, or click to browse. Supports video, images, audio, and documents.
-          </p>
-        </div>
-      ) : (
-        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {/* Upload card */}
-          <div
-            className="border-2 border-dashed border-[var(--border)] rounded-xl p-6 flex flex-col items-center justify-center cursor-pointer hover:border-[var(--accent)] transition-colors min-h-[200px]"
-            onClick={() => fileInputRef.current?.click()}
-          >
-            <Plus size={24} className="text-[var(--dim)] mb-2" />
-            <span className="text-sm text-[var(--muted)]">Add asset</span>
-          </div>
-
-          {/* Asset cards */}
-          {assets.map((asset) => (
-            <div
-              key={asset.id}
-              className="bg-[var(--surface)] border border-[var(--border)] rounded-xl overflow-hidden hover:border-[var(--border-light)] transition-colors group"
-            >
-              {/* Thumbnail */}
-              <div
-                className="aspect-video bg-[var(--bg)] flex items-center justify-center cursor-pointer relative"
-                onClick={() => router.push(`/projects/${id}/assets/${asset.id}`)}
-              >
-                {asset.thumbnail_url ? (
-                  <img src={asset.thumbnail_url} alt={asset.title} className="w-full h-full object-cover" />
-                ) : (
-                  fileIcon(asset.file_type)
-                )}
-                {asset.file_type === "video" && (
-                  <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity bg-black/30">
-                    <Play size={32} className="text-white" />
-                  </div>
-                )}
-              </div>
-
-              {/* Info */}
-              <div className="p-4">
-                <div className="flex items-start justify-between mb-2">
-                  <Link
-                    href={`/projects/${id}/assets/${asset.id}`}
-                    className="font-medium text-sm truncate hover:text-[var(--accent)] transition-colors flex-1"
-                  >
-                    {asset.title}
-                  </Link>
-                  <button
-                    onClick={() => deleteAsset(asset.id)}
-                    className="p-1 text-[var(--dim)] hover:text-[var(--red)] transition-colors ml-2"
-                  >
-                    <Trash2 size={14} />
-                  </button>
-                </div>
-                <div className="flex items-center justify-between">
-                  {statusBadge(asset.status)}
-                  <span className="text-xs text-[var(--dim)]">
-                    {formatSize(asset.file_size)}
-                    {asset.file_size ? " · " : ""}
-                    {timeAgo(asset.updated_at)}
-                  </span>
-                </div>
-                {(asset.comments?.[0]?.count > 0 || (asset.approvals ?? []).length > 0) && (
-                  <div className="flex items-center gap-3 mt-2 pt-2 border-t border-[var(--border)] text-xs text-[var(--dim)]">
-                    {asset.comments?.[0]?.count > 0 && (
-                      <span>{asset.comments[0].count} comment{asset.comments[0].count !== 1 ? "s" : ""}</span>
-                    )}
-                    {(asset.approvals ?? []).length > 0 && (
-                      <span>
-                        {asset.approvals.filter((a) => a.status === "approved").length}/{asset.approvals.length} approved
-                      </span>
-                    )}
-                  </div>
-                )}
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
+      <AssetUpload
+        projectId={id}
+        inputId={authoritativeUploadInputId}
+        variant="cockpit"
+        onUploadComplete={refreshRemoteAssets}
+      />
+    </>
   );
 }

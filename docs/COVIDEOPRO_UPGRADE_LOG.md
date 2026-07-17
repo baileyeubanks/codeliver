@@ -88,3 +88,11 @@ Baseline: `e068ee8` (checkpoint of the prior session's transformation state).
 - **Competitive teardown:** `COVIDEOPRO_COMPETITIVE_TEARDOWN.md` (Wipster, Sandcastles, Descript context) → Waves E1–E4 roadmap.
 - **Reasoning engine v1:** `lib/covideopro/reasoning.ts` — deterministic segment features, sound-bite scoring, chronological radio-cut proposals with segment-level rationale; one-click "Propose 90s radio cut" in Sequences (transcript → reasoned selects → assembled sequence). Note: no "hacker" skill is installed (checked ~/.agents/skills, ~/.claude/skills); analysis used public sources + local capture evidence.
 - **Tests:** 550/550 (4 reasoning + 14 payments/notifications new). tsc clean. Screenshots 18–20.
+
+## U10 — Frontier wave: real timeline + edit ops + EDL (2026-07-17)
+
+- **SequenceTimeline** (`components/projects/SequenceTimeline.tsx` + cv-timeline dark surface): real playback — the video element plays the actual source file and advances through clips at source boundaries; playhead sync; click-to-seek; clip select; drag trim handles; split at playhead; ripple-delete; EDL export button.
+- **Edit operations** (validated, store-level): `trimSequenceClip` (source range + right-ripple), `splitSequenceClip` (source offsets computed), `removeSequenceClip` (ripple close). 5 new tests (EDL format + timecode + all three ops).
+- **EDL export** (`lib/covideopro/edl.ts`): CMX 3600 with frame-accurate timecode at sequence fps, reel/clip names, select provenance comments — the truthful Premiere/Resolve handoff (benchmark battle card).
+- **Demo media made real:** generated `public/demo/interview-source.mp4` (ffmpeg, 150s) and rescaled the podcast transcript/selects/clips into its real duration — playback times are truthful, not simulated.
+- Suite: **555/555**, tsc clean. Screenshot 21.

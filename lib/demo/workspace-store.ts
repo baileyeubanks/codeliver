@@ -50,6 +50,7 @@ import {
   transitionProposal,
   transitionRevisionRequest,
   transitionSequence,
+  validateSequenceClip,
 } from "@/lib/covideopro/transitions.ts";
 import { buildMilestonesForApproval, mockCheckoutUrl } from "@/lib/covideopro/payments.ts";
 import {
@@ -2242,4 +2243,107 @@ export function dispatchNotificationOutbox(): { processed: number } {
     }),
   }));
   return { processed: queued.length };
+}
+
+/* ----------------------- Sequence edit operations -------------------------- */
+
+/** Trim a clip's source range; timeline duration follows (ripple right). */
+export function trimSequenceClip(input: {
+  clipId: string;
+  sourceIn: number;
+  sourceOut: number;
+}): RecordMutationResult {
+  const state = getSnapshot();
+  const clip = state.sequenceClips.find((candidate) => candidate.id === input.clipId);
+  if (!clip) return { ok: false, reason: "Clip not found." };
+  const duration = input.sourceOut - input.sourceIn;
+  const verdict = validateSequenceClip({
+    timeline_in_seconds: clip.timeline_in_seconds,
+    timeline_out_seconds: clip.timeline_in_seconds + duration,
+    source_in_seconds: input.sourceIn,
+    source_out_seconds: input.sourceOut,
+  });
+  if (!verdict.ok) return verdict;
+
+  const delta = clip.timeline_out_seconds - clip.timeline_in_seconds - duration;
+  updateState((current) => ({
+    ...current,
+    sequenceClips: current.sequenceClips.map((candidate) => {
+      if (candidate.id === clip.id) {
+        return {
+          ...candidate,
+          source_in_seconds: input.sourceIn,
+          source_out_seconds: input.sourceOut,
+          timeline_out_seconds: candidate.timeline_in_seconds + duration,
+        };
+      }
+      if (candidate.sequence_id === clip.sequence_id && candidate.timeline_in_seconds >= clip.timeline_out_seconds) {
+        return {
+          ...candidate,
+          timeline_in_seconds: candidate.timeline_in_seconds - delta,
+          timeline_out_seconds: candidate.timeline_out_seconds - delta,
+        };
+      }
+      return candidate;
+    }),
+  }));
+  return { ok: true, id: clip.id };
+}
+
+/** Split a clip at a timeline position into two adjacent clips. */
+export function splitSequenceClip(input: { clipId: string; atTimelineSeconds: number }): RecordMutationResult {
+  const state = getSnapshot();
+  const clip = state.sequenceClips.find((candidate) => candidate.id === input.clipId);
+  if (!clip) return { ok: false, reason: "Clip not found." };
+  const at = input.atTimelineSeconds;
+  if (at <= clip.timeline_in_seconds || at >= clip.timeline_out_seconds) {
+    return { ok: false, reason: "Split point must be inside the clip." };
+  }
+  const offset = at - clip.timeline_in_seconds;
+  const rightId = createId("clip");
+
+  updateState((current) => ({
+    ...current,
+    sequenceClips: current.sequenceClips.flatMap((candidate) => {
+      if (candidate.id !== clip.id) return [candidate];
+      return [
+        { ...candidate, timeline_out_seconds: at, source_out_seconds: candidate.source_in_seconds + offset },
+        {
+          ...candidate,
+          id: rightId,
+          select_id: null,
+          timeline_in_seconds: at,
+          source_in_seconds: candidate.source_in_seconds + offset,
+        },
+      ];
+    }),
+    activity: recordActivity(current, { action: "split_clip", actor_name: RECORD_ACTOR, project_id: state.sequences.find((sequence) => sequence.id === clip.sequence_id)?.project_id ?? "", details: { at: String(at) } }),
+  }));
+  return { ok: true, id: rightId };
+}
+
+/** Remove a clip; ripple closes the gap by default. */
+export function removeSequenceClip(input: { clipId: string; ripple?: boolean }): RecordMutationResult {
+  const state = getSnapshot();
+  const clip = state.sequenceClips.find((candidate) => candidate.id === input.clipId);
+  if (!clip) return { ok: false, reason: "Clip not found." };
+  const ripple = input.ripple !== false;
+  const duration = clip.timeline_out_seconds - clip.timeline_in_seconds;
+
+  updateState((current) => ({
+    ...current,
+    sequenceClips: current.sequenceClips
+      .filter((candidate) => candidate.id !== clip.id)
+      .map((candidate) =>
+        ripple && candidate.sequence_id === clip.sequence_id && candidate.timeline_in_seconds >= clip.timeline_out_seconds
+          ? {
+              ...candidate,
+              timeline_in_seconds: candidate.timeline_in_seconds - duration,
+              timeline_out_seconds: candidate.timeline_out_seconds - duration,
+            }
+          : candidate,
+      ),
+    activity: recordActivity(current, { action: ripple ? "ripple_delete_clip" : "delete_clip", actor_name: RECORD_ACTOR, project_id: state.sequences.find((sequence) => sequence.id === clip.sequence_id)?.project_id ?? "" }),
+  }));
+  return { ok: true, id: clip.id };
 }

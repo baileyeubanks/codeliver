@@ -155,9 +155,9 @@ export const seedPlanItems: PlanItem[] = [
 /* ----------------------------- Media / Edit -------------------------------- */
 
 export const seedSelects: Select[] = [
-  { id: "sel-pod-1", project_id: "schneider-epc", asset_id: "mclaren-podcast-v3", version_id: null, in_seconds: 96, out_seconds: 141, label: "Why the partnership started", source: "transcript", transcript_segment_ids: ["seg-21", "seg-22"], created_at: T2, updated_at: T2, created_by: BAILEY },
-  { id: "sel-pod-2", project_id: "schneider-epc", asset_id: "mclaren-podcast-v3", version_id: null, in_seconds: 402, out_seconds: 455, label: "The Nashville turnaround story", source: "transcript", transcript_segment_ids: ["seg-88", "seg-89", "seg-90"], created_at: T2, updated_at: T2, created_by: BAILEY },
-  { id: "sel-pod-3", project_id: "schneider-epc", asset_id: "mclaren-podcast-v3", version_id: null, in_seconds: 1188, out_seconds: 1246, label: "What's next for the fleet program", source: "transcript", transcript_segment_ids: ["seg-301"], created_at: T2, updated_at: T2, created_by: BAILEY },
+  { id: "sel-pod-1", project_id: "schneider-epc", asset_id: "mclaren-podcast-v3", version_id: null, in_seconds: 6, out_seconds: 22, label: "Why the partnership started", source: "transcript", transcript_segment_ids: ["seg-21", "seg-22"], created_at: T2, updated_at: T2, created_by: BAILEY },
+  { id: "sel-pod-2", project_id: "schneider-epc", asset_id: "mclaren-podcast-v3", version_id: null, in_seconds: 40, out_seconds: 78, label: "The Nashville turnaround story", source: "transcript", transcript_segment_ids: ["seg-88", "seg-89", "seg-90"], created_at: T2, updated_at: T2, created_by: BAILEY },
+  { id: "sel-pod-3", project_id: "schneider-epc", asset_id: "mclaren-podcast-v3", version_id: null, in_seconds: 100, out_seconds: 138, label: "What's next for the fleet program", source: "transcript", transcript_segment_ids: ["seg-301"], created_at: T2, updated_at: T2, created_by: BAILEY },
 ];
 
 export const seedSequences: Sequence[] = [
@@ -165,9 +165,9 @@ export const seedSequences: Sequence[] = [
 ];
 
 export const seedSequenceClips: SequenceClip[] = [
-  { id: "clip-pod-1", sequence_id: "seq-pod-radio-cut", asset_id: "mclaren-podcast-v3", version_id: null, select_id: "sel-pod-1", track_index: 0, timeline_in_seconds: 0, timeline_out_seconds: 45, source_in_seconds: 96, source_out_seconds: 141 },
-  { id: "clip-pod-2", sequence_id: "seq-pod-radio-cut", asset_id: "mclaren-podcast-v3", version_id: null, select_id: "sel-pod-2", track_index: 0, timeline_in_seconds: 45, timeline_out_seconds: 98, source_in_seconds: 402, source_out_seconds: 455 },
-  { id: "clip-pod-3", sequence_id: "seq-pod-radio-cut", asset_id: "mclaren-podcast-v3", version_id: null, select_id: "sel-pod-3", track_index: 0, timeline_in_seconds: 98, timeline_out_seconds: 156, source_in_seconds: 1188, source_out_seconds: 1246 },
+  { id: "clip-pod-1", sequence_id: "seq-pod-radio-cut", asset_id: "mclaren-podcast-v3", version_id: null, select_id: "sel-pod-1", track_index: 0, timeline_in_seconds: 0, timeline_out_seconds: 16, source_in_seconds: 6, source_out_seconds: 22 },
+  { id: "clip-pod-2", sequence_id: "seq-pod-radio-cut", asset_id: "mclaren-podcast-v3", version_id: null, select_id: "sel-pod-2", track_index: 0, timeline_in_seconds: 16, timeline_out_seconds: 54, source_in_seconds: 40, source_out_seconds: 78 },
+  { id: "clip-pod-3", sequence_id: "seq-pod-radio-cut", asset_id: "mclaren-podcast-v3", version_id: null, select_id: "sel-pod-3", track_index: 0, timeline_in_seconds: 54, timeline_out_seconds: 92, source_in_seconds: 100, source_out_seconds: 138 },
 ];
 
 /* -------------------- Review consolidation / Delivery ----------------------- */
@@ -227,12 +227,12 @@ export interface DemoTranscriptSegment {
  */
 export const seedTranscriptSegments: Record<string, DemoTranscriptSegment[]> = {
   "mclaren-podcast-v3": [
-    { id: "seg-21", start_seconds: 96, end_seconds: 118, speaker: "Dana Whitfield", text: "People ask why a logistics company walked into an EPC partnership. It started with a failed lift plan nobody wants to repeat." },
-    { id: "seg-22", start_seconds: 118, end_seconds: 141, speaker: "Dana Whitfield", text: "The short answer is trust. We needed their crews to treat our freight like their own steel, and that took a year of showing up." },
-    { id: "seg-88", start_seconds: 402, end_seconds: 428, speaker: "Host", text: "Take me to Nashville. The turnaround that became the case study." },
-    { id: "seg-89", start_seconds: 428, end_seconds: 444, speaker: "Dana Whitfield", text: "Nashville was forty trucks, six cranes, and one weekend that could not slip. Everyone knew the number." },
-    { id: "seg-90", start_seconds: 444, end_seconds: 455, speaker: "Dana Whitfield", text: "When the last load cleared the gate at 4 a.m., that is when the partnership stopped being a contract." },
-    { id: "seg-301", start_seconds: 1188, end_seconds: 1246, speaker: "Dana Whitfield", text: "What is next is the fleet program: shared telematics, joint safety metrics, and a training pipeline that turns drivers into site leads." },
+    { id: "seg-21", start_seconds: 6, end_seconds: 14, speaker: "Dana Whitfield", text: "People ask why a logistics company walked into an EPC partnership. It started with a failed lift plan nobody wants to repeat." },
+    { id: "seg-22", start_seconds: 14, end_seconds: 22, speaker: "Dana Whitfield", text: "The short answer is trust. We needed their crews to treat our freight like their own steel, and that took a year of showing up." },
+    { id: "seg-88", start_seconds: 40, end_seconds: 52, speaker: "Host", text: "Take me to Nashville. The turnaround that became the case study." },
+    { id: "seg-89", start_seconds: 52, end_seconds: 66, speaker: "Dana Whitfield", text: "Nashville was forty trucks, six cranes, and one weekend that could not slip. Everyone knew the number." },
+    { id: "seg-90", start_seconds: 66, end_seconds: 78, speaker: "Dana Whitfield", text: "When the last load cleared the gate at 4 a.m., that is when the partnership stopped being a contract." },
+    { id: "seg-301", start_seconds: 100, end_seconds: 138, speaker: "Dana Whitfield", text: "What is next is the fleet program: shared telematics, joint safety metrics, and a training pipeline that turns drivers into site leads." },
   ],
 };
 

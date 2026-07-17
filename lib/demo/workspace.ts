@@ -102,6 +102,7 @@ export const demoAssets: MediaAsset[] = [
     project_id: "schneider-epc",
     title: "Schneider + McLaren Podcast_v3",
     thumbnail_url: "/demo/crew-field-shoot.jpg",
+    file_url: "/demo/interview-source.mp4",
     file_type: "video",
     duration_seconds: 1482,
     status: "needs_changes",

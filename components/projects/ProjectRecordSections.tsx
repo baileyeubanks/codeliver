@@ -24,6 +24,7 @@ import {
 import { seedTranscriptSegments } from "@/lib/demo/record-seed";
 import { formatCents } from "@/lib/covideopro/payments.ts";
 import { proposeRadioCut } from "@/lib/covideopro/reasoning.ts";
+import SequenceTimeline from "@/components/projects/SequenceTimeline";
 import {
   currentBrief,
   currentProposal,
@@ -642,23 +643,25 @@ export function SequencesSection({ projectId, demoMode, onNotice }: SectionProps
           const clips = workspace.sequenceClips.filter((clip) => clip.sequence_id === sequence.id);
           const duration = clips.reduce((max, clip) => Math.max(max, clip.timeline_out_seconds), 0);
           return (
-            <article key={sequence.id} style={{ gridTemplateColumns: "34px minmax(0,1fr) auto auto" }}>
-              <span className="cockpit-list-icon"><ListChecks size={18} /></span>
-              <div>
-                <strong>{sequence.name}</strong>
-                <small>
-                  v{sequence.version} · {clips.length} clips · {formatSeconds(duration)} · {sequence.created_from === "transcript-assembly" ? "transcript assembly" : "manual"}
-                </small>
-                <small>
-                  {clips.map((clip, index) => {
-                    const asset = workspace.assets.find((candidate) => candidate.id === clip.asset_id);
-                    return ` ${index + 1}. ${asset?.title ?? clip.asset_id} [${formatSeconds(clip.source_in_seconds)}→${formatSeconds(clip.source_out_seconds)}]`;
-                  }).join("")}
-                </small>
-              </div>
-              <span className={sequence.status === "approved" ? "status-active" : "status-pending"}>{sequence.status.replace("_", " ")}</span>
-              {sequence.status === "draft" ? <button type="button" onClick={() => review(sequence.id)}>Send to review</button> : null}
-            </article>
+            <div key={sequence.id}>
+              <article style={{ gridTemplateColumns: "34px minmax(0,1fr) auto auto" }}>
+                <span className="cockpit-list-icon"><ListChecks size={18} /></span>
+                <div>
+                  <strong>{sequence.name}</strong>
+                  <small>
+                    v{sequence.version} · {clips.length} clips · {formatSeconds(duration)} · {sequence.created_from === "transcript-assembly" ? "transcript assembly" : "manual"}
+                  </small>
+                </div>
+                <span className={sequence.status === "approved" ? "status-active" : "status-pending"}>{sequence.status.replace("_", " ")}</span>
+                {sequence.status === "draft" ? <button type="button" onClick={() => review(sequence.id)}>Send to review</button> : null}
+              </article>
+              <SequenceTimeline
+                sequence={sequence}
+                clips={clips}
+                assets={workspace.assets}
+                onNotice={onNotice}
+              />
+            </div>
           );
         })}
         {sequences.length === 0 ? <p className="cockpit-rail-empty">No sequences yet — assemble one from the selects below.</p> : null}

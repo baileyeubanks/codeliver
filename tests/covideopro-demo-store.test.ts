@@ -222,7 +222,7 @@ test("sequence assembly + deliverable QC guard", async () => {
   assert.equal(clips.length, 2);
   assert.deepEqual(
     clips.map((clip) => [clip.timeline_in_seconds, clip.timeline_out_seconds]),
-    [[0, 45], [45, 103]],
+    [[0, 16], [16, 54]],
   );
 
   const deliverable = saveDeliverable({

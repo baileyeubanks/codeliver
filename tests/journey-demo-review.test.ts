@@ -103,6 +103,7 @@ test("the local demo journey persists account, project, media, review, share, an
       authenticated: false,
       email: "reviewer@example.com",
       lastSignedInAt: null,
+      role: "owner",
     });
     workspace.signInDemoSession("reviewer@example.com");
 

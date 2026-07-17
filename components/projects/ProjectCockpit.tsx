@@ -95,6 +95,7 @@ import { PROJECT_STAGE_META, type ProjectStage } from "@/lib/covideopro/record.t
 import {
   CreativeSection,
   DeliverySection,
+  NotificationOutboxSection,
   PlanSection,
   ProposalSection,
   ReviewConsolidationSection,
@@ -2263,6 +2264,7 @@ export default function ProjectCockpit({
                   {projectLinks.length === 0 ? <EmptyState title="No review links" body="Create a permissioned link for this project." /> : null}
                 </div>
                 <ReviewConsolidationSection projectId={project.id} demoMode={demoMode} onNotice={setToast} />
+                <NotificationOutboxSection projectId={project.id} demoMode={demoMode} onNotice={setToast} />
               </>
             ) : null}
 

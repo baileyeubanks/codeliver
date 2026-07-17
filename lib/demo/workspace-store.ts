@@ -27,7 +27,10 @@ import {
   type Decision,
   type Deliverable,
   type Inquiry,
+  type NotificationOutboxItem,
   type Organization,
+  type PaymentMethod,
+  type PaymentMilestone,
   type PlanItem,
   type ProjectStage,
   type Proposal,
@@ -42,18 +45,28 @@ import {
   transitionBrief,
   transitionDeliverable,
   transitionInquiry,
+  transitionPaymentMilestone,
   transitionProjectStage,
   transitionProposal,
   transitionRevisionRequest,
   transitionSequence,
 } from "@/lib/covideopro/transitions.ts";
+import { buildMilestonesForApproval, mockCheckoutUrl } from "@/lib/covideopro/payments.ts";
+import {
+  buildReviewLinkDrafts,
+  dedupeOutboxDrafts,
+  dispatchOutboxDraft,
+  notificationIdempotencyKey,
+} from "@/lib/covideopro/notifications.ts";
 import {
   seedBriefs,
   seedContacts,
   seedDecisions,
   seedDeliverables,
   seedInquiries,
+  seedNotificationOutbox,
   seedOrganizations,
+  seedPaymentMilestones,
   seedPlanItems,
   seedProposals,
   seedRevisionRequests,
@@ -231,6 +244,8 @@ export interface DemoWorkspaceState {
   revisionRequests: RevisionRequest[];
   decisions: Decision[];
   deliverables: Deliverable[];
+  paymentMilestones: PaymentMilestone[];
+  notificationOutbox: NotificationOutboxItem[];
 }
 
 export interface CreateDemoShareInput {
@@ -570,6 +585,8 @@ export function createInitialDemoWorkspace(): DemoWorkspaceState {
     revisionRequests: seedRevisionRequests.map((record) => ({ ...record, comment_ids: [...record.comment_ids] })),
     decisions: seedDecisions.map((record) => ({ ...record, comment_ids: [...record.comment_ids] })),
     deliverables: seedDeliverables.map((record) => ({ ...record, spec: { ...record.spec } })),
+    paymentMilestones: seedPaymentMilestones.map((record) => ({ ...record })),
+    notificationOutbox: seedNotificationOutbox.map((record) => ({ ...record })),
   };
 }
 
@@ -673,6 +690,8 @@ export function restoreDemoWorkspace(raw: string | null): DemoWorkspaceState {
       revisionRequests: mergeSeededRecords(parsed.revisionRequests, fallback.revisionRequests),
       decisions: mergeSeededRecords(parsed.decisions, fallback.decisions),
       deliverables: mergeSeededRecords(parsed.deliverables, fallback.deliverables),
+      paymentMilestones: mergeSeededRecords(parsed.paymentMilestones, fallback.paymentMilestones),
+      notificationOutbox: mergeSeededRecords(parsed.notificationOutbox, fallback.notificationOutbox),
       settings: {
         profile: { ...fallback.settings.profile, ...savedSettings?.profile },
         appearance: { ...fallback.settings.appearance, ...savedSettings?.appearance },
@@ -1096,9 +1115,42 @@ export function createDemoShareLinks(input: CreateDemoShareInput) {
 
   updateState((state) => {
     const firstAsset = state.assets.find((asset) => asset.id === assetIds[0]);
+    const outboxDrafts = dedupeOutboxDrafts(
+      links.flatMap((link) =>
+        buildReviewLinkDrafts({
+          projectId: firstAsset?.project_id ?? "",
+          linkId: link.id,
+          message: link.message,
+          reviewerEmail,
+          reviewerPhone: null,
+          channels: notificationChannels,
+          publicUrl: link.public_url,
+        }),
+      ),
+      state.notificationOutbox,
+    );
+    const outboxItems: NotificationOutboxItem[] = outboxDrafts.map((draft) => ({
+      id: createId("outbox"),
+      project_id: draft.projectId,
+      intent: draft.intent,
+      channel: draft.channel,
+      recipient: draft.recipient,
+      subject: draft.subject,
+      body: draft.body,
+      status: "queued",
+      provider: null,
+      idempotency_key: notificationIdempotencyKey(draft),
+      attempt_count: 0,
+      last_error: null,
+      created_at: createdAt,
+      updated_at: createdAt,
+      created_by: "user-bailey",
+    }));
+
     return {
       ...state,
       shareLinks: [...links, ...state.shareLinks],
+      notificationOutbox: [...outboxItems, ...state.notificationOutbox],
       activity: [
         {
           id: createId("activity"),
@@ -1751,21 +1803,45 @@ export function setProposalStatus(id: string, to: Proposal["status"], actorEmail
   if (!verdict.ok) return verdict;
 
   const now = new Date().toISOString();
-  updateState((state) => ({
-    ...state,
-    proposals: state.proposals.map((candidate) =>
-      candidate.id === id
-        ? {
-            ...candidate,
-            status: to,
-            approved_by: to === "approved" ? actorEmail ?? null : candidate.approved_by,
-            approved_at: to === "approved" ? now : candidate.approved_at,
+  updateState((state) => {
+    const milestones: PaymentMilestone[] =
+      to === "approved" && !state.paymentMilestones.some((milestone) => milestone.proposal_id === id)
+        ? buildMilestonesForApproval(proposal).map((spec) => ({
+            id: createId(`pm-${spec.kind}`),
+            project_id: proposal.project_id,
+            proposal_id: id,
+            kind: spec.kind,
+            label: spec.label,
+            amount_cents: spec.amount_cents,
+            currency: "USD",
+            status: "pending" as const,
+            method: null,
+            checkout_url: null,
+            checkout_provider: null,
+            paid_at: null,
+            created_at: now,
             updated_at: now,
-          }
-        : candidate,
-    ),
-    activity: recordActivity(state, { action: `proposal_${to}`, actor_name: actorEmail ?? RECORD_ACTOR, project_id: proposal.project_id, details: { title: proposal.title, version: `v${proposal.version}` } }),
-  }));
+            created_by: "user-bailey",
+          }))
+        : [];
+
+    return {
+      ...state,
+      proposals: state.proposals.map((candidate) =>
+        candidate.id === id
+          ? {
+              ...candidate,
+              status: to,
+              approved_by: to === "approved" ? actorEmail ?? null : candidate.approved_by,
+              approved_at: to === "approved" ? now : candidate.approved_at,
+              updated_at: now,
+            }
+          : candidate,
+      ),
+      paymentMilestones: [...state.paymentMilestones, ...milestones],
+      activity: recordActivity(state, { action: `proposal_${to}`, actor_name: actorEmail ?? RECORD_ACTOR, project_id: proposal.project_id, details: { title: proposal.title, version: `v${proposal.version}` } }),
+    };
+  });
   return { ok: true, id };
 }
 
@@ -2095,4 +2171,75 @@ export function advanceProjectStage(projectId: string): RecordMutationResult {
     activity: recordActivity(current, { action: `stage_advanced_${target}`, actor_name: RECORD_ACTOR, project_id: projectId, details: { from: stage, to: target } }),
   }));
   return { ok: true, id: projectId };
+}
+
+/* --------------------- Payment milestone mutations ------------------------- */
+
+export function createMilestoneCheckout(id: string): RecordMutationResult {
+  const milestone = getSnapshot().paymentMilestones.find((candidate) => candidate.id === id);
+  if (!milestone) return { ok: false, reason: "Milestone not found." };
+  const verdict = transitionPaymentMilestone(milestone, "checkout_created", { method: "checkout" });
+  if (!verdict.ok) return verdict;
+
+  const url = mockCheckoutUrl(milestone.id, milestone.amount_cents, milestone.currency);
+  updateState((state) => ({
+    ...state,
+    paymentMilestones: state.paymentMilestones.map((candidate) =>
+      candidate.id === id
+        ? { ...candidate, status: "checkout_created" as const, method: "checkout" as const, checkout_url: url, checkout_provider: "mock", updated_at: new Date().toISOString() }
+        : candidate,
+    ),
+    activity: recordActivity(state, { action: "checkout_created", actor_name: RECORD_ACTOR, project_id: milestone.project_id, details: { label: milestone.label, provider: "mock" } }),
+  }));
+  return { ok: true, id };
+}
+
+export function recordMilestonePayment(id: string, method: PaymentMethod): RecordMutationResult {
+  const milestone = getSnapshot().paymentMilestones.find((candidate) => candidate.id === id);
+  if (!milestone) return { ok: false, reason: "Milestone not found." };
+  const verdict = transitionPaymentMilestone(milestone, "paid", { method });
+  if (!verdict.ok) return verdict;
+
+  const now = new Date().toISOString();
+  updateState((state) => ({
+    ...state,
+    paymentMilestones: state.paymentMilestones.map((candidate) =>
+      candidate.id === id ? { ...candidate, status: "paid" as const, method, paid_at: now, updated_at: now } : candidate,
+    ),
+    activity: recordActivity(state, { action: "milestone_paid", actor_name: RECORD_ACTOR, project_id: milestone.project_id, details: { label: milestone.label, method } }),
+  }));
+  return { ok: true, id };
+}
+
+/* --------------------- Notification outbox mutations ------------------------ */
+
+/** Dispatch queued outbox items through the dry-run lane. */
+export function dispatchNotificationOutbox(): { processed: number } {
+  const state = getSnapshot();
+  const context = {
+    emailConfigured: state.settings.notifications.email.enabled,
+    smsConfigured: state.settings.notifications.sms.enabled && state.settings.notifications.sms.phone.trim().length > 0,
+    imessageConfigured: state.settings.notifications.imessage.enabled,
+  };
+  const queued = state.notificationOutbox.filter((item) => item.status === "queued");
+  if (queued.length === 0) return { processed: 0 };
+
+  const results = new Map(queued.map((item) => [item.id, dispatchOutboxDraft(item, context)]));
+  const now = new Date().toISOString();
+  updateState((current) => ({
+    ...current,
+    notificationOutbox: current.notificationOutbox.map((item) => {
+      const result = results.get(item.id);
+      if (!result) return item;
+      return {
+        ...item,
+        status: result.status,
+        provider: result.provider,
+        last_error: result.error,
+        attempt_count: item.attempt_count + 1,
+        updated_at: now,
+      };
+    }),
+  }));
+  return { processed: queued.length };
 }

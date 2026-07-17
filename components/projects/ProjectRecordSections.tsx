@@ -6,7 +6,10 @@ import {
   addPlanItem,
   addRevisionRequest,
   addSelect,
+  createMilestoneCheckout,
   createSequenceFromSelects,
+  dispatchNotificationOutbox,
+  recordMilestonePayment,
   saveBrief,
   saveDeliverable,
   saveProposal,
@@ -19,6 +22,7 @@ import {
   useDemoWorkspace,
 } from "@/lib/demo/workspace-store";
 import { seedTranscriptSegments } from "@/lib/demo/record-seed";
+import { formatCents } from "@/lib/covideopro/payments.ts";
 import {
   currentBrief,
   currentProposal,
@@ -304,7 +308,10 @@ export function ProposalSection({ projectId, demoMode, onNotice }: SectionProps)
           </table>
 
           {proposal.approved_by ? (
-            <p className="cockpit-rail-empty">Approved by {proposal.approved_by} on {proposal.approved_at ? new Date(proposal.approved_at).toLocaleDateString() : "—"}.</p>
+            <>
+              <p className="cockpit-rail-empty">Approved by {proposal.approved_by} on {proposal.approved_at ? new Date(proposal.approved_at).toLocaleDateString() : "—"}.</p>
+              <MilestonesBlock proposalId={proposal.id} onNotice={onNotice} />
+            </>
           ) : null}
 
           {proposal.status === "draft" ? (
@@ -766,6 +773,101 @@ export function ReviewConsolidationSection({ projectId, demoMode, onNotice }: Se
           </div>
         );
       })}
+    </section>
+  );
+}
+
+/* ------------------------- Payment milestones block ------------------------- */
+
+function MilestonesBlock({ proposalId, onNotice }: { proposalId: string; onNotice: (message: string) => void }) {
+  const workspace = useDemoWorkspace();
+  const milestones = workspace.paymentMilestones.filter((milestone) => milestone.proposal_id === proposalId);
+  if (milestones.length === 0) return null;
+
+  return (
+    <section aria-label="Payment milestones" className="cockpit-record-card" style={{ marginTop: 4 }}>
+      <header className="cockpit-record-card-head">
+        <strong>Payment milestones</strong>
+        <span className="demo-pill">offline checkout (mock)</span>
+      </header>
+      <div className="cockpit-table-list" style={{ marginTop: 0 }}>
+        {milestones.map((milestone) => (
+          <article key={milestone.id} style={{ gridTemplateColumns: "minmax(0,1fr) auto auto auto" }}>
+            <div>
+              <strong>{milestone.kind === "deposit" ? "Deposit" : "Balance"} — {formatCents(milestone.amount_cents, milestone.currency)}</strong>
+              <small>
+                {milestone.checkout_url ? (
+                  <a href={milestone.checkout_url} target="_blank" rel="noreferrer">checkout link ({milestone.checkout_provider})</a>
+                ) : "no checkout link"}
+                {milestone.paid_at ? ` · paid ${new Date(milestone.paid_at).toLocaleDateString()} (${milestone.method})` : ""}
+              </small>
+            </div>
+            <span className={milestone.status === "paid" ? "status-active" : "status-pending"}>{milestone.status.replace("_", " ")}</span>
+            {milestone.status === "pending" ? (
+              <button type="button" onClick={() => {
+                const result = createMilestoneCheckout(milestone.id);
+                onNotice(result.ok ? "Checkout link created (mock provider — no live charge)." : result.reason);
+              }}>
+                Create checkout link
+              </button>
+            ) : null}
+            {milestone.status === "pending" || milestone.status === "checkout_created" ? (
+              <button type="button" onClick={() => {
+                const result = recordMilestonePayment(milestone.id, milestone.status === "pending" ? "manual" : "checkout");
+                onNotice(result.ok ? "Payment recorded." : result.reason);
+              }}>
+                Record payment
+              </button>
+            ) : <Check size={17} />}
+          </article>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+/* ------------------------- Notification outbox block ------------------------ */
+
+export function NotificationOutboxSection({ projectId, demoMode, onNotice }: SectionProps) {
+  const workspace = useDemoWorkspace();
+
+  if (!demoMode) return null;
+
+  const items = workspace.notificationOutbox
+    .filter((item) => item.project_id === projectId)
+    .slice(0, 12);
+  const queuedCount = items.filter((item) => item.status === "queued").length;
+
+  return (
+    <section aria-label="Notification outbox" style={{ marginTop: 22 }}>
+      <h3 className="cockpit-record-group-title">
+        Notification outbox {queuedCount > 0 ? `(${queuedCount} queued)` : ""}
+      </h3>
+      {queuedCount > 0 ? (
+        <div className="cockpit-record-form-actions" style={{ marginBottom: 8 }}>
+          <button type="button" onClick={() => {
+            const { processed } = dispatchNotificationOutbox();
+            onNotice(processed > 0 ? `Processed ${processed} notification(s) through the dry-run lane.` : "Nothing queued.");
+          }}>
+            Process outbox (dry-run)
+          </button>
+        </div>
+      ) : null}
+      <div className="cockpit-table-list">
+        {items.map((item) => (
+          <article key={item.id} style={{ gridTemplateColumns: "34px minmax(0,1fr) auto" }}>
+            <span className="cockpit-list-icon"><FileText size={16} /></span>
+            <div>
+              <strong>{item.subject}</strong>
+              <small>{item.channel} → {item.recipient} · {item.attempt_count} attempt{item.attempt_count === 1 ? "" : "s"}{item.last_error ? ` · ${item.last_error}` : ""}</small>
+            </div>
+            <span className={item.status === "dry_run_sent" ? "status-active" : "status-pending"}>
+              {item.status === "dry_run_sent" ? "dry-run sent" : item.status.replace("_", " ")}
+            </span>
+          </article>
+        ))}
+        {items.length === 0 ? <p className="cockpit-rail-empty">No notifications yet — creating a review link with channels queues them here.</p> : null}
+      </div>
     </section>
   );
 }

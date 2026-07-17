@@ -17,6 +17,9 @@ import {
   type DeliverableStatus,
   type Inquiry,
   type InquiryStatus,
+  type PaymentMethod,
+  type PaymentMilestone,
+  type PaymentMilestoneStatus,
   type PlanItem,
   type ProjectRecordHeader,
   type ProjectStage,
@@ -378,4 +381,35 @@ export function transitionProjectStage(
     default:
       return OK;
   }
+}
+
+/* -------------------------------------------------------------------------- */
+/* Payment milestones                                                         */
+/* -------------------------------------------------------------------------- */
+
+const PAYMENT_MILESTONE_EDGES: Record<PaymentMilestoneStatus, readonly PaymentMilestoneStatus[]> = {
+  pending: ["checkout_created", "paid", "void"],
+  checkout_created: ["paid", "void"],
+  paid: [],
+  void: [],
+};
+
+export interface PaymentTransitionContext {
+  method: PaymentMethod | null;
+}
+
+export function transitionPaymentMilestone(
+  milestone: Pick<PaymentMilestone, "status">,
+  to: PaymentMilestoneStatus,
+  context: PaymentTransitionContext = { method: null },
+): TransitionResult {
+  const edge = assertEdge(PAYMENT_MILESTONE_EDGES, milestone.status, to);
+  if (!edge.ok) return edge;
+  if (to === "checkout_created" && context.method !== "checkout") {
+    return fail("Creating a checkout requires the checkout method.");
+  }
+  if (to === "paid" && milestone.status === "pending" && context.method !== "manual") {
+    return fail("A pending milestone can only be marked paid as a manual (offline) payment.");
+  }
+  return OK;
 }

@@ -388,3 +388,59 @@ export function currentProposal(proposals: Proposal[]): Proposal | null {
 export function openRevisionRequests(requests: RevisionRequest[]): RevisionRequest[] {
   return requests.filter((request) => request.status === "open" || request.status === "in_progress");
 }
+
+/* -------------------------------------------------------------------------- */
+/* Payments (milestones on approved proposals)                                */
+/* -------------------------------------------------------------------------- */
+
+export const PAYMENT_MILESTONE_KINDS = ["deposit", "balance"] as const;
+export type PaymentMilestoneKind = (typeof PAYMENT_MILESTONE_KINDS)[number];
+
+export const PAYMENT_MILESTONE_STATUSES = ["pending", "checkout_created", "paid", "void"] as const;
+export type PaymentMilestoneStatus = (typeof PAYMENT_MILESTONE_STATUSES)[number];
+
+export const PAYMENT_METHODS = ["checkout", "manual"] as const;
+export type PaymentMethod = (typeof PAYMENT_METHODS)[number];
+
+/** A scheduled payment against an approved proposal. Money is integer cents. */
+export interface PaymentMilestone extends ProjectScoped {
+  proposal_id: string;
+  kind: PaymentMilestoneKind;
+  label: string;
+  amount_cents: number;
+  currency: string;
+  status: PaymentMilestoneStatus;
+  method: PaymentMethod | null;
+  checkout_url: string | null;
+  checkout_provider: string | null;
+  paid_at: ISODateTime | null;
+}
+
+/* -------------------------------------------------------------------------- */
+/* Notification outbox (provider-neutral, dry-run by default)                  */
+/* -------------------------------------------------------------------------- */
+
+export const NOTIFICATION_CHANNELS = ["email", "sms", "imessage"] as const;
+export type NotificationChannel = (typeof NOTIFICATION_CHANNELS)[number];
+
+export const NOTIFICATION_OUTBOX_STATUSES = [
+  "queued",
+  "dry_run_sent",
+  "pending_provider",
+  "failed",
+] as const;
+export type NotificationOutboxStatus = (typeof NOTIFICATION_OUTBOX_STATUSES)[number];
+
+export interface NotificationOutboxItem extends RecordBase {
+  project_id: string;
+  intent: string;
+  channel: NotificationChannel;
+  recipient: string;
+  subject: string;
+  body: string;
+  status: NotificationOutboxStatus;
+  provider: string | null;
+  idempotency_key: string;
+  attempt_count: number;
+  last_error: string | null;
+}

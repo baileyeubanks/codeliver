@@ -13,7 +13,9 @@ import type {
   Decision,
   Deliverable,
   Inquiry,
+  NotificationOutboxItem,
   Organization,
+  PaymentMilestone,
   PlanItem,
   Proposal,
   RevisionRequest,
@@ -233,3 +235,43 @@ export const seedTranscriptSegments: Record<string, DemoTranscriptSegment[]> = {
     { id: "seg-301", start_seconds: 1188, end_seconds: 1246, speaker: "Dana Whitfield", text: "What is next is the fleet program: shared telematics, joint safety metrics, and a training pipeline that turns drivers into site leads." },
   ],
 };
+
+/* ----------------------- Payments / Notification outbox --------------------- */
+
+export const seedPaymentMilestones: PaymentMilestone[] = [
+  {
+    id: "pm-ica-deposit", project_id: "ica", proposal_id: "prop-ica-v2",
+    kind: "deposit", label: "Deposit (30%) — ICA Roadshow 2026 — Opening Film Package",
+    amount_cents: 307650, currency: "USD", status: "paid", method: "manual",
+    checkout_url: null, checkout_provider: null, paid_at: "2026-03-05T15:00:00.000Z",
+    created_at: "2026-03-01T17:25:00.000Z", updated_at: "2026-03-05T15:00:00.000Z", created_by: BAILEY,
+  },
+  {
+    id: "pm-ica-balance", project_id: "ica", proposal_id: "prop-ica-v2",
+    kind: "balance", label: "Balance — ICA Roadshow 2026 — Opening Film Package",
+    amount_cents: 717850, currency: "USD", status: "pending", method: null,
+    checkout_url: null, checkout_provider: null, paid_at: null,
+    created_at: "2026-03-01T17:25:00.000Z", updated_at: "2026-03-01T17:25:00.000Z", created_by: BAILEY,
+  },
+];
+
+export const seedNotificationOutbox: NotificationOutboxItem[] = [
+  {
+    id: "no-ica-final-email", project_id: "ica", intent: "review_link",
+    channel: "email", recipient: "approvals@ica.example",
+    subject: "Final approval: ICA_ROADSHOW_x_FINAL",
+    body: "Final approval: ICA_ROADSHOW_x_FINAL\n/review/demo?demo=1&asset=ica-roadshow-final",
+    status: "dry_run_sent", provider: "dry-run",
+    idempotency_key: "seed-ica-final-email", attempt_count: 1, last_error: null,
+    created_at: "2026-07-14T21:58:30.000Z", updated_at: "2026-07-14T21:58:30.000Z", created_by: BAILEY,
+  },
+  {
+    id: "no-ceraweek-sms", project_id: "ica", intent: "review_link",
+    channel: "sms", recipient: "+15551234567",
+    subject: "CERAWeek speaker cut review",
+    body: "CERAWeek speaker cut review\n/review/demo?demo=1&asset=denie-mcdonald-v4",
+    status: "pending_provider", provider: null,
+    idempotency_key: "seed-ceraweek-sms", attempt_count: 0, last_error: "provider_not_configured",
+    created_at: "2026-07-14T20:36:00.000Z", updated_at: "2026-07-14T20:36:00.000Z", created_by: BAILEY,
+  },
+];

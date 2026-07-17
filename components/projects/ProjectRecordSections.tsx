@@ -23,6 +23,7 @@ import {
 } from "@/lib/demo/workspace-store";
 import { seedTranscriptSegments } from "@/lib/demo/record-seed";
 import { formatCents } from "@/lib/covideopro/payments.ts";
+import { proposeRadioCut } from "@/lib/covideopro/reasoning.ts";
 import {
   currentBrief,
   currentProposal,
@@ -595,6 +596,38 @@ export function SequencesSection({ projectId, demoMode, onNotice }: SectionProps
     .filter((asset) => asset.project_id === projectId && seedTranscriptSegments[asset.id]?.length)
     .map((asset) => ({ asset, segments: seedTranscriptSegments[asset.id] }));
 
+  function proposeCut() {
+    const pool = transcriptAssets.flatMap(({ asset, segments }) =>
+      segments.map((segment) => ({ ...segment, assetId: asset.id })),
+    );
+    const proposal = proposeRadioCut(pool, 90);
+    if (proposal.segmentIds.length === 0) {
+      onNotice("No sound bites strong enough to propose a cut yet.");
+      return;
+    }
+    const selectIds: string[] = [];
+    for (const segmentId of proposal.segmentIds) {
+      const segment = pool.find((candidate) => candidate.id === segmentId);
+      if (!segment) continue;
+      const result = addSelect({
+        projectId,
+        assetId: segment.assetId,
+        inSeconds: segment.start_seconds,
+        outSeconds: segment.end_seconds,
+        label: segment.text.length > 64 ? `${segment.text.slice(0, 64)}…` : segment.text,
+        source: "transcript",
+        transcriptSegmentIds: [segmentId],
+      });
+      if (result.ok) selectIds.push(result.id);
+    }
+    const assembled = createSequenceFromSelects({ projectId, name: `Radio cut (reasoned, ${Math.round(proposal.totalSeconds)}s)`, selectIds });
+    onNotice(
+      assembled.ok
+        ? `Radio cut proposed: ${selectIds.length} bites, avg score ${proposal.score}. Review the assembly above.`
+        : assembled.reason,
+    );
+  }
+
   return (
     <>
       <header>
@@ -656,7 +689,12 @@ export function SequencesSection({ projectId, demoMode, onNotice }: SectionProps
 
       {transcriptAssets.length > 0 ? (
         <>
-          <h3 className="cockpit-record-group-title">Transcript</h3>
+          <h3 className="cockpit-record-group-title">
+            Transcript
+            <button type="button" onClick={proposeCut} style={{ marginLeft: 10, padding: "4px 10px", border: "1px solid var(--cockpit-border)", borderRadius: 5, background: "#fff", color: "var(--cockpit-accent)", fontSize: 9, fontWeight: 650 }}>
+              Propose 90s radio cut
+            </button>
+          </h3>
           {transcriptAssets.map(({ asset, segments }) => (
             <section key={asset.id} aria-label={`Transcript for ${asset.title}`} className="cockpit-table-list">
               {segments.map((segment) => (

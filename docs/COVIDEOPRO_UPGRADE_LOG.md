@@ -78,3 +78,13 @@ Baseline: `e068ee8` (checkpoint of the prior session's transformation state).
 - `npm run build` (Next 16.2.10, Turbopack) → **exit 0**; all routes compile, `/opportunities` prerenders static.
 - Final evidence report: `docs/COVIDEOPRO_FINAL_REPORT_2026-07-16.md`.
 - Proof bundle: tsc 0 errors · 535/535 tests · build exit 0 · 17 screenshots.
+
+## U9 — Skills lanes + Metronic + reasoning engine (2026-07-17)
+
+- **Skills leveraged:** stripe-best-practices (payments lane), sms-communications (notification outbox). Metronic v9.5.0 audited via 6-agent swarm → `COVIDEOPRO_METRONIC_PORT_PLAN.md` (license gate: Extended tier required for paid SaaS; repo must stay private).
+- **Payments:** milestones (deposit 30%/balance) auto-created on proposal approval; provider-neutral checkout (deterministic mock; Stripe Checkout Sessions gated on `rk_`, `sk_` refused); validated transitions; Proposal UI; migration `20260716130000_payments_notifications.sql`.
+- **Notifications:** outbox with E.164 normalization, sha256 idempotency + dedupe, dry-run-only dispatch (missing provider → `pending_provider`, never claimed delivery); share-link enqueue; Reviews UI block.
+- **Metronic Wave 1 ported:** dense type tokens, derived radius scale, scrollable family, range/scrub styling → `app/globals.css`.
+- **Competitive teardown:** `COVIDEOPRO_COMPETITIVE_TEARDOWN.md` (Wipster, Sandcastles, Descript context) → Waves E1–E4 roadmap.
+- **Reasoning engine v1:** `lib/covideopro/reasoning.ts` — deterministic segment features, sound-bite scoring, chronological radio-cut proposals with segment-level rationale; one-click "Propose 90s radio cut" in Sequences (transcript → reasoned selects → assembled sequence). Note: no "hacker" skill is installed (checked ~/.agents/skills, ~/.claude/skills); analysis used public sources + local capture evidence.
+- **Tests:** 550/550 (4 reasoning + 14 payments/notifications new). tsc clean. Screenshots 18–20.

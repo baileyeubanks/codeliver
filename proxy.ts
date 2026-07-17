@@ -18,6 +18,7 @@ import {
 const PUBLIC_EXACT_ROUTES = [
   LOGIN_PATH,
   "/signup",
+  "/welcome",
   "/auth/callback",
   "/api/notifications/provider-events",
 ];

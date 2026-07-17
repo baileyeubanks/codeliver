@@ -53,6 +53,7 @@ import {
   validateSequenceClip,
 } from "@/lib/covideopro/transitions.ts";
 import { buildMilestonesForApproval, mockCheckoutUrl } from "@/lib/covideopro/payments.ts";
+import { buildConcatPlan } from "@/lib/covideopro/render.ts";
 import {
   buildReviewLinkDrafts,
   dedupeOutboxDrafts,
@@ -2346,4 +2347,86 @@ export function removeSequenceClip(input: { clipId: string; ripple?: boolean }):
     activity: recordActivity(current, { action: ripple ? "ripple_delete_clip" : "delete_clip", actor_name: RECORD_ACTOR, project_id: state.sequences.find((sequence) => sequence.id === clip.sequence_id)?.project_id ?? "" }),
   }));
   return { ok: true, id: clip.id };
+}
+
+/* ------------------------- Sequence render ---------------------------------- */
+
+export interface SequenceRenderDeps {
+  render?: (plan: { file: string; inSeconds: number; outSeconds: number }[], outName: string) => Promise<{ url: string; durationSeconds: number }>;
+}
+
+/** Render a sequence into a real reviewable asset (server render via route). */
+export async function renderSequenceToAsset(
+  sequenceId: string,
+  deps: SequenceRenderDeps = {},
+): Promise<RecordMutationResult> {
+  const state = getSnapshot();
+  const sequence = state.sequences.find((candidate) => candidate.id === sequenceId);
+  if (!sequence) return { ok: false, reason: "Sequence not found." };
+
+  const clips = state.sequenceClips.filter((clip) => clip.sequence_id === sequenceId);
+  const fileFor = (assetId: string) =>
+    state.assets.find((asset) => asset.id === assetId)?.file_url ?? null;
+  const plan = buildConcatPlan(sequence, clips, (assetId) => fileFor(assetId));
+  if ("error" in plan) return { ok: false, reason: plan.error };
+
+  const outName = `render-${sequenceId}-${Date.now() % 100000}`;
+  const render = deps.render ?? (async (entries, name) => {
+    const response = await fetch("/api/render/sequence", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ plan: entries, outName: name }),
+    });
+    if (!response.ok) {
+      const payload = await response.json().catch(() => ({}));
+      throw new Error(typeof payload.error === "string" ? payload.error : "Render failed.");
+    }
+    return response.json() as Promise<{ url: string; durationSeconds: number }>;
+  });
+
+  let rendered: { url: string; durationSeconds: number };
+  try {
+    rendered = await render(
+      plan.map((entry) => ({
+        file: entry.file.replace(/^\/+/, ""),
+        inSeconds: entry.clip.source_in_seconds,
+        outSeconds: entry.clip.source_out_seconds,
+      })),
+      outName,
+    );
+  } catch (error) {
+    return { ok: false, reason: error instanceof Error ? error.message : "Render failed." };
+  }
+
+  const assetId = createId("render");
+  updateState((current) => ({
+    ...current,
+    assets: [
+      {
+        id: assetId,
+        project_id: sequence.project_id,
+        title: `${sequence.name} (render)`,
+        thumbnail_url: "/demo/control-room.jpg",
+        file_url: rendered.url,
+        file_type: "video",
+        duration_seconds: Math.round(rendered.durationSeconds),
+        status: "draft",
+        version_count: 1,
+        reviewer_count: 0,
+        reviewer_done: 0,
+        comment_count: 0,
+        created_at: new Date().toISOString(),
+        href: buildInternalDemoAssetHref(sequence.project_id, assetId),
+      },
+      ...current.assets,
+    ],
+    activity: recordActivity(current, {
+      action: "rendered_sequence",
+      actor_name: RECORD_ACTOR,
+      project_id: sequence.project_id,
+      asset_id: assetId,
+      details: { name: sequence.name, duration: `${Math.round(rendered.durationSeconds)}s` },
+    }),
+  }));
+  return { ok: true, id: assetId };
 }

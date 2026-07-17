@@ -24,6 +24,7 @@ const PUBLIC_EXACT_ROUTES = [
 const PUBLIC_ROUTE_PREFIXES = [
   "/api/auth",
   "/api/health",
+  "/api/render", // local demo sequence render; production is gated by the API launch gate + the route's demo-root guard
   "/api/review", // public review API
   "/review", // public review portal
   "/download", // public download links

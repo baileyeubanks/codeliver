@@ -10,6 +10,7 @@ import {
   createSequenceFromSelects,
   dispatchNotificationOutbox,
   recordMilestonePayment,
+  renderSequenceToAsset,
   saveBrief,
   saveDeliverable,
   saveProposal,
@@ -551,6 +552,7 @@ export function SequencesSection({ projectId, demoMode, onNotice }: SectionProps
   );
   const [picked, setPicked] = useState<ReadonlySet<string>>(new Set());
   const [name, setName] = useState("");
+  const [renderingId, setRenderingId] = useState<string | null>(null);
 
   if (!demoMode) return <SectionEmpty title="Sequences" body="Sequences are available in the local workspace." />;
 
@@ -578,6 +580,20 @@ export function SequencesSection({ projectId, demoMode, onNotice }: SectionProps
   function review(id: string) {
     const result = setSequenceStatus(id, "in_review");
     onNotice(result.ok ? "Sequence sent to review." : result.reason);
+  }
+
+  async function renderForReview(sequence: (typeof sequences)[number]) {
+    setRenderingId(sequence.id);
+    try {
+      const result = await renderSequenceToAsset(sequence.id);
+      onNotice(
+        result.ok
+          ? "Render complete — the review asset is in project Media, ready to share."
+          : result.reason,
+      );
+    } finally {
+      setRenderingId(null);
+    }
   }
 
   function makeSelectFromSegment(assetId: string, segmentId: string, start: number, end: number, text: string) {
@@ -653,6 +669,9 @@ export function SequencesSection({ projectId, demoMode, onNotice }: SectionProps
                   </small>
                 </div>
                 <span className={sequence.status === "approved" ? "status-active" : "status-pending"}>{sequence.status.replace("_", " ")}</span>
+                <button type="button" disabled={renderingId === sequence.id || clips.length === 0} onClick={() => void renderForReview(sequence)}>
+                  {renderingId === sequence.id ? "Rendering…" : "Render to review"}
+                </button>
                 {sequence.status === "draft" ? <button type="button" onClick={() => review(sequence.id)}>Send to review</button> : null}
               </article>
               <SequenceTimeline

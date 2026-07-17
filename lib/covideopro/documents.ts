@@ -15,7 +15,7 @@
 
 import {
   estimateLineTotal,
-  proposalEstimateTotal,
+  proposalTotals,
   type Contact,
   type EstimateLine,
   type Organization,
@@ -76,13 +76,14 @@ export interface DocumentTotals {
   currency: string;
 }
 
-/** Money is integer cents, derived from the proposal's own estimate lines. */
+/** Money is integer cents via the record's own `proposalTotals` (per-line
+ * rounding, then discount, then tax) — the document layer never re-derives. */
 export function documentTotals(
-  proposal: Pick<Proposal, "estimate_lines">,
+  proposal: Pick<Proposal, "estimate_lines"> & Partial<Pick<Proposal, "discount_pct" | "tax_pct">>,
   currency = "USD",
 ): DocumentTotals {
-  const requiredCents = Math.round(proposalEstimateTotal(proposal.estimate_lines) * 100);
-  const withOptionalCents = Math.round(proposalEstimateTotal(proposal.estimate_lines, { includeOptional: true }) * 100);
+  const requiredCents = proposalTotals(proposal).totalCents;
+  const withOptionalCents = proposalTotals(proposal, { includeOptional: true }).totalCents;
   return { requiredCents, optionalCents: withOptionalCents - requiredCents, currency };
 }
 

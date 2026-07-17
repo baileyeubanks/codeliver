@@ -5327,6 +5327,11 @@ a { color: inherit; text-decoration: none; }
 .cockpit-record-group-title { margin-top: 18px; color: var(--cockpit-ink); font-size: 12px; font-weight: 700; }
 .cockpit-record-form-actions button[disabled] { opacity: 0.45; cursor: not-allowed; }
 
+/* Document layer lightbox (Gen-3 quote cover / invoice preview + print) */
+.cockpit-doc-lightbox { position: fixed; inset: 0; z-index: 190; display: grid; grid-template-rows: auto minmax(0, 1fr); gap: 10px; padding: 16px 20px 20px; background: rgba(21, 34, 58, 0.46); backdrop-filter: blur(5px); }
+.cockpit-doc-lightbox-bar { display: flex; align-items: center; gap: 10px; width: min(960px, 100%); margin: 0 auto; padding: 8px 12px; border: 1px solid var(--cockpit-border); border-radius: 8px; background: var(--cockpit-panel); color: var(--cockpit-ink); font-size: 11px; }
+.cockpit-doc-frame { width: min(960px, 100%); height: 100%; margin: 0 auto; border: 1px solid var(--cockpit-border); border-radius: 8px; background: #34383f; }
+
 /* ── Metronic Wave 1 port (COVIDEOPRO_METRONIC_PORT_PLAN.md) ─────────────────
    Token architecture adapted from metronic-tailwind-html-starter-kit
    (config.ktui.css, range.css, scrollable.css), re-keyed to Co‑ProVideo
@@ -5890,3 +5895,45 @@ body {
 .cockpit-recent-assets small { color: var(--cockpit-muted); font-size: 8.5px; text-transform: capitalize; }
 
 /* reel-rebuild-nudge */
+
+/* Estimate line editor (ROOT money-console pattern port — docs/COVIDEOPRO_CCO_UNIVERSE_ADOPTION.md §O/§G) */
+.estimate-editor { display: flex; align-items: flex-start; gap: 12px; }
+.estimate-editor-main { flex: 1; min-width: 0; display: grid; gap: 10px; }
+.estimate-editor-toolbar { display: flex; align-items: center; gap: 8px; }
+.estimate-editor-toolbar button { display: inline-flex; align-items: center; gap: 6px; min-height: 30px; padding: 0 11px; border: 1px solid var(--cockpit-border); border-radius: 6px; background: var(--cockpit-panel); color: var(--cockpit-accent); font-size: 10px; font-weight: 650; }
+.estimate-editor-toolbar button[data-active] { border-color: var(--cockpit-accent); background: var(--accent-dim); }
+.estimate-editor-hint { margin-left: auto; color: var(--cockpit-muted); font-size: 9px; }
+.estimate-editor-table th:nth-child(3), .estimate-editor-table th:nth-child(4), .estimate-editor-table th:nth-child(5), .estimate-editor-table th:nth-child(6) { text-align: right; }
+.estimate-editor-num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.estimate-editor-center { text-align: center; }
+.estimate-editor-value { display: block; width: 100%; padding: 5px 6px; border: 1px solid transparent; border-radius: 5px; background: transparent; color: inherit; font: inherit; text-align: inherit; cursor: text; }
+.estimate-editor-value:hover { background: var(--accent-dim); }
+.estimate-editor-input { width: 100%; padding: 4px 6px; border: 1px solid var(--cockpit-accent); border-radius: 5px; background: var(--cockpit-canvas); color: var(--cockpit-ink); font: inherit; }
+.estimate-editor-select { max-width: 118px; padding: 4px 5px; border: 1px solid var(--cockpit-border); border-radius: 5px; background: var(--cockpit-canvas); color: var(--cockpit-copy); font: inherit; font-size: 10px; }
+.estimate-editor-line-total { color: var(--cockpit-ink); font-weight: 650; }
+.estimate-editor-remove { display: inline-flex; align-items: center; justify-content: center; width: 22px; height: 22px; border: 1px solid transparent; border-radius: 5px; background: transparent; color: var(--cockpit-muted); }
+.estimate-editor-remove:hover { border-color: var(--cockpit-border); color: var(--cockpit-ink); background: var(--accent-dim); }
+.estimate-editor-empty { color: var(--cockpit-muted); text-align: center; }
+.estimate-editor-totals { display: grid; gap: 4px; justify-self: end; min-width: 280px; padding-top: 4px; }
+.estimate-editor-totals > div { display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 18px; color: var(--cockpit-copy); font-size: 10px; }
+.estimate-editor-totals .estimate-editor-grand { padding-top: 5px; border-top: 1px solid var(--cockpit-border); color: var(--cockpit-ink); font-weight: 700; }
+.estimate-editor-totals .estimate-editor-optional { color: var(--cockpit-muted); }
+.estimate-editor-micro { width: 52px; padding: 2px 5px; border: 1px solid var(--cockpit-border); border-radius: 5px; background: var(--cockpit-canvas); color: var(--cockpit-ink); font: inherit; font-variant-numeric: tabular-nums; text-align: right; }
+.estimate-editor-micro:hover { border-color: var(--cockpit-accent); }
+.estimate-editor-micro[aria-invalid="true"] { border-color: #d96a5f; }
+.estimate-editor-savebar { display: flex; align-items: center; gap: 10px; padding: 9px 12px; border: 1px solid var(--cockpit-accent); border-radius: 7px; background: var(--accent-dim); }
+.estimate-editor-savebar button { display: inline-flex; align-items: center; gap: 6px; min-height: 30px; padding: 0 11px; border: 1px solid var(--cockpit-border); border-radius: 6px; background: var(--cockpit-panel); color: var(--cockpit-accent); font-size: 10px; font-weight: 650; }
+.estimate-editor-savebar button:first-child { background: var(--cockpit-accent); border-color: var(--cockpit-accent); color: #fff; }
+.estimate-editor-savebar span { color: var(--cockpit-muted); font-size: 9px; }
+.estimate-editor-catalog { flex: none; width: 240px; overflow: hidden; opacity: 1; transition: width 0.18s ease, opacity 0.18s ease, margin-left 0.18s ease; }
+.estimate-editor-catalog[data-open="false"] { width: 0; margin-left: -12px; opacity: 0; pointer-events: none; }
+.estimate-editor-catalog-inner { display: grid; gap: 8px; width: 240px; max-height: 440px; padding: 10px; overflow-y: auto; border: 1px solid var(--cockpit-border); border-radius: 8px; background: var(--cockpit-panel); }
+.estimate-editor-catalog-inner > header { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.estimate-editor-catalog-inner > header strong { color: var(--cockpit-ink); font-size: 10px; }
+.estimate-editor-catalog-inner > header button { display: inline-flex; align-items: center; padding: 3px; border: 1px solid var(--cockpit-border); border-radius: 5px; background: transparent; color: var(--cockpit-muted); }
+.estimate-editor-catalog-group { margin: 6px 0 3px; color: var(--cockpit-muted); font-size: 9px; font-weight: 650; text-transform: uppercase; letter-spacing: 0.08em; }
+.estimate-editor-catalog-item { display: grid; gap: 2px; width: 100%; padding: 6px 8px; border: 1px solid transparent; border-radius: 6px; background: transparent; text-align: left; }
+.estimate-editor-catalog-item:hover { border-color: var(--cockpit-border); background: var(--accent-dim); }
+.estimate-editor-catalog-item strong { color: var(--cockpit-copy); font-size: 10px; font-weight: 650; }
+.estimate-editor-catalog-item small { color: var(--cockpit-muted); font-size: 9px; font-variant-numeric: tabular-nums; }
+.estimate-editor-catalog-empty { color: var(--cockpit-muted); font-size: 9.5px; line-height: 1.5; }

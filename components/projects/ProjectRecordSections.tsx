@@ -1,7 +1,7 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import { Check, FileText, Flag, Lightbulb, ListChecks, PackageCheck, Plus, X } from "lucide-react";
+import { useMemo, useRef, useState } from "react";
+import { Check, FileText, Flag, Lightbulb, ListChecks, PackageCheck, Plus, Printer, X } from "lucide-react";
 import {
   addPlanItem,
   addRevisionRequest,
@@ -31,15 +31,17 @@ import {
 } from "@/lib/demo/workspace-store";
 import { seedTranscriptSegments } from "@/lib/demo/record-seed";
 import { formatCents } from "@/lib/covideopro/payments.ts";
+import { documentTotals, renderInvoice, renderQuoteCover } from "@/lib/covideopro/documents.ts";
 import { proposeRadioCut } from "@/lib/covideopro/reasoning.ts";
 import { captionsFilename, segmentsToSrt, segmentsToVtt } from "@/lib/covideopro/captions.ts";
 import SequenceTimeline from "@/components/projects/SequenceTimeline";
+import EstimateLineEditor from "@/components/projects/EstimateLineEditor";
 import {
   currentBrief,
   currentProposal,
   estimateLineTotal,
   proposalEstimateTotal,
-  type EstimateCategory,
+  proposalTotals,
   type PlanItem,
 } from "@/lib/covideopro/record.ts";
 
@@ -180,8 +182,6 @@ export function CreativeSection({ projectId, demoMode, onNotice }: SectionProps)
 
 /* ------------------------------- Proposal ---------------------------------- */
 
-const ESTIMATE_CATEGORIES: EstimateCategory[] = ["crew", "equipment", "travel", "post", "deliverable", "other"];
-
 export function ProposalSection({ projectId, demoMode, onNotice }: SectionProps) {
   const workspace = useDemoWorkspace();
   const proposals = useMemo(
@@ -191,13 +191,30 @@ export function ProposalSection({ projectId, demoMode, onNotice }: SectionProps)
   const proposal = currentProposal(proposals);
   const [editing, setEditing] = useState(false);
   const [form, setForm] = useState({ title: "", narrative: "" });
-  const [lineForm, setLineForm] = useState({ category: "crew" as EstimateCategory, description: "", quantity: "1", unitRate: "", markup: "0", optional: false });
+  const [docView, setDocView] = useState<{ kind: "quote" } | { kind: "invoice"; milestoneId: string } | null>(null);
+  const docFrameRef = useRef<HTMLIFrameElement | null>(null);
+
+  /* Document layer (docs/COVIDEOPRO_CCO_UNIVERSE_ADOPTION.md §P): the same
+   * proposal record rendered as quote cover / invoice — never a second editor. */
+  const docHtml = useMemo(() => {
+    if (!docView || !proposal) return null;
+    const project = workspace.projects.find((candidate) => candidate.id === projectId);
+    const organization = workspace.organizations.find((candidate) => candidate.id === project?.organization_id) ?? null;
+    const contact = workspace.contacts.find((candidate) => candidate.organization_id === organization?.id && candidate.is_primary) ?? null;
+    const totals = documentTotals(proposal, workspace.paymentMilestones.find((milestone) => milestone.proposal_id === proposal.id)?.currency ?? "USD");
+    if (docView.kind === "quote") {
+      return renderQuoteCover({ proposal, organization, contact, issueDate: new Date().toISOString().slice(0, 10), totals });
+    }
+    const milestone = workspace.paymentMilestones.find((candidate) => candidate.id === docView.milestoneId);
+    return milestone ? renderInvoice({ proposal, milestone, organization, contact, totals }) : null;
+  }, [docView, proposal, projectId, workspace.projects, workspace.organizations, workspace.contacts, workspace.paymentMilestones]);
 
   if (!demoMode) return <SectionEmpty title="Proposal" body="Proposals are available in the local workspace." />;
 
   const draftLines = proposal?.estimate_lines ?? [];
   const requiredTotal = proposalEstimateTotal(draftLines);
   const optionalTotal = proposalEstimateTotal(draftLines.filter((line) => line.optional));
+  const adjustedTotals = proposal && (proposal.discount_pct > 0 || proposal.tax_pct > 0) ? proposalTotals(proposal) : null;
 
   function startEdit() {
     setForm({ title: proposal?.title ?? "", narrative: proposal?.narrative ?? "" });
@@ -220,42 +237,30 @@ export function ProposalSection({ projectId, demoMode, onNotice }: SectionProps)
     onNotice(proposal ? `Proposal v${proposal.version + 1} drafted.` : "Proposal v1 drafted.");
   }
 
-  function addLine() {
-    if (!proposal) {
-      onNotice("Draft the proposal first, then add estimate lines.");
-      return;
-    }
-    const quantity = Number(lineForm.quantity);
-    const unitRate = Number(lineForm.unitRate);
-    const markup = Number(lineForm.markup);
-    if (!lineForm.description.trim() || !Number.isFinite(quantity) || quantity <= 0 || !Number.isFinite(unitRate) || unitRate < 0) {
-      onNotice("Estimate line needs a description, positive quantity, and a non-negative rate.");
-      return;
-    }
-    const result = saveProposal({
-      projectId,
-      title: proposal.title,
-      narrative: proposal.narrative,
-      estimateLines: [
-        ...proposal.estimate_lines,
-        { id: `el-${Date.now()}`, category: lineForm.category, description: lineForm.description.trim(), quantity, unit_rate: unitRate, markup_pct: Number.isFinite(markup) ? markup : 0, optional: lineForm.optional },
-      ],
-      validUntil: proposal.valid_until,
-    });
-    if (!result.ok) {
-      onNotice(result.reason);
-      return;
-    }
-    setLineForm({ category: "crew", description: "", quantity: "1", unitRate: "", markup: "0", optional: false });
-    onNotice("Estimate line added (new proposal version).");
-  }
-
   function transition(to: "in_review" | "sent" | "approved") {
     if (!proposal) return;
     const project = workspace.projects.find((candidate) => candidate.id === projectId);
     const contact = workspace.contacts.find((candidate) => candidate.organization_id === project?.organization_id && candidate.is_primary);
     const result = setProposalStatus(proposal.id, to, to === "approved" ? contact?.email ?? "" : undefined);
     onNotice(result.ok ? `Proposal ${to.replace("_", " ")}.` : result.reason);
+  }
+
+  function openInvoice() {
+    if (!proposal) return;
+    const milestones = workspace.paymentMilestones.filter((milestone) => milestone.proposal_id === proposal.id);
+    const target = milestones.find((milestone) => milestone.status === "pending" || milestone.status === "checkout_created") ?? milestones[milestones.length - 1];
+    if (!target) {
+      onNotice("Invoice renders against a payment milestone — record client approval to schedule deposit + balance first.");
+      return;
+    }
+    setDocView({ kind: "invoice", milestoneId: target.id });
+  }
+
+  function printDocument() {
+    const frame = docFrameRef.current;
+    if (!frame?.contentWindow) return;
+    frame.contentWindow.focus();
+    frame.contentWindow.print();
   }
 
   return (
@@ -304,27 +309,38 @@ export function ProposalSection({ projectId, demoMode, onNotice }: SectionProps)
           </header>
           {proposal.narrative ? <p className="cockpit-record-narrative">{proposal.narrative}</p> : null}
 
-          <table className="cockpit-record-table">
-            <thead>
-              <tr><th>Category</th><th>Description</th><th>Qty</th><th>Rate</th><th>Markup</th><th>Total</th></tr>
-            </thead>
-            <tbody>
-              {proposal.estimate_lines.map((line) => (
-                <tr key={line.id} data-optional={line.optional || undefined}>
-                  <td>{line.category}</td>
-                  <td>{line.description}{line.optional ? " (optional)" : ""}</td>
-                  <td>{line.quantity}</td>
-                  <td>${line.unit_rate.toLocaleString()}</td>
-                  <td>{line.markup_pct}%</td>
-                  <td>${estimateLineTotal(line).toLocaleString(undefined, { maximumFractionDigits: 0 })}</td>
-                </tr>
-              ))}
-            </tbody>
-            <tfoot>
-              <tr><td colSpan={5}>Required total</td><td>${requiredTotal.toLocaleString(undefined, { maximumFractionDigits: 0 })}</td></tr>
-              {optionalTotal > 0 ? <tr><td colSpan={5}>Optional add-ons</td><td>${optionalTotal.toLocaleString(undefined, { maximumFractionDigits: 0 })}</td></tr> : null}
-            </tfoot>
-          </table>
+          {proposal.status === "draft" ? (
+            <EstimateLineEditor key={`${proposal.id}-v${proposal.version}`} proposal={proposal} onNotice={onNotice} />
+          ) : (
+            <table className="cockpit-record-table">
+              <thead>
+                <tr><th>Category</th><th>Description</th><th>Qty</th><th>Rate</th><th>Markup</th><th>Total</th></tr>
+              </thead>
+              <tbody>
+                {proposal.estimate_lines.map((line) => (
+                  <tr key={line.id} data-optional={line.optional || undefined}>
+                    <td>{line.category}</td>
+                    <td>{line.description}{line.optional ? " (optional)" : ""}</td>
+                    <td>{line.quantity}</td>
+                    <td>${line.unit_rate.toLocaleString()}</td>
+                    <td>{line.markup_pct}%</td>
+                    <td>${estimateLineTotal(line).toLocaleString(undefined, { maximumFractionDigits: 0 })}</td>
+                  </tr>
+                ))}
+              </tbody>
+              <tfoot>
+                <tr><td colSpan={5}>Required total</td><td>${requiredTotal.toLocaleString(undefined, { maximumFractionDigits: 0 })}</td></tr>
+                {optionalTotal > 0 ? <tr><td colSpan={5}>Optional add-ons</td><td>${optionalTotal.toLocaleString(undefined, { maximumFractionDigits: 0 })}</td></tr> : null}
+                {adjustedTotals ? (
+                  <>
+                    <tr><td colSpan={5}>Discount ({proposal.discount_pct}%)</td><td>{formatCents(-adjustedTotals.discountCents)}</td></tr>
+                    <tr><td colSpan={5}>Tax ({proposal.tax_pct}%)</td><td>{formatCents(adjustedTotals.taxCents)}</td></tr>
+                    <tr><td colSpan={5}>Total after adjustments</td><td>{formatCents(adjustedTotals.totalCents)}</td></tr>
+                  </>
+                ) : null}
+              </tfoot>
+            </table>
+          )}
 
           {proposal.approved_by ? (
             <>
@@ -333,27 +349,34 @@ export function ProposalSection({ projectId, demoMode, onNotice }: SectionProps)
             </>
           ) : null}
 
-          {proposal.status === "draft" ? (
-            <form className="cockpit-record-form" aria-label="Add estimate line" onSubmit={(event) => { event.preventDefault(); addLine(); }}>
-              <div className="cockpit-record-form-grid five">
-                <select className="input" value={lineForm.category} onChange={(event) => setLineForm((current) => ({ ...current, category: event.target.value as EstimateCategory }))} aria-label="Category">
-                  {ESTIMATE_CATEGORIES.map((category) => <option key={category} value={category}>{category}</option>)}
-                </select>
-                <input className="input" placeholder="Description" value={lineForm.description} onChange={(event) => setLineForm((current) => ({ ...current, description: event.target.value }))} aria-label="Description" />
-                <input className="input" placeholder="Qty" inputMode="numeric" value={lineForm.quantity} onChange={(event) => setLineForm((current) => ({ ...current, quantity: event.target.value }))} aria-label="Quantity" />
-                <input className="input" placeholder="Rate $" inputMode="decimal" value={lineForm.unitRate} onChange={(event) => setLineForm((current) => ({ ...current, unitRate: event.target.value }))} aria-label="Unit rate" />
-                <input className="input" placeholder="Markup %" inputMode="numeric" value={lineForm.markup} onChange={(event) => setLineForm((current) => ({ ...current, markup: event.target.value }))} aria-label="Markup percent" />
-              </div>
-              <div className="cockpit-record-form-actions">
-                <button type="submit"><Plus size={15} /> Add line</button>
-                <label className="cockpit-record-check"><input type="checkbox" checked={lineForm.optional} onChange={(event) => setLineForm((current) => ({ ...current, optional: event.target.checked }))} /> Optional line</label>
-              </div>
-            </form>
-          ) : null}
+          <section className="cockpit-record-card" style={{ marginTop: 4 }} aria-label="Documents">
+            <header className="cockpit-record-card-head">
+              <strong>Documents</strong>
+              <span className="demo-pill">one estimate · two views</span>
+              <span className="cockpit-record-actions">
+                <button type="button" onClick={() => setDocView({ kind: "quote" })}>Quote cover</button>
+                <button type="button" onClick={openInvoice}>Invoice</button>
+              </span>
+            </header>
+            <p className="cockpit-rail-empty" style={{ paddingTop: 0 }}>Print-ready renders of this same proposal record — a dark cinematic quote cover, and an invoice against a payment milestone. Never a second editor.</p>
+          </section>
         </section>
       ) : (
         <SectionEmpty title="No proposal yet" body="Draft a proposal with a real estimate — versioned lines, approval gates, and a direct handoff to pre-production." />
       )}
+
+      {docView && docHtml ? (
+        <div className="cockpit-doc-lightbox" role="dialog" aria-modal="true" aria-label={docView.kind === "quote" ? "Quote cover preview" : "Invoice preview"}>
+          <div className="cockpit-doc-lightbox-bar">
+            <strong>{docView.kind === "quote" ? "Quote cover" : "Invoice"}</strong>
+            <span className="cockpit-record-actions">
+              <button type="button" onClick={printDocument}><Printer size={14} /> Print / Save PDF</button>
+              <button type="button" onClick={() => setDocView(null)}><X size={14} /> Close</button>
+            </span>
+          </div>
+          <iframe ref={docFrameRef} title="Document print preview" srcDoc={docHtml} className="cockpit-doc-frame" />
+        </div>
+      ) : null}
     </>
   );
 }

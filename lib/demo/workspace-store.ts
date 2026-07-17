@@ -26,6 +26,8 @@ import {
   type Contact,
   type Decision,
   type Deliverable,
+  type DiscoveryAnswer,
+  type DiscoverySession,
   type Inquiry,
   type NotificationOutboxItem,
   type Organization,
@@ -65,6 +67,11 @@ import {
   validateSequenceClip,
 } from "@/lib/covideopro/transitions.ts";
 import { buildMilestonesForApproval, mockCheckoutUrl } from "@/lib/covideopro/payments.ts";
+import {
+  DISCOVERY_QUESTIONS,
+  nextDiscoveryQuestion,
+  normalizeDiscovery,
+} from "@/lib/covideopro/discovery.ts";
 import { buildConcatPlan } from "@/lib/covideopro/render-plan.ts";
 import {
   buildReviewLinkDrafts,
@@ -79,6 +86,8 @@ import {
   seedCrewMembers,
   seedDecisions,
   seedDeliverables,
+  seedDiscoveryAnswers,
+  seedDiscoverySessions,
   seedInquiries,
   seedLocations,
   seedNotificationOutbox,
@@ -272,6 +281,8 @@ export interface DemoWorkspaceState {
   locations: Location[];
   releases: Release[];
   callSheets: CallSheet[];
+  discoverySessions: DiscoverySession[];
+  discoveryAnswers: DiscoveryAnswer[];
 }
 
 export interface CreateDemoShareInput {
@@ -619,6 +630,8 @@ export function createInitialDemoWorkspace(): DemoWorkspaceState {
     locations: seedLocations.map((record) => ({ ...record, cleared_to_film: [...record.cleared_to_film], restricted: [...record.restricted] })),
     releases: seedReleases.map((record) => ({ ...record, production_day_ids: [...record.production_day_ids] })),
     callSheets: seedCallSheets.map((record) => ({ ...record })),
+    discoverySessions: seedDiscoverySessions.map((record) => ({ ...record })),
+    discoveryAnswers: seedDiscoveryAnswers.map((record) => ({ ...record })),
   };
 }
 
@@ -729,6 +742,8 @@ export function restoreDemoWorkspace(raw: string | null): DemoWorkspaceState {
       locations: mergeSeededRecords(parsed.locations, fallback.locations),
       releases: mergeSeededRecords(parsed.releases, fallback.releases),
       callSheets: mergeSeededRecords(parsed.callSheets, fallback.callSheets),
+      discoverySessions: mergeSeededRecords(parsed.discoverySessions, fallback.discoverySessions),
+      discoveryAnswers: mergeSeededRecords(parsed.discoveryAnswers, fallback.discoveryAnswers),
       settings: {
         profile: { ...fallback.settings.profile, ...savedSettings?.profile },
         appearance: { ...fallback.settings.appearance, ...savedSettings?.appearance },
@@ -2811,4 +2826,126 @@ export function setDecisionImplementation(
     activity: recordActivity(state, { action: `decision_${to}`, actor_name: RECORD_ACTOR, project_id: decision.project_id, details: { subject: decision.subject.slice(0, 60) } }),
   }));
   return { ok: true, id };
+}
+
+/* --------------------------- Adaptive Discovery ------------------------------ */
+
+export function startDiscovery(inquiryId: string): RecordMutationResult {
+  const state = getSnapshot();
+  const inquiry = state.inquiries.find((candidate) => candidate.id === inquiryId);
+  if (!inquiry) return { ok: false, reason: "Inquiry not found." };
+  const existing = state.discoverySessions.find(
+    (candidate) => candidate.inquiry_id === inquiryId && candidate.status === "in_progress",
+  );
+  if (existing) return { ok: true, id: existing.id };
+
+  const id = createId("discovery");
+  const now = new Date().toISOString();
+  updateState((current) => ({
+    ...current,
+    discoverySessions: [
+      ...current.discoverySessions,
+      { id, inquiry_id: inquiryId, status: "in_progress" as const, created_at: now, updated_at: now, created_by: "user-bailey" },
+    ],
+    activity: recordActivity(current, { action: "started_discovery", actor_name: RECORD_ACTOR, project_id: inquiry.project_id ?? "", details: { inquiry: inquiry.summary.slice(0, 60) } }),
+  }));
+  return { ok: true, id };
+}
+
+export function answerDiscoveryQuestion(input: {
+  sessionId: string;
+  questionId: string;
+  rawText?: string;
+  status: DiscoveryAnswer["status"];
+  confidence?: DiscoveryAnswer["confidence"];
+  stakeholder?: string | null;
+}): RecordMutationResult {
+  const state = getSnapshot();
+  const session = state.discoverySessions.find((candidate) => candidate.id === input.sessionId);
+  if (!session) return { ok: false, reason: "Discovery session not found." };
+  if (session.status !== "in_progress") return { ok: false, reason: `Discovery is ${session.status}.` };
+  if (!DISCOVERY_QUESTIONS.some((question) => question.id === input.questionId)) {
+    return { ok: false, reason: "Unknown discovery question." };
+  }
+  if (input.status === "answered" && !(input.rawText ?? "").trim()) {
+    return { ok: false, reason: "Write the answer, or mark it unknown — both are honest." };
+  }
+
+  const id = createId("answer");
+  const now = new Date().toISOString();
+  updateState((current) => ({
+    ...current,
+    discoveryAnswers: [
+      ...current.discoveryAnswers.filter(
+        (candidate) => !(candidate.session_id === input.sessionId && candidate.question_id === input.questionId),
+      ),
+      {
+        id,
+        session_id: input.sessionId,
+        question_id: input.questionId,
+        raw_text: input.status === "answered" ? (input.rawText ?? "").trim() : "",
+        status: input.status,
+        confidence: input.confidence ?? "medium",
+        stakeholder: input.stakeholder ?? null,
+        created_at: now,
+        updated_at: now,
+        created_by: "user-bailey",
+      },
+    ],
+    discoverySessions: current.discoverySessions.map((candidate) =>
+      candidate.id === input.sessionId ? { ...candidate, updated_at: now } : candidate,
+    ),
+  }));
+  return { ok: true, id };
+}
+
+/** Complete the session; if the inquiry converted, seed the brief from it. */
+export function completeDiscovery(sessionId: string): RecordMutationResult {
+  const state = getSnapshot();
+  const session = state.discoverySessions.find((candidate) => candidate.id === sessionId);
+  if (!session) return { ok: false, reason: "Discovery session not found." };
+  if (session.status === "complete") return { ok: true, id: sessionId };
+
+  const now = new Date().toISOString();
+  updateState((current) => ({
+    ...current,
+    discoverySessions: current.discoverySessions.map((candidate) =>
+      candidate.id === sessionId ? { ...candidate, status: "complete" as const, updated_at: now } : candidate,
+    ),
+    activity: recordActivity(current, { action: "completed_discovery", actor_name: RECORD_ACTOR, project_id: state.inquiries.find((inquiry) => inquiry.id === session.inquiry_id)?.project_id ?? "" }),
+  }));
+
+  const inquiry = state.inquiries.find((candidate) => candidate.id === session.inquiry_id);
+  if (inquiry?.project_id) {
+    const normalized = normalizeDiscovery(
+      DISCOVERY_QUESTIONS,
+      getSnapshot().discoveryAnswers.filter((answer) => answer.session_id === sessionId),
+    );
+    if (normalized.objectives) {
+      saveBrief({
+        projectId: inquiry.project_id,
+        objectives: normalized.objectives,
+        audience: normalized.audience,
+        message: normalized.message,
+        references: normalized.references,
+        deliverablesNotes: normalized.deliverables_notes,
+      });
+    }
+  }
+  return { ok: true, id: sessionId };
+}
+
+export function getDiscoveryForInquiry(inquiryId: string) {
+  const state = getSnapshot();
+  const session = state.discoverySessions.find(
+    (candidate) => candidate.inquiry_id === inquiryId && candidate.status !== "abandoned",
+  );
+  if (!session) return null;
+  const answers = state.discoveryAnswers.filter((answer) => answer.session_id === session.id);
+  return {
+    session,
+    answers,
+    normalized: normalizeDiscovery(DISCOVERY_QUESTIONS, answers),
+    next: nextDiscoveryQuestion(DISCOVERY_QUESTIONS, answers),
+  };
 }

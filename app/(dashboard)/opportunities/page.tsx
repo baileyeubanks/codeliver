@@ -15,12 +15,16 @@ import {
 import { useDemoMode } from "@/lib/demo/mode";
 import {
   addInquiry,
+  answerDiscoveryQuestion,
+  completeDiscovery,
   convertInquiryToProject,
   setInquiryStatus,
   setProposalStatus,
+  startDiscovery,
   useDemoWorkspace,
 } from "@/lib/demo/workspace-store";
-import { proposalEstimateTotal, type Inquiry } from "@/lib/covideopro/record.ts";
+import { DISCOVERY_QUESTIONS } from "@/lib/covideopro/discovery.ts";
+import { proposalEstimateTotal, type DiscoverySession, type Inquiry } from "@/lib/covideopro/record.ts";
 import { withWorkspaceQuery } from "@/components/navigation/navigation-model";
 
 const INQUIRY_STATUS_LABEL: Record<Inquiry["status"], string> = {
@@ -226,6 +230,7 @@ export default function OpportunitiesPage() {
                       <button type="button" className="btn btn-ghost" onClick={() => actOnInquiry(inquiry.id, "declined")}>Decline</button>
                     </div>
                   )}
+                  <DiscoveryBlock inquiry={inquiry} onNotice={flash} />
                 </article>
               );
             })
@@ -320,6 +325,116 @@ export default function OpportunitiesPage() {
             );
           })}
         </aside>
+      </div>
+    </div>
+  );
+}
+
+/* ------------------------- Adaptive Discovery UI ----------------------------- */
+
+function DiscoveryBlock({ inquiry, onNotice }: { inquiry: Inquiry; onNotice: (message: string) => void }) {
+  const workspace = useDemoWorkspace();
+  const [draft, setDraft] = useState("");
+  const [confidence, setConfidence] = useState<"high" | "medium" | "low">("medium");
+
+  const session = workspace.discoverySessions.find(
+    (candidate) => candidate.inquiry_id === inquiry.id && candidate.status !== "abandoned",
+  );
+  const answers = session ? workspace.discoveryAnswers.filter((answer) => answer.session_id === session.id) : [];
+  const answeredIds = new Set(answers.filter((answer) => answer.status === "answered").map((answer) => answer.question_id));
+  const closedIds = new Set(answers.filter((answer) => answer.status !== "conflicted").map((answer) => answer.question_id));
+  const next = DISCOVERY_QUESTIONS.find((question) => !closedIds.has(question.id)) ?? null;
+  const unknownCount = answers.filter((answer) => answer.status !== "answered").length;
+
+  if (!session) {
+    return (
+      <div className="mt-3">
+        <button type="button" className="btn btn-ghost" onClick={() => {
+          const result = startDiscovery(inquiry.id);
+          onNotice(result.ok ? "Discovery started — one question at a time." : result.reason);
+        }}>
+          Start adaptive discovery
+        </button>
+      </div>
+    );
+  }
+
+  if (session.status === "complete") {
+    const missing = DISCOVERY_QUESTIONS.filter((question) => !answeredIds.has(question.id));
+    return (
+      <div className="mt-3 rounded-lg border border-[var(--border)] bg-[var(--surface)] p-3">
+        <p className="text-xs font-semibold text-[var(--ink)]">
+          Discovery complete · {answeredIds.size} of {DISCOVERY_QUESTIONS.length} answered
+          {unknownCount > 0 ? ` · ${unknownCount} marked unknown/conflicted` : ""}
+        </p>
+        {missing.length > 0 ? (
+          <p className="mt-1 text-xs text-[var(--muted)]">
+            Missing: {missing.map((question) => question.field).join(", ")} — flagged, not hidden.
+          </p>
+        ) : null}
+      </div>
+    );
+  }
+
+  const question = next;
+  if (!question) {
+    return (
+      <div className="mt-3 rounded-lg border border-[var(--border)] bg-[var(--surface)] p-3">
+        <p className="text-xs font-semibold text-[var(--ink)]">All {DISCOVERY_QUESTIONS.length} questions answered.</p>
+        <button type="button" className="btn btn-primary mt-2" onClick={() => {
+          const result = completeDiscovery(session.id);
+          onNotice(result.ok ? "Discovery complete — normalized into the record." : result.reason);
+        }}>
+          Complete discovery
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="mt-3 rounded-lg border border-[var(--border)] bg-[var(--surface)] p-3" aria-label="Adaptive discovery">
+      <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--muted)]">
+        Discovery · {answeredIds.size + 1} of {DISCOVERY_QUESTIONS.length}
+      </p>
+      <p className="mt-1 text-sm font-semibold text-[var(--ink)]">{question.question}</p>
+      <p className="mt-1 text-xs italic text-[var(--muted)]">Why this matters: {question.why}</p>
+      <textarea
+        className="input mt-2 w-full"
+        rows={2}
+        placeholder="Type the answer, or choose Unknown below…"
+        value={draft}
+        onChange={(event) => setDraft(event.target.value)}
+        aria-label={`Answer for ${question.field}`}
+      />
+      <div className="mt-2 flex flex-wrap items-center gap-2">
+        <select className="input" style={{ width: "auto" }} value={confidence} onChange={(event) => setConfidence(event.target.value as typeof confidence)} aria-label="Confidence">
+          <option value="high">high confidence</option>
+          <option value="medium">medium confidence</option>
+          <option value="low">low confidence</option>
+        </select>
+        <button type="button" className="btn btn-primary" onClick={() => {
+          const result = answerDiscoveryQuestion({ sessionId: session.id, questionId: question.id, rawText: draft, status: "answered", confidence });
+          if (!result.ok) {
+            onNotice(result.reason);
+            return;
+          }
+          setDraft("");
+          onNotice("Answer recorded.");
+        }}>
+          Save answer
+        </button>
+        <button type="button" className="btn btn-ghost" onClick={() => {
+          const result = answerDiscoveryQuestion({ sessionId: session.id, questionId: question.id, status: "unknown", confidence });
+          onNotice(result.ok ? "Marked unknown — it stays visible as a gap." : result.reason);
+        }}>
+          Unknown
+        </button>
+        <button type="button" className="btn btn-ghost" onClick={() => {
+          const result = answerDiscoveryQuestion({ sessionId: session.id, questionId: question.id, status: "conflicted", confidence });
+          onNotice(result.ok ? "Conflict noted — flagged for the brief." : result.reason);
+        }}>
+          Conflicting answers
+        </button>
       </div>
     </div>
   );

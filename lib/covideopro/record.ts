@@ -521,3 +521,30 @@ export interface CallSheet extends ProjectScoped {
   /** The generated one-page content (markdown-ish text, printable). */
   content: string;
 }
+
+/* -------------------------------------------------------------------------- */
+/* Adaptive Discovery                                                          */
+/* -------------------------------------------------------------------------- */
+
+export const DISCOVERY_SESSION_STATUSES = ["in_progress", "complete", "abandoned"] as const;
+export type DiscoverySessionStatus = (typeof DISCOVERY_SESSION_STATUSES)[number];
+
+export const DISCOVERY_ANSWER_STATUSES = ["answered", "unknown", "conflicted"] as const;
+export type DiscoveryAnswerStatus = (typeof DISCOVERY_ANSWER_STATUSES)[number];
+
+export const DISCOVERY_CONFIDENCES = ["high", "medium", "low"] as const;
+export type DiscoveryConfidence = (typeof DISCOVERY_CONFIDENCES)[number];
+
+export interface DiscoveryAnswer extends RecordBase {
+  session_id: string;
+  question_id: string;
+  raw_text: string;
+  status: DiscoveryAnswerStatus;
+  confidence: DiscoveryConfidence;
+  stakeholder: string | null;
+}
+
+export interface DiscoverySession extends RecordBase {
+  inquiry_id: string;
+  status: DiscoverySessionStatus;
+}

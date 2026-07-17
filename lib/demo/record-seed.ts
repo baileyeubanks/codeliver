@@ -14,6 +14,8 @@ import type {
   CrewMember,
   Decision,
   Deliverable,
+  DiscoveryAnswer,
+  DiscoverySession,
   Inquiry,
   Location,
   NotificationOutboxItem,
@@ -311,3 +313,14 @@ export const seedReleases: Release[] = [
 ];
 
 export const seedCallSheets: CallSheet[] = [];
+
+/* ---------------------------- Discovery seed -------------------------------- */
+
+export const seedDiscoverySessions: DiscoverySession[] = [
+  { id: "ds-wendys", inquiry_id: "inq-wendys-finalfour", status: "in_progress", created_at: "2026-07-12T14:20:00.000Z", updated_at: T3, created_by: BAILEY },
+];
+
+export const seedDiscoveryAnswers: DiscoveryAnswer[] = [
+  { id: "da-wendys-goal", session_id: "ds-wendys", question_id: "goal", raw_text: "Recap the spring tournament activation so the brand team can justify next year's spend.", status: "answered", confidence: "high", stakeholder: null, created_at: "2026-07-12T14:25:00.000Z", updated_at: "2026-07-12T14:25:00.000Z", created_by: BAILEY },
+  { id: "da-wendys-audience", session_id: "ds-wendys", question_id: "audience", raw_text: "Internal marketing leadership plus their agency of record.", status: "answered", confidence: "medium", stakeholder: null, created_at: "2026-07-12T14:31:00.000Z", updated_at: "2026-07-12T14:31:00.000Z", created_by: BAILEY },
+];

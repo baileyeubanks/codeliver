@@ -5483,11 +5483,19 @@ input[type="range"].cv-range:focus-visible {
 .cv-project-card__meta i { width: 7px; height: 7px; border-radius: 50%; background: var(--orange, #e4ad5b); }
 
 .cv-attention-list { display: grid; }
-.cv-attention-row { display: grid; grid-template-columns: 76px minmax(0, 1fr) auto; align-items: center; gap: 12px; padding: 11px 2px; border-bottom: 1px solid var(--border); text-decoration: none; }
+/* N2 exception rail: severity signal + repair verb pill */
+.cv-attention-row { display: grid; grid-template-columns: 76px minmax(0, 1fr) auto auto; align-items: center; gap: 12px; padding: 11px 2px; border-bottom: 1px solid var(--border); text-decoration: none; }
 .cv-attention-row:hover { border-bottom-color: var(--accent); }
 .cv-attention-row__kind { color: var(--muted); font-size: 10px; font-weight: 650; text-transform: uppercase; letter-spacing: 0.1em; }
+.cv-attention-row[data-severity="critical"] .cv-attention-row__kind { color: var(--signal-red); }
 .cv-attention-row__project { color: var(--accent); font-size: 11px; font-weight: 600; }
+.cv-attention-row__verb { border: 1px solid var(--border); border-radius: 999px; padding: 4px 10px; color: var(--accent); font-size: 11px; font-weight: 600; white-space: nowrap; }
+.cv-attention-row:hover .cv-attention-row__verb { border-color: var(--accent); }
 .cv-attention-row--more { grid-template-columns: 1fr auto; color: var(--accent); font-size: 12px; font-weight: 600; }
+@media (max-width: 640px) {
+  .cv-attention-row { grid-template-columns: minmax(0, 1fr) auto; }
+  .cv-attention-row__kind, .cv-attention-row__project { display: none; }
+}
 
 .cv-media-strip { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
 .cv-media-thumb { position: relative; display: block; aspect-ratio: 16/9; overflow: hidden; border-radius: 8px; background: var(--midnight, #0a0d12); }

@@ -150,7 +150,7 @@ export const seedProposals: Proposal[] = [
     tax_pct: 0,
     valid_until: "2026-08-01",
     approved_by: null, approved_at: null,
-    created_at: T2, updated_at: T3, created_by: BAILEY,
+    created_at: "2026-07-06T20:10:00.000Z", updated_at: "2026-07-08T20:10:00.000Z", created_by: BAILEY,
   },
 ];
 
@@ -160,7 +160,7 @@ export const seedPlanItems: PlanItem[] = [
   { id: "plan-bp-shoot-1", project_id: "bp", kind: "production_day", title: "Rodeo recap — day 1 (grounds + interviews)", date: "2026-07-18", assignee: "Bailey + Marcus", status: "pending", depends_on: [], meta: { location: "NRG Park", call_time: "06:30", crew: "DP, audio, PA" }, created_at: T2, updated_at: T2, created_by: BAILEY },
   { id: "plan-bp-milestone-rough", project_id: "bp", kind: "milestone", title: "Rough cut to Rachel", date: "2026-07-24", assignee: "Edit", status: "pending", depends_on: ["plan-bp-shoot-1"], meta: {}, created_at: T2, updated_at: T2, created_by: BAILEY },
   { id: "plan-bp-task-releases", project_id: "bp", kind: "task", title: "Collect appearance releases from interviewees", date: "2026-07-18", assignee: "PA", status: "in_progress", depends_on: [], meta: {}, created_at: T2, updated_at: T3, created_by: BAILEY },
-  { id: "plan-conexon-brief", project_id: "conexon", kind: "milestone", title: "Brief v2 approved by Sam", date: "2026-07-17", assignee: "Sam Delgado", status: "in_progress", depends_on: [], meta: {}, created_at: T2, updated_at: T3, created_by: BAILEY },
+  { id: "plan-conexon-brief", project_id: "conexon", kind: "milestone", title: "Brief v2 approved by Sam", date: "2026-07-15", assignee: "Sam Delgado", status: "in_progress", depends_on: [], meta: {}, created_at: T2, updated_at: T3, created_by: BAILEY },
   { id: "plan-conexon-pickup", project_id: "conexon", kind: "production_day", title: "Co-op pickup shoot (weather-dependent)", date: "2026-07-29", assignee: "Bailey", status: "pending", depends_on: ["plan-conexon-brief"], meta: { location: "Co-op service center", weather_watch: "Afternoon storms" }, created_at: T2, updated_at: T2, created_by: BAILEY },
   { id: "plan-ica-task-captions", project_id: "ica", kind: "task", title: "Caption pass on roadshow master", date: "2026-07-16", assignee: "Edit", status: "done", depends_on: [], meta: {}, created_at: T1, updated_at: T2, created_by: BAILEY },
 ];
@@ -220,7 +220,7 @@ export const seedDeliverables: Deliverable[] = [
     spec: { resolution: "1080x1920", codec: "H.264 12Mbps", aspect: "9:16", captions: true, audio: "stereo 48kHz", watermark: false },
     source_version_id: "ver-ica-final-v5", status: "qc", qc_notes: "Checking caption safe-area on 9:16 reframe.",
     delivered_at: null,
-    created_at: T1, updated_at: T3, created_by: BAILEY,
+    created_at: "2026-07-11T16:30:00.000Z", updated_at: "2026-07-13T16:30:00.000Z", created_by: BAILEY,
   },
 ];
 

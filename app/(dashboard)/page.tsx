@@ -5,89 +5,45 @@ import Link from "next/link";
 import { useMemo } from "react";
 import { ArrowRight, ArrowUpRight, Plus } from "lucide-react";
 import { PROJECT_STAGE_META, PROJECT_STAGES, type ProjectStage } from "@/lib/covideopro/record.ts";
+import { deriveExceptions, type RecordException } from "@/lib/covideopro/exceptions.ts";
 import { useDemoMode } from "@/lib/demo/mode";
 import { useDemoWorkspace } from "@/lib/demo/workspace-store";
 import { withWorkspaceQuery } from "@/components/navigation/navigation-model";
 
-interface AttentionItem {
-  id: string;
-  title: string;
-  detail: string;
-  href: string;
-  kind: "inquiry" | "proposal" | "revision" | "deliverable" | "plan";
-  projectName?: string;
-}
+const EXCEPTION_KIND_LABEL: Record<RecordException["kind"], string> = {
+  release_unsigned: "Release",
+  proposal_stale: "Proposal",
+  revision_stale: "Revision",
+  qc_stale: "Delivery",
+  plan_overdue: "Plan",
+};
 
-const KIND_LABEL = {
-  inquiry: "Inquiry",
-  proposal: "Proposal",
-  revision: "Revision",
-  deliverable: "Delivery",
-  plan: "Plan",
-} as const;
+function exceptionProjectId(exception: RecordException): string | null {
+  return exception.repair.href.match(/\/projects\/([^/?]+)/)?.[1] ?? null;
+}
 
 export default function HomePage() {
   const demoMode = useDemoMode();
   const workspace = useDemoWorkspace();
   const demoSuffix = demoMode ? "?demo=1" : "";
 
-  const attention = useMemo<AttentionItem[]>(() => {
+  const exceptions = useMemo<RecordException[]>(() => {
     if (!demoMode) return [];
-    const items: AttentionItem[] = [];
-    for (const inquiry of workspace.inquiries.filter((candidate) => candidate.status === "new" || candidate.status === "triaged")) {
-      const org = workspace.organizations.find((candidate) => candidate.id === inquiry.organization_id);
-      items.push({
-        id: `inquiry-${inquiry.id}`, kind: "inquiry",
-        title: inquiry.summary.slice(0, 80),
-        detail: `${org?.name ?? "Unassigned"} · ${inquiry.status === "new" ? "needs triage" : "triaged"}`,
-        href: "/opportunities",
-      });
-    }
-    for (const proposal of workspace.proposals.filter((candidate) => candidate.status === "sent")) {
-      const project = workspace.projects.find((candidate) => candidate.id === proposal.project_id);
-      items.push({
-        id: `proposal-${proposal.id}`, kind: "proposal",
-        title: proposal.title,
-        detail: `v${proposal.version} awaits client approval`,
-        href: `/projects/${proposal.project_id}?surface=proposal`,
-        projectName: project?.name,
-      });
-    }
-    for (const request of workspace.revisionRequests.filter((candidate) => candidate.status === "open" || candidate.status === "in_progress")) {
-      const project = workspace.projects.find((candidate) => candidate.id === request.project_id);
-      const asset = workspace.assets.find((candidate) => candidate.id === request.asset_id);
-      items.push({
-        id: `revision-${request.id}`, kind: "revision",
-        title: `Round ${request.round} — ${asset?.title ?? request.asset_id}`,
-        detail: request.summary.slice(0, 80),
-        href: `/projects/${request.project_id}?surface=reviews`,
-        projectName: project?.name,
-      });
-    }
-    for (const deliverable of workspace.deliverables.filter((candidate) => candidate.status === "qc" || candidate.status === "encoding")) {
-      const project = workspace.projects.find((candidate) => candidate.id === deliverable.project_id);
-      items.push({
-        id: `deliverable-${deliverable.id}`, kind: "deliverable",
-        title: deliverable.name,
-        detail: deliverable.status === "qc" ? "in QC" : "encoding",
-        href: `/projects/${deliverable.project_id}?surface=delivery`,
-        projectName: project?.name,
-      });
-    }
-    const horizon = new Date();
-    horizon.setDate(horizon.getDate() + 14);
-    for (const item of workspace.planItems.filter((candidate) => candidate.status !== "done" && candidate.date)) {
-      if (new Date(`${item.date}T00:00:00`) > horizon) continue;
-      const project = workspace.projects.find((candidate) => candidate.id === item.project_id);
-      items.push({
-        id: `plan-${item.id}`, kind: "plan",
-        title: item.title,
-        detail: `${item.date}${item.assignee ? ` · ${item.assignee}` : ""}`,
-        href: `/projects/${item.project_id}?surface=plan`,
-        projectName: project?.name,
-      });
-    }
-    return items;
+    const now = new Date();
+    const fromDate = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+    const ownerName = `${workspace.settings.profile.firstName} ${workspace.settings.profile.lastName}`.trim() || "Producer";
+    return deriveExceptions(
+      {
+        releases: workspace.releases,
+        productionDays: workspace.productionDays,
+        proposals: workspace.proposals,
+        revisionRequests: workspace.revisionRequests,
+        deliverables: workspace.deliverables,
+        planItems: workspace.planItems,
+        ownerName,
+      },
+      fromDate,
+    );
   }, [demoMode, workspace]);
 
   const stageGroups = useMemo(() => {
@@ -112,7 +68,7 @@ export default function HomePage() {
       <div className="projects-content flex-1 overflow-y-auto px-6 py-4">
         <div className="empty-state" style={{ minHeight: 320 }}>
           <h3 className="empty-state-title">Home works with the local workspace</h3>
-          <p className="empty-state-text">Connect this environment to your organization workspace, or open a project to continue.</p>
+          <p className="empty-state-text">The exception rail reads the local Project Operating Record. Connect this environment to your organization workspace, or open a project to continue.</p>
           <div className="flex gap-3 mt-4 justify-center">
             <Link href="/projects" className="btn btn-primary">Open projects <ArrowRight size={15} /></Link>
           </div>
@@ -129,7 +85,7 @@ export default function HomePage() {
         <div className="min-w-0">
           <h1 className="text-xl font-semibold text-[var(--ink)] text-pretty">What needs attention, {firstName}?</h1>
           <p className="mt-1 text-sm text-[var(--muted)]">
-            {attention.length === 0 ? "Nothing waiting. The floor is yours." : `${attention.length} open loop${attention.length === 1 ? "" : "s"} across ${workspace.projects.length} productions.`}
+            {exceptions.length === 0 ? "Quiet board — good day. The floor is yours." : `${exceptions.length} open loop${exceptions.length === 1 ? "" : "s"} across ${workspace.projects.length} productions.`}
           </p>
         </div>
         <div className="flex gap-2">
@@ -146,7 +102,7 @@ export default function HomePage() {
             group.projects.map((project) => {
               const media = workspace.assets.find((asset) => asset.project_id === project.id && asset.thumbnail_url)
                 ?? workspace.assets.find((asset) => asset.project_id === project.id);
-              const loops = attention.filter((item) => item.projectName === project.name).length;
+              const loops = exceptions.filter((item) => exceptionProjectId(item) === project.id).length;
               return (
                 <Link
                   key={project.id}
@@ -181,26 +137,37 @@ export default function HomePage() {
       </section>
 
       <div className="grid gap-8 xl:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
-        {/* Needs you — quiet rows, no boxes */}
+        {/* Exception rail — every row carries an owner and a repair verb */}
         <section aria-label="Attention queue">
           <h2 className="mb-2 text-xs font-semibold uppercase tracking-[0.14em] text-[var(--muted)]">Needs you</h2>
           <div className="cv-attention-list">
-            {attention.slice(0, 6).map((item) => (
-              <Link key={item.id} href={withWorkspaceQuery(item.href, demoSuffix)} className="cv-attention-row">
-                <span className="cv-attention-row__kind">{KIND_LABEL[item.kind]}</span>
-                <span className="min-w-0">
-                  <span className="block truncate text-sm font-medium text-[var(--ink)]">{item.title}</span>
-                  <span className="block truncate text-xs text-[var(--muted)]">{item.detail}</span>
-                </span>
-                {item.projectName ? <span className="cv-attention-row__project">{item.projectName}</span> : null}
-              </Link>
-            ))}
-            {attention.length === 0 ? (
-              <p className="py-6 text-sm text-[var(--muted)]">Nothing waiting on you. Inquiries, approvals, revisions, and deadlines land here.</p>
+            {exceptions.slice(0, 6).map((item) => {
+              const projectId = exceptionProjectId(item);
+              const project = projectId ? workspace.projects.find((candidate) => candidate.id === projectId) : undefined;
+              return (
+                <Link
+                  key={item.id}
+                  href={withWorkspaceQuery(item.repair.href, demoSuffix)}
+                  className="cv-attention-row"
+                  data-severity={item.severity}
+                  title={`${item.owner} — clears when: ${item.clearCondition}`}
+                >
+                  <span className="cv-attention-row__kind">{EXCEPTION_KIND_LABEL[item.kind]}</span>
+                  <span className="min-w-0">
+                    <span className="block truncate text-sm font-medium text-[var(--ink)]">{item.title}</span>
+                    <span className="block truncate text-xs text-[var(--muted)]">{item.detail} · {item.owner}</span>
+                  </span>
+                  {project ? <span className="cv-attention-row__project">{project.name}</span> : null}
+                  <span className="cv-attention-row__verb">{item.repair.label}</span>
+                </Link>
+              );
+            })}
+            {exceptions.length === 0 ? (
+              <p className="py-6 text-sm text-[var(--muted)]">Quiet board — good day. Exceptions land here when a promise starts to drift, and they clear only when the work changes state.</p>
             ) : null}
-            {attention.length > 6 ? (
+            {exceptions.length > 6 ? (
               <Link href={withWorkspaceQuery("/activity", demoSuffix)} className="cv-attention-row cv-attention-row--more">
-                All {attention.length} open loops <ArrowRight size={13} />
+                All {exceptions.length} open loops <ArrowRight size={13} />
               </Link>
             ) : null}
           </div>

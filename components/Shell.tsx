@@ -32,6 +32,7 @@ import { buildSettingsHref } from "./auth/settings-route";
 import { createSupabaseBrowser } from "@/lib/supabase-browser";
 import { useDemoSuffix } from "@/lib/demo/mode";
 import { signOutDemoSession, setDemoSessionRole, useDemoWorkspace } from "@/lib/demo/workspace-store";
+import { orderProjectsByActivity } from "@/lib/demo/recent-projects.ts";
 import styles from "./Shell.module.css";
 
 function activityLabel(action: string) {
@@ -76,6 +77,11 @@ export default function Shell({ children }: { children: React.ReactNode }) {
     .slice(0, 2)
     .map((part) => part[0]?.toUpperCase())
     .join("") || "CC";
+
+  const recentProjects = useMemo(() => {
+    if (!demoSuffix) return [];
+    return orderProjectsByActivity(demoWorkspace.projects, demoWorkspace.activity);
+  }, [demoSuffix, demoWorkspace]);
 
   const commandItems = useMemo<CommandPaletteItem[]>(() => {
     const navigationCommands = visibleNavigation(workspaceRole).flatMap((section) =>
@@ -220,7 +226,7 @@ export default function Shell({ children }: { children: React.ReactNode }) {
           querySuffix={demoSuffix}
           role={workspaceRole}
           drawerOpen={navigationOpen}
-          projects={demoSuffix ? demoWorkspace.projects : []}
+          projects={recentProjects}
           onOpenDrawer={() => {
             setAccountOpen(false);
             setNotificationsOpen(false);

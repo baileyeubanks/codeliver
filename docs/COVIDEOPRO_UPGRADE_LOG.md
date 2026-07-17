@@ -133,3 +133,30 @@ Baseline: `e068ee8` (checkpoint of the prior session's transformation state).
 - Fonts per board system: Bricolage Grotesque (display), Instrument Sans (body), Geist Mono (numbers/timecodes). Semantic tokens (--signal-*) + stage→signal mapping (discover=amber, scope/plan=blue, shoot/story/review=red, deliver/learn=green) in globals.css.
 - Boards absorbed from `~/Downloads/Webster_Product_Board_Package` (5 boards; board 03 governs T4 mobile dark field instrument).
 - Suite 578/578; tsc clean; screenshots 31–33 (login, home, welcome).
+
+## U16 — Identity: Webster retired → Co‑ProVideo + CCO universe adoption (2026-07-17)
+
+- Webster was a false start; retired. The product is **Co‑ProVideo by Content Co-op**, inside the **CCO OS** universe (co-videopro = admin shell, client surface simplified, public contentco-op.com untouched).
+- `docs/CCO_DESIGN_UNIVERSE_ADOPTION.md`: dialect law, surface mapping, ROOT deletion ledger. Mega audit preserved verbatim at `docs/CCO_DESIGN_UNIVERSE_MEGA_AUDIT.md`. Naming/colorway law in §5; muted CVP artwork (`public/brand/cvp-mark-muted.png`, `cvp-stacked-muted.png`, ffmpeg hue=s=0.5).
+- Cut Check spec verified and parked (back burner, user decision). Commits a11c907 → 4c7d85c.
+
+## U17 — N1: Recent Assets rail + cinematic theater reconciliation (2026-07-17)
+
+- Recent Assets rail in the review dock; parallel session's graphite/cinematic restyle swept the cockpit — branches unified ff-only, tests reconciled to the winning direction, suite green. Commits 357e944, f7b5412.
+
+## U18 — ROOT port: estimate line editor + Gen-3 document layer (2026-07-17)
+
+- Money console cherry-picks landed: spreadsheet-cell estimate line editor and the Gen-3 dark cinematic document grammar (quote cover, TOTAL DUE NOW band). Verified in-browser. Commit 4f62712.
+
+## U19 — Cream editorial flip: contentco-op.com vibe everywhere (2026-07-17)
+
+- User ruling: the public site's warm cream is law. Light cream canvas, parchment/white cards, navy ink, sapphire signal across the workspace; dark survives only as nature — the player well, the showreel hero, the Gen-3 quote cover, opt-in `html[data-theme="dark"]`. Commit db75821. Suite 592/592; e2e 6/6; tsc clean.
+
+## U20 — N2: exception-first Home + activity-ordered recents (2026-07-17)
+
+- `lib/covideopro/exceptions.ts`: deterministic exception engine — unsigned releases near shoot (critical ≤2d), stale proposals (>7d), stale revision rounds (>5d), QC-stale deliverables (>3d), overdue plan items (milestone = critical). Every exception carries owner + repair verb + clear condition; clears by state change only, never dismissal; ranked by severity and sharpness.
+- Home "Needs you" rail now renders the ranked exceptions with repair-verb pills and severity color (critical = signal red kind chip); region "Attention queue" preserved; quiet-board empty state. Header counts open loops; stage cards dot projects with exceptions.
+- Nav drawer "Recent projects" ordered by latest project activity (`lib/demo/recent-projects.ts`, stable fallback to workspace order).
+- Seed truth pass: Conexon proposal sent 2026-07-08, ICA social deliverable in QC since 2026-07-13, Conexon brief milestone dated 2026-07-15 — three live exceptions at any "today" from 2026-07-17 on. El Paso release chase fires naturally Aug 4–20.
+- Tests: 4 engine + 4 recents node tests (suite **600/600**); e2e 9/9 incl. new `n2-evidence.spec.ts` (rail ranking/verbs, drawer order, 375px hold); tsc clean. Evidence: `docs/design-evidence/e2e/n2-*.png`.
+- Observed, parked for a polish loop: cockpit top-left chrome cluster (Upload/bell/avatar) overlaps the rail header at desktop widths — pre-existing, out of N2 scope.

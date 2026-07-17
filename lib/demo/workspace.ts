@@ -1,9 +1,14 @@
 import type { MediaAsset } from "@/components/projects/MediaCard";
 import type { FolderNode } from "@/components/projects/FolderTree";
+import type { ProjectStage } from "@/lib/covideopro/record.ts";
 
 export interface DemoProject {
   id: string;
   name: string;
+  /** Lifecycle stage of the Project Operating Record (docs/COVIDEOPRO_PRODUCT_MODEL.md). */
+  stage?: ProjectStage;
+  organization_id?: string | null;
+  primary_contact_id?: string | null;
 }
 
 export function buildInternalDemoAssetHref(projectId: string, assetId: string) {
@@ -11,10 +16,10 @@ export function buildInternalDemoAssetHref(projectId: string, assetId: string) {
 }
 
 export const demoProjects: DemoProject[] = [
-  { id: "ica", name: "ICA" },
-  { id: "schneider-epc", name: "Schneider + EPC" },
-  { id: "bp", name: "bp" },
-  { id: "acs", name: "Astro Cleaning Services" },
+  { id: "ica", name: "ICA", stage: "review", organization_id: "org-ica", primary_contact_id: "contact-morgan-ica" },
+  { id: "schneider-epc", name: "Schneider + EPC", stage: "post", organization_id: "org-schneider", primary_contact_id: "contact-dana-schneider" },
+  { id: "bp", name: "bp", stage: "production", organization_id: "org-bp", primary_contact_id: "contact-rachel-bp" },
+  { id: "conexon", name: "Conexon", stage: "development", organization_id: "org-conexon", primary_contact_id: "contact-sam-conexon" },
 ];
 
 export const demoFolders: FolderNode[] = [
@@ -28,7 +33,7 @@ export const demoFolders: FolderNode[] = [
     ],
   },
   { id: "bp", name: "bp", children: [] },
-  { id: "acs", name: "Astro Cleaning Services", children: [] },
+  { id: "conexon", name: "Conexon", children: [] },
 ];
 
 export const demoAssets: MediaAsset[] = [
@@ -138,18 +143,18 @@ export const demoAssets: MediaAsset[] = [
     href: buildInternalDemoAssetHref("bp", "bp-rodeo-v2"),
   },
   {
-    id: "acs-brand-story-v1",
-    project_id: "acs",
-    title: "ACS Brand Story_v1",
+    id: "conexon-workshop-v1",
+    project_id: "conexon",
+    title: "Conexon Workshop Interviews_v1",
     thumbnail_url: "/demo/crew-field-shoot.jpg",
     file_type: "video",
-    duration_seconds: 83,
+    duration_seconds: 912,
     status: "draft",
     version_count: 1,
     reviewer_count: 0,
     reviewer_done: 0,
     comment_count: 0,
-    created_at: "2026-07-14T19:08:00.000Z",
-    href: buildInternalDemoAssetHref("acs", "acs-brand-story-v1"),
+    created_at: "2026-07-15T17:42:00.000Z",
+    href: buildInternalDemoAssetHref("conexon", "conexon-workshop-v1"),
   },
 ];

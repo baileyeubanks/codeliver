@@ -20,8 +20,50 @@ import type {
   ApprovalStep,
   WorkflowMode,
 } from "@/lib/types/codeliver";
+import {
+  PROJECT_STAGES,
+  type Brief,
+  type Contact,
+  type Decision,
+  type Deliverable,
+  type Inquiry,
+  type Organization,
+  type PlanItem,
+  type ProjectStage,
+  type Proposal,
+  type RevisionRequest,
+  type Select,
+  type Sequence,
+  type SequenceClip,
+} from "@/lib/covideopro/record.ts";
+import {
+  clipsFromSelects,
+  nextRevisionRound,
+  transitionBrief,
+  transitionDeliverable,
+  transitionInquiry,
+  transitionProjectStage,
+  transitionProposal,
+  transitionRevisionRequest,
+  transitionSequence,
+} from "@/lib/covideopro/transitions.ts";
+import {
+  seedBriefs,
+  seedContacts,
+  seedDecisions,
+  seedDeliverables,
+  seedInquiries,
+  seedOrganizations,
+  seedPlanItems,
+  seedProposals,
+  seedRevisionRequests,
+  seedSelects,
+  seedSequenceClips,
+  seedSequences,
+} from "./record-seed";
 
-export const DEMO_WORKSPACE_STORAGE_KEY = "co-deliver.demo-workspace.v1";
+export const DEMO_WORKSPACE_STORAGE_KEY = "co-videopro.workspace.v2";
+export const LEGACY_DEMO_WORKSPACE_STORAGE_KEYS = ["co-deliver.demo-workspace.v1"];
 
 export type DemoSharePermission = "view" | "comment" | "approve";
 export type DemoShareNotificationChannel = "email" | "sms" | "imessage";
@@ -157,7 +199,7 @@ export interface DemoWorkspaceSettings {
 }
 
 export interface DemoWorkspaceState {
-  schemaVersion: 1;
+  schemaVersion: 2;
   session: {
     authenticated: boolean;
     email: string;
@@ -176,6 +218,19 @@ export interface DemoWorkspaceState {
   tasks: DemoProjectTask[];
   approvalStages: DemoApprovalStage[];
   settings: DemoWorkspaceSettings;
+  /* Project Operating Record collections (docs/COVIDEOPRO_PRODUCT_MODEL.md) */
+  organizations: Organization[];
+  contacts: Contact[];
+  inquiries: Inquiry[];
+  briefs: Brief[];
+  proposals: Proposal[];
+  planItems: PlanItem[];
+  selects: Select[];
+  sequences: Sequence[];
+  sequenceClips: SequenceClip[];
+  revisionRequests: RevisionRequest[];
+  decisions: Decision[];
+  deliverables: Deliverable[];
 }
 
 export interface CreateDemoShareInput {
@@ -278,7 +333,7 @@ function cloneSettings(settings = DEFAULT_SETTINGS): DemoWorkspaceSettings {
 
 export function createInitialDemoWorkspace(): DemoWorkspaceState {
   return {
-    schemaVersion: 1,
+    schemaVersion: 2,
     session: {
       authenticated: true,
       email: "bailey@contentco-op.com",
@@ -503,6 +558,18 @@ export function createInitialDemoWorkspace(): DemoWorkspaceState {
       },
     ],
     settings: cloneSettings(),
+    organizations: seedOrganizations.map((record) => ({ ...record })),
+    contacts: seedContacts.map((record) => ({ ...record })),
+    inquiries: seedInquiries.map((record) => ({ ...record })),
+    briefs: seedBriefs.map((record) => ({ ...record, references: [...record.references] })),
+    proposals: seedProposals.map((record) => ({ ...record, estimate_lines: record.estimate_lines.map((line) => ({ ...line })) })),
+    planItems: seedPlanItems.map((record) => ({ ...record, depends_on: [...record.depends_on], meta: { ...record.meta } })),
+    selects: seedSelects.map((record) => ({ ...record, transcript_segment_ids: [...record.transcript_segment_ids] })),
+    sequences: seedSequences.map((record) => ({ ...record })),
+    sequenceClips: seedSequenceClips.map((record) => ({ ...record })),
+    revisionRequests: seedRevisionRequests.map((record) => ({ ...record, comment_ids: [...record.comment_ids] })),
+    decisions: seedDecisions.map((record) => ({ ...record, comment_ids: [...record.comment_ids] })),
+    deliverables: seedDeliverables.map((record) => ({ ...record, spec: { ...record.spec } })),
   };
 }
 
@@ -511,17 +578,45 @@ let currentState = SERVER_SNAPSHOT;
 let hydrated = false;
 const listeners = new Set<() => void>();
 
-function isStoredWorkspace(value: unknown): value is Partial<DemoWorkspaceState> {
+/** Shape accepted from localStorage: v1 (legacy) or v2 records. */
+export type StoredWorkspaceShape = Omit<Partial<DemoWorkspaceState>, "schemaVersion"> & {
+  schemaVersion?: 1 | 2;
+};
+
+function isStoredWorkspace(value: unknown): value is StoredWorkspaceShape {
   if (!value || typeof value !== "object") return false;
-  const candidate = value as Partial<DemoWorkspaceState>;
+  const candidate = value as StoredWorkspaceShape;
   return (
-    candidate.schemaVersion === 1 &&
+    (candidate.schemaVersion === 1 || candidate.schemaVersion === 2) &&
     Array.isArray(candidate.projects) &&
     Array.isArray(candidate.folders) &&
     Array.isArray(candidate.assets) &&
     Array.isArray(candidate.shareLinks) &&
     Array.isArray(candidate.activity)
   );
+}
+
+/** v1 → v2: drop the retired "acs" seed content, ensure current seed projects
+ * exist, and attach the Project Operating Record collections. */
+function migrateLegacyWorkspace(parsed: StoredWorkspaceShape, fallback: DemoWorkspaceState) {
+  const RETIRED_PROJECT_ID = "acs";
+  const projects = (parsed.projects ?? [])
+    .filter((project) => project.id !== RETIRED_PROJECT_ID)
+    .map((project) => {
+      const seeded = fallback.projects.find((candidate) => candidate.id === project.id);
+      return seeded ? { ...project, ...seeded, name: project.name } : project;
+    });
+  const missingProjects = fallback.projects.filter(
+    (seeded) => !projects.some((project) => project.id === seeded.id),
+  );
+  const assets = (parsed.assets ?? []).filter((asset) => asset.project_id !== RETIRED_PROJECT_ID);
+  const folders = (parsed.folders ?? []).filter((folder) => folder.id !== RETIRED_PROJECT_ID);
+
+  return {
+    projects: [...projects, ...missingProjects],
+    folders: [...folders, ...fallback.folders.filter((seeded) => !folders.some((folder) => folder.id === seeded.id))],
+    assets: [...assets, ...fallback.assets.filter((seeded) => seeded.project_id !== RETIRED_PROJECT_ID && !assets.some((asset) => asset.id === seeded.id))],
+  };
 }
 
 function normalizeRestoredDemoAssets(assets: MediaAsset[]) {
@@ -545,13 +640,14 @@ export function restoreDemoWorkspace(raw: string | null): DemoWorkspaceState {
     if (!isStoredWorkspace(parsed)) return createInitialDemoWorkspace();
     const fallback = createInitialDemoWorkspace();
     const savedSettings = parsed.settings;
+    const legacy = parsed.schemaVersion === 1 ? migrateLegacyWorkspace(parsed, fallback) : null;
 
     return {
-      schemaVersion: 1,
+      schemaVersion: 2,
       session: { ...fallback.session, ...parsed.session },
-      projects: parsed.projects ?? fallback.projects,
-      folders: parsed.folders ?? fallback.folders,
-      assets: normalizeRestoredDemoAssets(parsed.assets ?? fallback.assets),
+      projects: legacy?.projects ?? parsed.projects ?? fallback.projects,
+      folders: legacy?.folders ?? parsed.folders ?? fallback.folders,
+      assets: normalizeRestoredDemoAssets(legacy?.assets ?? parsed.assets ?? fallback.assets),
       archivedAssets: normalizeRestoredDemoAssets(
         parsed.archivedAssets ?? fallback.archivedAssets,
       ),
@@ -565,6 +661,18 @@ export function restoreDemoWorkspace(raw: string | null): DemoWorkspaceState {
       reviewCutMarkers: parsed.reviewCutMarkers ?? fallback.reviewCutMarkers,
       tasks: parsed.tasks ?? fallback.tasks,
       approvalStages: mergeSeededRecords(parsed.approvalStages, fallback.approvalStages),
+      organizations: mergeSeededRecords(parsed.organizations, fallback.organizations),
+      contacts: mergeSeededRecords(parsed.contacts, fallback.contacts),
+      inquiries: mergeSeededRecords(parsed.inquiries, fallback.inquiries),
+      briefs: mergeSeededRecords(parsed.briefs, fallback.briefs),
+      proposals: mergeSeededRecords(parsed.proposals, fallback.proposals),
+      planItems: mergeSeededRecords(parsed.planItems, fallback.planItems),
+      selects: mergeSeededRecords(parsed.selects, fallback.selects),
+      sequences: mergeSeededRecords(parsed.sequences, fallback.sequences),
+      sequenceClips: mergeSeededRecords(parsed.sequenceClips, fallback.sequenceClips),
+      revisionRequests: mergeSeededRecords(parsed.revisionRequests, fallback.revisionRequests),
+      decisions: mergeSeededRecords(parsed.decisions, fallback.decisions),
+      deliverables: mergeSeededRecords(parsed.deliverables, fallback.deliverables),
       settings: {
         profile: { ...fallback.settings.profile, ...savedSettings?.profile },
         appearance: { ...fallback.settings.appearance, ...savedSettings?.appearance },
@@ -597,13 +705,30 @@ export function restoreDemoWorkspace(raw: string | null): DemoWorkspaceState {
 function ensureHydrated() {
   if (hydrated || typeof window === "undefined") return;
   let stored: string | null = null;
+  let migratedFromLegacy = false;
   try {
     stored = window.localStorage.getItem(DEMO_WORKSPACE_STORAGE_KEY);
+    if (stored === null) {
+      for (const legacyKey of LEGACY_DEMO_WORKSPACE_STORAGE_KEYS) {
+        stored = window.localStorage.getItem(legacyKey);
+        if (stored !== null) {
+          migratedFromLegacy = true;
+          break;
+        }
+      }
+    }
   } catch {
     // Keep the in-memory demo usable when browser storage is unavailable.
   }
   currentState = restoreDemoWorkspace(stored);
   hydrated = true;
+  if (migratedFromLegacy) {
+    try {
+      window.localStorage.setItem(DEMO_WORKSPACE_STORAGE_KEY, JSON.stringify(currentState));
+    } catch {
+      // Migration persistence is best-effort; the in-memory state is migrated.
+    }
+  }
 }
 
 function emitChange() {
@@ -680,6 +805,12 @@ function createId(prefix: string) {
 
 export function useDemoWorkspace() {
   return useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
+}
+
+/** Headless read of current workspace state (tests, non-React callers). */
+export function getDemoWorkspaceSnapshot(): DemoWorkspaceState {
+  ensureHydrated();
+  return currentState;
 }
 
 export function addDemoReviewCutMarker(input: {
@@ -1359,4 +1490,609 @@ export function resetDemoWorkspace() {
       },
     };
   });
+}
+
+/* -------------------------------------------------------------------------- */
+/* Project Operating Record mutations                                          */
+/*                                                                            */
+/* Every mutation validates through lib/covideopro/transitions.ts and appends */
+/* an activity event. The same validators back the Supabase API routes.        */
+/* -------------------------------------------------------------------------- */
+
+function recordActivity(
+  state: DemoWorkspaceState,
+  event: {
+    action: string;
+    actor_name: string;
+    project_id: string;
+    asset_id?: string | null;
+    details?: Record<string, string>;
+  },
+): DemoActivityItem[] {
+  return [
+    {
+      id: createId("activity"),
+      action: event.action,
+      actor_name: event.actor_name,
+      details: event.details ?? {},
+      created_at: new Date().toISOString(),
+      project_id: event.project_id,
+      asset_id: event.asset_id ?? null,
+    },
+    ...state.activity,
+  ];
+}
+
+const RECORD_ACTOR = "Bailey Eubanks";
+
+export type RecordMutationResult = { ok: true; id: string } | { ok: false; reason: string };
+
+/* ------------------------------ Inquiries --------------------------------- */
+
+export function addInquiry(input: {
+  summary: string;
+  source: string;
+  organizationId?: string | null;
+  contactId?: string | null;
+  contactName?: string;
+  contactEmail?: string;
+  organizationName?: string;
+}): RecordMutationResult {
+  if (!input.summary.trim()) return { ok: false, reason: "An inquiry needs a summary." };
+  const id = createId("inq");
+  const now = new Date().toISOString();
+
+  updateState((state) => {
+    let organizations = state.organizations;
+    let contacts = state.contacts;
+    let organizationId = input.organizationId ?? null;
+    let contactId = input.contactId ?? null;
+
+    if (!organizationId && input.organizationName?.trim()) {
+      organizationId = createId("org");
+      organizations = [
+        ...organizations,
+        { id: organizationId, name: input.organizationName.trim(), industry: null, website: null, notes: null, created_at: now, updated_at: now, created_by: "user-bailey" },
+      ];
+    }
+    if (!contactId && input.contactEmail?.trim()) {
+      contactId = createId("contact");
+      contacts = [
+        ...contacts,
+        { id: contactId, organization_id: organizationId, name: input.contactName?.trim() || input.contactEmail.trim(), email: input.contactEmail.trim(), role: null, is_primary: true, created_at: now, updated_at: now, created_by: "user-bailey" },
+      ];
+    }
+
+    const inquiry: Inquiry = {
+      id,
+      project_id: null,
+      organization_id: organizationId,
+      contact_id: contactId,
+      source: input.source.trim() || "direct",
+      summary: input.summary.trim(),
+      received_at: now,
+      status: "new",
+      created_at: now,
+      updated_at: now,
+      created_by: "user-bailey",
+    };
+
+    return {
+      ...state,
+      organizations,
+      contacts,
+      inquiries: [inquiry, ...state.inquiries],
+      activity: recordActivity(state, { action: "created_inquiry", actor_name: RECORD_ACTOR, project_id: "", details: { summary: inquiry.summary.slice(0, 80) } }),
+    };
+  });
+  return { ok: true, id };
+}
+
+export function setInquiryStatus(id: string, to: Inquiry["status"]): RecordMutationResult {
+  const inquiry = getSnapshot().inquiries.find((candidate) => candidate.id === id);
+  if (!inquiry) return { ok: false, reason: "Inquiry not found." };
+  const verdict = transitionInquiry(inquiry, to);
+  if (!verdict.ok) return verdict;
+
+  updateState((state) => ({
+    ...state,
+    inquiries: state.inquiries.map((candidate) =>
+      candidate.id === id ? { ...candidate, status: to, updated_at: new Date().toISOString() } : candidate,
+    ),
+    activity: recordActivity(state, { action: `inquiry_${to}`, actor_name: RECORD_ACTOR, project_id: inquiry.project_id ?? "", details: { inquiry: inquiry.summary.slice(0, 60) } }),
+  }));
+  return { ok: true, id };
+}
+
+/** Convert a qualified inquiry: creates the project (stage intake) and links it. */
+export function convertInquiryToProject(id: string, projectName: string): RecordMutationResult {
+  const state = getSnapshot();
+  const inquiry = state.inquiries.find((candidate) => candidate.id === id);
+  if (!inquiry) return { ok: false, reason: "Inquiry not found." };
+  if (!projectName.trim()) return { ok: false, reason: "Name the project to convert." };
+
+  const projectId = createId("project");
+  const verdict = transitionInquiry({ ...inquiry, project_id: projectId }, "converted");
+  if (!verdict.ok) return verdict;
+
+  const now = new Date().toISOString();
+  updateState((current) => ({
+    ...current,
+    projects: [
+      ...current.projects,
+      { id: projectId, name: projectName.trim(), stage: "intake", organization_id: inquiry.organization_id, primary_contact_id: inquiry.contact_id },
+    ],
+    folders: [...current.folders, { id: projectId, name: projectName.trim(), children: [] }],
+    inquiries: current.inquiries.map((candidate) =>
+      candidate.id === id ? { ...candidate, status: "converted", project_id: projectId, updated_at: now } : candidate,
+    ),
+    activity: recordActivity(current, { action: "converted_inquiry", actor_name: RECORD_ACTOR, project_id: projectId, details: { project: projectName.trim() } }),
+  }));
+  return { ok: true, id: projectId };
+}
+
+/* -------------------------------- Briefs ----------------------------------- */
+
+export function saveBrief(input: {
+  projectId: string;
+  objectives: string;
+  audience: string;
+  message: string;
+  references?: string[];
+  deliverablesNotes?: string;
+}): RecordMutationResult {
+  const state = getSnapshot();
+  const existing = state.briefs
+    .filter((brief) => brief.project_id === input.projectId && brief.status !== "superseded")
+    .sort((a, b) => b.version - a.version)[0];
+
+  const now = new Date().toISOString();
+  const id = existing?.id ?? createId("brief");
+  const version = existing ? existing.version + 1 : 1;
+
+  updateState((current) => {
+    const snapshot: Brief = {
+      id,
+      project_id: input.projectId,
+      version,
+      status: "draft",
+      objectives: input.objectives,
+      audience: input.audience,
+      message: input.message,
+      references: input.references ?? [],
+      deliverables_notes: input.deliverablesNotes ?? "",
+      created_at: existing?.created_at ?? now,
+      updated_at: now,
+      created_by: "user-bailey",
+    };
+    const supersede = existing && existing.status === "approved";
+    return {
+      ...current,
+      briefs: [
+        snapshot,
+        ...current.briefs.map((brief) =>
+          brief.id === id && supersede ? { ...brief, status: "superseded" as const, updated_at: now } : brief,
+        ),
+      ],
+      activity: recordActivity(current, { action: existing ? `revised_brief_v${version}` : "created_brief", actor_name: RECORD_ACTOR, project_id: input.projectId }),
+    };
+  });
+  return { ok: true, id };
+}
+
+export function setBriefStatus(id: string, to: Brief["status"]): RecordMutationResult {
+  const brief = getSnapshot().briefs.find((candidate) => candidate.id === id);
+  if (!brief) return { ok: false, reason: "Brief not found." };
+  const verdict = transitionBrief(brief, to);
+  if (!verdict.ok) return verdict;
+
+  updateState((state) => ({
+    ...state,
+    briefs: state.briefs.map((candidate) =>
+      candidate.id === id ? { ...candidate, status: to, updated_at: new Date().toISOString() } : candidate,
+    ),
+    activity: recordActivity(state, { action: `brief_${to}`, actor_name: RECORD_ACTOR, project_id: brief.project_id }),
+  }));
+  return { ok: true, id };
+}
+
+/* ------------------------------- Proposals --------------------------------- */
+
+export function saveProposal(input: {
+  projectId: string;
+  title: string;
+  narrative: string;
+  estimateLines: Proposal["estimate_lines"];
+  validUntil?: string | null;
+}): RecordMutationResult {
+  if (!input.title.trim()) return { ok: false, reason: "A proposal needs a title." };
+  const state = getSnapshot();
+  const existing = state.proposals
+    .filter((proposal) => proposal.project_id === input.projectId && proposal.status !== "superseded")
+    .sort((a, b) => b.version - a.version)[0];
+
+  const now = new Date().toISOString();
+  const id = existing?.id ?? createId("proposal");
+  const version = existing ? existing.version + 1 : 1;
+
+  updateState((current) => ({
+    ...current,
+    proposals: [
+      {
+        id,
+        project_id: input.projectId,
+        version,
+        status: "draft" as const,
+        title: input.title.trim(),
+        narrative: input.narrative,
+        estimate_lines: input.estimateLines,
+        valid_until: input.validUntil ?? null,
+        approved_by: null,
+        approved_at: null,
+        created_at: existing?.created_at ?? now,
+        updated_at: now,
+        created_by: "user-bailey",
+      },
+      ...current.proposals.map((proposal) =>
+        proposal.id === id && proposal.status === "approved"
+          ? { ...proposal, status: "superseded" as const, updated_at: now }
+          : proposal,
+      ),
+    ],
+    activity: recordActivity(current, { action: existing ? `revised_proposal_v${version}` : "created_proposal", actor_name: RECORD_ACTOR, project_id: input.projectId }),
+  }));
+  return { ok: true, id };
+}
+
+export function setProposalStatus(id: string, to: Proposal["status"], actorEmail?: string): RecordMutationResult {
+  const proposal = getSnapshot().proposals.find((candidate) => candidate.id === id);
+  if (!proposal) return { ok: false, reason: "Proposal not found." };
+  const verdict = transitionProposal(proposal, to, { actorEmail: actorEmail ?? null });
+  if (!verdict.ok) return verdict;
+
+  const now = new Date().toISOString();
+  updateState((state) => ({
+    ...state,
+    proposals: state.proposals.map((candidate) =>
+      candidate.id === id
+        ? {
+            ...candidate,
+            status: to,
+            approved_by: to === "approved" ? actorEmail ?? null : candidate.approved_by,
+            approved_at: to === "approved" ? now : candidate.approved_at,
+            updated_at: now,
+          }
+        : candidate,
+    ),
+    activity: recordActivity(state, { action: `proposal_${to}`, actor_name: actorEmail ?? RECORD_ACTOR, project_id: proposal.project_id, details: { title: proposal.title, version: `v${proposal.version}` } }),
+  }));
+  return { ok: true, id };
+}
+
+/* ------------------------------ Plan items --------------------------------- */
+
+export function addPlanItem(input: {
+  projectId: string;
+  kind: PlanItem["kind"];
+  title: string;
+  date?: string | null;
+  assignee?: string | null;
+  dependsOn?: string[];
+  meta?: Record<string, string>;
+}): RecordMutationResult {
+  if (!input.title.trim()) return { ok: false, reason: "A plan item needs a title." };
+  const id = createId("plan");
+  const now = new Date().toISOString();
+  updateState((state) => ({
+    ...state,
+    planItems: [
+      ...state.planItems,
+      {
+        id,
+        project_id: input.projectId,
+        kind: input.kind,
+        title: input.title.trim(),
+        date: input.date ?? null,
+        assignee: input.assignee ?? null,
+        status: "pending" as const,
+        depends_on: input.dependsOn ?? [],
+        meta: input.meta ?? {},
+        created_at: now,
+        updated_at: now,
+        created_by: "user-bailey",
+      },
+    ],
+    activity: recordActivity(state, { action: `added_${input.kind}`, actor_name: RECORD_ACTOR, project_id: input.projectId, details: { title: input.title.trim() } }),
+  }));
+  return { ok: true, id };
+}
+
+export function setPlanItemStatus(id: string, status: PlanItem["status"]): RecordMutationResult {
+  const item = getSnapshot().planItems.find((candidate) => candidate.id === id);
+  if (!item) return { ok: false, reason: "Plan item not found." };
+  updateState((state) => ({
+    ...state,
+    planItems: state.planItems.map((candidate) =>
+      candidate.id === id ? { ...candidate, status, updated_at: new Date().toISOString() } : candidate,
+    ),
+    activity: recordActivity(state, { action: `plan_item_${status}`, actor_name: RECORD_ACTOR, project_id: item.project_id, details: { title: item.title } }),
+  }));
+  return { ok: true, id };
+}
+
+/* --------------------------- Selects / Sequences ---------------------------- */
+
+export function addSelect(input: {
+  projectId: string;
+  assetId: string;
+  versionId?: string | null;
+  inSeconds: number;
+  outSeconds: number;
+  label: string;
+  source: Select["source"];
+  transcriptSegmentIds?: string[];
+}): RecordMutationResult {
+  if (input.outSeconds <= input.inSeconds) return { ok: false, reason: "Select out-point must be after its in-point." };
+  const id = createId("select");
+  const now = new Date().toISOString();
+  updateState((state) => ({
+    ...state,
+    selects: [
+      ...state.selects,
+      {
+        id,
+        project_id: input.projectId,
+        asset_id: input.assetId,
+        version_id: input.versionId ?? null,
+        in_seconds: input.inSeconds,
+        out_seconds: input.outSeconds,
+        label: input.label.trim(),
+        source: input.source,
+        transcript_segment_ids: input.transcriptSegmentIds ?? [],
+        created_at: now,
+        updated_at: now,
+        created_by: "user-bailey",
+      },
+    ],
+    activity: recordActivity(state, { action: "added_select", actor_name: RECORD_ACTOR, project_id: input.projectId, asset_id: input.assetId, details: { label: input.label.trim() } }),
+  }));
+  return { ok: true, id };
+}
+
+export function createSequenceFromSelects(input: {
+  projectId: string;
+  name: string;
+  selectIds: string[];
+}): RecordMutationResult {
+  if (!input.name.trim()) return { ok: false, reason: "Name the sequence." };
+  const state = getSnapshot();
+  const selects = input.selectIds
+    .map((selectId) => state.selects.find((candidate) => candidate.id === selectId))
+    .filter((select): select is Select => Boolean(select));
+  if (selects.length === 0) return { ok: false, reason: "Choose at least one select to assemble." };
+
+  const id = createId("sequence");
+  const clips = clipsFromSelects(id, selects, () => createId("clip"));
+  const now = new Date().toISOString();
+
+  updateState((current) => ({
+    ...current,
+    sequences: [
+      ...current.sequences,
+      { id, project_id: input.projectId, name: input.name.trim(), version: 1, status: "draft" as const, fps: 24, created_from: "transcript-assembly" as const, created_at: now, updated_at: now, created_by: "user-bailey" },
+    ],
+    sequenceClips: [...current.sequenceClips, ...clips],
+    activity: recordActivity(current, { action: "assembled_sequence", actor_name: RECORD_ACTOR, project_id: input.projectId, details: { name: input.name.trim(), clips: String(clips.length) } }),
+  }));
+  return { ok: true, id };
+}
+
+export function setSequenceStatus(id: string, to: Sequence["status"]): RecordMutationResult {
+  const state = getSnapshot();
+  const sequence = state.sequences.find((candidate) => candidate.id === id);
+  if (!sequence) return { ok: false, reason: "Sequence not found." };
+  const clips = state.sequenceClips.filter((clip) => clip.sequence_id === id);
+  const clipAssetIds = new Set(clips.map((clip) => clip.asset_id));
+  const hasReviewVersion = state.shareLinks.some(
+    (link) => link.is_active && link.asset_ids.some((assetId) => clipAssetIds.has(assetId)),
+  );
+  const verdict = transitionSequence(sequence, to, { clips, hasReviewVersion });
+  if (!verdict.ok) return verdict;
+
+  updateState((current) => ({
+    ...current,
+    sequences: current.sequences.map((candidate) =>
+      candidate.id === id ? { ...candidate, status: to, updated_at: new Date().toISOString() } : candidate,
+    ),
+    activity: recordActivity(current, { action: `sequence_${to}`, actor_name: RECORD_ACTOR, project_id: sequence.project_id, details: { name: sequence.name } }),
+  }));
+  return { ok: true, id };
+}
+
+/* --------------------- Revision requests / Decisions ------------------------ */
+
+export function addRevisionRequest(input: {
+  projectId: string;
+  assetId: string;
+  versionId?: string | null;
+  summary: string;
+  commentIds?: string[];
+}): RecordMutationResult {
+  if (!input.summary.trim()) return { ok: false, reason: "Summarize the consolidated feedback." };
+  const state = getSnapshot();
+  const round = nextRevisionRound(state.revisionRequests, input.assetId);
+  const id = createId("revision");
+  const now = new Date().toISOString();
+
+  updateState((current) => ({
+    ...current,
+    revisionRequests: [
+      ...current.revisionRequests,
+      {
+        id,
+        project_id: input.projectId,
+        asset_id: input.assetId,
+        version_id: input.versionId ?? null,
+        round,
+        summary: input.summary.trim(),
+        status: "open" as const,
+        comment_ids: input.commentIds ?? [],
+        created_at: now,
+        updated_at: now,
+        created_by: "user-bailey",
+      },
+    ],
+    activity: recordActivity(current, { action: `opened_revision_round_${round}`, actor_name: RECORD_ACTOR, project_id: input.projectId, asset_id: input.assetId }),
+  }));
+  return { ok: true, id };
+}
+
+export function setRevisionRequestStatus(
+  id: string,
+  to: RevisionRequest["status"],
+  { waiveUnresolved = false }: { waiveUnresolved?: boolean } = {},
+): RecordMutationResult {
+  const state = getSnapshot();
+  const request = state.revisionRequests.find((candidate) => candidate.id === id);
+  if (!request) return { ok: false, reason: "Revision request not found." };
+  const unresolvedCommentCount = state.reviewComments.filter(
+    (comment) => request.comment_ids.includes(comment.id) && comment.status === "open",
+  ).length;
+  const verdict = transitionRevisionRequest(request, to, { unresolvedCommentCount, waivedUnresolved: waiveUnresolved });
+  if (!verdict.ok) return verdict;
+
+  updateState((current) => ({
+    ...current,
+    revisionRequests: current.revisionRequests.map((candidate) =>
+      candidate.id === id ? { ...candidate, status: to, updated_at: new Date().toISOString() } : candidate,
+    ),
+    activity: recordActivity(current, { action: `revision_${to}`, actor_name: RECORD_ACTOR, project_id: request.project_id, asset_id: request.asset_id, details: { round: String(request.round) } }),
+  }));
+  return { ok: true, id };
+}
+
+export function addDecision(input: {
+  projectId: string;
+  subject: string;
+  body: string;
+  decidedBy: string;
+  source: Decision["source"];
+  commentIds?: string[];
+}): RecordMutationResult {
+  if (!input.subject.trim()) return { ok: false, reason: "A decision needs a subject." };
+  const id = createId("decision");
+  const now = new Date().toISOString();
+  updateState((state) => ({
+    ...state,
+    decisions: [
+      {
+        id,
+        project_id: input.projectId,
+        subject: input.subject.trim(),
+        body: input.body,
+        decided_by: input.decidedBy,
+        source: input.source,
+        comment_ids: input.commentIds ?? [],
+        created_at: now,
+        updated_at: now,
+        created_by: "user-bailey",
+      },
+      ...state.decisions,
+    ],
+    activity: recordActivity(state, { action: "recorded_decision", actor_name: input.decidedBy || RECORD_ACTOR, project_id: input.projectId, details: { subject: input.subject.trim() } }),
+  }));
+  return { ok: true, id };
+}
+
+/* ------------------------------ Deliverables ------------------------------- */
+
+export function saveDeliverable(input: {
+  projectId: string;
+  name: string;
+  spec: Deliverable["spec"];
+  sourceVersionId?: string | null;
+}): RecordMutationResult {
+  if (!input.name.trim()) return { ok: false, reason: "A deliverable needs a name." };
+  const id = createId("deliverable");
+  const now = new Date().toISOString();
+  updateState((state) => ({
+    ...state,
+    deliverables: [
+      ...state.deliverables,
+      {
+        id,
+        project_id: input.projectId,
+        name: input.name.trim(),
+        spec: input.spec,
+        source_version_id: input.sourceVersionId ?? null,
+        status: "specced" as const,
+        qc_notes: "",
+        delivered_at: null,
+        created_at: now,
+        updated_at: now,
+        created_by: "user-bailey",
+      },
+    ],
+    activity: recordActivity(state, { action: "specced_deliverable", actor_name: RECORD_ACTOR, project_id: input.projectId, details: { name: input.name.trim() } }),
+  }));
+  return { ok: true, id };
+}
+
+export function setDeliverableStatus(id: string, to: Deliverable["status"]): RecordMutationResult {
+  const deliverable = getSnapshot().deliverables.find((candidate) => candidate.id === id);
+  if (!deliverable) return { ok: false, reason: "Deliverable not found." };
+  const verdict = transitionDeliverable(deliverable, to);
+  if (!verdict.ok) return verdict;
+
+  const now = new Date().toISOString();
+  updateState((state) => ({
+    ...state,
+    deliverables: state.deliverables.map((candidate) =>
+      candidate.id === id
+        ? { ...candidate, status: to, delivered_at: to === "delivered" ? now : candidate.delivered_at, updated_at: now }
+        : candidate,
+    ),
+    activity: recordActivity(state, { action: `deliverable_${to}`, actor_name: RECORD_ACTOR, project_id: deliverable.project_id, details: { name: deliverable.name } }),
+  }));
+  return { ok: true, id };
+}
+
+/* ----------------------------- Project stage -------------------------------- */
+
+/** Advance the project's lifecycle stage, gated by the real record contents. */
+export function advanceProjectStage(projectId: string): RecordMutationResult {
+  const state = getSnapshot();
+  const project = state.projects.find((candidate) => candidate.id === projectId);
+  if (!project) return { ok: false, reason: "Project not found." };
+  const stage: ProjectStage = project.stage ?? "inquiry";
+
+  const targetIndex = PROJECT_STAGES.indexOf(stage) + 1;
+  if (targetIndex >= PROJECT_STAGES.length) return { ok: false, reason: "Project is already archived." };
+  const target = PROJECT_STAGES[targetIndex];
+
+  const verdict = transitionProjectStage({ stage }, target, {
+    hasOrganization: Boolean(project.organization_id),
+    hasContact: Boolean(project.primary_contact_id),
+    hasBrief: state.briefs.some((brief) => brief.project_id === projectId && brief.status !== "superseded"),
+    hasApprovedProposal: state.proposals.some((proposal) => proposal.project_id === projectId && proposal.status === "approved"),
+    hasProductionDay: state.planItems.some((item) => item.project_id === projectId && item.kind === "production_day"),
+    hasSequence: state.sequences.some((sequence) => sequence.project_id === projectId),
+    hasActiveReview: state.shareLinks.some((link) => link.is_active && link.asset_ids.some((assetId) => state.assets.some((asset) => asset.id === assetId && asset.project_id === projectId))),
+    hasFinalApproval: state.assets.some((asset) => asset.project_id === projectId && asset.status === "approved"),
+    hasSpeccedDeliverable: state.deliverables.some((deliverable) => deliverable.project_id === projectId),
+    allDeliverablesClosed: state.deliverables
+      .filter((deliverable) => deliverable.project_id === projectId)
+      .every((deliverable) => deliverable.status === "delivered" || deliverable.status === "expired"),
+    planItems: state.planItems.filter((item) => item.project_id === projectId),
+  });
+  if (!verdict.ok) return verdict;
+
+  updateState((current) => ({
+    ...current,
+    projects: current.projects.map((candidate) =>
+      candidate.id === projectId ? { ...candidate, stage: target } : candidate,
+    ),
+    activity: recordActivity(current, { action: `stage_advanced_${target}`, actor_name: RECORD_ACTOR, project_id: projectId, details: { from: stage, to: target } }),
+  }));
+  return { ok: true, id: projectId };
 }

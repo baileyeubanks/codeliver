@@ -131,8 +131,10 @@ export default function Shell({ children }: { children: React.ReactNode }) {
   }, [demoSuffix, demoWorkspace.assets, demoWorkspace.projects]);
 
   useEffect(() => {
-    const useDarkMode = Boolean(demoSuffix) && demoWorkspace.settings.appearance.darkMode;
-    document.documentElement.dataset.theme = isProjectCockpit || !useDarkMode ? "light" : "dark";
+    // The workspace is the cinematic graphite world everywhere (design bible,
+    // tranche 3); the demo light-mode toggle no longer lifts the world out of
+    // its atmosphere. Reduced motion stays operator-controlled.
+    document.documentElement.dataset.theme = "dark";
     document.documentElement.dataset.reducedMotion = demoSuffix && demoWorkspace.settings.appearance.reducedMotion
       ? "true"
       : "false";

@@ -1,97 +1,77 @@
-import Image from "next/image";
 import Link from "next/link";
+import { ArrowRight } from "lucide-react";
 import CoProductionBrand from "@/components/brand/CoProductionBrand";
-import {
-  ArrowRight,
-  CalendarClock,
-  Captions,
-  Clapperboard,
-  PackageCheck,
-} from "lucide-react";
+import { ShowreelStage, type ShowreelClip } from "@/components/brand/ShowreelStage";
 
 /**
- * Public front door — built from Bailey's Canva hero concepts
- * (Enhance and Vector Artwork). The composition is his; the copy is the
- * product's truth (it's an operating system, not an agency).
+ * Studio Home — the public front door (master spec §I.Home).
+ *
+ * A moving editorial introduction: full-bleed selected film imagery, slow
+ * crop drift, low film grain, a deep midnight overlay, monumental warm-ivory
+ * type in deliberate negative space, a tactile ivory invitation, a
+ * smoked-glass studio entrance, and a discreet private client entrance.
+ * The composition replaces the interim Canva-gradient hero per the
+ * Co‑ProVideo design bible, tranche 2.
  */
-const PILLARS = [
+const REEL: readonly ShowreelClip[] = [
   {
-    icon: CalendarClock,
-    title: "Production planning",
-    body: "Call sheets, locations, releases — and the chase list that tells you who films tomorrow unsigned.",
+    src: "/demo/ambient-products.mp4",
+    poster: "/demo/refinery-sunset.jpg",
+    label: "REEL 01 — THE ATMOSPHERE",
   },
   {
-    icon: Captions,
-    title: "Media & transcript",
-    body: "Resumable ingest, transcripts, sound-bite selects, captions — every frame searchable.",
+    poster: "/demo/crew-field-shoot.jpg",
+    label: "REEL 02 — THE FIELD",
   },
   {
-    icon: Clapperboard,
-    title: "Edit & review",
-    body: "A real sequence model, timeline, radio cuts from transcripts, and consolidated revision rounds.",
+    src: "/demo/ica-ceo-preview.mp4",
+    poster: "/demo/ceraweek-speaker.jpg",
+    label: "REEL 03 — THE VOICE",
   },
-  {
-    icon: PackageCheck,
-    title: "Delivery & payments",
-    body: "QC-gated deliverables, proposals with estimates, and payment milestones — in one record.",
-  },
-] as const;
+];
 
 export default function WelcomePage() {
   return (
-    <main className="cv-hero">
-      <header className="cv-hero__top">
-        <CoProductionBrand priority />
-        <nav className="cv-hero__nav" aria-label="Welcome">
-          <Link href="/login">Sign in</Link>
-          <Link href="/login?demo=1" className="cv-hero__cta">
-            Open the workspace <ArrowRight size={15} />
+    <main className="cpv-reel cpv-vignette">
+      <div className="cpv-reel__shade" aria-hidden="true" />
+      <div className="cpv-reel__grain" aria-hidden="true" />
+      <div className="cpv-leak" aria-hidden="true" />
+
+      <header className="cpv-reel__chrome">
+        <span style={{ color: "var(--ivory)" }}>
+          <CoProductionBrand priority />
+        </span>
+        <nav aria-label="Studio">
+          <Link href="/login" className="cpv-reel__client">
+            Client sign in
           </Link>
         </nav>
       </header>
 
-      <section className="cv-hero__stage">
-        <div className="cv-hero__copy">
-          <h1>
-            We turn <em>ideas</em> into <em>impact</em>.
-          </h1>
-          <p className="cv-hero__sub">
-            The AI-native operating system for professional video production —
-            from first inquiry to final delivery, in one connected record.
-          </p>
-          <ul className="cv-hero__badges" aria-label="Principles">
-            <li>Media center stage</li>
-            <li>Agents take the forms</li>
-            <li>You keep the craft</li>
-            <li>Self-hosted, always</li>
-          </ul>
-          <p className="cv-hero__site">co-videopro.com</p>
-        </div>
-
-        <div className="cv-hero__art" aria-hidden="true">
-          <Image
-            src="/brand/cvp-stacked.png"
-            alt=""
-            width={440}
-            height={234}
-            priority
-            unoptimized
-            className="cv-hero__mark"
-          />
-          <div className="cv-hero__cards">
-            {PILLARS.map((pillar) => (
-              <div key={pillar.title} className="cv-hero__card">
-                <pillar.icon size={18} />
-                <strong>{pillar.title}</strong>
-                <small>{pillar.body}</small>
-              </div>
-            ))}
-          </div>
+      <section className="cpv-reel__copy">
+        <p className="cpv-eyebrow cpv-reveal">A Content Co-op studio · Est. for the work</p>
+        <h1 className="cpv-display cpv-reveal cpv-reveal--1">
+          The cinematic operating world for modern brand storytelling.
+        </h1>
+        <p className="cpv-deck cpv-reveal cpv-reveal--2">
+          Part independent film journal, part private client screening room,
+          part studio command center — beautiful work, clear creative
+          direction, and calm client confidence in one connected record.
+        </p>
+        <div className="cpv-reel__actions cpv-reveal cpv-reveal--3">
+          <Link href="/signup" className="cpv-btn cpv-btn--ivory">
+            Start a project <ArrowRight size={16} aria-hidden="true" />
+          </Link>
+          <Link href="/login?demo=1" className="cpv-btn cpv-btn--glass">
+            Enter the studio
+          </Link>
         </div>
       </section>
 
-      <footer className="cv-hero__foot">
-        <span>CREATE · CONNECT · CONVERT</span>
+      <ShowreelStage clips={REEL} />
+
+      <footer className="cpv-reel__foot">
+        <span>Create · Connect · Convert</span>
         <span>Inquiry → Brief → Proposal → Production → Edit → Review → Delivery</span>
       </footer>
     </main>

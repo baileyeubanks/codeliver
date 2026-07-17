@@ -1,40 +1,40 @@
 @import "tailwindcss";
 
 /* Co‑ProVideo review design system */
-/* Dark theme: deep navy backgrounds, green accent CTAs             */
+/* Dark theme: graphite depth, warm ivory ink, cobalt signal          */
 
 :root {
-  --bg: #080a0d;
-  --bg-elevated: #0d1116;
-  --surface: #12171d;
-  --surface-2: #181f27;
-  --surface-3: #222b35;
-  --surface-hover: #1a222b;
-  --surface-glass: rgba(8, 10, 13, 0.9);
-  --ink: #edf3ff;
-  --ink-secondary: #c9d4e2;
-  --muted: #91a0b4;
-  --dim: #627083;
-  --border: rgba(255, 255, 255, 0.1);
-  --border-light: rgba(255, 255, 255, 0.15);
-  --border-active: rgba(34, 197, 94, 0.4);
-  --accent: #b9ff77;
-  --accent-hover: #9fe65f;
-  --accent-dim: rgba(185, 255, 119, 0.11);
-  --accent-glow: rgba(185, 255, 119, 0.18);
-  --blue: #7ca8d8;
-  --blue-dim: rgba(124, 168, 216, 0.14);
-  --blue-hover: #94b9e0;
-  --orange: #e4ad5b;
-  --orange-dim: rgba(228, 173, 91, 0.13);
-  --red: #de7676;
-  --red-dim: rgba(222, 118, 118, 0.13);
-  --purple: #a855f7;
-  --purple-dim: rgba(168, 85, 247, 0.12);
+  --bg: #121417;
+  --bg-elevated: #16191d;
+  --surface: #1a1d21;
+  --surface-2: #1f2328;
+  --surface-3: #22262b;
+  --surface-hover: #24282e;
+  --surface-glass: rgba(18, 20, 23, 0.88);
+  --ink: #f2ede2;
+  --ink-secondary: #d5cfc0;
+  --muted: #a8a294;
+  --dim: #79746a;
+  --border: rgba(242, 237, 226, 0.09);
+  --border-light: rgba(242, 237, 226, 0.14);
+  --border-active: rgba(74, 125, 255, 0.45);
+  --accent: #4a7dff;
+  --accent-hover: #6b93ff;
+  --accent-dim: rgba(74, 125, 255, 0.13);
+  --accent-glow: rgba(74, 125, 255, 0.2);
+  --blue: #7ea2ff;
+  --blue-dim: rgba(74, 125, 255, 0.14);
+  --blue-hover: #a3bdff;
+  --orange: #c98a3d;
+  --orange-dim: rgba(201, 138, 61, 0.14);
+  --red: #c97474;
+  --red-dim: rgba(161, 74, 74, 0.16);
+  --purple: #8b7cc8;
+  --purple-dim: rgba(139, 124, 200, 0.13);
   --teal: #14b8a6;
   --pink: #ec4899;
   --coral: #f97316;
-  --green: #22c55e;
+  --green: #7fa88c;
   --radius: 8px;
   --radius-lg: 8px;
   --radius-sm: 6px;
@@ -2926,17 +2926,17 @@ a { color: inherit; text-decoration: none; }
   .demo-share-created-list img { width: 52px; height: 34px; }
 }
 
-/* Co‑ProVideo project cockpit: canonical Content Co-op visual target */
+/* Co‑ProVideo project cockpit: the graphite editorial world (tranche 3) */
 .cockpit-shell {
-  --cockpit-accent: #145bb8;
-  --cockpit-accent-strong: #0c4ba2;
-  --cockpit-accent-soft: #edf4ff;
-  --cockpit-ink: #18223e;
-  --cockpit-copy: #3f4962;
-  --cockpit-muted: #707b91;
-  --cockpit-border: #dfe4ec;
-  --cockpit-panel: #ffffff;
-  --cockpit-canvas: #fbfcfe;
+  --cockpit-accent: #4a7dff;
+  --cockpit-accent-strong: #6b93ff;
+  --cockpit-accent-soft: rgba(74, 125, 255, 0.13);
+  --cockpit-ink: #f2ede2;
+  --cockpit-copy: #d5cfc0;
+  --cockpit-muted: #a8a294;
+  --cockpit-border: rgba(242, 237, 226, 0.09);
+  --cockpit-panel: #1a1d21;
+  --cockpit-canvas: #121417;
   min-height: 100vh;
   display: grid;
   grid-template-columns: 224px minmax(0, 1fr);
@@ -4722,14 +4722,11 @@ a { color: inherit; text-decoration: none; }
   }
 }
 
-/* Shared Content Co-op workspace frame */
+/* Shared Content Co-op workspace frame — graphite editorial world.
+   The workspace no longer carries a light variant: the product is the
+   cinematic dark world by design (Co‑ProVideo design bible, tranche 3). */
 .workspace-shell {
   --topnav-h: 72px;
-  --accent: #145bb8;
-  --accent-hover: #0c4ba2;
-  --accent-dim: rgba(20, 91, 184, 0.1);
-  --accent-glow: rgba(20, 91, 184, 0.16);
-  --border-active: rgba(20, 91, 184, 0.42);
   width: 100%;
   height: 100svh;
   min-height: 0;
@@ -4738,30 +4735,6 @@ a { color: inherit; text-decoration: none; }
   overflow: hidden;
   background: var(--bg);
   color: var(--ink);
-}
-
-html[data-theme="light"] .workspace-shell {
-  --bg: #f7f9fc;
-  --bg-elevated: #ffffff;
-  --surface: #ffffff;
-  --surface-2: #eef3f8;
-  --surface-3: #e3eaf2;
-  --surface-hover: #f1f5fa;
-  --surface-glass: rgba(255, 255, 255, 0.94);
-  --ink: #18223e;
-  --ink-secondary: #3f4962;
-  --muted: #707b91;
-  --dim: #8993a5;
-  --border: #dfe4ec;
-  --border-light: #cbd3df;
-  --blue: #145bb8;
-  --blue-dim: rgba(20, 91, 184, 0.1);
-  --green: #26915b;
-  --orange: #c97b20;
-  --red: #c34848;
-  --shadow-sm: 0 2px 8px rgba(24, 34, 62, 0.07);
-  --shadow-md: 0 10px 28px rgba(24, 34, 62, 0.11);
-  --shadow-lg: 0 18px 46px rgba(24, 34, 62, 0.15);
 }
 
 .workspace-header {
@@ -5474,13 +5447,13 @@ input[type="range"].cv-range:focus-visible {
 .cv-timeline__timebar { display: flex; justify-content: space-between; padding: 5px 12px; border-top: 1px solid #1a222d; color: #7d8ea6; font-size: 9.5px; font-variant-numeric: tabular-nums; }
 
 /* ── Media-first Home (design restoration E3) ── */
-.cv-project-card { display: grid; overflow: hidden; border: 1px solid var(--border); border-radius: 10px; background: #fff; text-decoration: none; transition: border-color 140ms ease, box-shadow 140ms ease; }
-.cv-project-card:hover { border-color: var(--accent); box-shadow: 0 6px 18px rgba(18, 32, 58, 0.08); }
-.cv-project-card__media { position: relative; display: block; aspect-ratio: 16/9; background: #0d1523; overflow: hidden; }
+.cv-project-card { display: grid; overflow: hidden; border: 1px solid var(--border); border-radius: 10px; background: var(--surface); text-decoration: none; transition: border-color 140ms ease, box-shadow 140ms ease; }
+.cv-project-card:hover { border-color: var(--accent); box-shadow: 0 10px 28px rgba(0, 0, 0, 0.45); }
+.cv-project-card__media { position: relative; display: block; aspect-ratio: 16/9; background: var(--midnight, #0a0d12); overflow: hidden; }
 .cv-project-card__media img { object-fit: cover; transition: transform 300ms ease; }
 .cv-project-card:hover .cv-project-card__media img { transform: scale(1.03); }
-.cv-project-card__nomedia { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; color: #5a6b84; font-size: 11px; }
-.cv-project-card__stage { position: absolute; left: 8px; bottom: 8px; padding: 3px 9px; border-radius: 999px; background: rgba(8, 14, 24, 0.72); color: #dbe7f7; font-size: 10px; font-weight: 650; letter-spacing: 0.04em; backdrop-filter: blur(4px); }
+.cv-project-card__nomedia { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; color: var(--dim); font-size: 11px; }
+.cv-project-card__stage { position: absolute; left: 8px; bottom: 8px; padding: 3px 9px; border-radius: 999px; background: rgba(10, 13, 18, 0.68); color: var(--ivory, #f2ede2); font-size: 10px; font-weight: 650; letter-spacing: 0.04em; backdrop-filter: blur(4px); border: 1px solid var(--chrome-edge, rgba(242, 237, 226, 0.14)); }
 .cv-project-card__body { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 10px 12px; }
 .cv-project-card__meta { display: inline-flex; align-items: center; gap: 6px; color: var(--muted); }
 .cv-project-card__meta i { width: 7px; height: 7px; border-radius: 50%; background: var(--orange, #e4ad5b); }
@@ -5499,37 +5472,6 @@ input[type="range"].cv-range:focus-visible {
 .cv-media-thumb__label { position: absolute; inset: auto 0 0 0; display: grid; padding: 18px 8px 6px; background: linear-gradient(transparent, rgba(5, 10, 18, 0.82)); }
 .cv-media-thumb__label strong { overflow: hidden; color: #f2f7ff; font-size: 10px; text-overflow: ellipsis; white-space: nowrap; }
 .cv-media-thumb__label small { color: #9db1cc; font-size: 8.5px; }
-
-/* ── Welcome hero (from Bailey's Canva concepts) ── */
-.cv-hero { min-height: 100vh; display: flex; flex-direction: column; background: linear-gradient(120deg, #dbeafe 0%, #eef4ff 42%, #ffe9d9 100%); color: #0e1a2e; }
-.cv-hero__top { display: flex; align-items: center; justify-content: space-between; padding: 22px 34px; }
-.cv-hero__nav { display: flex; align-items: center; gap: 18px; font-size: 13px; }
-.cv-hero__nav a { color: #0e1a2e; font-weight: 600; }
-.cv-hero__cta { display: inline-flex; align-items: center; gap: 6px; padding: 9px 16px; border-radius: 999px; background: #1d4ed8; color: #fff !important; }
-.cv-hero__stage { flex: 1; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr); align-items: center; gap: 40px; padding: 20px 34px 34px; max-width: 1280px; width: 100%; margin: 0 auto; }
-.cv-hero__copy h1 { font-size: clamp(40px, 5vw, 64px); line-height: 1.02; font-weight: 800; letter-spacing: -0.02em; text-wrap: balance; }
-.cv-hero__copy h1 em { font-style: normal; color: #1d4ed8; }
-.cv-hero__copy h1 em:first-of-type { color: #e03e2d; }
-.cv-hero__sub { margin-top: 16px; max-width: 44ch; color: #33455f; font-size: 15px; line-height: 1.55; text-wrap: pretty; }
-.cv-hero__badges { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 22px; padding: 0; list-style: none; }
-.cv-hero__badges li { padding: 6px 13px; border: 1px solid rgba(14, 26, 46, 0.22); border-radius: 999px; background: rgba(255, 255, 255, 0.55); font-size: 11px; font-weight: 650; }
-.cv-hero__site { margin-top: 26px; color: #64748b; font-size: 12px; }
-.cv-hero__art { position: relative; display: grid; justify-items: center; gap: 18px; }
-.cv-hero__mark { filter: drop-shadow(0 18px 34px rgba(29, 78, 216, 0.18)); }
-.cv-hero__cards { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; width: 100%; max-width: 520px; }
-.cv-hero__card { display: grid; gap: 5px; padding: 14px 15px; border: 1px solid rgba(255, 255, 255, 0.7); border-radius: 12px; background: rgba(255, 255, 255, 0.78); box-shadow: 0 10px 26px rgba(23, 43, 82, 0.09); backdrop-filter: blur(6px); }
-.cv-hero__card svg { color: #1d4ed8; }
-.cv-hero__card strong { font-size: 12.5px; }
-.cv-hero__card small { color: #4a5d78; font-size: 10px; line-height: 1.45; }
-.cv-hero__foot { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 8px; padding: 16px 34px 22px; color: #4a5d78; font-size: 11px; font-weight: 650; letter-spacing: 0.08em; }
-
-@media (max-width: 900px) {
-  .cv-hero__stage { grid-template-columns: 1fr; gap: 26px; }
-  .cv-hero__art { order: -1; }
-  .cv-hero__mark { width: 300px; height: auto; }
-}
-
-/* hero-rebuild-nudge */
 
 /* ── Co‑ProVideo board design system (identity layer) ── */
 :root {
@@ -5613,4 +5555,326 @@ body {
   border-radius: 16px;
   border: 1px solid var(--chrome-edge);
   box-shadow: 0 18px 44px rgba(4, 6, 10, 0.5);
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   Co‑ProVideo — cinematic design language (foundation++)
+   Design-lead tranche, 2026-07-17. Everything here obeys the master
+   spec: dark graphite depth, warm ivory clarity, smoked glass, soft
+   film grain, cobalt movement, sage completion, amber attention,
+   muted crimson sensitivity. Motion stays editorial — never bouncy,
+   elastic, frantic, or loud.
+   ══════════════════════════════════════════════════════════════════ */
+
+:root {
+  /* Editorial motion language */
+  --ease-editorial: cubic-bezier(0.22, 1, 0.36, 1);      /* soft authority out-curve */
+  --ease-dissolve: cubic-bezier(0.45, 0, 0.15, 1);       /* controlled cross-dissolve */
+  --dur-quiet: 420ms;                                     /* hover light, border bloom */
+  --dur-reveal: 1400ms;                                   /* atmospheric surface reveal */
+  --dur-drift: 26s;                                       /* slow cinematic crop drift */
+  --dur-breath: 11s;                                      /* light-leak / glow breathing */
+
+  /* Editorial type scale (monumental → quiet) */
+  --cpv-display-1: clamp(52px, 8.6vw, 118px);
+  --cpv-display-2: clamp(38px, 5.4vw, 72px);
+  --cpv-display-3: clamp(26px, 3.1vw, 40px);
+
+  /* Stage-atmosphere palette (pipeline table, master spec §VI) */
+  --stage-discovery: var(--ivory);
+  --stage-direction: #b9b3a6;        /* soft stone */
+  --stage-contracted: #6f7680;       /* grounded charcoal */
+  --stage-preproduction: var(--amber-cp);
+  --stage-production: var(--cobalt);
+  --stage-editorial: #8b7cc8;        /* deep violet */
+  --stage-review: #8fa8c8;           /* soft sky */
+  --stage-refinement: #c2a25e;       /* muted gold */
+  --stage-approval: var(--sage);
+  --stage-delivered: #f6f1e4;        /* ivory glow */
+  --stage-momentum: #7d84d6;         /* indigo */
+}
+
+/* ── Quiet labels, monumental display, editorial deck ── */
+.cpv-eyebrow {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  font-weight: 500;
+  letter-spacing: 0.34em;
+  text-transform: uppercase;
+  color: var(--ivory-dim);
+}
+.cpv-display {
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: var(--cpv-display-1);
+  line-height: 0.98;
+  letter-spacing: -0.028em;
+  color: var(--ivory);
+  text-wrap: balance;
+}
+.cpv-deck {
+  max-width: 47ch;
+  font-size: clamp(15px, 1.25vw, 17.5px);
+  line-height: 1.62;
+  color: var(--ivory-dim);
+  text-wrap: pretty;
+}
+
+/* ── Atmosphere: vignette, light leak, hairline geometry ── */
+.cpv-vignette { position: relative; }
+.cpv-vignette::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 4;
+  pointer-events: none;
+  background: radial-gradient(118% 88% at 50% 42%, transparent 52%, rgba(4, 6, 10, 0.55) 100%);
+}
+.cpv-leak {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  pointer-events: none;
+  background:
+    radial-gradient(52% 38% at 88% 6%, rgba(201, 138, 61, 0.14), transparent 70%),
+    radial-gradient(40% 30% at 6% 94%, rgba(74, 125, 255, 0.08), transparent 70%);
+  mix-blend-mode: screen;
+  animation: cpv-breath var(--dur-breath) var(--ease-dissolve) infinite alternate;
+}
+.cpv-hairline { border-color: var(--hairline-cp); }
+
+/* ── Motion primitives ── */
+@keyframes cpv-drift {
+  0%   { transform: scale(1.06) translate3d(0, 0, 0); }
+  100% { transform: scale(1.16) translate3d(-1.4%, -1.8%, 0); }
+}
+@keyframes cpv-reveal {
+  0%   { opacity: 0; transform: translateY(22px); filter: blur(10px); }
+  60%  { filter: blur(0); }
+  100% { opacity: 1; transform: translateY(0); filter: blur(0); }
+}
+@keyframes cpv-dissolve-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+@keyframes cpv-progress {
+  from { transform: scaleX(0); }
+  to   { transform: scaleX(1); }
+}
+@keyframes cpv-breath {
+  from { opacity: 0.55; }
+  to   { opacity: 1; }
+}
+.cpv-reveal {
+  opacity: 0;
+  animation: cpv-reveal var(--dur-reveal) var(--ease-editorial) forwards;
+}
+.cpv-reveal--1 { animation-delay: 180ms; }
+.cpv-reveal--2 { animation-delay: 420ms; }
+.cpv-reveal--3 { animation-delay: 680ms; }
+.cpv-reveal--4 { animation-delay: 940ms; }
+
+/* ══════════════════════════════════════════════════════════════════
+   Studio Home — the showreel front door (master spec §I.Home)
+   ══════════════════════════════════════════════════════════════════ */
+.cpv-reel {
+  position: relative;
+  min-height: 100vh;
+  min-height: 100svh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--midnight);
+  color: var(--ivory);
+}
+
+/* The film layer: full-bleed frame, slow editorial drift, quiet dissolves */
+.cpv-reel__frame { position: absolute; inset: 0; z-index: 0; }
+.cpv-reel__frame video,
+.cpv-reel__frame img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  animation: cpv-drift var(--dur-drift) var(--ease-dissolve) infinite alternate;
+  will-change: transform;
+}
+.cpv-reel__frame .is-entering { animation: cpv-dissolve-in 1600ms var(--ease-dissolve) forwards, cpv-drift var(--dur-drift) var(--ease-dissolve) infinite alternate; }
+
+/* Deep midnight overlay: darkness gathers low, copy stays legible */
+.cpv-reel__shade {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  background:
+    linear-gradient(180deg, rgba(10, 13, 18, 0.64) 0%, rgba(10, 13, 18, 0.2) 34%, rgba(10, 13, 18, 0.34) 62%, rgba(8, 10, 15, 0.88) 100%),
+    radial-gradient(90% 60% at 24% 78%, rgba(8, 10, 15, 0.42), transparent 70%);
+}
+.cpv-reel__grain {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  pointer-events: none;
+  background-image: var(--cp-grain);
+  opacity: 0.8;
+  mix-blend-mode: overlay;
+}
+
+/* Chrome: soft logo presence, discreet client entrance */
+.cpv-reel__chrome {
+  position: relative;
+  z-index: 3;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 26px clamp(22px, 4vw, 54px);
+}
+.cpv-reel__chrome nav { display: flex; align-items: center; gap: 26px; }
+.cpv-reel__client {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: rgba(242, 237, 226, 0.78);
+  text-decoration: none;
+  padding-bottom: 2px;
+  border-bottom: 1px solid transparent;
+  transition: color var(--dur-quiet) var(--ease-editorial), border-color var(--dur-quiet) var(--ease-editorial);
+}
+.cpv-reel__client:hover { color: var(--ivory); border-color: var(--chrome-edge); }
+.cpv-reel__client:focus-visible { outline: 2px solid var(--cobalt); outline-offset: 4px; border-radius: 2px; }
+
+/* The editorial block: deliberate negative space, monumental ivory */
+.cpv-reel__copy {
+  position: relative;
+  z-index: 3;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  gap: 26px;
+  padding: 0 clamp(22px, 4vw, 54px) clamp(30px, 5vh, 52px);
+  max-width: 1080px;
+}
+.cpv-reel__copy .cpv-eyebrow { color: rgba(242, 237, 226, 0.62); }
+.cpv-reel__title-accent { color: var(--cobalt); }
+
+/* Invitations: ivory primary, smoked-glass secondary */
+.cpv-reel__actions { display: flex; flex-wrap: wrap; align-items: center; gap: 14px; margin-top: 6px; }
+.cpv-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 15px 28px;
+  border-radius: 999px;
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  text-decoration: none;
+  cursor: pointer;
+  border: 1px solid transparent;
+  transition:
+    transform var(--dur-quiet) var(--ease-editorial),
+    box-shadow var(--dur-quiet) var(--ease-editorial),
+    background var(--dur-quiet) var(--ease-editorial),
+    border-color var(--dur-quiet) var(--ease-editorial),
+    color var(--dur-quiet) var(--ease-editorial);
+}
+.cpv-btn:focus-visible { outline: 2px solid var(--cobalt); outline-offset: 3px; }
+.cpv-btn:active { transform: scale(0.985); }
+.cpv-btn--ivory {
+  background: var(--ivory);
+  color: #17191d;
+  box-shadow: 0 10px 30px rgba(4, 6, 10, 0.45);
+}
+.cpv-btn--ivory:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 16px 40px rgba(4, 6, 10, 0.55), 0 0 0 1px rgba(242, 237, 226, 0.25);
+  background: #f8f4ea;
+}
+.cpv-btn--glass {
+  background: rgba(26, 29, 33, 0.42);
+  color: var(--ivory);
+  border-color: var(--chrome-edge);
+  backdrop-filter: blur(14px) saturate(1.1);
+}
+.cpv-btn--glass:hover {
+  background: rgba(34, 38, 43, 0.6);
+  border-color: rgba(242, 237, 226, 0.28);
+  transform: translateY(-1px);
+}
+
+/* Showreel rhythm: progress line, clip presence, quiet index */
+.cpv-reel__meta {
+  position: relative;
+  z-index: 3;
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  padding: 0 clamp(22px, 4vw, 54px) clamp(22px, 3.4vh, 34px);
+}
+.cpv-reel__track {
+  position: relative;
+  flex: 1;
+  max-width: 340px;
+  height: 2px;
+  background: rgba(242, 237, 226, 0.16);
+  border-radius: 2px;
+  overflow: hidden;
+}
+.cpv-reel__track span {
+  position: absolute;
+  inset: 0;
+  background: var(--cobalt);
+  transform-origin: left center;
+  animation: cpv-progress var(--reel-clip-ms, 9000ms) linear forwards;
+}
+.cpv-reel__clip {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  letter-spacing: 0.26em;
+  text-transform: uppercase;
+  color: rgba(242, 237, 226, 0.66);
+  white-space: nowrap;
+}
+.cpv-reel__index { color: rgba(242, 237, 226, 0.4); }
+
+.cpv-reel__foot {
+  position: relative;
+  z-index: 3;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 14px clamp(22px, 4vw, 54px) 18px;
+  border-top: 1px solid var(--hairline-cp);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.24em;
+  text-transform: uppercase;
+  color: rgba(242, 237, 226, 0.42);
+}
+
+@media (max-width: 720px) {
+  .cpv-reel__chrome { padding: 20px; }
+  .cpv-reel__chrome nav { gap: 16px; }
+  .cpv-reel__copy { gap: 20px; padding-bottom: 26px; }
+  .cpv-btn { padding: 13px 22px; font-size: 13.5px; }
+  .cpv-reel__meta { padding-bottom: 18px; }
+  .cpv-reel__track { max-width: none; }
+  .cpv-reel__foot { display: none; }
+}
+
+/* Reduced motion: the world becomes still photography, dissolves become cuts */
+@media (prefers-reduced-motion: reduce) {
+  .cpv-reel__frame video,
+  .cpv-reel__frame img,
+  .cpv-reel__frame .is-entering { animation: none; transform: none; }
+  .cpv-reveal, .cpv-reveal--1, .cpv-reveal--2, .cpv-reveal--3, .cpv-reveal--4 {
+    animation: none; opacity: 1; transform: none; filter: none;
+  }
+  .cpv-leak { animation: none; }
+  .cpv-reel__track span { animation: none; transform: scaleX(0.4); }
 }

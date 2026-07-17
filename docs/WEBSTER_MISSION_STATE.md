@@ -53,3 +53,11 @@
 5. **T5:** Shot list + Pre-Pro readiness roll-up.
 6. **T12:** Delivery manifest (checksums via existing pipeline) + QC checklist UI.
 7. **G1:** Production-runtime parity (M1 remainder → M2) — unchanged priority.
+
+## Addendum 2026-07-17 (parallel synthesis doc adopted)
+
+`WEBSTER_x_PRODUCTION_MACHINE_SYNTHESIS.md` (arrived via a parallel session) is adopted. Its deltas to the queue:
+- **T6: Co-Script bridge** — Co-Script editor opens on the Webster brief (development); its paper-cut pass works transcripts → selects/sequences (post). Supabase-versioned substrate matches ours; highest-value remaining weave.
+- **Researcher (fact register)** — new surface feeding `decisions` with CONFIRMED/UNVERIFIED/REFUTED + URL; the El Paso instance carries 8 live flagged claims as test data.
+- **T5 sharpened:** shot list needs an **A-priority flag** ("do not leave Brook Hollow without the Rockwell-beside-new-PLC frame").
+- Confirmed doctrine for every stage: agents propose; deterministic code owns money, access, state, timecode, versions; the human keeps the paper cut, the interview, the decision, and the liability.

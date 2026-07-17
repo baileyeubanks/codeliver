@@ -96,3 +96,11 @@ Baseline: `e068ee8` (checkpoint of the prior session's transformation state).
 - **EDL export** (`lib/covideopro/edl.ts`): CMX 3600 with frame-accurate timecode at sequence fps, reel/clip names, select provenance comments — the truthful Premiere/Resolve handoff (benchmark battle card).
 - **Demo media made real:** generated `public/demo/interview-source.mp4` (ffmpeg, 150s) and rescaled the podcast transcript/selects/clips into its real duration — playback times are truthful, not simulated.
 - Suite: **555/555**, tsc clean. Screenshot 21.
+
+## U11 — Loop iterations 1–3 (2026-07-17)
+
+- **Loop 1 (G2):** SRT/VTT caption export (`lib/covideopro/captions.ts`) + select range refinement; render module split (render-plan client-safe / render server-only) after visual QA caught a node-builtin client-bundle leak. TDD, 3 tests.
+- **Loop 1.5 (G11):** demo role switcher ("View as") — session.role persisted, real capability gating in Shell nav/palette.
+- **Loop 2 (G4, delegated to agent-15, independently verified):** Playwright E2E harness (`@playwright/test@1.61.1`, `playwright.config.ts`, `tests/e2e/`): 5 demo smoke flows (login, home, opportunities triage, brief approval, sequences timeline) + design-evidence capture — **6/6 pass in the parent agent's own run (7.2s)**. Agent found+fixed a real product bug: `.workspace-shell .demo-pill{display:none}` hid all status pills on shell pages.
+- **Loop 3 (G1, in flight):** parity plan adopted (docs/COVIDEOPRO_G1_PROD_PARITY_PLAN.md); M1 delegated to agent-17.
+- Suite: 562/562 node:test + 6/6 e2e; tsc clean.

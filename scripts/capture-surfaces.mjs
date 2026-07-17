@@ -26,6 +26,12 @@ const MOBILE = { width: 390, height: 844 };
 const shots = [
   { name: "welcome", path: "/welcome", auth: false },
   { name: "login", path: "/login?demo=1", auth: false },
+  {
+    name: "review-theater",
+    path: "/review/demo?demo=1&asset=denie-mcdonald-v4&assets=denie-mcdonald-v4%2Ccharles-drummond-v5&intent=client_review&share=demo-ceraweek-cuts",
+    auth: false,
+    waitMs: 3200,
+  },
   { name: "home", path: "/?demo=1", auth: true, waitFor: "h1" },
   { name: "projects", path: "/projects?demo=1", auth: true, waitFor: "h1" },
   { name: "opportunities", path: "/opportunities?demo=1", auth: true, waitFor: "h1" },
@@ -66,7 +72,7 @@ for (const shot of shots) {
     const pp = await pub.newPage();
     await pp.goto(`${BASE}${shot.path}`);
     await pp.waitForLoadState("networkidle").catch(() => {});
-    await pp.waitForTimeout(1200);
+    await pp.waitForTimeout(shot.waitMs ?? 1200);
     await pp.screenshot({ path: `${outDir}/${shot.name}.png`, fullPage: false });
     await pub.close();
     console.log(`captured ${shot.name}`);

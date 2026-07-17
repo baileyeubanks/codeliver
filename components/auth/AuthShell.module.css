@@ -1,18 +1,18 @@
 .shell {
-  --auth-bg: #edf1f4;
-  --auth-surface: #ffffff;
-  --auth-surface-subtle: #f7f9fb;
-  --auth-surface-hover: #e9eef3;
-  --auth-ink: #18223e;
-  --auth-copy: #3f4962;
-  --auth-muted: #647287;
-  --auth-border: #d9e1e9;
-  --auth-border-strong: #c4cfdb;
-  --auth-accent: #145bb8;
-  --auth-accent-hover: #0c4ba2;
-  --auth-accent-soft: #edf4ff;
-  --auth-positive: #267553;
-  --auth-danger: #a33d3d;
+  --auth-bg: #0e1114;
+  --auth-surface: #1a1d21;
+  --auth-surface-subtle: #16191d;
+  --auth-surface-hover: #24282e;
+  --auth-ink: #f2ede2;
+  --auth-copy: #d5cfc0;
+  --auth-muted: #a8a294;
+  --auth-border: rgba(242, 237, 226, 0.09);
+  --auth-border-strong: rgba(242, 237, 226, 0.18);
+  --auth-accent: #4a7dff;
+  --auth-accent-hover: #6b93ff;
+  --auth-accent-soft: rgba(74, 125, 255, 0.13);
+  --auth-positive: #7fa88c;
+  --auth-danger: #c97474;
   min-height: 100svh;
   display: grid;
   grid-template-rows: 64px minmax(0, 1fr);
@@ -64,7 +64,7 @@
   grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
   border-bottom: 1px solid var(--auth-border);
-  background: rgba(255, 255, 255, 0.98);
+  background: rgba(18, 20, 23, 0.96);
 }
 
 .brand {
@@ -135,7 +135,7 @@
   border-radius: 8px;
   background: var(--auth-surface);
   padding: 22px 18px;
-  box-shadow: 0 12px 34px rgba(32, 55, 88, 0.08);
+  box-shadow: 0 12px 34px rgba(0, 0, 0, 0.35);
 }
 
 .panel::before {
@@ -200,9 +200,9 @@
   align-items: flex-start;
   gap: 7px;
   margin-top: 18px;
-  border: 1px solid #edbcbc;
+  border: 1px solid rgba(201, 116, 116, 0.4);
   border-radius: 6px;
-  background: #fff5f5;
+  background: rgba(161, 74, 74, 0.12);
   padding: 10px 12px;
   color: var(--auth-danger);
   font-size: 11px;
@@ -257,16 +257,16 @@
 }
 
 .input::placeholder {
-  color: #8793a5;
+  color: var(--auth-muted);
 }
 
 .input:hover {
-  border-color: #aab8c6;
+  border-color: var(--auth-border-strong);
 }
 
 .input:focus {
   border-color: var(--auth-accent);
-  box-shadow: 0 0 0 3px rgba(20, 91, 184, 0.12);
+  box-shadow: 0 0 0 3px rgba(74, 125, 255, 0.18);
 }
 
 .input[aria-invalid="true"] {
@@ -361,7 +361,7 @@
   justify-content: center;
   gap: 5px;
   margin-top: 19px;
-  border-top: 1px solid #edf0f4;
+  border-top: 1px solid var(--auth-border);
   padding-top: 18px;
   color: var(--auth-muted);
   font-size: 11px;
@@ -395,7 +395,7 @@
   justify-content: center;
   margin-bottom: 16px;
   border-radius: 50%;
-  background: #eaf8f0;
+  background: rgba(127, 168, 140, 0.14);
   color: var(--auth-positive);
 }
 

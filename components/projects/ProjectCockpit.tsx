@@ -2122,6 +2122,32 @@ export default function ProjectCockpit({
                         </section>
 
                         <section className={styles.dockSection}>
+                          <header><h2>Recent assets</h2><button type="button" onClick={() => selectSection("media")}>View all</button></header>
+                          <div className="cockpit-recent-assets">
+                            {assets.slice(0, 5).map((asset) => (
+                              <button
+                                key={asset.id}
+                                type="button"
+                                className={asset.id === activeAsset?.id ? "active" : ""}
+                                onClick={() => selectAsset(asset)}
+                                title={`${asset.title} — ${formatAssetStatus(asset.status)}`}
+                              >
+                                {asset.thumbnail_url || demoMode ? (
+                                  <Image src={asset.thumbnail_url ?? "/demo/ceraweek-speaker.jpg"} alt="" width={56} height={32} unoptimized />
+                                ) : (
+                                  <span aria-hidden="true"><Play size={14} /></span>
+                                )}
+                                <span>
+                                  <strong>{asset.title}</strong>
+                                  <small>{formatAssetStatus(asset.status)}</small>
+                                </span>
+                              </button>
+                            ))}
+                            {assets.length === 0 ? <p className="cockpit-rail-empty">No media in this project yet.</p> : null}
+                          </div>
+                        </section>
+
+                        <section className={styles.dockSection}>
                           <header><h2>Transcript and cleanup</h2><button type="button" onClick={() => selectSection("metadata")}>Details</button></header>
                           <div className="cockpit-ai-review">
                             <article>

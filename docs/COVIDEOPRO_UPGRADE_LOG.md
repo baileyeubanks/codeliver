@@ -72,3 +72,9 @@ Baseline: `e068ee8` (checkpoint of the prior session's transformation state).
 3. Remote-mode record APIs (Supabase routes for the new entities) so Home/Opportunities/sections work outside demo mode.
 4. Deliveries global surface + download audit events.
 5. Hermes project summary over the record (deterministic analyzers first).
+
+## U8 — Production build verified + final report
+
+- `npm run build` (Next 16.2.10, Turbopack) → **exit 0**; all routes compile, `/opportunities` prerenders static.
+- Final evidence report: `docs/COVIDEOPRO_FINAL_REPORT_2026-07-16.md`.
+- Proof bundle: tsc 0 errors · 535/535 tests · build exit 0 · 17 screenshots.

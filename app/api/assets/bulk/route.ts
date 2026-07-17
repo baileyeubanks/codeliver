@@ -79,9 +79,11 @@ async function authorizeBulkAssets(
 
   const projectIds = new Set(assets.map((asset) => asset.project_id));
   if (projectIds.size !== 1) {
+    // Anti-enumeration: a cross-project selection is indistinguishable from
+    // assets that do not exist. Never reveal tenancy boundaries via 400s.
     return {
       ok: false,
-      response: errorResponse("Invalid asset selection", 400),
+      response: errorResponse("Assets not found", 404),
     };
   }
 
@@ -147,8 +149,8 @@ async function updateAssets(
   const { data, error } = await supabase
     .from("assets")
     .update(updates)
-    .eq("project_id", projectId)
     .in("id", assetIds)
+    .eq("project_id", projectId)
     .select("id");
 
   return !error && (data ?? []).length === assetIds.length;

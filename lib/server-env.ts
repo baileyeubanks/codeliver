@@ -1,4 +1,4 @@
-import { resolveSurfaceOrigin } from "@/lib/surface-origins";
+import { resolveSurfaceOrigin } from "./surface-origins.ts";
 
 function requireValue(value: string | undefined, name: string): string {
   if (!value) {

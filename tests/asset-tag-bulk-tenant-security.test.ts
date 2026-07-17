@@ -70,6 +70,7 @@ interface RecordedWrite {
 
 class FakeQuery {
   private columns = "*";
+  private selectRequested = false;
   private readonly database: FakeSupabase;
   private readonly filters: Filter[] = [];
   private operation: Operation = "select";
@@ -84,6 +85,7 @@ class FakeQuery {
 
   select(columns = "*") {
     this.columns = columns;
+    this.selectRequested = true;
     return this;
   }
 
@@ -208,11 +210,14 @@ class FakeQuery {
     const matches = new Set(this.matchingRows());
     if (this.operation === "update") {
       for (const row of matches) Object.assign(row, this.payload);
-    } else {
-      this.database.tables[this.table] = (
-        this.database.tables[this.table] ?? []
-      ).filter((row) => !matches.has(row));
+      // PostgREST returns the updated rows when .select() is chained after
+      // .update(); the harness mirrors that so handlers can verify counts.
+      const rows = [...matches].map((row) => ({ ...row }));
+      return { data: this.selectRequested ? rows : null, error: null };
     }
+    this.database.tables[this.table] = (
+      this.database.tables[this.table] ?? []
+    ).filter((row) => !matches.has(row));
     return { data: null, error: null };
   }
 }

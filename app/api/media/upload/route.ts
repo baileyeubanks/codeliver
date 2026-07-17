@@ -183,6 +183,12 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
+  // Fail closed on role BEFORE touching the body: client and unclassified
+  // identities must never reach raw NAS operations, even with invalid input.
+  if (user && !serviceAuthorized && resolveTrustedSurfaceRole(user) !== "staff") {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+
   const contentLength = parseContentLength(req);
   if (contentLength === null) {
     return resumableUploadResponse(411, "LEGACY_UPLOAD_LENGTH_REQUIRED");
@@ -290,8 +296,10 @@ export async function POST(req: NextRequest) {
       authorizedFolderId = folderLookup.data.id;
     }
   } else {
-    if (!serviceAuthorized) {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    // Reaching this branch without a projectId means either a staff user
+    // (role-gated above) or an authorized pipeline service.
+    if (!serviceAuthorized && !user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
     if (explicitFolderId) {
       return NextResponse.json(

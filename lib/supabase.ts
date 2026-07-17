@@ -1,9 +1,9 @@
 import { createClient, SupabaseClient } from "@supabase/supabase-js";
-import { getSupabaseDataSchema } from "@/lib/data-authority";
+import { getSupabaseDataSchema } from "./data-authority.ts";
 import {
   getSupabaseServiceKey,
   getSupabaseServiceUrl,
-} from "@/lib/server-env";
+} from "./server-env.ts";
 
 export type DataSupabaseClient = SupabaseClient<any, any, any>;
 

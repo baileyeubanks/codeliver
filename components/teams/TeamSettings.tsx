@@ -206,7 +206,7 @@ export default function TeamSettings({ teamId }: Props) {
                   setEditingName(false);
                   setNameValue(team.name);
                 }}
-                className="p-2 text-[var(--muted)] hover:bg-white/5 rounded-lg transition-colors"
+                className="p-2 text-[var(--muted)] hover:bg-[var(--surface)]/5 rounded-lg transition-colors"
               >
                 <X size={16} />
               </button>
@@ -217,7 +217,7 @@ export default function TeamSettings({ teamId }: Props) {
               {isAdmin && (
                 <button
                   onClick={() => setEditingName(true)}
-                  className="p-1.5 text-[var(--muted)] hover:text-[var(--ink)] hover:bg-white/5 rounded-lg transition-colors"
+                  className="p-1.5 text-[var(--muted)] hover:text-[var(--ink)] hover:bg-[var(--surface)]/5 rounded-lg transition-colors"
                 >
                   <Pencil size={14} />
                 </button>
@@ -262,7 +262,7 @@ export default function TeamSettings({ teamId }: Props) {
           {(team.members ?? []).map((member: TeamMember) => (
             <div
               key={member.id}
-              className="flex items-center gap-3 py-2.5 px-3 rounded-lg hover:bg-white/[0.03] group"
+              className="flex items-center gap-3 py-2.5 px-3 rounded-lg hover:bg-[var(--surface)]/[0.03] group"
             >
               {/* Avatar */}
               <div
@@ -310,7 +310,7 @@ export default function TeamSettings({ teamId }: Props) {
                         actionMenu === member.id ? null : member.id
                       )
                     }
-                    className="p-1.5 text-[var(--dim)] hover:text-[var(--ink)] hover:bg-white/5 rounded-lg transition-colors opacity-0 group-hover:opacity-100"
+                    className="p-1.5 text-[var(--dim)] hover:text-[var(--ink)] hover:bg-[var(--surface)]/5 rounded-lg transition-colors opacity-0 group-hover:opacity-100"
                   >
                     <ChevronDown size={14} />
                   </button>
@@ -320,7 +320,7 @@ export default function TeamSettings({ teamId }: Props) {
                       {isOwner && member.role !== "admin" && (
                         <button
                           onClick={() => changeRole(member.user_id, "admin")}
-                          className="w-full text-left px-3 py-2 text-sm text-[var(--ink)] hover:bg-white/5 flex items-center gap-2"
+                          className="w-full text-left px-3 py-2 text-sm text-[var(--ink)] hover:bg-[var(--surface)]/5 flex items-center gap-2"
                         >
                           <ShieldCheck size={14} className="text-[var(--accent)]" />
                           Make Admin
@@ -329,7 +329,7 @@ export default function TeamSettings({ teamId }: Props) {
                       {member.role !== "member" && (
                         <button
                           onClick={() => changeRole(member.user_id, "member")}
-                          className="w-full text-left px-3 py-2 text-sm text-[var(--ink)] hover:bg-white/5 flex items-center gap-2"
+                          className="w-full text-left px-3 py-2 text-sm text-[var(--ink)] hover:bg-[var(--surface)]/5 flex items-center gap-2"
                         >
                           <Users size={14} className="text-[var(--green)]" />
                           Set as Member
@@ -338,7 +338,7 @@ export default function TeamSettings({ teamId }: Props) {
                       {member.role !== "viewer" && (
                         <button
                           onClick={() => changeRole(member.user_id, "viewer")}
-                          className="w-full text-left px-3 py-2 text-sm text-[var(--ink)] hover:bg-white/5 flex items-center gap-2"
+                          className="w-full text-left px-3 py-2 text-sm text-[var(--ink)] hover:bg-[var(--surface)]/5 flex items-center gap-2"
                         >
                           <Eye size={14} className="text-[var(--muted)]" />
                           Set as Viewer

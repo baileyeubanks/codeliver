@@ -93,7 +93,7 @@ export function WaveformTranscript({
       ))}
 
       <span
-        className="pointer-events-none absolute inset-y-0 w-px bg-white shadow-[0_0_0_1px_rgba(0,0,0,0.45)]"
+        className="pointer-events-none absolute inset-y-0 w-px bg-[var(--surface)] shadow-[0_0_0_1px_rgba(0,0,0,0.45)]"
         style={{ left: `${playhead}%` }}
         aria-hidden="true"
       />

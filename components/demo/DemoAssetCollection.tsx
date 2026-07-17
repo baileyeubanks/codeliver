@@ -77,7 +77,7 @@ export default function DemoAssetCollection({ mode }: { mode: "archive" | "trash
           </div>
           <Link
             href={`/projects${demoSuffix}`}
-            className="inline-flex h-9 w-fit items-center gap-2 rounded-md border border-[var(--border)] bg-white px-3 text-sm font-semibold text-[var(--accent)]"
+            className="inline-flex h-9 w-fit items-center gap-2 rounded-md border border-[var(--border)] bg-[var(--surface)] px-3 text-sm font-semibold text-[var(--accent)]"
           >
             <CheckCircle2 size={15} />
             Open library
@@ -94,7 +94,7 @@ export default function DemoAssetCollection({ mode }: { mode: "archive" | "trash
           return (
             <div
               key={item.label}
-              className="grid min-h-[74px] grid-cols-[32px_minmax(0,1fr)] items-center gap-3 rounded-lg border border-[var(--border)] bg-white px-3 py-2"
+              className="grid min-h-[74px] grid-cols-[32px_minmax(0,1fr)] items-center gap-3 rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3 py-2"
             >
               <span className="flex h-8 w-8 items-center justify-center rounded-md bg-[var(--surface)] text-[var(--accent)]">
                 <ReadinessIcon size={16} />
@@ -114,7 +114,7 @@ export default function DemoAssetCollection({ mode }: { mode: "archive" | "trash
       </section>
 
       {assets.length === 0 ? (
-        <div className="rounded-lg border border-[var(--border)] bg-white px-5 py-14 text-center">
+        <div className="rounded-lg border border-[var(--border)] bg-[var(--surface)] px-5 py-14 text-center">
           <Icon size={30} className="mx-auto mb-3 text-[var(--accent)]" />
           <h2 className="text-base font-semibold text-[var(--ink)]">No {modeLabel.toLowerCase()} items</h2>
           <p className="mx-auto mt-1 max-w-md text-sm text-[var(--muted)]">
@@ -122,13 +122,13 @@ export default function DemoAssetCollection({ mode }: { mode: "archive" | "trash
           </p>
           <Link
             href={`/projects${demoSuffix}`}
-            className="mt-4 inline-flex h-9 items-center justify-center rounded-md border border-[var(--border)] bg-white px-3 text-sm font-semibold text-[var(--accent)]"
+            className="mt-4 inline-flex h-9 items-center justify-center rounded-md border border-[var(--border)] bg-[var(--surface)] px-3 text-sm font-semibold text-[var(--accent)]"
           >
             Return to production library
           </Link>
         </div>
       ) : (
-        <div className="overflow-hidden rounded-lg border border-[var(--border)] bg-white">
+        <div className="overflow-hidden rounded-lg border border-[var(--border)] bg-[var(--surface)]">
           {assets.map((asset) => (
             <div
               key={asset.id}

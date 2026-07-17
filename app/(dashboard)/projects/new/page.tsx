@@ -170,7 +170,7 @@ export default function NewProject() {
           </div>
           <Link
             href={`/activity${demoSuffix}`}
-            className="inline-flex h-9 w-fit items-center gap-2 rounded-md border border-[var(--border)] bg-white px-3 text-sm font-semibold text-[var(--ink)]"
+            className="inline-flex h-9 w-fit items-center gap-2 rounded-md border border-[var(--border)] bg-[var(--surface)] px-3 text-sm font-semibold text-[var(--ink)]"
           >
             Activity trail
             <ArrowRight size={15} />
@@ -180,7 +180,7 @@ export default function NewProject() {
 
       <section
         aria-label="Intake readiness"
-        className="grid overflow-hidden rounded-lg border border-[var(--border)] bg-white sm:grid-cols-4"
+        className="grid overflow-hidden rounded-lg border border-[var(--border)] bg-[var(--surface)] sm:grid-cols-4"
       >
         {readinessStrip.map((item, index) => (
           <div
@@ -200,7 +200,7 @@ export default function NewProject() {
       </section>
 
       <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_360px]">
-        <section className="rounded-lg border border-[var(--border)] bg-white p-4 sm:p-5">
+        <section className="rounded-lg border border-[var(--border)] bg-[var(--surface)] p-4 sm:p-5">
           <div className="mb-5 flex items-start gap-3 border-b border-[var(--border)] pb-4">
             <span className="flex h-9 w-9 items-center justify-center rounded-md bg-[var(--surface)] text-[var(--accent)]">
               <FileText size={17} />
@@ -300,7 +300,7 @@ export default function NewProject() {
               </button>
               <Link
                 href={`/projects${demoSuffix}`}
-                className="inline-flex h-10 items-center rounded-md border border-[var(--border)] bg-white px-4 text-sm font-semibold text-[var(--ink)]"
+                className="inline-flex h-10 items-center rounded-md border border-[var(--border)] bg-[var(--surface)] px-4 text-sm font-semibold text-[var(--ink)]"
               >
                 Cancel
               </Link>
@@ -308,7 +308,7 @@ export default function NewProject() {
           </form>
         </section>
 
-        <aside className="rounded-lg border border-[var(--border)] bg-white p-4 sm:p-5">
+        <aside className="rounded-lg border border-[var(--border)] bg-[var(--surface)] p-4 sm:p-5">
           <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[var(--accent)]">
             Setup path
           </p>
@@ -321,7 +321,7 @@ export default function NewProject() {
                   key={item.label}
                   className="grid grid-cols-[32px_minmax(0,1fr)] gap-3 rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3 py-3"
                 >
-                  <span className="flex h-8 w-8 items-center justify-center rounded-md bg-white text-[var(--accent)]">
+                  <span className="flex h-8 w-8 items-center justify-center rounded-md bg-[var(--surface)] text-[var(--accent)]">
                     <Icon size={16} />
                   </span>
                   <span className="min-w-0">

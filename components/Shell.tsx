@@ -189,7 +189,7 @@ export default function Shell({ children }: { children: React.ReactNode }) {
   }
 
   if (isProjectCockpit) {
-    return <div className="min-h-screen bg-white">{children}</div>;
+    return <div className="min-h-screen bg-[#121417]">{children}</div>;
   }
 
   return (

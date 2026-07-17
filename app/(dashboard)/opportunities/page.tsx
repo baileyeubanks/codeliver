@@ -128,7 +128,7 @@ export default function OpportunitiesPage() {
       ) : null}
 
       {composeOpen ? (
-        <section aria-label="New inquiry" className="mb-4 grid gap-2 rounded-lg border border-[var(--border)] bg-white p-4">
+        <section aria-label="New inquiry" className="mb-4 grid gap-2 rounded-lg border border-[var(--border)] bg-[var(--surface)] p-4">
           <h2 className="text-sm font-semibold text-[var(--ink)]">Capture an inquiry</h2>
           <textarea
             className="input flex-1"
@@ -181,7 +181,7 @@ export default function OpportunitiesPage() {
               const org = workspace.organizations.find((candidate) => candidate.id === inquiry.organization_id);
               const contact = workspace.contacts.find((candidate) => candidate.id === inquiry.contact_id);
               return (
-                <article key={inquiry.id} className="rounded-lg border border-[var(--border)] bg-white p-4">
+                <article key={inquiry.id} className="rounded-lg border border-[var(--border)] bg-[var(--surface)] p-4">
                   <header className="flex flex-wrap items-center justify-between gap-2">
                     <span className="flex items-center gap-2 text-sm font-semibold text-[var(--ink)]">
                       <Building2 size={15} /> {org?.name ?? "Unknown organization"}
@@ -243,7 +243,7 @@ export default function OpportunitiesPage() {
               const projects = workspace.projects.filter((project) => project.organization_id === organization.id);
               const initials = organization.name.split(/\s+/).filter(Boolean).slice(0, 2).map((part) => part[0]?.toUpperCase()).join("");
               return (
-                <article key={organization.id} className="flex gap-3 rounded-lg border border-[var(--border)] bg-white p-3">
+                <article key={organization.id} className="flex gap-3 rounded-lg border border-[var(--border)] bg-[var(--surface)] p-3">
                   <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-[var(--accent-dim)] text-xs font-bold text-[var(--accent)]" aria-hidden="true">
                     {initials}
                   </span>
@@ -278,7 +278,7 @@ export default function OpportunitiesPage() {
             const project = workspace.projects.find((candidate) => candidate.id === proposal.project_id);
             const total = proposalEstimateTotal(proposal.estimate_lines);
             return (
-              <article key={proposal.id} className="rounded-lg border border-[var(--border)] bg-white p-4">
+              <article key={proposal.id} className="rounded-lg border border-[var(--border)] bg-[var(--surface)] p-4">
                 <header className="flex items-center justify-between gap-2">
                   <span className="flex items-center gap-2 text-sm font-semibold text-[var(--ink)]">
                     <FileText size={15} /> {proposal.title}

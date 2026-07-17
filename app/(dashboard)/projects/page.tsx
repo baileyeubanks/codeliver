@@ -418,7 +418,7 @@ export default function ProjectsPage() {
             <div className="flex flex-wrap gap-2">
               <Link
                 href={`/projects/new${demoSuffix}`}
-                className="inline-flex h-9 items-center gap-2 rounded-md border border-[var(--border)] bg-white px-3 text-sm font-semibold text-[var(--ink)]"
+                className="inline-flex h-9 items-center gap-2 rounded-md border border-[var(--border)] bg-[var(--surface)] px-3 text-sm font-semibold text-[var(--ink)]"
               >
                 <Plus size={15} />
                 New workspace
@@ -433,7 +433,7 @@ export default function ProjectsPage() {
               </button>
               <Link
                 href={primaryReviewHref}
-                className="inline-flex h-9 items-center gap-2 rounded-md border border-[var(--border)] bg-white px-3 text-sm font-semibold text-[var(--accent)]"
+                className="inline-flex h-9 items-center gap-2 rounded-md border border-[var(--border)] bg-[var(--surface)] px-3 text-sm font-semibold text-[var(--accent)]"
               >
                 <MessageSquare size={15} />
                 Open review
@@ -461,7 +461,7 @@ export default function ProjectsPage() {
             return (
               <div
                 key={item.label}
-                className="grid min-h-[74px] grid-cols-[32px_minmax(0,1fr)] items-center gap-3 rounded-lg border border-[var(--border)] bg-white px-3 py-2"
+                className="grid min-h-[74px] grid-cols-[32px_minmax(0,1fr)] items-center gap-3 rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3 py-2"
               >
                 <span className="flex h-8 w-8 items-center justify-center rounded-md bg-[var(--surface)] text-[var(--accent)]">
                   <Icon size={16} />
@@ -489,7 +489,7 @@ export default function ProjectsPage() {
             return (
               <div
                 key={item.label}
-                className="grid grid-cols-[32px_minmax(0,1fr)] gap-3 rounded-lg border border-[var(--border)] bg-white px-3 py-3"
+                className="grid grid-cols-[32px_minmax(0,1fr)] gap-3 rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3 py-3"
               >
                 <span className="flex h-8 w-8 items-center justify-center rounded-md bg-[var(--accent-dim)] text-[var(--accent)]">
                   <Icon size={16} />

@@ -139,7 +139,7 @@ export default function ActivityPage() {
           </Link>
           <Link
             href={projectHref}
-            className="inline-flex h-9 items-center gap-2 rounded-md border border-[var(--border)] bg-white px-3 text-sm font-semibold text-[var(--ink)]"
+            className="inline-flex h-9 items-center gap-2 rounded-md border border-[var(--border)] bg-[var(--surface)] px-3 text-sm font-semibold text-[var(--ink)]"
           >
             <Upload size={15} />
             Upload media
@@ -156,7 +156,7 @@ export default function ActivityPage() {
           return (
             <div
               key={item.label}
-              className="grid min-h-[74px] grid-cols-[32px_minmax(0,1fr)] items-center gap-3 rounded-lg border border-[var(--border)] bg-white px-3 py-2"
+              className="grid min-h-[74px] grid-cols-[32px_minmax(0,1fr)] items-center gap-3 rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3 py-2"
             >
               <span className="flex h-8 w-8 items-center justify-center rounded-md bg-[var(--surface)] text-[var(--accent)]">
                 <Icon size={16} />
@@ -176,7 +176,7 @@ export default function ActivityPage() {
       </section>
 
       {loading ? (
-        <div className="rounded-lg border border-[var(--border)] bg-white">
+        <div className="rounded-lg border border-[var(--border)] bg-[var(--surface)]">
           {[1, 2, 3, 4, 5].map((i) => (
             <div
               key={i}
@@ -192,7 +192,7 @@ export default function ActivityPage() {
           ))}
         </div>
       ) : items.length === 0 ? (
-        <div className="rounded-lg border border-dashed border-[var(--border)] bg-white px-5 py-14 text-center">
+        <div className="rounded-lg border border-dashed border-[var(--border)] bg-[var(--surface)] px-5 py-14 text-center">
           <BellRing size={30} className="mx-auto mb-3 text-[var(--accent)]" />
           <h2 className="text-base font-semibold text-[var(--ink)]">No production activity yet</h2>
           <p className="mx-auto mt-1 max-w-md text-sm text-[var(--muted)]">
@@ -200,13 +200,13 @@ export default function ActivityPage() {
           </p>
           <Link
             href={projectHref}
-            className="mt-4 inline-flex h-9 items-center justify-center rounded-md border border-[var(--border)] bg-white px-3 text-sm font-semibold text-[var(--accent)]"
+            className="mt-4 inline-flex h-9 items-center justify-center rounded-md border border-[var(--border)] bg-[var(--surface)] px-3 text-sm font-semibold text-[var(--accent)]"
           >
             Open project cockpit
           </Link>
         </div>
       ) : (
-        <section className="rounded-lg border border-[var(--border)] bg-white">
+        <section className="rounded-lg border border-[var(--border)] bg-[var(--surface)]">
           <div className="flex flex-col gap-3 border-b border-[var(--border)] px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex items-center gap-2 text-sm font-semibold text-[var(--ink)]">
               <Filter size={15} className="text-[var(--dim)]" />

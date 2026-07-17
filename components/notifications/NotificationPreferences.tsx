@@ -203,7 +203,7 @@ export default function NotificationPreferences() {
                   }`}
                 >
                   <span
-                    className={`absolute left-0.5 top-0.5 h-4 w-4 rounded-full bg-white transition-transform ${
+                    className={`absolute left-0.5 top-0.5 h-4 w-4 rounded-full bg-[var(--surface)] transition-transform ${
                       pref.in_app_enabled ? "translate-x-4" : "translate-x-0"
                     }`}
                   />
@@ -238,7 +238,7 @@ export default function NotificationPreferences() {
                   }`}
                 >
                   <span
-                    className={`absolute left-0.5 top-0.5 h-4 w-4 rounded-full bg-white transition-transform ${
+                    className={`absolute left-0.5 top-0.5 h-4 w-4 rounded-full bg-[var(--surface)] transition-transform ${
                       pref.email_enabled ? "translate-x-4" : "translate-x-0"
                     }`}
                   />

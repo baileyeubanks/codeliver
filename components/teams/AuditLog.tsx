@@ -199,7 +199,7 @@ export default function AuditLog({ teamId, projectId }: Props) {
           className={`flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-lg transition-colors ${
             showFilters
               ? "bg-[var(--accent)]/10 text-[var(--accent)]"
-              : "text-[var(--muted)] hover:bg-white/5"
+              : "text-[var(--muted)] hover:bg-[var(--surface)]/5"
           }`}
         >
           <Filter size={13} />
@@ -319,7 +319,7 @@ export default function AuditLog({ teamId, projectId }: Props) {
           {entries.map((entry) => (
             <div
               key={entry.id}
-              className="flex items-start gap-3 py-2.5 px-3 rounded-lg hover:bg-white/[0.02] group"
+              className="flex items-start gap-3 py-2.5 px-3 rounded-lg hover:bg-[var(--surface)]/[0.02] group"
             >
               {/* Actor avatar */}
               <div

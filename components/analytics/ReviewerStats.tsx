@@ -134,7 +134,7 @@ export default function ReviewerStats({ projectId }: ReviewerStatsProps) {
           {sorted.map((r) => (
             <tr
               key={r.email}
-              className="border-b border-[var(--border)] hover:bg-white/[0.02] transition-colors"
+              className="border-b border-[var(--border)] hover:bg-[var(--surface)]/[0.02] transition-colors"
             >
               <td className="py-2.5 px-3 text-[var(--ink)] font-medium">
                 {r.email}

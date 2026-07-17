@@ -146,7 +146,7 @@ export default function PlayerControls({ videoRef }: PlayerControlsProps) {
         />
         {/* Thumb */}
         <div
-          className="absolute top-1/2 h-3.5 w-3.5 -translate-y-1/2 rounded-full border-2 border-[var(--accent)] bg-white opacity-0 transition-opacity group-hover:opacity-100"
+          className="absolute top-1/2 h-3.5 w-3.5 -translate-y-1/2 rounded-full border-2 border-[var(--accent)] bg-[var(--surface)] opacity-0 transition-opacity group-hover:opacity-100"
           style={{ left: `calc(${progress}% - 7px)` }}
         />
       </div>

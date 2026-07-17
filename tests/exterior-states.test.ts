@@ -10,7 +10,7 @@ function source(path: string): string {
   return readFileSync(resolve(repositoryRoot, path), "utf8");
 }
 
-test("not-found and loading states stay inside the Co-VideoPro exterior shell", () => {
+test("not-found and loading states stay inside the Webster exterior shell", () => {
   const notFound = source("app/not-found.tsx");
   const loading = source("app/loading.tsx");
   const globalError = source("app/global-error.tsx");
@@ -18,26 +18,26 @@ test("not-found and loading states stay inside the Co-VideoPro exterior shell", 
   const demoGuard = source("components/demo/DemoSessionGuard.tsx");
   const globals = source("app/globals.css");
   const exteriorStyles = globals.slice(
-    globals.indexOf("/* ── Co-VideoPro exterior/loading states"),
+    globals.indexOf("/* ── Webster exterior/loading states"),
     globals.indexOf("/* ── Top Navigation"),
   );
 
   assert.match(notFound, /CoProductionBrand/);
   assert.match(notFound, /variant="stacked"/);
-  assert.match(notFound, /Co-VideoPro surface/);
+  assert.match(notFound, /Webster surface/);
   assert.match(notFound, /Workspace route unavailable/);
   assert.doesNotMatch(notFound, />404</);
   assert.doesNotMatch(notFound, /Page not found/);
 
   assert.match(loading, /CoProductionBrand/);
   assert.match(loading, /variant="stacked"/);
-  assert.match(loading, /Loading Co-VideoPro workspace/);
+  assert.match(loading, /Loading Webster workspace/);
   assert.match(loading, /aria-busy="true"/);
 
   assert.match(globalError, /CoProductionBrand/);
   assert.match(globalError, /variant="stacked"/);
   assert.match(globalError, /Workspace recovery/);
-  assert.match(globalError, /Co-VideoPro needs a quick refresh/);
+  assert.match(globalError, /Webster needs a quick refresh/);
   assert.match(globalError, /onClick=\{reset\}/);
   assert.match(globalError, /href="\/projects"/);
   assert.doesNotMatch(globalError, /style=\{\{/);
@@ -52,7 +52,7 @@ test("not-found and loading states stay inside the Co-VideoPro exterior shell", 
 
   assert.match(demoGuard, /CoProductionBrand/);
   assert.match(demoGuard, /variant="stacked"/);
-  assert.match(demoGuard, /Returning to Co-VideoPro sign in/);
+  assert.match(demoGuard, /Returning to Webster sign in/);
   assert.match(demoGuard, /aria-busy="true"/);
   assert.match(demoGuard, /sr-only">Returning to sign in/);
   assert.doesNotMatch(demoGuard, /className="spinner"/);

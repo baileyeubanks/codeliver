@@ -11,26 +11,23 @@ const componentSource = readFileSync(
   "utf8",
 );
 
-test("the Co-VideoPro lockup renders Bailey's CVP artwork with an accessible label", () => {
-  assert.match(componentSource, /const DEFAULT_LABEL = "Co-VideoPro by Content Co-op"/);
-  assert.match(componentSource, /import Image from "next\/image"/);
-  assert.match(componentSource, /alt=\{label\}/);
-  assert.match(componentSource, /unoptimized/);
-  assert.match(componentSource, /Co-VideoPro/);
+test("the Webster lockup renders the wordmark + one four-color registration mark", () => {
+  assert.match(componentSource, /const DEFAULT_LABEL = "Webster by co-videopro"/);
+  assert.match(componentSource, /role="img"/);
+  assert.match(componentSource, /aria-label=\{label\}/);
+  assert.match(componentSource, /<span className=\{styles\.product\}>WEBSTER<\/span>/);
+  assert.match(componentSource, /by co-videopro/);
+  assert.match(componentSource, /src="\/brand\/cvp-fourcolor-mark\.png"/);
   assert.doesNotMatch(componentSource, /Co-Production Pro|Co-Deliver/);
 });
 
-test("variant artwork maps to the real CVP raster files that exist on disk", () => {
-  assert.match(componentSource, /horizontal: \{ src: "\/brand\/cvp-long\.png"/);
-  assert.match(componentSource, /stacked: \{ src: "\/brand\/cvp-stacked\.png"/);
-  assert.match(componentSource, /"compact-mark": \{ src: "\/brand\/cvp-mark\.png"/);
-  for (const file of ["cvp-long.png", "cvp-stacked.png", "cvp-mark.png"]) {
-    assert.ok(existsSync(resolve(repositoryRoot, "public/brand", file)), `public/brand/${file} exists`);
-    const signature = readFileSync(resolve(repositoryRoot, "public/brand", file)).subarray(0, 8).toString("hex");
-    assert.equal(signature, "89504e470d0a1a0a", `${file} is a valid PNG`);
-  }
+test("the registration mark exists on disk and is a valid PNG", () => {
+  const file = resolve(repositoryRoot, "public/brand/cvp-fourcolor-mark.png");
+  assert.ok(existsSync(file));
+  assert.equal(readFileSync(file).subarray(0, 8).toString("hex"), "89504e470d0a1a0a");
 });
 
-test("the retired co-production-pro rasters are no longer referenced", () => {
-  assert.doesNotMatch(componentSource, /co-production-pro-/);
+test("variants: compact drops the wordmark, stacked keeps it; one mark per surface", () => {
+  assert.match(componentSource, /variant !== "compact-mark"/);
+  assert.equal(componentSource.match(/cvp-fourcolor-mark\.png/g)?.length, 1, "one registration mark reference");
 });

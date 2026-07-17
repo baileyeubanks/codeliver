@@ -206,7 +206,7 @@ export const CO_PRODUCE_RECORDS = {
     storage: "projects",
     scope: "project",
     parent: null,
-    writeRule: "Project writes remain under authenticated Co-VideoPro project ownership.",
+    writeRule: "Project writes remain under authenticated Webster project ownership.",
     status: {
       kind: "authoritative-field",
       field: "projects.status",
@@ -439,7 +439,7 @@ export const CO_PRODUCE_RECORDS = {
     storage: "teams",
     scope: "workspace",
     parent: null,
-    writeRule: "Workspace membership and roles remain Co-VideoPro identity authority.",
+    writeRule: "Workspace membership and roles remain Webster identity authority.",
     status: {
       kind: "immutable",
       field: null,

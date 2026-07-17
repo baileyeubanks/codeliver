@@ -47,10 +47,10 @@ const THEMES: Record<string, ProductTheme> = {
     manifesto: "Feedback gets cleaner when versions, comments, and final approvals sit on the same track instead of splitting across inboxes.",
     features: ["Timecoded review", "Version control", "Stakeholder sign-off"],
   },
-  "Co-VideoPro": {
+  "Webster": {
     accent: "#8dc0ff",
     accentSoft: "rgba(141, 192, 255, 0.14)",
-    displayLabel: "Co-VideoPro",
+    displayLabel: "Webster",
     eyebrow: "Production and delivery system",
     manifesto: "Planning, production, review, editing, and delivery stay in one governed workspace from first brief to final handoff.",
     features: ["End-to-end production", "Frame-accurate review", "Controlled delivery"],

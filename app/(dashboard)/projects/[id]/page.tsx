@@ -290,7 +290,7 @@ export default function ProjectWorkspace() {
         <div className="project-state__topline">
           <CoProductionBrand
             variant="horizontal"
-            label="Co-VideoPro by Content Co-op"
+            label="Webster by co-videopro"
             priority
           />
           <span>
@@ -325,7 +325,7 @@ export default function ProjectWorkspace() {
         <div className="project-state__panel">
           <CoProductionBrand
             variant="stacked"
-            label="Co-VideoPro by Content Co-op"
+            label="Webster by co-videopro"
             priority
           />
           <div className="project-state__icon" aria-hidden="true">

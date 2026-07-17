@@ -201,7 +201,7 @@ export default function WorkspaceNavigation({
             </div>
 
             <footer className={styles.drawerFooter}>
-              <span>Co-VideoPro workspace</span>
+              <span>Webster workspace</span>
               <strong>{role}</strong>
             </footer>
           </aside>

@@ -120,7 +120,7 @@ export default function BrandSettings({
   const brandReadiness = [
     {
       label: "Product identity",
-      value: "Co-VideoPro",
+      value: "Webster",
       detail: "Supplied raster lockup",
       icon: BadgeCheck,
       tone: "good",
@@ -428,7 +428,7 @@ export default function BrandSettings({
               <CoProductionBrand
                 className={styles.productLockup}
                 variant="horizontal"
-                label="Co-VideoPro by Content Co-op"
+                label="Webster by co-videopro"
               />
               <p>Workspace brand layers apply to client review chrome without replacing the product mark.</p>
             </div>

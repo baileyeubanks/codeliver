@@ -1463,9 +1463,9 @@ export default function ProjectCockpit({
     >
       <a className={styles.skipLink} href="#cockpit-workspace-content">Skip to project workspace</a>
       <header className="cockpit-header">
-        <Link className="cockpit-brand" href={demoMode ? "/projects?demo=1" : "/projects"} aria-label="Co-VideoPro projects">
+        <Link className="cockpit-brand" href={demoMode ? "/projects?demo=1" : "/projects"} aria-label="Webster projects">
           <CoProductionBrand className={styles.brandLockup} priority />
-          <CoProductionBrand className={styles.brandMark} variant="compact-mark" label="Co-VideoPro" />
+          <CoProductionBrand className={styles.brandMark} variant="compact-mark" label="Webster" />
         </Link>
 
         <div className="cockpit-project-switcher">
@@ -2391,7 +2391,7 @@ export default function ProjectCockpit({
               <span style={{ width: `${uploadStatus.progress}%` }} />
             </div>
             <div className="cockpit-upload-progress-copy">
-              <span>{uploadStatus.message ?? "Keep this window open while Co-VideoPro prepares the review asset."}</span>
+              <span>{uploadStatus.message ?? "Keep this window open while Webster prepares the review asset."}</span>
               <b>{uploadStatus.progress}%</b>
             </div>
             <ol className="cockpit-upload-steps">

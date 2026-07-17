@@ -164,7 +164,7 @@ test("restoration migrates the retired workspace display name without changing i
   const restored = restoreEnterpriseIdentityState(JSON.stringify(legacy)).state;
   const workspace = restored.workspaces.find((candidate) => candidate.id === "workspace-co-deliver");
   assert.equal(workspace?.id, "workspace-co-deliver");
-  assert.equal(workspace?.name, "Co-VideoPro");
+  assert.equal(workspace?.name, "Webster");
 });
 
 test("governance export is tenant-scoped and redacts direct identifiers", () => {

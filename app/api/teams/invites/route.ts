@@ -228,7 +228,7 @@ export async function POST(request: NextRequest) {
 
   const delivery = await sendEmail({
     to: normalizedEmail,
-    subject: `You're invited to join ${teamName} on Co-VideoPro`,
+    subject: `You're invited to join ${teamName} on Webster`,
     html: `
       <div style="font-family: sans-serif; max-width: 500px; margin: 0 auto;">
         <h2 style="color: #0f1f3d;">Team invitation</h2>

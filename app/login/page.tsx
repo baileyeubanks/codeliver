@@ -91,7 +91,7 @@ export default function LoginPage() {
         </div>
 
         <header className={styles.heading}>
-          <h1 id="login-title">Sign in to Co-VideoPro</h1>
+          <h1 id="login-title">Sign in to Webster</h1>
           <p>Review and approve work with Content Co-op.</p>
         </header>
 
@@ -179,7 +179,7 @@ export default function LoginPage() {
         </form>
 
         <footer className={styles.footer}>
-          <span>New to Co-VideoPro?</span>
+          <span>New to Webster?</span>
           <Link href={signupHref}>Create an account</Link>
         </footer>
       </section>

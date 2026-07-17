@@ -1,5 +1,5 @@
 /**
- * Co-VideoPro — Brief-to-Bid compiler (Agent 1: Line Producer, FORM only).
+ * Webster — Brief-to-Bid compiler (Agent 1: Line Producer, FORM only).
  *
  * Deterministic compilation: deliverable kinds → resource bundles, priced
  * from the ACTIVE rate card. No LLM arithmetic — the operator owns scope

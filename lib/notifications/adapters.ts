@@ -31,7 +31,7 @@ function renderEmailHtml({
   const safeBody = escapeHtml(body).replaceAll("\n", "<br />");
   const resolvedActionUrl = actionUrl?.startsWith("/") ? `${getBaseUrl()}${actionUrl}` : actionUrl;
   const action = resolvedActionUrl
-    ? `<p style="margin-top: 20px;"><a href="${escapeHtml(resolvedActionUrl)}" style="display:inline-block;padding:10px 16px;background:#2563eb;color:#fff;text-decoration:none;border-radius:6px;">Open in Co-VideoPro</a></p>`
+    ? `<p style="margin-top: 20px;"><a href="${escapeHtml(resolvedActionUrl)}" style="display:inline-block;padding:10px 16px;background:#2563eb;color:#fff;text-decoration:none;border-radius:6px;">Open in Webster</a></p>`
     : "";
 
   return `

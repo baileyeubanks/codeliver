@@ -14,56 +14,41 @@ export interface CoProductionBrandProps {
   sizes?: string;
 }
 
-const DEFAULT_LABEL = "Co-VideoPro by Content Co-op";
+const DEFAULT_LABEL = "Webster by co-videopro";
 
 /**
- * The Co-VideoPro lockup — Bailey's CVP artwork (blue/navy, film+document
- * monogram). Chrome uses the blue horizontal; hero moments use the colorful
- * stacked; compact uses the blue mark. Source artwork: ~/Desktop/CVP BLUE*.
+ * The Webster lockup: one wordmark, one four-color registration mark
+ * (Bailey's CVP monogram), per the Webster board design system
+ * (~/Desktop/webster/WEBSTER_BOARD_SYSTEM.md). Used once per surface.
  */
-const SOURCE_BY_VARIANT: Record<CoProductionBrandVariant, { src: string; width: number; height: number }> = {
-  horizontal: { src: "/brand/cvp-long.png", width: 730, height: 187 },
-  stacked: { src: "/brand/cvp-stacked.png", width: 1600, height: 852 },
-  "compact-mark": { src: "/brand/cvp-mark.png", width: 786, height: 565 },
-};
-
-const CLASS_BY_VARIANT: Record<CoProductionBrandVariant, string> = {
-  horizontal: styles.horizontal,
-  stacked: styles.stacked,
-  "compact-mark": styles.compactMark,
-};
-
-const SIZES_BY_VARIANT: Record<CoProductionBrandVariant, string> = {
-  horizontal: "(max-width: 480px) 150px, 172px",
-  stacked: "(max-width: 480px) 260px, 320px",
-  "compact-mark": "(max-width: 480px) 40px, 44px",
-};
-
 export function CoProductionBrand({
   variant = "horizontal",
   className,
   label = DEFAULT_LABEL,
   priority = false,
-  sizes,
 }: CoProductionBrandProps) {
-  const rootClassName = [styles.brand, CLASS_BY_VARIANT[variant], className]
+  const rootClassName = [styles.brand, styles[variant === "compact-mark" ? "compactMark" : variant], className]
     .filter(Boolean)
     .join(" ");
-  const source = SOURCE_BY_VARIANT[variant];
 
   return (
-    <span className={rootClassName} data-brand-variant={variant}>
+    <span className={rootClassName} data-brand-variant={variant} role="img" aria-label={label}>
       <Image
-        className={styles.image}
-        src={source.src}
-        alt={label}
-        width={source.width}
-        height={source.height}
-        sizes={sizes ?? SIZES_BY_VARIANT[variant]}
+        className={styles.mark}
+        src="/brand/cvp-fourcolor-mark.png"
+        alt=""
+        width={900}
+        height={461}
         priority={priority}
         unoptimized
         draggable={false}
       />
+      {variant !== "compact-mark" ? (
+        <span className={styles.wordmark} aria-hidden="true">
+          <span className={styles.product}>WEBSTER</span>
+          <span className={styles.company}>by co-videopro</span>
+        </span>
+      ) : null}
     </span>
   );
 }

@@ -70,8 +70,8 @@ test("admin and client hosts share one Content Co-op branded login", () => {
   assert.deepEqual(loginPages, ["app/login/page.tsx"], "the product must keep one login page");
   assert.match(loginPage, /<AuthShell\b/);
   assert.match(authShell, /CoProductionBrand/);
-  assert.match(authShell, /aria-label="Co-VideoPro by Content Co-op sign in"/);
-  assert.match(authShell, /<strong>Co-VideoPro<\/strong>/);
+  assert.match(authShell, /aria-label="Webster by co-videopro sign in"/);
+  assert.match(authShell, /<strong>Webster<\/strong>/);
   assert.match(authShell, /aria-label="Access readiness"/);
   assert.match(authShell, /Verified session required/);
   assert.match(authShell, /Local paths only/);

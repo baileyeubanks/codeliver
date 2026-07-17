@@ -1,5 +1,6 @@
 import Image from "next/image";
 import Link from "next/link";
+import CoProductionBrand from "@/components/brand/CoProductionBrand";
 import {
   ArrowRight,
   CalendarClock,
@@ -40,7 +41,7 @@ export default function WelcomePage() {
   return (
     <main className="cv-hero">
       <header className="cv-hero__top">
-        <Image src="/brand/cvp-long.png" alt="Co-VideoPro by Content Co-op" width={146} height={37} priority unoptimized />
+        <CoProductionBrand priority />
         <nav className="cv-hero__nav" aria-label="Welcome">
           <Link href="/login">Sign in</Link>
           <Link href="/login?demo=1" className="cv-hero__cta">

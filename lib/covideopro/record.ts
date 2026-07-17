@@ -1,5 +1,5 @@
 /**
- * Co-VideoPro — Project Operating Record: canonical entity model.
+ * Webster — Project Operating Record: canonical entity model.
  *
  * Framework-free TypeScript consumed by BOTH runtimes (demo workspace store
  * and Supabase API routes). State changes never happen by assignment — they go

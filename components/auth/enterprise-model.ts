@@ -237,7 +237,7 @@ export function createEnterpriseIdentityState(): EnterpriseIdentityState {
       {
         id: "workspace-co-deliver",
         organizationId: CURRENT_DEMO_ORGANIZATION_ID,
-        name: "Co-VideoPro",
+        name: "Webster",
         slug: "co-deliver",
         status: "active",
       },
@@ -388,7 +388,7 @@ function restoreMutableState(
     return {
       ...workspace,
       name:
-        workspace.id === "workspace-co-deliver" && (restoredName === "Co-Deliver" || restoredName === "Co-VideoPro")
+        workspace.id === "workspace-co-deliver" && (restoredName === "Co-Deliver" || restoredName === "Webster")
           ? workspace.name
           : restoredName,
     };

@@ -123,7 +123,7 @@ export default function SignupPage() {
                 : "Follow any verification instructions sent by the identity provider, then sign in."}
             </p>
             <Link className={styles.submit} href={loginHref}>
-              Sign in to Co-VideoPro
+              Sign in to Webster
             </Link>
           </div>
         ) : (

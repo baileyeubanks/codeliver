@@ -1,6 +1,6 @@
 @import "tailwindcss";
 
-/* Co-VideoPro review design system */
+/* Webster review design system */
 /* Dark theme: deep navy backgrounds, green accent CTAs             */
 
 :root {
@@ -104,7 +104,7 @@ html, body {
 
 a { color: inherit; text-decoration: none; }
 
-/* ── Co-VideoPro exterior/loading states ───────────────── */
+/* ── Webster exterior/loading states ───────────────── */
 .exterior-state,
 .project-state {
   min-height: 100svh;
@@ -2926,7 +2926,7 @@ a { color: inherit; text-decoration: none; }
   .demo-share-created-list img { width: 52px; height: 34px; }
 }
 
-/* Co-VideoPro project cockpit: canonical Content Co-op visual target */
+/* Webster project cockpit: canonical Content Co-op visual target */
 .cockpit-shell {
   --cockpit-accent: #145bb8;
   --cockpit-accent-strong: #0c4ba2;
@@ -5355,7 +5355,7 @@ html[data-theme="light"] .workspace-shell {
 
 /* ── Metronic Wave 1 port (COVIDEOPRO_METRONIC_PORT_PLAN.md) ─────────────────
    Token architecture adapted from metronic-tailwind-html-starter-kit
-   (config.ktui.css, range.css, scrollable.css), re-keyed to Co-VideoPro
+   (config.ktui.css, range.css, scrollable.css), re-keyed to Webster
    tokens. Pattern source only — identity stays ours. */
 
 :root {
@@ -5530,3 +5530,47 @@ input[type="range"].cv-range:focus-visible {
 }
 
 /* hero-rebuild-nudge */
+
+/* ── Webster board design system (identity layer) ── */
+:root {
+  --font-display: "Bricolage Grotesque", "Instrument Sans", sans-serif;
+  --font-body: "Instrument Sans", sans-serif;
+  --font-mono: "Geist Mono", ui-monospace, monospace;
+
+  /* Semantic signal colors — state only, never decoration (board system) */
+  --signal-blue: #2f62e6;
+  --signal-amber: #d69a24;
+  --signal-red: #cf4433;
+  --signal-green: #1f9257;
+
+  /* Bone/ink surfaces (docs and future surfaces) */
+  --paper: #f4f1e8;
+  --paper-surface: #fbfaf5;
+  --ink-strong: #12161d;
+  --ink-panel: #101722;
+  --hairline: #dcd9cf;
+}
+
+body {
+  font-family: var(--font-body);
+}
+
+h1, h2, h3, .cv-project-card__body strong {
+  font-family: var(--font-display);
+}
+
+code, pre, .cv-timeline__timebar, .cv-timeline__meta {
+  font-family: var(--font-mono);
+}
+
+/* Stage → semantic signal mapping (board 01 flight line):
+   discover = amber, scope/plan = blue, shoot/story/review = red, deliver/learn = green */
+.cv-stage-dot--inquiry,
+.cv-stage-dot--intake { background: var(--signal-amber); }
+.cv-stage-dot--development,
+.cv-stage-dot--preproduction { background: var(--signal-blue); }
+.cv-stage-dot--production,
+.cv-stage-dot--post,
+.cv-stage-dot--review { background: var(--signal-red); }
+.cv-stage-dot--delivery,
+.cv-stage-dot--archived { background: var(--signal-green); }

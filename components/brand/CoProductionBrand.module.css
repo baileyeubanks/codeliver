@@ -1,43 +1,81 @@
 .brand {
-  position: relative;
   display: inline-flex;
+  align-items: center;
+  gap: 9px;
   flex: 0 0 auto;
   max-width: 100%;
   color: inherit;
   contain: layout paint;
 }
 
-.image {
+.mark {
   display: block;
-  width: 100%;
+  width: 30px;
   height: auto;
   object-fit: contain;
   pointer-events: none;
   user-select: none;
 }
 
-.horizontal {
-  width: 172px;
+.wordmark {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  line-height: 1.05;
+  min-width: 0;
+}
+
+.product {
+  font-family: var(--font-display, inherit);
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  white-space: nowrap;
+}
+
+.company {
+  margin-top: 2px;
+  font-family: var(--font-mono, inherit);
+  font-size: 8.5px;
+  font-weight: 500;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  opacity: 0.58;
+  white-space: nowrap;
 }
 
 .stacked {
-  width: 320px;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
 }
 
-.compactMark {
-  width: 44px;
+.stacked .mark {
+  width: 96px;
+}
+
+.stacked .wordmark {
+  align-items: center;
+}
+
+.stacked .product {
+  font-size: 24px;
+}
+
+.compactMark .mark {
+  width: 38px;
 }
 
 @media (max-width: 480px) {
-  .horizontal {
-    width: 150px;
+  .mark {
+    width: 27px;
   }
 
-  .stacked {
-    width: 260px;
+  .product {
+    font-size: 14px;
   }
 
-  .compactMark {
-    width: 40px;
+  .stacked .mark {
+    width: 76px;
   }
 }

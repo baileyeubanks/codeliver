@@ -126,3 +126,10 @@ Baseline: `e068ee8` (checkpoint of the prior session's transformation state).
 - Store: start/answer/complete + `getDiscoveryForInquiry`; completed discovery seeds a brief v1 on inquiry conversion.
 - Opportunities: per-inquiry discovery panel (question card, why note, confidence selector, Unknown/Conflict paths, completion + missing summary). Seed: Wendy's mid-flow. Migration 20260716160000.
 - 4 tests; suite 574/574; screenshot 29.
+
+## U15 — Identity adoption: Webster by co-videopro (2026-07-17)
+
+- **Name decided by the user's board package:** the product is **Webster by co-videopro** (one restrained identity; red/blue/green/yellow as operational signals only). Renamed across code+tests; lockup = WEBSTER wordmark (Bricolage Grotesque) + one four-color registration mark (Bailey's CVP monogram), used once per surface per the board system (`~/Desktop/webster/WEBSTER_BOARD_SYSTEM.md`, adopted).
+- Fonts per board system: Bricolage Grotesque (display), Instrument Sans (body), Geist Mono (numbers/timecodes). Semantic tokens (--signal-*) + stage→signal mapping (discover=amber, scope/plan=blue, shoot/story/review=red, deliver/learn=green) in globals.css.
+- Boards absorbed from `~/Downloads/Webster_Product_Board_Package` (5 boards; board 03 governs T4 mobile dark field instrument).
+- Suite 578/578; tsc clean; screenshots 31–33 (login, home, welcome).

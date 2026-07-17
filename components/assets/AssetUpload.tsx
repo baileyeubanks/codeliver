@@ -385,7 +385,7 @@ export default function AssetUpload({
         ? "Upload received"
         : "Ready for review";
   const uploadMessage = activeUploadCount > 0
-    ? "Keep this window open while Co-VideoPro transfers and prepares the review asset."
+    ? "Keep this window open while Webster transfers and prepares the review asset."
     : failedUploadCount > 0
       ? "Review the failed item below, then retry or remove it."
       : items.some((item) => item.status === "quarantined")

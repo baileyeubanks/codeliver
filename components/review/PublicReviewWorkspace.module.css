@@ -1,29 +1,30 @@
 .shell {
-  /* Review Theater (client world) — the graphite editorial world.
-     The screening room is dark, immersive, and refined. */
-  --bg: #0e1114;
-  --bg-elevated: #121417;
-  --surface: #1a1d21;
-  --surface-2: #1f2328;
-  --surface-3: #22262b;
-  --surface-hover: #24282e;
-  --surface-glass: rgba(18, 20, 23, 0.9);
-  --ink: #f2ede2;
-  --ink-secondary: #d5cfc0;
-  --muted: #a8a294;
-  --dim: #79746a;
-  --border: rgba(242, 237, 226, 0.09);
-  --border-light: rgba(242, 237, 226, 0.14);
-  --border-active: rgba(74, 125, 255, 0.45);
-  --accent: #4a7dff;
-  --accent-hover: color-mix(in srgb, var(--accent) 82%, #ffffff);
+  /* Review Theater (client world) — light gallery around a dark stage.
+     Chrome wears the cream editorial law; the media island stays near-black
+     (audit Surface L: white gallery, dark theater at its heart). */
+  --bg: #f2eee5;
+  --bg-elevated: #faf6ef;
+  --surface: #ffffff;
+  --surface-2: #f3ede0;
+  --surface-3: #ece4d3;
+  --surface-hover: #f5efe3;
+  --surface-glass: rgba(255, 255, 255, 0.94);
+  --ink: #0b1928;
+  --ink-secondary: #2c3a4d;
+  --muted: #5f6b78;
+  --dim: #8a7f6c;
+  --border: rgba(11, 25, 40, 0.12);
+  --border-light: rgba(11, 25, 40, 0.2);
+  --border-active: rgba(30, 77, 140, 0.45);
+  --accent: #1e4d8c;
+  --accent-hover: color-mix(in srgb, var(--accent) 82%, #0b1928);
   --accent-dim: color-mix(in srgb, var(--accent) 13%, transparent);
   --accent-glow: color-mix(in srgb, var(--accent) 20%, transparent);
-  --blue: #7ea2ff;
-  --blue-dim: rgba(74, 125, 255, 0.14);
+  --blue: #3a6db0;
+  --blue-dim: rgba(58, 109, 176, 0.12);
   --orange: #c98a3d;
   --red: #c97474;
-  --green: #7fa88c;
+  --green: #5b7a5e;
   --purple: #8b7cc8;
   --radius: 8px;
   --radius-lg: 8px;
@@ -39,7 +40,7 @@
   flex-direction: column;
   background: var(--bg);
   color: var(--ink);
-  color-scheme: dark;
+  color-scheme: light;
   font-family: var(--font-body, "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif);
 }
 

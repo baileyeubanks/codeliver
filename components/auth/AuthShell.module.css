@@ -1,18 +1,18 @@
 .shell {
-  --auth-bg: #0e1114;
-  --auth-surface: #1a1d21;
-  --auth-surface-subtle: #16191d;
-  --auth-surface-hover: #24282e;
-  --auth-ink: #f2ede2;
-  --auth-copy: #d5cfc0;
-  --auth-muted: #a8a294;
-  --auth-border: rgba(242, 237, 226, 0.09);
-  --auth-border-strong: rgba(242, 237, 226, 0.18);
-  --auth-accent: #4a7dff;
-  --auth-accent-hover: #6b93ff;
-  --auth-accent-soft: rgba(74, 125, 255, 0.13);
-  --auth-positive: #7fa88c;
-  --auth-danger: #c97474;
+  --auth-bg: #f0ebe0;
+  --auth-surface: #faf6ef;
+  --auth-surface-subtle: #f3ede0;
+  --auth-surface-hover: #ece4d3;
+  --auth-ink: #0b1928;
+  --auth-copy: #2c3a4d;
+  --auth-muted: #5f6b78;
+  --auth-border: rgba(11, 25, 40, 0.12);
+  --auth-border-strong: rgba(11, 25, 40, 0.22);
+  --auth-accent: #1e4d8c;
+  --auth-accent-hover: #2861ab;
+  --auth-accent-soft: rgba(30, 77, 140, 0.10);
+  --auth-positive: #5b7a5e;
+  --auth-danger: #a14a4a;
   min-height: 100svh;
   display: grid;
   grid-template-rows: 64px minmax(0, 1fr);
@@ -64,7 +64,8 @@
   grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
   border-bottom: 1px solid var(--auth-border);
-  background: rgba(18, 20, 23, 0.96);
+  background: rgba(250, 246, 239, 0.92);
+  border-bottom: 1px solid var(--auth-border);
 }
 
 .brand {

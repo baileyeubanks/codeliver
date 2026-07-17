@@ -128,7 +128,7 @@ test("the internal route validates before replacing into the bright project cock
     /buildCanonicalInternalReviewHref\(identity\.projectId, identity\.assetId\)/,
   );
   assert.match(componentSource, /controller\.abort\(\)/);
-  assert.match(componentSource, /bg-\[#0e1114\]/);
+  assert.match(componentSource, /bg-\[#f0ebe0\]/);
 });
 
 test("API failures remain honest and recoverable instead of opening legacy or fabricated media", () => {

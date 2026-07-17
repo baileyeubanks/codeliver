@@ -131,10 +131,9 @@ export default function Shell({ children }: { children: React.ReactNode }) {
   }, [demoSuffix, demoWorkspace.assets, demoWorkspace.projects]);
 
   useEffect(() => {
-    // The workspace is the cinematic graphite world everywhere (design bible,
-    // tranche 3); the demo light-mode toggle no longer lifts the world out of
-    // its atmosphere. Reduced motion stays operator-controlled.
-    document.documentElement.dataset.theme = "dark";
+    // The workspace wears the contentco-op.com cream editorial law; dark is
+    // opt-in for stage surfaces only, never the shell.
+    document.documentElement.dataset.theme = "light";
     document.documentElement.dataset.reducedMotion = demoSuffix && demoWorkspace.settings.appearance.reducedMotion
       ? "true"
       : "false";

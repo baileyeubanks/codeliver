@@ -40,8 +40,8 @@ test("public recipient shell exposes accessible review and filter landmarks", ()
 
 test("public recipient shell keeps the bright frame scoped and responsive", () => {
   assert.match(workspaceSource, /PublicReviewWorkspace\.module\.css/);
-  assert.match(workspaceStyles, /\.shell\s*\{[\s\S]*?--surface:\s*#1a1d21/);
-  assert.match(workspaceStyles, /color-scheme:\s*dark/);
+  assert.match(workspaceStyles, /\.shell\s*\{[\s\S]*?--surface:\s*#ffffff/);
+  assert.match(workspaceStyles, /color-scheme:\s*light/);
   assert.match(workspaceStyles, /\.media\s*\{[\s\S]*?background:\s*#050505/);
   assert.match(workspaceStyles, /@media \(min-width:\s*981px\)/);
   assert.match(

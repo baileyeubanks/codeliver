@@ -1,9 +1,57 @@
 @import "tailwindcss";
 
 /* Co‑ProVideo review design system */
-/* Dark theme: graphite depth, warm ivory ink, cobalt signal          */
+/* Co‑ProVideo design system — contentco-op.com cream editorial law.
+   Default: warm cream, parchment cards, deep navy ink, sapphire signal.
+   Dark is opt-in (stage surfaces only), never the shell. */
 
 :root {
+  --bg: #f0ebe0;
+  --bg-elevated: #faf6ef;
+  --surface: #faf6ef;
+  --surface-2: #f3ede0;
+  --surface-3: #ece4d3;
+  --surface-hover: #f5efe3;
+  --surface-glass: rgba(250, 246, 239, 0.92);
+  --ink: #0b1928;
+  --ink-secondary: #2c3a4d;
+  --muted: #5f6b78;
+  --dim: #8a7f6c;
+  --border: rgba(11, 25, 40, 0.14);
+  --border-light: rgba(11, 25, 40, 0.22);
+  --border-active: rgba(30, 77, 140, 0.45);
+  --accent: #1e4d8c;
+  --accent-hover: #2861ab;
+  --accent-dim: rgba(30, 77, 140, 0.10);
+  --accent-glow: rgba(30, 77, 140, 0.16);
+  --blue: #3a6db0;
+  --blue-dim: rgba(58, 109, 176, 0.12);
+  --blue-hover: #5585c2;
+  --orange: #c4722a;
+  --orange-dim: rgba(196, 114, 42, 0.12);
+  --red: #a14a4a;
+  --red-dim: rgba(161, 74, 74, 0.12);
+  --purple: #6b5fae;
+  --purple-dim: rgba(107, 95, 174, 0.12);
+  --teal: #3d8f83;
+  --pink: #c2557d;
+  --coral: #c9722f;
+  --green: #5b7a5e;
+  --radius: 10px;
+  --radius-lg: 14px;
+  --radius-sm: 8px;
+  --radius-xl: 18px;
+  --shadow-sm: 0 2px 8px rgba(11, 25, 40, 0.06);
+  --shadow-md: 0 8px 24px rgba(11, 25, 40, 0.09);
+  --shadow-lg: 0 16px 48px rgba(11, 25, 40, 0.12);
+  --shadow-xl: 0 24px 64px rgba(11, 25, 40, 0.15);
+  --transition-fast: 150ms cubic-bezier(0.4,0,0.2,1);
+  --transition: 200ms cubic-bezier(0.4,0,0.2,1);
+  --transition-slow: 300ms cubic-bezier(0.4,0,0.2,1);
+}
+
+/* Stage theme — opt-in only (review theater, media islands). */
+html[data-theme="dark"] {
   --bg: #121417;
   --bg-elevated: #16191d;
   --surface: #1a1d21;
@@ -48,37 +96,7 @@
   --transition-slow: 300ms cubic-bezier(0.4,0,0.2,1);
   --font-display: "Manrope", "Inter", -apple-system, sans-serif;
   --font-body: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-  --topnav-h: 44px;
-}
-
-html[data-theme="light"] {
-  --bg: #edf1f4;
-  --bg-elevated: #f7f9fb;
-  --surface: #ffffff;
-  --surface-2: #e7edf2;
-  --surface-3: #d9e2e9;
-  --surface-hover: #e9eef3;
-  --surface-glass: rgba(255, 255, 255, 0.92);
-  --ink: #121d2a;
-  --ink-secondary: #2d3b4c;
-  --muted: #59697b;
-  --dim: #758497;
-  --border: rgba(18, 29, 42, 0.14);
-  --border-light: rgba(18, 29, 42, 0.22);
-  --border-active: rgba(20, 105, 78, 0.4);
-  --accent: #76c943;
-  --accent-hover: #66b438;
-  --accent-dim: rgba(102, 180, 56, 0.12);
-  --accent-glow: rgba(102, 180, 56, 0.17);
-  --blue: #286eb5;
-  --blue-dim: rgba(40, 110, 181, 0.12);
-  --green: #14694e;
-  --shadow-sm: 0 2px 8px rgba(18, 29, 42, 0.08);
-  --shadow-md: 0 8px 24px rgba(18, 29, 42, 0.12);
-  --shadow-lg: 0 16px 48px rgba(18, 29, 42, 0.16);
-  --shadow-xl: 0 24px 64px rgba(18, 29, 42, 0.2);
-}
-
+  --topnav-h: 44px;}
 html[data-reduced-motion="true"] *,
 html[data-reduced-motion="true"] *::before,
 html[data-reduced-motion="true"] *::after {
@@ -2926,17 +2944,17 @@ a { color: inherit; text-decoration: none; }
   .demo-share-created-list img { width: 52px; height: 34px; }
 }
 
-/* Co‑ProVideo project cockpit: the graphite editorial world (tranche 3) */
+/* Co‑ProVideo project cockpit: porcelain + royal blue, media islands dark */
 .cockpit-shell {
-  --cockpit-accent: #4a7dff;
-  --cockpit-accent-strong: #6b93ff;
-  --cockpit-accent-soft: rgba(74, 125, 255, 0.13);
-  --cockpit-ink: #f2ede2;
-  --cockpit-copy: #d5cfc0;
-  --cockpit-muted: #a8a294;
-  --cockpit-border: rgba(242, 237, 226, 0.09);
-  --cockpit-panel: #1a1d21;
-  --cockpit-canvas: #121417;
+  --cockpit-accent: #1e4d8c;
+  --cockpit-accent-strong: #2861ab;
+  --cockpit-accent-soft: rgba(30, 77, 140, 0.10);
+  --cockpit-ink: #0b1928;
+  --cockpit-copy: #2c3a4d;
+  --cockpit-muted: #5f6b78;
+  --cockpit-border: rgba(11, 25, 40, 0.12);
+  --cockpit-panel: #ffffff;
+  --cockpit-canvas: #f5f3ec;
   min-height: 100vh;
   display: grid;
   grid-template-columns: 224px minmax(0, 1fr);

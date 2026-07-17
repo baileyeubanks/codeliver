@@ -194,11 +194,11 @@ export default function InternalAssetReviewPage() {
 
   if (!loadError) {
     return (
-      <main className="flex min-h-screen items-center justify-center bg-[#0e1114] p-6 text-[#f2ede2]">
+      <main className="flex min-h-screen items-center justify-center bg-[#f0ebe0] p-6 text-[#0b1928]">
         <div role="status" aria-live="polite" className="flex items-center gap-3">
           <span
             aria-hidden="true"
-            className="h-7 w-7 animate-spin rounded-full border-2 border-[#2a2e34] border-t-[#4a7dff]"
+            className="h-7 w-7 animate-spin rounded-full border-2 border-[#ece4d3] border-t-[#1e4d8c]"
           />
           <p className="text-sm font-medium">Opening project review...</p>
         </div>
@@ -207,11 +207,11 @@ export default function InternalAssetReviewPage() {
   }
 
   return (
-    <main className="flex min-h-screen items-center justify-center bg-[#0e1114] p-6 text-[#f2ede2]">
+    <main className="flex min-h-screen items-center justify-center bg-[#f0ebe0] p-6 text-[#0b1928]">
       <section
         role="alert"
         aria-labelledby="internal-review-error-title"
-        className="w-full max-w-xl border-l-4 border-[#a14a4a] bg-[#1a1d21] px-6 py-7 shadow-sm"
+        className="w-full max-w-xl border-l-4 border-[#a14a4a] bg-[#faf6ef] px-6 py-7 shadow-sm"
       >
         <AlertCircle aria-hidden="true" className="mb-4 text-[#c97474]" size={28} />
         <p className="mb-2 text-xs font-semibold uppercase text-[#a8a294]">
@@ -235,7 +235,7 @@ export default function InternalAssetReviewPage() {
                 setLoadFailure(null);
                 setRetryAttempt((attempt) => attempt + 1);
               }}
-              className="inline-flex min-h-10 items-center gap-2 rounded-md bg-[#4a7dff] px-4 py-2 text-sm font-semibold text-white outline-none hover:bg-[#6b93ff] focus-visible:ring-2 focus-visible:ring-[#4a7dff] focus-visible:ring-offset-2"
+              className="inline-flex min-h-10 items-center gap-2 rounded-md bg-[#1e4d8c] px-4 py-2 text-sm font-semibold text-white outline-none hover:bg-[#2861ab] focus-visible:ring-2 focus-visible:ring-[#1e4d8c] focus-visible:ring-offset-2"
             >
               <RefreshCw aria-hidden="true" size={16} />
               Try again
@@ -244,7 +244,7 @@ export default function InternalAssetReviewPage() {
           {projectId ? (
             <Link
               href={projectHref}
-              className="inline-flex min-h-10 items-center gap-2 rounded-md border border-[#2a2e34] bg-[#1f2328] px-4 py-2 text-sm font-semibold text-[#f2ede2] outline-none hover:bg-[#24282e] focus-visible:ring-2 focus-visible:ring-[#4a7dff] focus-visible:ring-offset-2"
+              className="inline-flex min-h-10 items-center gap-2 rounded-md border border-[#d8cfc0] bg-[#f3ede0] px-4 py-2 text-sm font-semibold text-[#0b1928] outline-none hover:bg-[#ece4d3] focus-visible:ring-2 focus-visible:ring-[#1e4d8c] focus-visible:ring-offset-2"
             >
               <ArrowLeft aria-hidden="true" size={16} />
               Back to project
@@ -252,7 +252,7 @@ export default function InternalAssetReviewPage() {
           ) : null}
           <Link
             href={projectsHref}
-            className="inline-flex min-h-10 items-center px-2 py-2 text-sm font-semibold text-[#7ea2ff] underline-offset-4 outline-none hover:underline focus-visible:ring-2 focus-visible:ring-[#4a7dff] focus-visible:ring-offset-2"
+            className="inline-flex min-h-10 items-center px-2 py-2 text-sm font-semibold text-[#3a6db0] underline-offset-4 outline-none hover:underline focus-visible:ring-2 focus-visible:ring-[#1e4d8c] focus-visible:ring-offset-2"
           >
             View all projects
           </Link>

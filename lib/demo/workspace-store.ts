@@ -1821,6 +1821,9 @@ export function saveProposal(input: {
   narrative: string;
   estimateLines: Proposal["estimate_lines"];
   validUntil?: string | null;
+  /** Omit to carry the current version's adjustments forward unchanged. */
+  discountPct?: number;
+  taxPct?: number;
 }): RecordMutationResult {
   if (!input.title.trim()) return { ok: false, reason: "A proposal needs a title." };
   const state = getSnapshot();
@@ -1843,6 +1846,8 @@ export function saveProposal(input: {
         title: input.title.trim(),
         narrative: input.narrative,
         estimate_lines: input.estimateLines,
+        discount_pct: input.discountPct ?? existing?.discount_pct ?? 0,
+        tax_pct: input.taxPct ?? existing?.tax_pct ?? 0,
         valid_until: input.validUntil ?? null,
         approved_by: null,
         approved_at: null,

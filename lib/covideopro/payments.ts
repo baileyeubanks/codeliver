@@ -10,7 +10,7 @@
  */
 
 import {
-  proposalEstimateTotal,
+  proposalTotals,
   type PaymentMilestone,
   type PaymentMilestoneKind,
   type Proposal,
@@ -26,9 +26,12 @@ export interface MilestoneSpec {
   amount_cents: number;
 }
 
-/** Deposit (30%) + balance, derived from the proposal's required estimate. */
-export function buildMilestonesForApproval(proposal: Pick<Proposal, "title" | "estimate_lines">): MilestoneSpec[] {
-  const totalCents = Math.round(proposalEstimateTotal(proposal.estimate_lines) * 100);
+/** Deposit (30%) + balance, derived from the proposal's required estimate
+ * after whole-proposal adjustments (discount, then tax — proposalTotals). */
+export function buildMilestonesForApproval(
+  proposal: Pick<Proposal, "title" | "estimate_lines"> & Partial<Pick<Proposal, "discount_pct" | "tax_pct">>,
+): MilestoneSpec[] {
+  const totalCents = proposalTotals(proposal).totalCents;
   if (totalCents <= 0) return [];
   const depositCents = Math.round((totalCents * DEPOSIT_BPS) / 10000);
   return [

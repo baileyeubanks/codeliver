@@ -53,3 +53,9 @@ Color = state only (law 2). Every number is a door (law 3). Nothing beautiful th
 1. "Successor confirmed" for cco-main's ROOT console (Financial Studio + proposal/milestones replaces the CC money surface; ACS remains separate).
 2. Fossil deletions (§3 rows 3–6) go-ahead.
 3. Paper Desk dialect: adopt for the future writing surface, or defer.
+
+## 5. Naming and colorway — final law (2026-07-17)
+
+- **CCO OS** = the Content Co-op universe as a whole (public site + admin shell + client surfaces).
+- **co-videopro** = the admin/operator shell (this repo's product; the MAIN_INSPIRATION surface direction). Client surfaces stay radically simpler. The public contentco-op.com branding is untouched (Cream Editorial — "it's great").
+- **CVP four-color identity: kept, MUTED.** The saturated four-color mark is replaced in-app by a muted colorway (`public/brand/cvp-mark-muted.png`, `cvp-stacked-muted.png` — ffmpeg hue=s=0.5: terracotta, slate blue, sage-teal, honey) so identity blends with the graphite/cream aesthetics. Originals preserved on disk; saturated mark may still fly at the door (public marketing) but not inside working surfaces.

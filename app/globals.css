@@ -5888,3 +5888,5 @@ body {
 .cockpit-recent-assets img { width: 56px; height: 32px; border-radius: 5px; object-fit: cover; }
 .cockpit-recent-assets strong { display: block; overflow: hidden; font-size: 10px; font-weight: 650; text-overflow: ellipsis; white-space: nowrap; }
 .cockpit-recent-assets small { color: var(--cockpit-muted); font-size: 8.5px; text-transform: capitalize; }
+
+/* reel-rebuild-nudge */

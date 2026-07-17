@@ -35,7 +35,7 @@ export function CoProductionBrand({
     <span className={rootClassName} data-brand-variant={variant} role="img" aria-label={label}>
       <Image
         className={styles.mark}
-        src="/brand/cvp-fourcolor-mark.png"
+        src="/brand/cvp-mark-muted.png"
         alt=""
         width={900}
         height={461}

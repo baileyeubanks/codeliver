@@ -134,3 +134,17 @@ export function compileBid(input: {
 export function activeRateCard(cards: RateCard[]): RateCard | null {
   return cards.filter((card) => card.status === "active").sort((a, b) => b.version - a.version)[0] ?? null;
 }
+
+/** Catalog click → a new estimate line at the card rate. The caller supplies
+ * the line id so this stays pure and testable. */
+export function lineFromRateItem(item: RateItem, id: string): EstimateLine {
+  return {
+    id,
+    category: item.category,
+    description: item.description,
+    quantity: 1,
+    unit_rate: item.unit_rate_cents / 100,
+    markup_pct: 0,
+    optional: false,
+  };
+}

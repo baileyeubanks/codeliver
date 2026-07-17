@@ -203,6 +203,10 @@ export interface Proposal extends ProjectScoped {
   title: string;
   narrative: string;
   estimate_lines: EstimateLine[];
+  /** Whole-proposal adjustments, applied in order: discount, then tax on the
+   * discounted amount. Percent numbers (e.g. 10 = 10%), default 0. */
+  discount_pct: number;
+  tax_pct: number;
   valid_until: string | null;
   approved_by: string | null;
   approved_at: ISODateTime | null;
@@ -228,6 +232,29 @@ export function proposalEstimateTotal(
   return lines
     .filter((line) => includeOptional || !line.optional)
     .reduce((sum, line) => sum + estimateLineTotal(line), 0);
+}
+
+export interface ProposalTotals {
+  subtotalCents: number;
+  discountCents: number;
+  taxCents: number;
+  totalCents: number;
+}
+
+/** Proposal money math in integer cents: markup is applied per line first
+ * (each line rounded to cents), then the discount, then tax on the discounted
+ * amount. Optional lines are excluded unless requested. */
+export function proposalTotals(
+  proposal: Pick<Proposal, "estimate_lines"> & Partial<Pick<Proposal, "discount_pct" | "tax_pct">>,
+  { includeOptional = false }: { includeOptional?: boolean } = {},
+): ProposalTotals {
+  const subtotalCents = proposal.estimate_lines
+    .filter((line) => includeOptional || !line.optional)
+    .reduce((sum, line) => sum + Math.round(estimateLineTotal(line) * 100), 0);
+  const discountCents = Math.round((subtotalCents * (proposal.discount_pct ?? 0)) / 100);
+  const discountedCents = subtotalCents - discountCents;
+  const taxCents = Math.round((discountedCents * (proposal.tax_pct ?? 0)) / 100);
+  return { subtotalCents, discountCents, taxCents, totalCents: discountedCents + taxCents };
 }
 
 /* -------------------------------------------------------------------------- */

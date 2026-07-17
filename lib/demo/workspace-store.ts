@@ -36,6 +36,8 @@ import {
   type PlanItem,
   type ProductionDay,
   type ProjectStage,
+  type RateCard,
+  type RateItem,
   type Release,
   type Location,
   type CrewMember,
@@ -67,6 +69,7 @@ import {
   validateSequenceClip,
 } from "@/lib/covideopro/transitions.ts";
 import { buildMilestonesForApproval, mockCheckoutUrl } from "@/lib/covideopro/payments.ts";
+import { activeRateCard, compileBid } from "@/lib/covideopro/bid.ts";
 import {
   DISCOVERY_QUESTIONS,
   nextDiscoveryQuestion,
@@ -96,6 +99,8 @@ import {
   seedPlanItems,
   seedProductionDays,
   seedProposals,
+  seedRateCards,
+  seedRateItems,
   seedReleases,
   seedRevisionRequests,
   seedSelects,
@@ -283,6 +288,8 @@ export interface DemoWorkspaceState {
   callSheets: CallSheet[];
   discoverySessions: DiscoverySession[];
   discoveryAnswers: DiscoveryAnswer[];
+  rateCards: RateCard[];
+  rateItems: RateItem[];
 }
 
 export interface CreateDemoShareInput {
@@ -632,6 +639,8 @@ export function createInitialDemoWorkspace(): DemoWorkspaceState {
     callSheets: seedCallSheets.map((record) => ({ ...record })),
     discoverySessions: seedDiscoverySessions.map((record) => ({ ...record })),
     discoveryAnswers: seedDiscoveryAnswers.map((record) => ({ ...record })),
+    rateCards: seedRateCards.map((record) => ({ ...record })),
+    rateItems: seedRateItems.map((record) => ({ ...record })),
   };
 }
 
@@ -744,6 +753,8 @@ export function restoreDemoWorkspace(raw: string | null): DemoWorkspaceState {
       callSheets: mergeSeededRecords(parsed.callSheets, fallback.callSheets),
       discoverySessions: mergeSeededRecords(parsed.discoverySessions, fallback.discoverySessions),
       discoveryAnswers: mergeSeededRecords(parsed.discoveryAnswers, fallback.discoveryAnswers),
+      rateCards: mergeSeededRecords(parsed.rateCards, fallback.rateCards),
+      rateItems: mergeSeededRecords(parsed.rateItems, fallback.rateItems),
       settings: {
         profile: { ...fallback.settings.profile, ...savedSettings?.profile },
         appearance: { ...fallback.settings.appearance, ...savedSettings?.appearance },
@@ -2948,4 +2959,49 @@ export function getDiscoveryForInquiry(inquiryId: string) {
     normalized: normalizeDiscovery(DISCOVERY_QUESTIONS, answers),
     next: nextDiscoveryQuestion(DISCOVERY_QUESTIONS, answers),
   };
+}
+
+/* --------------------- Line Producer: compile bid ---------------------------- */
+
+/** Agent 1 compiles suggested estimate lines from the brief + active rate card. */
+export function compileBidToProposal(projectId: string): RecordMutationResult {
+  const state = getSnapshot();
+  const brief = state.briefs
+    .filter((candidate) => candidate.project_id === projectId && candidate.status !== "superseded")
+    .sort((a, b) => b.version - a.version)[0];
+  if (!brief) return { ok: false, reason: "Compile needs a brief — deliverables drive the estimate." };
+
+  const card = activeRateCard(state.rateCards);
+  if (!card) return { ok: false, reason: "No active rate card. Activate one before compiling." };
+  const items = state.rateItems.filter((item) => item.rate_card_id === card.id);
+  const compiled = compileBid({ deliverablesNotes: brief.deliverables_notes, rateItems: items });
+  if (compiled.length === 0) {
+    return { ok: false, reason: "The brief's deliverables didn't match any compiler rules — write lines manually or extend the rules." };
+  }
+
+  const existing = state.proposals
+    .filter((candidate) => candidate.project_id === projectId && candidate.status !== "superseded")
+    .sort((a, b) => b.version - a.version)[0];
+
+  const result = saveProposal({
+    projectId,
+    title: existing?.title ?? `${state.projects.find((candidate) => candidate.id === projectId)?.name ?? "Project"} — Production Package`,
+    narrative:
+      `${existing?.narrative ? `${existing.narrative}\n\n` : ""}` +
+      `Estimate compiled by the Line Producer (Agent 1) from brief v${brief.version} deliverables using "${card.name}" v${card.version}. Review and adjust before sending — the operator owns scope and price.`,
+    estimateLines: compiled.map(({ rule: _rule, evidence: _evidence, ...line }) => line),
+    validUntil: existing?.valid_until,
+  });
+  if (!result.ok) return result;
+
+  updateState((current) => ({
+    ...current,
+    activity: recordActivity(current, {
+      action: "compiled_bid",
+      actor_name: "Agent 1 (Line Producer)",
+      project_id: projectId,
+      details: { lines: String(compiled.length), card: `${card.name} v${card.version}` },
+    }),
+  }));
+  return { ok: true, id: result.id };
 }

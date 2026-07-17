@@ -24,6 +24,8 @@ import type {
   PlanItem,
   ProductionDay,
   Proposal,
+  RateCard,
+  RateItem,
   Release,
   RevisionRequest,
   Select,
@@ -323,4 +325,21 @@ export const seedDiscoverySessions: DiscoverySession[] = [
 export const seedDiscoveryAnswers: DiscoveryAnswer[] = [
   { id: "da-wendys-goal", session_id: "ds-wendys", question_id: "goal", raw_text: "Recap the spring tournament activation so the brand team can justify next year's spend.", status: "answered", confidence: "high", stakeholder: null, created_at: "2026-07-12T14:25:00.000Z", updated_at: "2026-07-12T14:25:00.000Z", created_by: BAILEY },
   { id: "da-wendys-audience", session_id: "ds-wendys", question_id: "audience", raw_text: "Internal marketing leadership plus their agency of record.", status: "answered", confidence: "medium", stakeholder: null, created_at: "2026-07-12T14:31:00.000Z", updated_at: "2026-07-12T14:31:00.000Z", created_by: BAILEY },
+];
+
+/* ----------------------------- Rate card seed -------------------------------- */
+
+export const seedRateCards: RateCard[] = [
+  { id: "rc-standard-2026", name: "CCo Standard 2026", version: 1, status: "active", created_at: T0, updated_at: T0, created_by: BAILEY },
+];
+
+export const seedRateItems: RateItem[] = [
+  { id: "ri-dp-day", rate_card_id: "rc-standard-2026", code: "dp-day", category: "crew", description: "DP / camera operator", unit: "day", unit_rate_cents: 85000, active: true, created_at: T0, updated_at: T0, created_by: BAILEY },
+  { id: "ri-audio-day", rate_card_id: "rc-standard-2026", code: "audio-day", category: "crew", description: "Production audio", unit: "day", unit_rate_cents: 55000, active: true, created_at: T0, updated_at: T0, created_by: BAILEY },
+  { id: "ri-photo-day", rate_card_id: "rc-standard-2026", code: "photo-day", category: "crew", description: "Stills photographer", unit: "day", unit_rate_cents: 65000, active: true, created_at: T0, updated_at: T0, created_by: BAILEY },
+  { id: "ri-gear-day", rate_card_id: "rc-standard-2026", code: "gear-day", category: "equipment", description: "Camera + lighting package", unit: "day", unit_rate_cents: 60000, active: true, created_at: T0, updated_at: T0, created_by: BAILEY },
+  { id: "ri-travel-flat", rate_card_id: "rc-standard-2026", code: "travel-flat", category: "travel", description: "Mileage + lodging (per shoot)", unit: "flat", unit_rate_cents: 48000, active: true, created_at: T0, updated_at: T0, created_by: BAILEY },
+  { id: "ri-edit-hour", rate_card_id: "rc-standard-2026", code: "edit-hour", category: "post", description: "Edit", unit: "hour", unit_rate_cents: 9500, active: true, created_at: T0, updated_at: T0, created_by: BAILEY },
+  { id: "ri-color-hour", rate_card_id: "rc-standard-2026", code: "color-hour", category: "post", description: "Color grade", unit: "hour", unit_rate_cents: 11000, active: true, created_at: T0, updated_at: T0, created_by: BAILEY },
+  { id: "ri-caption-pass", rate_card_id: "rc-standard-2026", code: "caption-pass", category: "post", description: "Caption pass (per deliverable)", unit: "each", unit_rate_cents: 45000, active: true, created_at: T0, updated_at: T0, created_by: BAILEY },
 ];

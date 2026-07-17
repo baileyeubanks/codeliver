@@ -548,3 +548,29 @@ export interface DiscoverySession extends RecordBase {
   inquiry_id: string;
   status: DiscoverySessionStatus;
 }
+
+/* -------------------------------------------------------------------------- */
+/* Rate cards (versioned pricing authority — Line Producer)                    */
+/* -------------------------------------------------------------------------- */
+
+export const RATE_CARD_STATUSES = ["draft", "active", "archived"] as const;
+export type RateCardStatus = (typeof RATE_CARD_STATUSES)[number];
+
+export interface RateCard extends RecordBase {
+  name: string;
+  version: number;
+  status: RateCardStatus;
+}
+
+export const RATE_UNITS = ["day", "half_day", "hour", "flat", "each"] as const;
+export type RateUnit = (typeof RATE_UNITS)[number];
+
+export interface RateItem extends RecordBase {
+  rate_card_id: string;
+  code: string;
+  category: EstimateCategory;
+  description: string;
+  unit: RateUnit;
+  unit_rate_cents: number;
+  active: boolean;
+}

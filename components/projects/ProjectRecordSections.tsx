@@ -6,6 +6,7 @@ import {
   addPlanItem,
   addRevisionRequest,
   addSelect,
+  compileBidToProposal,
   createMilestoneCheckout,
   createSequenceFromSelects,
   dispatchNotificationOutbox,
@@ -265,7 +266,15 @@ export function ProposalSection({ projectId, demoMode, onNotice }: SectionProps)
           <p>Versioned commercial scope. Approval advances the project to pre-production.</p>
         </div>
         {!editing ? (
-          <button type="button" onClick={startEdit}><FileText size={16} /> {proposal ? "Revise proposal" : "Draft proposal"}</button>
+          <span className="cockpit-record-actions">
+            <button type="button" onClick={() => {
+              const result = compileBidToProposal(projectId);
+              onNotice(result.ok ? "Line Producer compiled estimate lines from the brief + rate card — review before sending." : result.reason);
+            }}>
+              Compile from rate card
+            </button>
+            <button type="button" onClick={startEdit}><FileText size={16} /> {proposal ? "Revise proposal" : "Draft proposal"}</button>
+          </span>
         ) : null}
       </header>
 

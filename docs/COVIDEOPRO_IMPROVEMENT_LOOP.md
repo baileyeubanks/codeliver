@@ -1,54 +1,53 @@
-# Co-VideoPro — Recursive Improvement Loop
+# Co-VideoPro — Recursive Improvement Loop (re-aligned 2026-07-17)
 
-**Established:** 2026-07-17 · **Purpose:** the standing protocol for continuously closing gaps between Co-VideoPro and the mission + market frontier. Loop discipline: superpowers (brainstorm → plan → TDD), mission honesty rules (no fake surfaces), and the acceptance bar in the mission brief.
+**Re-alignment source:** `COVIDEOPRO_INTENTIONALITY.md` — the user's own doctrine (PRODUCTION_MACHINE_v1.md) + brand artwork + design critique. Register order changed: **El Paso is the forcing function; parity follows.**
+Supersedes the 2026-07-16 register where they conflict.
 
 ---
 
+## 0. The doctrine (binding on every loop)
+
+- **FORM / JUDGMENT / CRAFT:** agents draft forms; the operator decides and signs; humans do craft. No agent output without an approval surface and a liability note.
+- **Named drops:** a dropped document/feature you name is a decision; an unnamed one is a hole. Every loop names what it drops.
+- **"The paper cut, the interview, and the frame are the film. Everything else is paperwork."** UI mirrors this: content center stage, quiet chrome.
+- **Discipline per slice:** contract → migration + demo slice → transitions + tests → surface → visual QA. Every transition writes activity_log.
+
 ## 1. The loop (every iteration, in order)
 
-1. **Re-baseline** — `npm test` (must stay green), `tsc --noEmit` (0), boot the app, one render/runtime proof. If baseline is red, the loop is a *repair* loop, nothing else.
-2. **Select** the top item from the gap register (§2) by score.
-3. **Spec** — brainstorming discipline: context, 2–3 approaches with trade-offs, written spec in `docs/superpowers/specs/` when non-trivial.
-4. **TDD** — failing test first (watch it fail), minimal implementation, refactor.
-5. **Verify** — tests green + runtime exercise + screenshot evidence in `docs/design-evidence/`.
-6. **Record** — update the gap register, `COVIDEOPRO_UPGRADE_LOG.md`, and relevant docs. Commit with evidence in the message.
+1. **Re-baseline** — `npm test` green, `tsc --noEmit` 0, e2e green (`npm run test:e2e`), app boots, one render/runtime proof.
+2. **Select** the top register item by doctrine-weighted score (deadline × value × parity-gap ÷ effort).
+3. **Spec** (brainstorming discipline) → **TDD** → implement → verify (tests + runtime + screenshot) → record (register + upgrade log) → commit.
+4. **Cadence:** every 3rd loop = hardening (tests/perf/a11y); every 5th = security loop (S1–S11 from `COVIDEOPRO_SECURITY_BUILD_PLAN.md`); G1-adjacent loops pair with S1/S2.
 
-## 2. Gap register (scored; re-scored each loop)
+## 2. Gap register (re-aligned; highest first)
 
-Score = value(1–5) × parity-gap(1–5) ÷ effort(1–5) ± risk notes. Highest first.
+| # | Gap | Doctrine driver | Score |
+|---|---|---|---|
+| E1 | **El Paso entities:** production_days, crew_members, locations, releases, call_sheets + the chase-list query ("who films tomorrow and hasn't signed") | Aug 18–20 shoot; Part 7 spec verbatim | 9.0 |
+| E2 | **Call-sheet generation** (Agent 2 FORM artifact: day card from locations+contacts+sun times; operator approves; versioned) | Five-agents model | 7.5 |
+| E3 | **Design restoration:** media-first minimalist Home/Opportunities; CVP artwork lockup (done); named-drop chrome; content center stage | User critique 07-17 | 8.0 |
+| E4 | **Hermes as the five agents** over the record: line-producer variance, chase list (E1 feeds), fact register, QC pass/fail — each with approval + liability surface | FORM/JUDGMENT boundary | 6.5 |
+| G1 | Production-runtime parity (M1 remainder: workspace routes + IDOR tests; then M2 commercial spine) | R1/R2 risks | 6.3 |
+| G4' | E2E expansion: El Paso flow (call sheet, chase list) into tests/e2e | Proven harness | 5.0 |
+| G6 | Timeline undo/redo + multitrack + waveform | NLE credibility | 4.0 |
+| G7 | Client portal room | Mission surface | 4.0 |
+| G8 | Import path (Frame.io/Drive) | Adoption blocker | 4.0 |
+| G10 | Field mode (mobile production-day view from E1/E2) | Shoot-day reality | 4.5 |
+| G13 | Script editor + shot lists (shot_list entity folds into E1 follow-up) | Creative pillar | 3.2 |
+| G14 | QC checklist UI + packages + download audit | Delivery depth | 2.8 |
+| G15 | Analytics/learning rollups | Only when data is real | 2.4 |
 
-| # | Gap | Value | Parity | Effort | Score | Notes |
-|---|---|---|---|---|---|---|
-| G1 | Production runtime parity for record entities (API routes + execute migrations 014/015) | 5 | 5 | 4 | 6.3 | R1/R2 compound if deferred; dual-runtime divergence risk |
-| G2 | Caption export (SRT/VTT from segments) + word-level transcript refinement | 4 | 4 | 2 | 8.0 | Cheap, real, Descript-parity surface |
-| G3 | Hermes project panel (summary, blockers, cited answers over the record) | 4 | 4 | 3 | 5.3 | Vault harness exists; provenance rules set |
-| G4 | Playwright E2E + visual regression harness | 4 | 5 | 3 | 6.7 | Mission-mandated; protects every future loop |
-| G5 | Demo store domain slicing (record/media/review modules) | 3 | 3 | 2 | 4.5 | Prevents god-object rot before more features |
-| G6 | Timeline undo/redo + multitrack model + waveform | 4 | 4 | 4 | 4.0 | NLE credibility core |
-| G7 | Client portal room (proposal approve, schedule, invoices, downloads) | 4 | 4 | 4 | 4.0 | Mission surface; reuse review-token authority |
-| G8 | Import path (Frame.io/Drive/Dropbox asset + comment import) | 4 | 5 | 5 | 4.0 | Adoption blocker in the real world; user never mentioned |
-| G9 | Review presence/collab sessions + comment export | 3 | 3 | 3 | 3.0 | Frame.io parity |
-| G10 | Call sheets + field mode + scheduling board | 4 | 4 | 5 | 3.2 | Mission pillar; plan_items foundation exists |
-| G11 | Permissions enforced in demo (role switcher) | 3 | 4 | 2 | 6.0 | Removes "theater" gap G-permissions |
-| G12 | Invoice PDFs + estimate-vs-actual | 3 | 3 | 3 | 3.0 | Finance depth beyond milestones |
-| G13 | Script editor + shot lists + storyboard | 4 | 4 | 5 | 3.2 | Creative pillar beyond briefs |
-| G14 | QC checklist UI + delivery packages + download audit | 3 | 3 | 4 | 2.3 | Delivery depth |
-| G15 | Analytics/learning rollups (insights surface) | 3 | 4 | 5 | 2.4 | Only after data is real at scale |
-| G16 | Multi-tenant/freelancer access, email-in inquiries, calendar sync, time zones, storage retention, backup/DR | 3 | 4 | 5 | 2.4 | User-blind-spot set; schedule deliberately |
+## 3. Named drops (this register's explicit NON-builds for now)
 
-## 3. Cadence rules
+- Stripboard-style scheduling grids, day-out-of-days, formal cost-report pages (doctrine drops).
+- North-star entity zoo (equipment/kits, talent, contracts, POs) — "build five entities, let a real shoot break them."
+- NLE panels as plugins (EDL export carries the handoff).
+- Insights/analytics pages until rollups are real (D8 stands).
 
-- After **3 feature loops** → 1 **hardening loop** (tests/perf/a11y/docs).
-- After **every G1-adjacent feature loop** → the next loop must be a **parity loop** (production runtime catch-up) until R2 is closed.
-- After **5 loops** → re-run the enterprise benchmark check: did any competitor move? Update `COVIDEOPRO_ENTERPRISE_BENCHMARK.md`.
+## 4. Slice "done" definition (binding, unchanged)
 
-## 4. Slice "done" definition (binding)
+UI exists · behavior real · data persists · permissions enforced · failure states visible · processing state truthful · tests pass · rendered result inspected · doctrine boundaries visible (approval/liability where agents act).
 
-A slice is done only when: UI exists · behavior is real · data persists · permissions enforced · failure states visible · processing state truthful · tests pass · rendered result inspected.
+## 5. Anti-goals (unchanged)
 
-## 5. Anti-goals (never count as progress)
-
-- Nav destinations or controls without backing behavior.
-- Features verified only by code inspection (no runtime/screenshot).
-- Test-count growth without a failing-first cycle.
-- Register score inflation to feel faster.
+No behavior-less destinations · no code-inspection-only verification · no test growth without failing-first · no register score inflation · **no admin-app aesthetics — content is the interface.**

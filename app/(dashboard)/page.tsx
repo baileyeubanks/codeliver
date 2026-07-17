@@ -61,7 +61,7 @@ export default function HomePage() {
         kind: "proposal",
         title: proposal.title,
         detail: `v${proposal.version} sent — awaiting client approval`,
-        href: `/projects/${proposal.project_id}?section=proposal`,
+        href: `/projects/${proposal.project_id}?surface=proposal`,
         projectName: project?.name,
       });
     }
@@ -74,7 +74,7 @@ export default function HomePage() {
         kind: "revision",
         title: `Round ${request.round}: ${asset?.title ?? request.asset_id}`,
         detail: request.summary.slice(0, 90),
-        href: `/projects/${request.project_id}?section=review`,
+        href: `/projects/${request.project_id}?surface=reviews`,
         projectName: project?.name,
       });
     }
@@ -86,7 +86,7 @@ export default function HomePage() {
         kind: "deliverable",
         title: deliverable.name,
         detail: deliverable.status === "qc" ? `In QC — ${deliverable.qc_notes || "check pending"}` : "Encoding",
-        href: `/projects/${deliverable.project_id}?section=delivery`,
+        href: `/projects/${deliverable.project_id}?surface=delivery`,
         projectName: project?.name,
       });
     }
@@ -101,7 +101,7 @@ export default function HomePage() {
         kind: "plan",
         title: item.title,
         detail: `${item.kind.replace("_", " ")} · ${item.date}${item.assignee ? ` · ${item.assignee}` : ""}`,
-        href: `/projects/${item.project_id}?section=plan`,
+        href: `/projects/${item.project_id}?surface=plan`,
         projectName: project?.name,
       });
     }

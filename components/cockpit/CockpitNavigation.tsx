@@ -12,8 +12,11 @@ import {
   History,
   Home,
   LayoutGrid,
+  Lightbulb,
+  ListChecks,
   Menu,
   MessageCircle,
+  PackageCheck,
   PanelLeftClose,
   Settings,
   Users,
@@ -32,9 +35,13 @@ import CoProductionBrand from "@/components/brand/CoProductionBrand";
 
 const ICONS: Record<CockpitNavigationIcon, LucideIcon> = {
   approvals: CheckCircle2,
+  creative: Lightbulb,
+  delivery: PackageCheck,
   home: Home,
   media: LayoutGrid,
   metadata: FileSliders,
+  plan: ListChecks,
+  proposal: FileText,
   reviews: MessageCircle,
   sequences: CalendarDays,
   tasks: ClipboardCheck,
@@ -100,8 +107,8 @@ export function CockpitProjectNavigation({
 
       <div className={styles.shortcuts}>
         <p>Project shortcuts</p>
-        <button type="button" onClick={() => select("metadata")}><FileText size={17} /> <span>Creative brief</span></button>
-        <button type="button" onClick={() => select("metadata")}><FileText size={17} /> <span>Brand guidelines</span></button>
+        <button type="button" onClick={() => select("creative")}><FileText size={17} /> <span>Creative brief</span></button>
+        <button type="button" onClick={() => select("proposal")}><FileText size={17} /> <span>Proposal</span></button>
         <button type="button" onClick={() => select("media")}><Archive size={17} /> <span>Assets</span></button>
         <Link href={demoMode ? "/settings?section=organization&demo=1" : "/settings?section=organization"} onClick={onNavigate}><Users size={17} /> <span>Team</span></Link>
       </div>

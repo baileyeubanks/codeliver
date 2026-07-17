@@ -5328,3 +5328,30 @@ html[data-theme="light"] .workspace-shell {
     height: 30px;
   }
 }
+
+/* ── Project Operating Record sections (creative / proposal / plan / delivery) ── */
+.cockpit-record-form { display: grid; gap: 10px; margin-top: 14px; padding: 14px; border: 1px solid var(--cockpit-border); border-radius: 8px; background: #fafcfe; }
+.cockpit-record-form label { display: grid; gap: 5px; color: var(--cockpit-muted); font-size: 10px; font-weight: 600; }
+.cockpit-record-form-grid { display: grid; gap: 8px; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); }
+.cockpit-record-form-grid.five { grid-template-columns: 120px minmax(160px, 1fr) 76px 110px 96px; }
+.cockpit-record-form-actions { display: flex; align-items: center; gap: 8px; }
+.cockpit-record-form-actions button { display: inline-flex; align-items: center; gap: 6px; min-height: 32px; padding: 0 11px; border: 1px solid var(--cockpit-border); border-radius: 6px; background: #fff; color: var(--cockpit-accent); font-size: 10px; font-weight: 650; }
+.cockpit-record-form-actions button:first-child { background: var(--cockpit-accent); border-color: var(--cockpit-accent); color: #fff; }
+.cockpit-record-check { display: inline-flex !important; grid-auto-flow: column; align-items: center; gap: 6px; }
+.cockpit-record-card { display: grid; gap: 12px; margin-top: 14px; padding: 14px; border: 1px solid var(--cockpit-border); border-radius: 8px; background: #fff; }
+.cockpit-record-card-head { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; padding-bottom: 10px; border-bottom: 1px solid #edf0f4; }
+.cockpit-record-card-head strong { color: var(--cockpit-ink); font-size: 12px; }
+.cockpit-record-actions { display: inline-flex; gap: 6px; margin-left: auto; }
+.cockpit-record-actions button { padding: 6px 10px; border: 1px solid var(--cockpit-border); border-radius: 5px; background: #fff; color: var(--cockpit-accent); font-size: 9px; font-weight: 650; }
+.cockpit-record-dl { display: grid; gap: 8px; }
+.cockpit-record-dl > div { display: grid; grid-template-columns: 110px minmax(0, 1fr); gap: 10px; }
+.cockpit-record-dl dt { color: var(--cockpit-muted); font-size: 10px; font-weight: 650; text-transform: uppercase; letter-spacing: 0.08em; }
+.cockpit-record-dl dd { color: var(--cockpit-copy); font-size: 11px; line-height: 1.5; }
+.cockpit-record-narrative { color: var(--cockpit-copy); font-size: 11px; line-height: 1.55; }
+.cockpit-record-table { width: 100%; border-collapse: collapse; font-size: 10px; }
+.cockpit-record-table th { padding: 6px 8px; border-bottom: 1px solid var(--cockpit-border); color: var(--cockpit-muted); font-size: 9px; font-weight: 650; text-align: left; text-transform: uppercase; letter-spacing: 0.08em; }
+.cockpit-record-table td { padding: 7px 8px; border-bottom: 1px solid #edf0f4; color: var(--cockpit-copy); }
+.cockpit-record-table tr[data-optional] td { color: var(--cockpit-muted); }
+.cockpit-record-table tfoot td { border-bottom: 0; font-weight: 700; color: var(--cockpit-ink); }
+.cockpit-record-table td:last-child, .cockpit-record-table th:last-child { text-align: right; }
+.cockpit-record-group-title { margin-top: 18px; color: var(--cockpit-ink); font-size: 12px; font-weight: 700; }

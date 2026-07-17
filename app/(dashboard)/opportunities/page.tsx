@@ -306,7 +306,7 @@ export default function OpportunitiesPage() {
                       Record client approval
                     </button>
                   ) : null}
-                  <Link className="btn btn-ghost" href={withWorkspaceQuery(`/projects/${proposal.project_id}?section=proposal`, demoSuffix)}>
+                  <Link className="btn btn-ghost" href={withWorkspaceQuery(`/projects/${proposal.project_id}?surface=proposal`, demoSuffix)}>
                     Open in project
                   </Link>
                 </div>

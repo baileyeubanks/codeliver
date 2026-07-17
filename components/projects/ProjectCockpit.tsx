@@ -73,6 +73,7 @@ import type { MediaAsset } from "@/components/projects/MediaCard";
 import {
   addDemoReviewComment,
   addDemoReviewCutMarker,
+  advanceProjectStage,
   approveDemoStage,
   createDemoShareLinks,
   setDemoShareLinkActive,
@@ -90,6 +91,13 @@ import type {
   DemoShareLink,
 } from "@/lib/demo/workspace-store";
 import type { DemoProject } from "@/lib/demo/workspace";
+import { PROJECT_STAGE_META, type ProjectStage } from "@/lib/covideopro/record.ts";
+import {
+  CreativeSection,
+  DeliverySection,
+  PlanSection,
+  ProposalSection,
+} from "@/components/projects/ProjectRecordSections";
 import { useDemoMediaObjectUrl } from "@/lib/demo/media-blob-store";
 import { normalizeReviewSeekStep, normalizeReviewShortcutKey, shouldIgnoreReviewShortcut } from "@/lib/review/player-policy";
 import { buildSurfaceUrl, getBrowserClientSiteUrl } from "@/lib/surface-origins";
@@ -976,6 +984,20 @@ export default function ProjectCockpit({
     seekStepSeconds,
   ]);
 
+  const currentStage: ProjectStage = (
+    demoMode ? workspace.projects.find((candidate) => candidate.id === project.id)?.stage : undefined
+  ) ?? "inquiry";
+
+  function handleAdvanceStage() {
+    const result = advanceProjectStage(project.id);
+    if (!result.ok) {
+      setToast(result.reason);
+      return;
+    }
+    const nextStage = workspace.projects.find((candidate) => candidate.id === project.id)?.stage;
+    setToast(nextStage ? `Stage advanced to ${PROJECT_STAGE_META[nextStage].label}.` : "Stage advanced.");
+  }
+
   function selectSection(section: CockpitSection) {
     if (reviewViewActive) setReviewViewActive(false);
     setLifecycleOpen(false);
@@ -1470,6 +1492,19 @@ export default function ProjectCockpit({
           </label>
           <ChevronDown size={15} aria-hidden="true" />
         </div>
+
+        {demoMode ? (
+          <button
+            type="button"
+            className={styles.stageChip}
+            onClick={handleAdvanceStage}
+            title={`${PROJECT_STAGE_META[currentStage].summary} Select to advance the lifecycle stage.`}
+            aria-label={`Project stage: ${PROJECT_STAGE_META[currentStage].label}. Advance stage.`}
+          >
+            <span className={styles.stageChipDot} aria-hidden="true" />
+            {PROJECT_STAGE_META[currentStage].label}
+          </button>
+        ) : null}
 
         <div className="cockpit-search-wrap">
           <Search size={18} />
@@ -2168,6 +2203,18 @@ export default function ProjectCockpit({
           </>
         ) : (
           <section className="cockpit-secondary-view">
+            {activeSection === "creative" ? (
+              <CreativeSection projectId={project.id} demoMode={demoMode} onNotice={setToast} />
+            ) : null}
+
+            {activeSection === "proposal" ? (
+              <ProposalSection projectId={project.id} demoMode={demoMode} onNotice={setToast} />
+            ) : null}
+
+            {activeSection === "plan" ? (
+              <PlanSection projectId={project.id} demoMode={demoMode} onNotice={setToast} />
+            ) : null}
+
             {activeSection === "media" ? (
               <>
                 <header><div><h2>Project media</h2><p>Versions, status, comments, and review readiness in one place.</p></div><button type="button" onClick={onUpload}><Upload size={16} /> Upload media</button></header>
@@ -2230,6 +2277,10 @@ export default function ProjectCockpit({
                   {approvalStages.length === 0 ? <EmptyState title="No approval workflow" body="Create a review link with approval access to start one." /> : null}
                 </div>
               </>
+            ) : null}
+
+            {activeSection === "delivery" ? (
+              <DeliverySection projectId={project.id} demoMode={demoMode} onNotice={setToast} />
             ) : null}
 
             {activeSection === "tasks" ? (

@@ -451,3 +451,34 @@
     transition: none;
   }
 }
+
+/* Project Operating Record — stage chip + record sections */
+
+.stageChip {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 5px 11px;
+  border: 1px solid var(--border, #d9e2ef);
+  border-radius: 999px;
+  background: #f5f8fd;
+  color: var(--ink, #17243a);
+  font-size: 12px;
+  font-weight: 650;
+  letter-spacing: 0.02em;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: border-color 140ms ease, background 140ms ease;
+}
+
+.stageChip:hover {
+  border-color: var(--accent, #2f66e0);
+  background: #eaf1fe;
+}
+
+.stageChipDot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--accent, #2f66e0);
+}

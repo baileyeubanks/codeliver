@@ -1,5 +1,5 @@
 /**
- * Webster — sequence render PLAN (pure, client-safe).
+ * Co‑ProVideo — sequence render PLAN (pure, client-safe).
  * Execution lives in ./render.ts (server-only, node builtins).
  */
 

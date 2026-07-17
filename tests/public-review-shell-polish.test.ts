@@ -15,8 +15,8 @@ test("public review loading, error, and default header states use the product lo
   const styles = source("components/review/PublicReviewWorkspace.module.css");
 
   assert.match(workspace, /CoProductionBrand/);
-  assert.match(workspace, /label="Webster by co-videopro"/);
-  assert.match(workspace, /aria-label=\{brand\?\.displayName \?\? "Webster by co-videopro"\}/);
+  assert.match(workspace, /label="Co‑ProVideo by Content Co-op"/);
+  assert.match(workspace, /aria-label=\{brand\?\.displayName \?\? "Co‑ProVideo by Content Co-op"\}/);
   assert.match(workspace, /className=\{styles\.stateLogo\}/);
   assert.match(workspace, /className=\{styles\.brandLockup\}/);
   assert.match(workspace, /Preparing your review/);

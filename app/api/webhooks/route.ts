@@ -143,7 +143,7 @@ export async function POST(request: NextRequest) {
       event: "test",
       timestamp: new Date().toISOString(),
       team_id: (webhook as WebhookRow).team_id,
-      data: { message: "This is a test webhook from Webster" },
+      data: { message: "This is a test webhook from Co‑ProVideo" },
     };
 
     let responseCode = 0;

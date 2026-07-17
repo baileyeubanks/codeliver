@@ -368,7 +368,7 @@ const SOURCE_OPERATION_CONTRACTS = [
     route: "No product route",
     authority: "Not modeled",
     requiredContract: "repository and base SHA, worktree lock, sandbox limits, TTL, cleanup approval, diff attestation",
-    note: "Operator-managed outside Webster; no shell or command execution is exposed.",
+    note: "Operator-managed outside Co‑ProVideo; no shell or command execution is exposed.",
   },
   {
     id: "worker-handoff",
@@ -526,7 +526,7 @@ export default function StudioSystemsSettings({
     <div className={styles.panel}>
       <SettingsSection
         title="Studio systems"
-        detail="Dense production infrastructure controls for Webster. Planned capabilities stay disabled until their backend contract, permission, and audit path exist."
+        detail="Dense production infrastructure controls for Co‑ProVideo. Planned capabilities stay disabled until their backend contract, permission, and audit path exist."
         action={
           <StatusBadge tone={demoMode ? "info" : "warn"}>
             {demoMode ? "Demo controls" : "Managed service"}

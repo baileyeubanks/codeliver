@@ -11,12 +11,12 @@ const componentSource = readFileSync(
   "utf8",
 );
 
-test("the Webster lockup renders the wordmark + one four-color registration mark", () => {
-  assert.match(componentSource, /const DEFAULT_LABEL = "Webster by co-videopro"/);
+test("the Co‑ProVideo lockup renders the wordmark + one four-color registration mark", () => {
+  assert.match(componentSource, /const DEFAULT_LABEL = "Co‑ProVideo by Content Co-op"/);
   assert.match(componentSource, /role="img"/);
   assert.match(componentSource, /aria-label=\{label\}/);
-  assert.match(componentSource, /<span className=\{styles\.product\}>WEBSTER<\/span>/);
-  assert.match(componentSource, /by co-videopro/);
+  assert.match(componentSource, /<span className=\{styles\.product\}>Co‑ProVideo<\/span>/);
+  assert.match(componentSource, /by Content Co-op/);
   assert.match(componentSource, /src="\/brand\/cvp-fourcolor-mark\.png"/);
   assert.doesNotMatch(componentSource, /Co-Production Pro|Co-Deliver/);
 });

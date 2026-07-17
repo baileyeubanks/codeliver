@@ -63,14 +63,14 @@ export default function AuthShell({ children, demoMode, loginHref }: AuthShellPr
         <Link
           className={styles.brand}
           href={loginHref ?? (demoMode ? "/login?demo=1" : "/login")}
-          aria-label="Webster by co-videopro sign in"
+          aria-label="Co‑ProVideo by Content Co-op sign in"
         >
           <CoProductionBrand className={styles.brandLockup} priority />
         </Link>
 
         <div className={styles.product}>
           <span>Video production workspace</span>
-          <strong>Webster</strong>
+          <strong>Co‑ProVideo</strong>
         </div>
 
         <div className={styles.securityStatus}>

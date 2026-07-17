@@ -1,6 +1,6 @@
 @import "tailwindcss";
 
-/* Webster review design system */
+/* Co‑ProVideo review design system */
 /* Dark theme: deep navy backgrounds, green accent CTAs             */
 
 :root {
@@ -104,7 +104,7 @@ html, body {
 
 a { color: inherit; text-decoration: none; }
 
-/* ── Webster exterior/loading states ───────────────── */
+/* ── Co‑ProVideo exterior/loading states ───────────────── */
 .exterior-state,
 .project-state {
   min-height: 100svh;
@@ -2926,7 +2926,7 @@ a { color: inherit; text-decoration: none; }
   .demo-share-created-list img { width: 52px; height: 34px; }
 }
 
-/* Webster project cockpit: canonical Content Co-op visual target */
+/* Co‑ProVideo project cockpit: canonical Content Co-op visual target */
 .cockpit-shell {
   --cockpit-accent: #145bb8;
   --cockpit-accent-strong: #0c4ba2;
@@ -5355,7 +5355,7 @@ html[data-theme="light"] .workspace-shell {
 
 /* ── Metronic Wave 1 port (COVIDEOPRO_METRONIC_PORT_PLAN.md) ─────────────────
    Token architecture adapted from metronic-tailwind-html-starter-kit
-   (config.ktui.css, range.css, scrollable.css), re-keyed to Webster
+   (config.ktui.css, range.css, scrollable.css), re-keyed to Co‑ProVideo
    tokens. Pattern source only — identity stays ours. */
 
 :root {
@@ -5531,7 +5531,7 @@ input[type="range"].cv-range:focus-visible {
 
 /* hero-rebuild-nudge */
 
-/* ── Webster board design system (identity layer) ── */
+/* ── Co‑ProVideo board design system (identity layer) ── */
 :root {
   --font-display: "Bricolage Grotesque", "Instrument Sans", sans-serif;
   --font-body: "Instrument Sans", sans-serif;
@@ -5574,3 +5574,43 @@ code, pre, .cv-timeline__timebar, .cv-timeline__meta {
 .cv-stage-dot--review { background: var(--signal-red); }
 .cv-stage-dot--delivery,
 .cv-stage-dot--archived { background: var(--signal-green); }
+
+/* ── Co‑ProVideo design bible: material foundation ── */
+:root {
+  --font-display: "Bricolage Grotesque", "Instrument Sans", sans-serif;
+  --font-body: "Inter", "Instrument Sans", sans-serif;
+  --font-mono: "Geist Mono", ui-monospace, monospace;
+
+  --graphite: #121417;
+  --charcoal: #1a1d21;
+  --charcoal-2: #22262b;
+  --ivory: #f2ede2;
+  --ivory-dim: #b8b2a4;
+  --stone: #2a2e34;
+  --midnight: #0a0d12;
+  --cobalt: #4a7dff;
+  --sage: #7fa88c;
+  --amber-cp: #c98a3d;
+  --crimson: #a14a4a;
+  --hairline-cp: rgba(242, 237, 226, 0.09);
+  --chrome-edge: rgba(242, 237, 226, 0.14);
+
+  --cp-grain: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23n)' opacity='0.05'/%3E%3C/svg%3E");
+}
+
+body {
+  font-family: var(--font-body);
+}
+
+/* Cinematic helpers (use deliberately; atmosphere must stay quiet) */
+.cpv-grain { background-image: var(--cp-grain); }
+.cpv-smoked {
+  background: rgba(26, 29, 33, 0.72);
+  backdrop-filter: blur(14px) saturate(1.1);
+  border: 1px solid var(--chrome-edge);
+}
+.cpv-frame {
+  border-radius: 16px;
+  border: 1px solid var(--chrome-edge);
+  box-shadow: 0 18px 44px rgba(4, 6, 10, 0.5);
+}

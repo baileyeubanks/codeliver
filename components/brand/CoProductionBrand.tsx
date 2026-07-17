@@ -14,12 +14,12 @@ export interface CoProductionBrandProps {
   sizes?: string;
 }
 
-const DEFAULT_LABEL = "Webster by co-videopro";
+const DEFAULT_LABEL = "Co‑ProVideo by Content Co-op";
 
 /**
- * The Webster lockup: one wordmark, one four-color registration mark
- * (Bailey's CVP monogram), per the Webster board design system
- * (~/Desktop/webster/WEBSTER_BOARD_SYSTEM.md). Used once per surface.
+ * The Co‑ProVideo lockup: monumental display wordmark + the CVP four-color
+ * monogram (Bailey's artwork). One mark per surface, per the Co‑ProVideo
+ * design bible (docs/COPROVIDEO_DESIGN_BIBLE.md).
  */
 export function CoProductionBrand({
   variant = "horizontal",
@@ -45,8 +45,8 @@ export function CoProductionBrand({
       />
       {variant !== "compact-mark" ? (
         <span className={styles.wordmark} aria-hidden="true">
-          <span className={styles.product}>WEBSTER</span>
-          <span className={styles.company}>by co-videopro</span>
+          <span className={styles.product}>Co‑ProVideo</span>
+          <span className={styles.company}>by Content Co-op</span>
         </span>
       ) : null}
     </span>

@@ -1,5 +1,5 @@
 /**
- * Webster — Adaptive Discovery (Webster blueprint §6.1).
+ * Co‑ProVideo — Adaptive Discovery (Co‑ProVideo blueprint §6.1).
  *
  * One intelligent question at a time, each with a visible "why this matters".
  * Raw answers are kept; a normalized structured summary is derived

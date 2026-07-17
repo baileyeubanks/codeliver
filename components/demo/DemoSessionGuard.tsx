@@ -34,14 +34,14 @@ export default function DemoSessionGuard({ children }: { children: ReactNode }) 
         <div className="exterior-state__panel">
           <CoProductionBrand
             variant="stacked"
-            label="Webster by co-videopro"
+            label="Co‑ProVideo by Content Co-op"
             priority
           />
           <div className="exterior-state__icon" aria-hidden="true">
             <LoaderCircle size={18} />
           </div>
           <p className="exterior-state__eyebrow">Session required</p>
-          <h1>Returning to Webster sign in.</h1>
+          <h1>Returning to Co‑ProVideo sign in.</h1>
           <p>Restoring a verified demo session before reopening the production cockpit.</p>
           <div className="exterior-state__meter" aria-hidden="true">
             <span />

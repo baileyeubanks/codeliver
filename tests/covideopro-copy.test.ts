@@ -20,7 +20,7 @@ const customerFacingFiles = [
   "app/api/analytics/export/pdf/route.ts",
 ];
 
-test("customer-facing product copy consistently names Webster", () => {
+test("customer-facing product copy consistently names Co‑ProVideo", () => {
   for (const relativePath of customerFacingFiles) {
     const source = readFileSync(resolve(repositoryRoot, relativePath), "utf8");
     assert.doesNotMatch(source, /Co-Deliver/, `${relativePath} exposes the retired product name`);
@@ -28,7 +28,7 @@ test("customer-facing product copy consistently names Webster", () => {
   }
 
   const layoutSource = readFileSync(resolve(repositoryRoot, "app/layout.tsx"), "utf8");
-  assert.match(layoutSource, /title: "Webster \| Content Co-op"/);
+  assert.match(layoutSource, /title: "Co‑ProVideo \| Content Co-op"/);
   assert.match(layoutSource, /All-in-one video production workspace/);
 });
 
@@ -43,8 +43,8 @@ test("legacy technical identifiers remain stable while the new login theme is av
   );
 
   assert.match(layoutModel, /co-deliver\.cockpit-layout/);
-  assert.match(loginTheme, /"Webster": \{/);
-  assert.match(loginTheme, /displayLabel: "Webster"/);
+  assert.match(loginTheme, /"Co‑ProVideo": \{/);
+  assert.match(loginTheme, /displayLabel: "Co‑ProVideo"/);
 });
 
 test("raw health links preserve machine ids while exposing product identity", () => {
@@ -58,7 +58,7 @@ test("raw health links preserve machine ids while exposing product identity", ()
   const checks = readFileSync(resolve(repositoryRoot, "app/api/health/_lib/checks.ts"), "utf8");
 
   assert.match(healthIdentity, /HEALTH_SERVICE_ID = "co-deliver"/);
-  assert.match(healthIdentity, /HEALTH_PRODUCT_NAME = "Webster"/);
+  assert.match(healthIdentity, /HEALTH_PRODUCT_NAME = "Co‑ProVideo"/);
   assert.match(healthIdentity, /HEALTH_BRAND_NAME = "Content Co-op"/);
   assert.match(healthIdentity, /currentHealthPort/);
   assert.match(healthRoute, /product: HEALTH_PRODUCT_NAME/);

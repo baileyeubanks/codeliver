@@ -137,7 +137,7 @@ export async function POST(req: Request) {
     client,
     adapters,
     actorId: user.id,
-    actorName: user.email ?? "Webster user",
+    actorName: user.email ?? "Co‑ProVideo user",
     preferenceEnabled,
   });
 

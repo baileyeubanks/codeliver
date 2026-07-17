@@ -106,7 +106,7 @@ export default function PublicReviewWorkspace({
           <CoProductionBrand
             className={styles.stateLogo}
             variant="horizontal"
-            label="Webster by co-videopro"
+            label="Co‑ProVideo by Content Co-op"
             priority
           />
           <LoaderCircle className={styles.stateSpinner} size={24} aria-hidden="true" />
@@ -126,7 +126,7 @@ export default function PublicReviewWorkspace({
           <CoProductionBrand
             className={styles.stateLogo}
             variant="horizontal"
-            label="Webster by co-videopro"
+            label="Co‑ProVideo by Content Co-op"
             priority
           />
           <CircleAlert className={styles.stateErrorIcon} size={24} aria-hidden="true" />
@@ -155,7 +155,7 @@ export default function PublicReviewWorkspace({
       <header className={styles.header} aria-label="Review header">
         <div
           className={`${styles.brand} ${brand ? styles.customBrand : styles.productBrand}`}
-          aria-label={brand?.displayName ?? "Webster by co-videopro"}
+          aria-label={brand?.displayName ?? "Co‑ProVideo by Content Co-op"}
         >
           {brand ? (
             <>
@@ -176,7 +176,7 @@ export default function PublicReviewWorkspace({
             <CoProductionBrand
               className={styles.brandLockup}
               variant="horizontal"
-              label="Webster by co-videopro"
+              label="Co‑ProVideo by Content Co-op"
               priority
             />
           )}

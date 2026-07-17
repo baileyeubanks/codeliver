@@ -97,7 +97,7 @@ async function dispatchCreatedShareNotifications({
         client,
         adapters,
         actorId: user.id,
-        actorName: user.email ?? "Webster operator",
+        actorName: user.email ?? "Co‑ProVideo operator",
         projectId: notification.projectId,
         assetId: notification.assetId,
       }),
@@ -231,7 +231,7 @@ export async function executeShareManifest({
     manifest: prepared.value,
     manifestFingerprint,
     client,
-    actor: { id: user.id, name: user.email ?? "Webster operator" },
+    actor: { id: user.id, name: user.email ?? "Co‑ProVideo operator" },
   });
   if (!created.ok) {
     return {

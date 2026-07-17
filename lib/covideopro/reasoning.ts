@@ -1,5 +1,5 @@
 /**
- * Webster — reasoning engine v1 (deterministic).
+ * Co‑ProVideo — reasoning engine v1 (deterministic).
  *
  * Transcript → segment features → sound-bite scores → proposed radio cuts.
  * No LLM: every output is traceable to segment ids and explainable from the

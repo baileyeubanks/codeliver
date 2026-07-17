@@ -8,14 +8,14 @@ export default function NotFound() {
       <div className="exterior-state__panel">
         <CoProductionBrand
           variant="stacked"
-          label="Webster by co-videopro"
+          label="Co‑ProVideo by Content Co-op"
           priority
         />
         <div className="exterior-state__icon" aria-hidden="true">
           <SearchX size={18} />
         </div>
         <p className="exterior-state__eyebrow">Workspace route unavailable</p>
-        <h1>This Webster surface is not available.</h1>
+        <h1>This Co‑ProVideo surface is not available.</h1>
         <p>
           The workspace link may have moved, expired, or require a different
           project permission.

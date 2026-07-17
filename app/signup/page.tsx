@@ -89,7 +89,11 @@ export default function SignupPage() {
         }),
       });
       if (!response.ok) {
-        showError("Account creation could not be completed.");
+        showError(
+          response.status === 503
+            ? "Account service is temporarily unavailable — the sign-in backend cannot be reached from this environment."
+            : "Account creation could not be completed.",
+        );
         return;
       }
       setSuccess(true);

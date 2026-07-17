@@ -57,20 +57,31 @@ export async function POST(req: Request) {
   }
 
   const emailRedirectTo = confirmationRedirect(req);
-  const supabase = await createSupabaseAuth();
-  const { error } = await supabase.auth.signUp({
-    email,
-    password,
-    options: {
-      data: { display_name: requestedDisplayName || email.split("@")[0] },
-      ...(emailRedirectTo ? { emailRedirectTo } : {}),
-    },
-  });
 
-  if (error) {
+  try {
+    const supabase = await createSupabaseAuth();
+    const { error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: {
+        data: { display_name: requestedDisplayName || email.split("@")[0] },
+        ...(emailRedirectTo ? { emailRedirectTo } : {}),
+      },
+    });
+
+    if (error) {
+      // User-facing errors stay generic on purpose (no account enumeration).
+      return NextResponse.json(
+        { error: "Account creation could not be completed." },
+        { status: 400 },
+      );
+    }
+  } catch {
+    // The auth backend itself is missing or unreachable — say so honestly
+    // instead of implying the request was at fault.
     return NextResponse.json(
-      { error: "Account creation could not be completed." },
-      { status: 400 },
+      { error: "Account service is unavailable." },
+      { status: 503 },
     );
   }
 

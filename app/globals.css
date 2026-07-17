@@ -5355,3 +5355,4 @@ html[data-theme="light"] .workspace-shell {
 .cockpit-record-table tfoot td { border-bottom: 0; font-weight: 700; color: var(--cockpit-ink); }
 .cockpit-record-table td:last-child, .cockpit-record-table th:last-child { text-align: right; }
 .cockpit-record-group-title { margin-top: 18px; color: var(--cockpit-ink); font-size: 12px; font-weight: 700; }
+.cockpit-record-form-actions button[disabled] { opacity: 0.45; cursor: not-allowed; }

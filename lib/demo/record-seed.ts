@@ -207,3 +207,29 @@ export const seedDeliverables: Deliverable[] = [
     created_at: T1, updated_at: T3, created_by: BAILEY,
   },
 ];
+
+/* ------------------------- Transcript segments ------------------------------ */
+
+export interface DemoTranscriptSegment {
+  id: string;
+  start_seconds: number;
+  end_seconds: number;
+  speaker: string;
+  text: string;
+}
+
+/**
+ * Transcript content backing the transcript-sourced selects. Read-only demo
+ * transcript for the podcast asset; selects created from these segments
+ * persist through the store with segment provenance.
+ */
+export const seedTranscriptSegments: Record<string, DemoTranscriptSegment[]> = {
+  "mclaren-podcast-v3": [
+    { id: "seg-21", start_seconds: 96, end_seconds: 118, speaker: "Dana Whitfield", text: "People ask why a logistics company walked into an EPC partnership. It started with a failed lift plan nobody wants to repeat." },
+    { id: "seg-22", start_seconds: 118, end_seconds: 141, speaker: "Dana Whitfield", text: "The short answer is trust. We needed their crews to treat our freight like their own steel, and that took a year of showing up." },
+    { id: "seg-88", start_seconds: 402, end_seconds: 428, speaker: "Host", text: "Take me to Nashville. The turnaround that became the case study." },
+    { id: "seg-89", start_seconds: 428, end_seconds: 444, speaker: "Dana Whitfield", text: "Nashville was forty trucks, six cranes, and one weekend that could not slip. Everyone knew the number." },
+    { id: "seg-90", start_seconds: 444, end_seconds: 455, speaker: "Dana Whitfield", text: "When the last load cleared the gate at 4 a.m., that is when the partnership stopped being a contract." },
+    { id: "seg-301", start_seconds: 1188, end_seconds: 1246, speaker: "Dana Whitfield", text: "What is next is the fleet program: shared telematics, joint safety metrics, and a training pipeline that turns drivers into site leads." },
+  ],
+};

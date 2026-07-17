@@ -5,6 +5,7 @@ import { Check, FileText, Lightbulb, ListChecks, PackageCheck, Plus, X } from "l
 import {
   addPlanItem,
   addRevisionRequest,
+  addSelect,
   createSequenceFromSelects,
   saveBrief,
   saveDeliverable,
@@ -17,6 +18,7 @@ import {
   setSequenceStatus,
   useDemoWorkspace,
 } from "@/lib/demo/workspace-store";
+import { seedTranscriptSegments } from "@/lib/demo/record-seed";
 import {
   currentBrief,
   currentProposal,
@@ -569,6 +571,23 @@ export function SequencesSection({ projectId, demoMode, onNotice }: SectionProps
     onNotice(result.ok ? "Sequence sent to review." : result.reason);
   }
 
+  function makeSelectFromSegment(assetId: string, segmentId: string, start: number, end: number, text: string) {
+    const result = addSelect({
+      projectId,
+      assetId,
+      inSeconds: start,
+      outSeconds: end,
+      label: text.length > 64 ? `${text.slice(0, 64)}…` : text,
+      source: "transcript",
+      transcriptSegmentIds: [segmentId],
+    });
+    onNotice(result.ok ? "Select created from transcript." : result.reason);
+  }
+
+  const transcriptAssets = workspace.assets
+    .filter((asset) => asset.project_id === projectId && seedTranscriptSegments[asset.id]?.length)
+    .map((asset) => ({ asset, segments: seedTranscriptSegments[asset.id] }));
+
   return (
     <>
       <header>
@@ -627,6 +646,27 @@ export function SequencesSection({ projectId, demoMode, onNotice }: SectionProps
         })}
         {selects.length === 0 ? <p className="cockpit-rail-empty">No selects yet — mark ranges from the transcript workbench or review timeline.</p> : null}
       </section>
+
+      {transcriptAssets.length > 0 ? (
+        <>
+          <h3 className="cockpit-record-group-title">Transcript</h3>
+          {transcriptAssets.map(({ asset, segments }) => (
+            <section key={asset.id} aria-label={`Transcript for ${asset.title}`} className="cockpit-table-list">
+              {segments.map((segment) => (
+                <article key={segment.id} style={{ gridTemplateColumns: "minmax(0,1fr) auto" }}>
+                  <div>
+                    <strong>{segment.speaker} · {formatSeconds(segment.start_seconds)}–{formatSeconds(segment.end_seconds)}</strong>
+                    <small>{segment.text}</small>
+                  </div>
+                  <button type="button" onClick={() => makeSelectFromSegment(asset.id, segment.id, segment.start_seconds, segment.end_seconds, segment.text)}>
+                    Make select
+                  </button>
+                </article>
+              ))}
+            </section>
+          ))}
+        </>
+      ) : null}
 
       {selects.length > 0 ? (
         <form className="cockpit-record-form" aria-label="Assemble sequence" onSubmit={(event) => { event.preventDefault(); assemble(); }}>

@@ -1,0 +1,74 @@
+# Co-VideoPro — Upgrade Log
+
+Running record of the 2026-07-16 upgrade mission. Newest last. Each entry: change, rationale, files, schemas/migrations, screenshots, tests, limitations, next slice.
+
+Baseline: `e068ee8` (checkpoint of the prior session's transformation state).
+
+---
+
+## U1 — Mission baseline documents (commit `ebaada3`)
+
+- **Change:** Wrote `docs/COVIDEOPRO_CURRENT_STATE.md` (evidence audit), `COVIDEOPRO_TARGET_ARCHITECTURE.md`, `COVIDEOPRO_PRODUCT_MODEL.md`, `COVIDEOPRO_DECISIONS.md`.
+- **Rationale:** Mission requires an evidence-based audit and a governing architecture before implementation.
+- **Evidence:** Route/schema/component inspection; agent-0 architecture report (subagent quota then exhausted — D6).
+- **Limitations:** UI audit section was static until U4 runtime verification.
+
+## U2 — Project Operating Record core (commit `3560be6`)
+
+- **Change:** Canonical entity model + state machines + tests + schema migration.
+- **Files:** `lib/covideopro/record.ts` (9-stage lifecycle spine + 14 entity types), `lib/covideopro/transitions.ts` (pure validators for inquiry, brief, proposal, sequence, revision request, deliverable, project stage), `tests/covideopro-record-transitions.test.ts` (14 tests), `supabase/migrations/20260716120000_project_operating_record.sql` (14 tables + `projects.stage`, RLS owner policies), `tsconfig.json` (`allowImportingTsExtensions` — matches the repo's `.ts`-import convention; removed 31 stale `@ts-expect-error` suppressions across 14 files).
+- **Tests:** 14/14 new tests green; suite 484/491 (7 pre-existing failures unrelated).
+- **Limitations:** Migration authored but not executed against a live Supabase (no local credentials) — see OPEN_RISKS R1.
+
+## U3 — Demo runtime v2 + realistic decontaminated seed (commit `ee77ef6`)
+
+- **Change:** The local demo workspace store became the full Project Operating Record runtime.
+- **Files:** `lib/demo/workspace-store.ts` (12 record collections; storage key `co-videopro.workspace.v2` with v1→v2 migration; validated mutation API with activity events; `getDemoWorkspaceSnapshot` for headless tests), `lib/demo/record-seed.ts` (new), `lib/demo/workspace.ts` (seed slate), `tests/covideopro-demo-store.test.ts` (6 tests).
+- **Seed:** ICA (review), Schneider + EPC (post), bp (production), Conexon (development), HLSR + QSR inquiries; briefs with versions, proposal versions with estimate lines, plan items, transcript selects, radio-cut sequence, revision round, decision, deliverables with QC.
+- **Contamination removed (D7):** "Astro Cleaning Services" project/folder/asset from demo seed.
+- **Tests:** 6/6 new tests green, incl. v1→v2 migration and full lifecycle flows.
+- **Limitations:** Persistence is localStorage (browser-local) in demo runtime; Supabase path is schema-complete but not integration-tested (R1).
+
+## U4 — Runtime baseline + rebrand + shell v2 (commit `d399f35`)
+
+- **Change:** Booted the app (Next 16.2.10, port 4115, demo mode auto without Supabase env); captured baseline screenshots; renamed the product to Co-VideoPro; built global nav v2, Home, Opportunities.
+- **Baseline found:** 451 passing / 7 failing tests; branding split across three names; cockpit isolated from global context.
+- **Rebrand (D3):** literal rename across 43 files; `CoProductionBrand` raster lockup replaced by a theme-aware text wordmark (retired rasters left in `public/brand` for reference); `package.json` name `co-videopro`; login-shell duplicate `"Co-VideoPro"` theme key merged; "Root" login theme decontaminated of ACS business language; ACS mention contact removed from `MentionSuggestions`.
+- **Shell:** navigation-model v2 — Operate (Home, Projects, Opportunities) / Create (Reviews, Library) / Workspace (Activity, Archive, Trash) / Admin (Settings); capabilities `home:read`, `opportunities:read/write`; lifecycle-contract permission contracts extended.
+- **New surfaces:** `app/(dashboard)/page.tsx` Home (attention queue: inquiries, proposals awaiting approval, open revisions, QC deliveries, upcoming plan items; productions-by-stage; recent activity). `app/(dashboard)/opportunities/page.tsx` (inquiry inbox with triage/qualify/decline/convert-to-project, proposal pipeline with estimate totals and approval actions, clients with contacts).
+- **Screenshots:** `docs/design-evidence/mission-baseline-20260716/01-06` (login, projects, cockpit, reviews, home, opportunities).
+- **Tests:** copy/brand/navigation/exterior suites updated to the new canon; 484 passing.
+- **Limitations:** Remote (Supabase) mode Home/Opportunities render honest fallbacks (record APIs not yet wired — next slices).
+
+## U5 — Cockpit: Project Operating Record shell (commit `8166b4c`)
+
+- **Change:** The project cockpit became the lifecycle-contextual record shell.
+- **Files:** `components/cockpit/cockpit-navigation.ts` (lifecycle-ordered sections incl. creative/proposal/plan/delivery), `components/cockpit/CockpitNavigation.tsx` (icons), `components/projects/ProjectRecordSections.tsx` (new: Creative, Proposal, Plan, Delivery sections), `components/projects/ProjectCockpit.tsx` (stage chip + section wiring), `app/globals.css` (cockpit-record styles).
+- **Behavior:** Stage chip advances the lifecycle through gated transitions (`advanceProjectStage` — real context checks: org+contact, brief, approved proposal, production day, sequence, active review, final approval, deliverables). Brief/proposal editing versions forward (approved → superseded + new draft). Estimate lines editable in draft with computed totals. Plan items and deliverables transition via validators.
+- **Fake controls removed:** rail shortcuts "Creative brief"/"Brand guidelines" previously routed to metadata; now Creative brief/Proposal reach real sections.
+- **Screenshots:** `07-10` (creative, proposal, plan, delivery).
+- **Tests:** cockpit-control-regressions 18/18 green.
+- **Limitations:** Stage regression is intentionally impossible (revision = new round, per PRODUCT_MODEL §1).
+
+## U6 — Slices B and C cores (commit `d8c0243`)
+
+- **Change:** Real sequences replace the asset-list-that-posed-as-sequences; revision consolidation lands in the Reviews section.
+- **Files:** `components/projects/ProjectRecordSections.tsx` (SequencesSection: sequences with clips, source/record times, selects, guarded assemble-from-selects; ReviewConsolidationSection: per-asset revision rounds + one-click consolidation of scattered open comments), `ProjectCockpit.tsx` wiring.
+- **Screenshots:** `11-12` (sequences, reviews with revision rounds).
+- **Tests:** 24 targeted tests green.
+- **Limitations:** Sequence playback/preview not yet wired to the player (clips are data-truthful; visual timeline is the next slice). Select creation from the transcript workbench UI is not yet wired (selects seeded + API-ready).
+
+## U7 — Full suite green (commit `9e666ec`)
+
+- **Change:** Fixed the 7 pre-existing baseline failures.
+- **Files:** `app/api/assets/bulk/route.ts` (anti-enumeration 404 for cross-project selections; filter chain order), `tests/asset-tag-bulk-tenant-security.test.ts` (FakeQuery mirrors PostgREST `update().select()` returning rows), `app/api/media/upload/route.ts` (role gate before body parse; staff may use raw NAS upload without service token), `lib/supabase.ts`, `lib/server-env.ts` (`@/` alias → relative imports).
+- **Tests:** **535/535 pass; `tsc --noEmit` 0 errors.**
+- **Limitations:** none known in these paths.
+
+## Next slices (roadmap, not done)
+
+1. Sequence visual timeline + player wiring (Slice B completion); transcript workbench → select creation UI.
+2. Review-version-from-sequence (render/flatten a sequence into a reviewable version).
+3. Remote-mode record APIs (Supabase routes for the new entities) so Home/Opportunities/sections work outside demo mode.
+4. Deliveries global surface + download audit events.
+5. Hermes project summary over the record (deterministic analyzers first).

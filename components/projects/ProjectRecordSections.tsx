@@ -4,6 +4,8 @@ import { useMemo, useState } from "react";
 import { Check, FileText, Lightbulb, ListChecks, PackageCheck, Plus, X } from "lucide-react";
 import {
   addPlanItem,
+  addRevisionRequest,
+  createSequenceFromSelects,
   saveBrief,
   saveDeliverable,
   saveProposal,
@@ -11,6 +13,8 @@ import {
   setDeliverableStatus,
   setPlanItemStatus,
   setProposalStatus,
+  setRevisionRequestStatus,
+  setSequenceStatus,
   useDemoWorkspace,
 } from "@/lib/demo/workspace-store";
 import {
@@ -513,5 +517,215 @@ export function DeliverySection({ projectId, demoMode, onNotice }: SectionProps)
         {deliverables.length === 0 ? <p className="cockpit-rail-empty">No deliverables specced yet.</p> : null}
       </div>
     </>
+  );
+}
+
+/* ------------------------------- Sequences ---------------------------------- */
+
+function formatSeconds(total: number): string {
+  const minutes = Math.floor(total / 60);
+  const seconds = Math.round(total % 60);
+  return `${minutes}:${String(seconds).padStart(2, "0")}`;
+}
+
+export function SequencesSection({ projectId, demoMode, onNotice }: SectionProps) {
+  const workspace = useDemoWorkspace();
+  const sequences = useMemo(
+    () => workspace.sequences.filter((sequence) => sequence.project_id === projectId),
+    [workspace.sequences, projectId],
+  );
+  const selects = useMemo(
+    () => workspace.selects.filter((select) => select.project_id === projectId),
+    [workspace.selects, projectId],
+  );
+  const [picked, setPicked] = useState<ReadonlySet<string>>(new Set());
+  const [name, setName] = useState("");
+
+  if (!demoMode) return <SectionEmpty title="Sequences" body="Sequences are available in the local workspace." />;
+
+  function togglePick(id: string) {
+    setPicked((current) => {
+      const next = new Set(current);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
+  function assemble() {
+    const ordered = selects.filter((select) => picked.has(select.id)).map((select) => select.id);
+    const result = createSequenceFromSelects({ projectId, name, selectIds: ordered });
+    if (!result.ok) {
+      onNotice(result.reason);
+      return;
+    }
+    setPicked(new Set());
+    setName("");
+    onNotice("Sequence assembled from selects.");
+  }
+
+  function review(id: string) {
+    const result = setSequenceStatus(id, "in_review");
+    onNotice(result.ok ? "Sequence sent to review." : result.reason);
+  }
+
+  return (
+    <>
+      <header>
+        <div>
+          <h2>Sequences</h2>
+          <p>Real assemblies: clips with source and record times, built from transcript selects.</p>
+        </div>
+      </header>
+
+      <section aria-label="Sequence list" className="cockpit-table-list">
+        {sequences.map((sequence) => {
+          const clips = workspace.sequenceClips.filter((clip) => clip.sequence_id === sequence.id);
+          const duration = clips.reduce((max, clip) => Math.max(max, clip.timeline_out_seconds), 0);
+          return (
+            <article key={sequence.id} style={{ gridTemplateColumns: "34px minmax(0,1fr) auto auto" }}>
+              <span className="cockpit-list-icon"><ListChecks size={18} /></span>
+              <div>
+                <strong>{sequence.name}</strong>
+                <small>
+                  v{sequence.version} · {clips.length} clips · {formatSeconds(duration)} · {sequence.created_from === "transcript-assembly" ? "transcript assembly" : "manual"}
+                </small>
+                <small>
+                  {clips.map((clip, index) => {
+                    const asset = workspace.assets.find((candidate) => candidate.id === clip.asset_id);
+                    return ` ${index + 1}. ${asset?.title ?? clip.asset_id} [${formatSeconds(clip.source_in_seconds)}→${formatSeconds(clip.source_out_seconds)}]`;
+                  }).join("")}
+                </small>
+              </div>
+              <span className={sequence.status === "approved" ? "status-active" : "status-pending"}>{sequence.status.replace("_", " ")}</span>
+              {sequence.status === "draft" ? <button type="button" onClick={() => review(sequence.id)}>Send to review</button> : null}
+            </article>
+          );
+        })}
+        {sequences.length === 0 ? <p className="cockpit-rail-empty">No sequences yet — assemble one from the selects below.</p> : null}
+      </section>
+
+      <h3 className="cockpit-record-group-title">Selects ({selects.length})</h3>
+      <section aria-label="Selects" className="cockpit-table-list">
+        {selects.map((select) => {
+          const asset = workspace.assets.find((candidate) => candidate.id === select.asset_id);
+          return (
+            <article key={select.id} style={{ gridTemplateColumns: "auto 34px minmax(0,1fr) auto" }}>
+              <input
+                type="checkbox"
+                checked={picked.has(select.id)}
+                onChange={() => togglePick(select.id)}
+                aria-label={`Include ${select.label} in sequence`}
+              />
+              <span className="cockpit-list-icon"><Check size={16} /></span>
+              <div>
+                <strong>{select.label}</strong>
+                <small>{asset?.title ?? select.asset_id} · {formatSeconds(select.in_seconds)}→{formatSeconds(select.out_seconds)} · {select.source}</small>
+              </div>
+            </article>
+          );
+        })}
+        {selects.length === 0 ? <p className="cockpit-rail-empty">No selects yet — mark ranges from the transcript workbench or review timeline.</p> : null}
+      </section>
+
+      {selects.length > 0 ? (
+        <form className="cockpit-record-form" aria-label="Assemble sequence" onSubmit={(event) => { event.preventDefault(); assemble(); }}>
+          <div className="cockpit-record-form-grid">
+            <input className="input" placeholder="Sequence name" value={name} onChange={(event) => setName(event.target.value)} aria-label="Sequence name" />
+          </div>
+          <div className="cockpit-record-form-actions">
+            <button type="submit" disabled={picked.size === 0}><Plus size={15} /> Assemble from {picked.size} select{picked.size === 1 ? "" : "s"}</button>
+          </div>
+        </form>
+      ) : null}
+    </>
+  );
+}
+
+/* ------------------------ Review consolidation ------------------------------- */
+
+export function ReviewConsolidationSection({ projectId, demoMode, onNotice }: SectionProps) {
+  const workspace = useDemoWorkspace();
+
+  if (!demoMode) return null;
+
+  const projectAssets = workspace.assets.filter((asset) => asset.project_id === projectId);
+  const openCommentsByAsset = new Map<string, typeof workspace.reviewComments>();
+  for (const comment of workspace.reviewComments) {
+    if (comment.project_id !== projectId || comment.status !== "open") continue;
+    const list = openCommentsByAsset.get(comment.asset_id) ?? [];
+    list.push(comment);
+    openCommentsByAsset.set(comment.asset_id, list);
+  }
+  const requests = workspace.revisionRequests
+    .filter((request) => request.project_id === projectId)
+    .sort((a, b) => b.round - a.round);
+
+  const NEXT: Record<string, { to: "in_progress" | "addressed" | "verified"; label: string } | null> = {
+    open: { to: "in_progress", label: "Start work" },
+    in_progress: { to: "addressed", label: "Mark addressed" },
+    addressed: { to: "verified", label: "Verify round" },
+    verified: null,
+  };
+
+  return (
+    <section aria-label="Revision consolidation" style={{ marginTop: 22 }}>
+      <h3 className="cockpit-record-group-title">Revision rounds</h3>
+      <div className="cockpit-table-list">
+        {requests.map((request) => {
+          const asset = projectAssets.find((candidate) => candidate.id === request.asset_id);
+          const next = NEXT[request.status];
+          const linkedOpen = workspace.reviewComments.filter(
+            (comment) => request.comment_ids.includes(comment.id) && comment.status === "open",
+          ).length;
+          return (
+            <article key={request.id} style={{ gridTemplateColumns: "34px minmax(0,1fr) auto auto" }}>
+              <span className="cockpit-list-icon"><ListChecks size={18} /></span>
+              <div>
+                <strong>Round {request.round} — {asset?.title ?? request.asset_id}</strong>
+                <small>{request.summary}</small>
+                <small>{request.comment_ids.length} linked comments · {linkedOpen} still open</small>
+              </div>
+              <span className={request.status === "verified" ? "status-active" : "status-pending"}>{request.status.replace("_", " ")}</span>
+              {next ? (
+                <button type="button" onClick={() => {
+                  const result = setRevisionRequestStatus(request.id, next.to, { waiveUnresolved: next.to === "verified" });
+                  onNotice(result.ok ? `Round ${request.round} → ${next.to.replace("_", " ")}.` : result.reason);
+                }}>
+                  {next.label}
+                </button>
+              ) : <Check size={17} />}
+            </article>
+          );
+        })}
+        {requests.length === 0 ? <p className="cockpit-rail-empty">No revision rounds yet.</p> : null}
+      </div>
+
+      {[...openCommentsByAsset.entries()].map(([assetId, comments]) => {
+        const asset = projectAssets.find((candidate) => candidate.id === assetId);
+        return (
+          <div key={assetId} className="cockpit-record-form" style={{ marginTop: 10 }}>
+            <div className="cockpit-record-form-grid" style={{ gridTemplateColumns: "minmax(0,1fr) auto" }}>
+              <p style={{ margin: 0, fontSize: 11, color: "var(--cockpit-copy)" }}>
+                <strong>{asset?.title ?? assetId}</strong> — {comments.length} open comment{comments.length === 1 ? "" : "s"} scattered across the review. Consolidate them into one actionable round instead of email threads.
+              </p>
+              <div className="cockpit-record-form-actions">
+                <button type="button" onClick={() => {
+                  const result = addRevisionRequest({
+                    projectId,
+                    assetId,
+                    summary: comments.map((comment) => comment.body).join(" · ").slice(0, 220),
+                    commentIds: comments.map((comment) => comment.id),
+                  });
+                  onNotice(result.ok ? `Revision round consolidated for ${asset?.title ?? "asset"}.` : result.reason);
+                }}>
+                  <Plus size={15} /> Consolidate {comments.length} comments
+                </button>
+              </div>
+            </div>
+          </div>
+        );
+      })}
+    </section>
   );
 }

@@ -97,6 +97,8 @@ import {
   DeliverySection,
   PlanSection,
   ProposalSection,
+  ReviewConsolidationSection,
+  SequencesSection,
 } from "@/components/projects/ProjectRecordSections";
 import { useDemoMediaObjectUrl } from "@/lib/demo/media-blob-store";
 import { normalizeReviewSeekStep, normalizeReviewShortcutKey, shouldIgnoreReviewShortcut } from "@/lib/review/player-policy";
@@ -2234,13 +2236,7 @@ export default function ProjectCockpit({
             ) : null}
 
             {activeSection === "sequences" ? (
-              <>
-                <header><div><h2>Sequences</h2><p>Review the latest assembly and jump to any deliverable.</p></div><button type="button" onClick={() => selectSection("overview")}><Play size={16} /> Open timeline</button></header>
-                <div className="cockpit-sequence-list">
-                  {assets.map((asset) => <button key={asset.id} type="button" onClick={() => { selectAsset(asset); selectSection("overview"); }}>{asset.thumbnail_url || demoMode ? <Image src={asset.thumbnail_url ?? "/demo/ceraweek-speaker.jpg"} alt="" width={112} height={64} unoptimized /> : <span aria-hidden="true"><Play size={18} /></span>}<span><strong>{asset.title}</strong><small>{formatShortClock(asset.duration_seconds ?? 0)} · {versionLabel(asset, demoMode)}</small></span><Play size={18} /></button>)}
-                  {assets.length === 0 ? <EmptyState title="No sequences" body="Upload media before building a review sequence." /> : null}
-                </div>
-              </>
+              <SequencesSection projectId={project.id} demoMode={demoMode} onNotice={setToast} />
             ) : null}
 
             {activeSection === "reviews" ? (
@@ -2266,6 +2262,7 @@ export default function ProjectCockpit({
                   ))}
                   {projectLinks.length === 0 ? <EmptyState title="No review links" body="Create a permissioned link for this project." /> : null}
                 </div>
+                <ReviewConsolidationSection projectId={project.id} demoMode={demoMode} onNotice={setToast} />
               </>
             ) : null}
 

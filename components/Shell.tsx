@@ -31,10 +31,8 @@ import { useOnlineStatus } from "./navigation/useEnvironmentStatus";
 import { buildSettingsHref } from "./auth/settings-route";
 import { createSupabaseBrowser } from "@/lib/supabase-browser";
 import { useDemoSuffix } from "@/lib/demo/mode";
-import { signOutDemoSession, useDemoWorkspace } from "@/lib/demo/workspace-store";
+import { signOutDemoSession, setDemoSessionRole, useDemoWorkspace } from "@/lib/demo/workspace-store";
 import styles from "./Shell.module.css";
-
-const WORKSPACE_ROLE: WorkspaceRole = "owner";
 
 function activityLabel(action: string) {
   const labels: Record<string, string> = {
@@ -62,6 +60,7 @@ export default function Shell({ children }: { children: React.ReactNode }) {
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [navigationOpen, setNavigationOpen] = useState(false);
   const isProjectCockpit = /^\/projects\/(?!new$|archive$|trash$)[^/]+$/.test(pathname);
+  const workspaceRole: WorkspaceRole = demoSuffix ? (demoWorkspace.session.role ?? "owner") : "owner";
   const accountRef = useRef<HTMLDivElement>(null);
   const notificationRef = useRef<HTMLDivElement>(null);
   const accountButtonRef = useRef<HTMLButtonElement>(null);
@@ -79,7 +78,7 @@ export default function Shell({ children }: { children: React.ReactNode }) {
     .join("") || "CC";
 
   const commandItems = useMemo<CommandPaletteItem[]>(() => {
-    const navigationCommands = visibleNavigation(WORKSPACE_ROLE).flatMap((section) =>
+    const navigationCommands = visibleNavigation(workspaceRole).flatMap((section) =>
       section.items.map((item) => ({
         id: `navigation-${item.id}`,
         label: item.label,
@@ -116,7 +115,7 @@ export default function Shell({ children }: { children: React.ReactNode }) {
         }))
       : [];
 
-    const createCommand: CommandPaletteItem[] = roleCan(WORKSPACE_ROLE, "projects:create")
+    const createCommand: CommandPaletteItem[] = roleCan(workspaceRole, "projects:create")
       ? [{
           id: "create-project",
           label: "New project",
@@ -218,7 +217,7 @@ export default function Shell({ children }: { children: React.ReactNode }) {
         <WorkspaceNavigation
           pathname={pathname}
           querySuffix={demoSuffix}
-          role={WORKSPACE_ROLE}
+          role={workspaceRole}
           drawerOpen={navigationOpen}
           projects={demoSuffix ? demoWorkspace.projects : []}
           onOpenDrawer={() => {
@@ -316,7 +315,23 @@ export default function Shell({ children }: { children: React.ReactNode }) {
                   <strong>{profileName}</strong>
                   <small>{profileEmail}</small>
                 </header>
-                <em className={styles.accountRole}>Workspace {WORKSPACE_ROLE}</em>
+                <em className={styles.accountRole}>Workspace {workspaceRole}</em>
+                {demoSuffix ? (
+                  <label className={styles.accountRole} style={{ display: "flex", alignItems: "center", gap: 6, textTransform: "none" }}>
+                    View as
+                    <select
+                      value={workspaceRole}
+                      onChange={(event) => setDemoSessionRole(event.target.value as typeof workspaceRole)}
+                      aria-label="Preview workspace role"
+                    >
+                      <option value="owner">owner</option>
+                      <option value="producer">producer</option>
+                      <option value="editor">editor</option>
+                      <option value="reviewer">reviewer</option>
+                      <option value="viewer">viewer</option>
+                    </select>
+                  </label>
+                ) : null}
                 <Link href={buildSettingsHref("account", Boolean(demoSuffix))} onClick={() => setAccountOpen(false)}>
                   <User size={15} /> Profile
                 </Link>

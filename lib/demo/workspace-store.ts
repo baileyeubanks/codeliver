@@ -219,6 +219,8 @@ export interface DemoWorkspaceState {
     authenticated: boolean;
     email: string;
     lastSignedInAt: string | null;
+    /** Effective demo workspace role — drives real nav/capability gating. */
+    role: "owner" | "producer" | "editor" | "reviewer" | "viewer";
   };
   projects: DemoProject[];
   folders: FolderNode[];
@@ -355,6 +357,7 @@ export function createInitialDemoWorkspace(): DemoWorkspaceState {
       authenticated: true,
       email: "bailey@contentco-op.com",
       lastSignedInAt: "2026-07-14T19:00:00.000Z",
+      role: "owner",
     },
     projects: demoProjects.map((project) => ({ ...project })),
     folders: cloneFolders(demoFolders),
@@ -889,6 +892,7 @@ export function signInDemoSession(email: string) {
       authenticated: true,
       email: email.trim() || state.session.email,
       lastSignedInAt: new Date().toISOString(),
+      role: state.session.role,
     },
   }));
 }
@@ -904,6 +908,7 @@ export function registerDemoAccount(email: string, displayName: string) {
       authenticated: false,
       email: email.trim(),
       lastSignedInAt: null,
+      role: state.session.role,
     },
     settings: {
       ...state.settings,
@@ -2460,4 +2465,12 @@ export function updateSelectRange(input: {
     }),
   }));
   return { ok: true, id: select.id };
+}
+
+/** Switch the effective demo workspace role (drives capability gating). */
+export function setDemoSessionRole(role: DemoWorkspaceState["session"]["role"]) {
+  updateState((state) => ({
+    ...state,
+    session: { ...state.session, role },
+  }));
 }

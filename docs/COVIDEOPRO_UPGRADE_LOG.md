@@ -112,3 +112,10 @@ Baseline: `e068ee8` (checkpoint of the prior session's transformation state).
 - **E3 design restoration:** media-first Home (production cards, quiet attention rows, latest-media strip); Opportunities monograms + prominent amounts; status-pill CSS bug fixed by agent-15 visible throughout.
 - **E1+E2 El Paso entities:** production_days, crew_members, locations, releases, call_sheets in record.ts + transitions (chaseList, call-sheet versioning) + demo store + seed (El Paso: 5 days, 3 crew, 3 locations, Adam/Gisela/Ephram releases) + migration `20260716140000_production_entities.sql` (GRANTs + FORCE RLS from the start, M1 lesson) + Production block in Plan section (days, chase board ⚠2 unsigned, locations/agreements, unit, call-sheet generation with printable content incl. CHASE warning).
 - Tests: 5 new production-entity tests; suite **566/566**; e2e 6/6; tsc clean. Screenshots 23–25.
+
+## U13 — T1: Finish Review ritual + Decision Ledger (Webster tranche 1, gate 8)
+
+- `finishDemoReview`: the guest's closing act — durable decision with the reviewer's open comments attached as provenance; outcome → implementation mapping (approved/notes → done, changes → pending).
+- `FinishReviewBar` in the guest approval rail (Approve/Request changes/Notes only) — screenshot 28.
+- Decision Ledger in cockpit Reviews: decisions with decider, source, supersession, implementation status + transitions (screenshot 27).
+- Decision model + migration 20260716150000 (supersedes_id, implementation_status); 4 tests; suite 570/570; tsc clean.

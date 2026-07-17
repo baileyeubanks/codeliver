@@ -13,7 +13,7 @@
 | 5 | Mobile Today/Shoot flow w/ offline-capable notes | ❌ | Not built. Tranche candidate T4 |
 | 6 | Real ingest → job state → proxy/metadata → transcript adapter | ◐ | tus upload + ffmpeg pipeline + transcriptions (prod paths; `lib/media-pipeline`, 45 pipeline tests). **Gap:** job-state surface in demo; transcript provider unexercised locally |
 | 7 | Soundbite search/select → paper edit → ≥1 verified export | ✅ | Selects w/ provenance, radio-cut reasoning, sequence model, timeline, **EDL export verified** (`tests/covideopro-sequence-editing.test.ts`), captions SRT/VTT. Paper Edit as narrative doc = gap (selects→sequence exists) |
-| 8 | Guest review → name → IN/OUT comment/reply → Finish Review → decision | ◐ | Guest token review + timecoded comments + annotations + approvals exist (co-deliver core). **Gap:** explicit **Finish Review** submission ritual + Decision Ledger surface (decisions entity exists; UI minimal) |
+| 8 | Guest review → name → IN/OUT comment/reply → Finish Review → decision | ✅ | `finishDemoReview` (validated, comment provenance) + `FinishReviewBar` in the guest approval rail (screenshot 28); Decision Ledger in cockpit Reviews (screenshot 27); `tests/covideopro-finish-review.test.ts` (4 tests); migration 20260716150000 |
 | 9 | Delivery matrix → QC → manifest | ◐ | Deliverables with frozen specs + QC gates (cockpit Delivery; screenshot 10). **Gap:** manifest with checksums/filenames/expiration/recipient ack |
 | 10 | Security, audit, states, tests, screenshots, button proof | ◐ | 566 node tests + 6 e2e green; security suites; screenshots 01–26. **Gap:** full dead-control audit pass, Playwright journey for golden thread end-to-end |
 

@@ -194,6 +194,7 @@ export const seedDecisions: Decision[] = [
     body: "Client approved v5 with the new logo animation in the close. Any future change is a new scope conversation.",
     decided_by: "morgan@ica.example", source: "review",
     comment_ids: ["comment-denie-3"],
+    supersedes_id: null, implementation_status: "done",
     created_at: "2026-03-08T16:20:00.000Z", updated_at: "2026-03-08T16:20:00.000Z", created_by: BAILEY,
   },
 ];

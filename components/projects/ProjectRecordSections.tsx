@@ -16,6 +16,7 @@ import {
   saveDeliverable,
   saveProposal,
   setBriefStatus,
+  setDecisionImplementation,
   setDeliverableStatus,
   setLocationAgreementStatus,
   setPlanItemStatus,
@@ -1152,6 +1153,67 @@ export function ProductionBlock({ projectId, demoMode, onNotice }: SectionProps)
           </div>
         </>
       ) : null}
+    </section>
+  );
+}
+
+/* --------------------------- Decision ledger -------------------------------- */
+
+const IMPLEMENTATION_NEXT: Record<string, { to: "in_progress" | "done" | "wont_do"; label: string } | null> = {
+  pending: { to: "in_progress", label: "Start implementation" },
+  in_progress: { to: "done", label: "Mark done" },
+  done: null,
+  wont_do: null,
+};
+
+export function DecisionLedgerSection({ projectId, demoMode, onNotice }: SectionProps) {
+  const workspace = useDemoWorkspace();
+
+  if (!demoMode) return null;
+
+  const decisions = workspace.decisions
+    .filter((decision) => decision.project_id === projectId)
+    .sort((a, b) => b.created_at.localeCompare(a.created_at));
+
+  return (
+    <section aria-label="Decision ledger" style={{ marginTop: 22 }}>
+      <h3 className="cockpit-record-group-title">Decision ledger</h3>
+      <div className="cockpit-table-list">
+        {decisions.map((decision) => {
+          const next = IMPLEMENTATION_NEXT[decision.implementation_status];
+          const linkedComments = workspace.reviewComments.filter((comment) => decision.comment_ids.includes(comment.id));
+          return (
+            <article key={decision.id} style={{ gridTemplateColumns: "34px minmax(0,1fr) auto auto" }}>
+              <span className="cockpit-list-icon"><FileText size={16} /></span>
+              <div>
+                <strong>{decision.subject}</strong>
+                <small>
+                  {decision.decided_by} · {decision.source} · {new Date(decision.created_at).toLocaleDateString()}
+                  {decision.supersedes_id ? " · supersedes an earlier call" : ""}
+                </small>
+                {decision.body ? <small>{decision.body}</small> : null}
+                {linkedComments.length > 0 ? (
+                  <small>Provenance: {linkedComments.length} linked comment{linkedComments.length === 1 ? "" : "s"} ({linkedComments.filter((comment) => comment.status === "open").length} open)</small>
+                ) : null}
+              </div>
+              <span className={decision.implementation_status === "done" ? "status-active" : "status-pending"}>
+                {decision.implementation_status.replace("_", " ")}
+              </span>
+              {next ? (
+                <button type="button" onClick={() => {
+                  const result = setDecisionImplementation(decision.id, next.to);
+                  onNotice(result.ok ? `Decision → ${next.to.replace("_", " ")}.` : result.reason);
+                }}>
+                  {next.label}
+                </button>
+              ) : <Check size={17} />}
+            </article>
+          );
+        })}
+        {decisions.length === 0 ? (
+          <p className="cockpit-rail-empty">No decisions yet — they land here from finished reviews, meetings, and Hermes.</p>
+        ) : null}
+      </div>
     </section>
   );
 }

@@ -30,6 +30,8 @@ import {
   type ProjectStage,
   type Release,
   type ReleaseStatus,
+  type Decision,
+  type DecisionImplementationStatus,
   type Proposal,
   type ProposalStatus,
   type RevisionRequest,
@@ -519,4 +521,29 @@ export function chaseList(
 export function nextCallSheetVersion(existing: Pick<CallSheet, "production_day_id" | "version">[], productionDayId: string): number {
   const versions = existing.filter((sheet) => sheet.production_day_id === productionDayId).map((sheet) => sheet.version);
   return versions.length === 0 ? 1 : Math.max(...versions) + 1;
+}
+
+/* -------------------------------------------------------------------------- */
+/* Decision ledger                                                            */
+/* -------------------------------------------------------------------------- */
+
+const DECISION_IMPLEMENTATION_EDGES: Record<DecisionImplementationStatus, readonly DecisionImplementationStatus[]> = {
+  pending: ["in_progress", "done", "wont_do"],
+  in_progress: ["done", "wont_do", "pending"],
+  done: [],
+  wont_do: ["pending"],
+};
+
+export function transitionDecisionImplementation(
+  decision: Pick<Decision, "implementation_status">,
+  to: DecisionImplementationStatus,
+): TransitionResult {
+  return assertEdge(DECISION_IMPLEMENTATION_EDGES, decision.implementation_status, to);
+}
+
+/** Map a Finish Review outcome to the decision's initial implementation state. */
+export function implementationForFinishOutcome(
+  outcome: "approved" | "changes_requested" | "notes_only",
+): DecisionImplementationStatus {
+  return outcome === "changes_requested" ? "pending" : "done";
 }

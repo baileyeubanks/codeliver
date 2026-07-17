@@ -47,9 +47,11 @@ import {
 import {
   clipsFromSelects,
   chaseList,
+  implementationForFinishOutcome,
   nextCallSheetVersion,
   nextRevisionRound,
   transitionBrief,
+  transitionDecisionImplementation,
   transitionDeliverable,
   transitionInquiry,
   transitionLocationAgreement,
@@ -2091,6 +2093,7 @@ export function addDecision(input: {
   decidedBy: string;
   source: Decision["source"];
   commentIds?: string[];
+  supersedesId?: string | null;
 }): RecordMutationResult {
   if (!input.subject.trim()) return { ok: false, reason: "A decision needs a subject." };
   const id = createId("decision");
@@ -2106,6 +2109,8 @@ export function addDecision(input: {
         decided_by: input.decidedBy,
         source: input.source,
         comment_ids: input.commentIds ?? [],
+        supersedes_id: input.supersedesId ?? null,
+        implementation_status: "pending" as const,
         created_at: now,
         updated_at: now,
         created_by: "user-bailey",
@@ -2730,4 +2735,80 @@ export function getChaseList(projectId: string, withinDays = 2, fromDate?: strin
     today,
     withinDays,
   );
+}
+
+/* ------------------------- Finish Review ritual ----------------------------- */
+
+export type FinishReviewOutcome = "approved" | "changes_requested" | "notes_only";
+
+/**
+ * The guest's closing act: submits their review round as a durable decision.
+ * Deterministic write — the reviewer's open comments attach as provenance.
+ */
+export function finishDemoReview(input: {
+  assetId: string;
+  reviewerName: string;
+  reviewerEmail?: string | null;
+  outcome: FinishReviewOutcome;
+  note?: string;
+}): RecordMutationResult {
+  const state = getSnapshot();
+  const asset = state.assets.find((candidate) => candidate.id === input.assetId);
+  if (!asset) return { ok: false, reason: "Asset not found." };
+  if (!input.reviewerName.trim()) return { ok: false, reason: "Enter your reviewer name before finishing." };
+
+  const openCommentIds = state.reviewComments
+    .filter((comment) => comment.asset_id === input.assetId && comment.status === "open")
+    .map((comment) => comment.id);
+  const outcomeLabel = input.outcome === "approved" ? "Approved" : input.outcome === "changes_requested" ? "Changes requested" : "Notes only";
+  const id = createId("decision");
+  const now = new Date().toISOString();
+
+  updateState((current) => ({
+    ...current,
+    decisions: [
+      {
+        id,
+        project_id: asset.project_id,
+        subject: `${outcomeLabel}: ${asset.title}`,
+        body: input.note?.trim() ?? "",
+        decided_by: input.reviewerEmail?.trim() || input.reviewerName.trim(),
+        source: "review" as const,
+        comment_ids: openCommentIds,
+        supersedes_id: null,
+        implementation_status: implementationForFinishOutcome(input.outcome),
+        created_at: now,
+        updated_at: now,
+        created_by: "user-bailey",
+      },
+      ...current.decisions,
+    ],
+    activity: recordActivity(current, {
+      action: `finish_review_${input.outcome}`,
+      actor_name: input.reviewerName.trim(),
+      project_id: asset.project_id,
+      asset_id: input.assetId,
+      details: { comments: String(openCommentIds.length) },
+    }),
+  }));
+  return { ok: true, id };
+}
+
+export function setDecisionImplementation(
+  id: string,
+  to: Decision["implementation_status"],
+): RecordMutationResult {
+  const decision = getSnapshot().decisions.find((candidate) => candidate.id === id);
+  if (!decision) return { ok: false, reason: "Decision not found." };
+  const verdict = transitionDecisionImplementation(decision, to);
+  if (!verdict.ok) return verdict;
+
+  updateState((state) => ({
+    ...state,
+    decisions: state.decisions.map((candidate) =>
+      candidate.id === id ? { ...candidate, implementation_status: to, updated_at: new Date().toISOString() } : candidate,
+    ),
+    activity: recordActivity(state, { action: `decision_${to}`, actor_name: RECORD_ACTOR, project_id: decision.project_id, details: { subject: decision.subject.slice(0, 60) } }),
+  }));
+  return { ok: true, id };
 }

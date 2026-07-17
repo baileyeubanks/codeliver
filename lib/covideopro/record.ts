@@ -311,12 +311,18 @@ export interface RevisionRequest extends ProjectScoped {
 export const DECISION_SOURCES = ["review", "comment", "meeting", "hermes"] as const;
 export type DecisionSource = (typeof DECISION_SOURCES)[number];
 
+export const DECISION_IMPLEMENTATION_STATUSES = ["pending", "in_progress", "done", "wont_do"] as const;
+export type DecisionImplementationStatus = (typeof DECISION_IMPLEMENTATION_STATUSES)[number];
+
 export interface Decision extends ProjectScoped {
   subject: string;
   body: string;
   decided_by: string;
   source: DecisionSource;
   comment_ids: string[];
+  /** The decision this one supersedes (revision of an earlier call). */
+  supersedes_id: string | null;
+  implementation_status: DecisionImplementationStatus;
 }
 
 export const DELIVERABLE_STATUSES = [

@@ -21,6 +21,7 @@ import {
   recordDemoPublicReviewApproval,
   useDemoWorkspace,
 } from "@/lib/demo/workspace-store";
+import FinishReviewBar from "@/components/review/FinishReviewBar";
 import { demoReviewPayload } from "@/lib/review/demoReview";
 import {
   deriveReviewState,
@@ -1109,12 +1110,20 @@ export default function PublicReviewPage() {
                   }
                 />
               )),
-              footer:
-                orderedApprovals.length > 0 && approvalAccessMessage ? (
-                  <div className="rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--bg)] px-3 py-3 text-sm text-[var(--muted)]">
-                    {approvalAccessMessage}
-                  </div>
-                ) : null,
+              footer: (
+                <>
+                  {orderedApprovals.length > 0 && approvalAccessMessage ? (
+                    <div className="rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--bg)] px-3 py-3 text-sm text-[var(--muted)]">
+                      {approvalAccessMessage}
+                    </div>
+                  ) : null}
+                  {demoMode && asset ? (
+                    <div className="mt-2">
+                      <FinishReviewBar assetId={asset.id} reviewerName={reviewerName} />
+                    </div>
+                  ) : null}
+                </>
+              ),
             }
           : null,
         comments: {

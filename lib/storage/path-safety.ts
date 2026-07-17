@@ -1,7 +1,6 @@
 import { lstat, mkdir, realpath } from "node:fs/promises";
 import { isAbsolute, join, relative, resolve, sep } from "node:path";
 
-// @ts-expect-error Node's native TypeScript test runner requires explicit extensions.
 import { StorageError } from "./errors.ts";
 
 export function resolvePathInsideRoot(root: string, relativePath: string): string {

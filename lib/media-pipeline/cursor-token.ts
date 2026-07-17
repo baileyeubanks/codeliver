@@ -1,6 +1,5 @@
 import { createCipheriv, createDecipheriv, createHash, randomBytes, timingSafeEqual } from "node:crypto";
 
-// @ts-expect-error TS5097: Node's native TypeScript test runner requires explicit extensions.
 import { MediaPipelineError } from "./errors.ts";
 import type { MediaPipelineConfig } from "./config.ts";
 

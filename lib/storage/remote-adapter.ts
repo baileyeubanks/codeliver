@@ -14,7 +14,6 @@ import type {
   StoredObjectReceipt,
 } from "./contracts";
 import type { StorageRuntimeConfig } from "./config";
-// @ts-expect-error Node's native TypeScript test runner requires explicit extensions.
 import { StorageError } from "./errors.ts";
 
 export class ReadinessOnlyStorageAdapter implements StorageAdapter {

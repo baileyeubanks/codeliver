@@ -5,7 +5,6 @@ import {
   randomBytes,
 } from "node:crypto";
 // Node's strip-types test runner requires an explicit TypeScript extension.
-// @ts-expect-error TS5097: the runtime intentionally imports the source module.
 import { CO_PRODUCTION_DATA_SCHEMA, getSupabaseDataSchema, type SupabaseDataSchema } from "../data-authority.ts";
 
 const FORMAT_VERSION = "v1";

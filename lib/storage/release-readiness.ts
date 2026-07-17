@@ -1,5 +1,4 @@
 import type { StorageReadiness } from "./contracts";
-// @ts-expect-error Node's native TypeScript test runner requires explicit extensions.
 import { assessSignedDeliveryReadiness, type SignedDeliveryReadiness } from "./delivery-readiness.ts";
 
 export interface ScannerReadinessContract {

@@ -18,19 +18,12 @@ import type {
   UploadSessionState,
 } from "./session";
 import type { UploadSessionRepository } from "./session-repository";
-// @ts-expect-error Node's native TypeScript test runner requires explicit extensions.
 import { bigintToSafeNumber } from "../storage/config.ts";
-// @ts-expect-error Node's native TypeScript test runner requires explicit extensions.
 import { createMalwareScanHook } from "../storage/malware.ts";
-// @ts-expect-error Node's native TypeScript test runner requires explicit extensions.
 import { buildUploadWorkflowReadiness, type UploadWorkflowReadiness } from "../storage/release-readiness.ts";
-// @ts-expect-error Node's native TypeScript test runner requires explicit extensions.
 import { buildVersionedObjectKey, hashStorageNamespace } from "../storage/object-key.ts";
-// @ts-expect-error Node's native TypeScript test runner requires explicit extensions.
 import { createStorageRuntime } from "../storage/runtime.ts";
-// @ts-expect-error Node's native TypeScript test runner requires explicit extensions.
 import { UploadOrchestrationError } from "./errors.ts";
-// @ts-expect-error Node's native TypeScript test runner requires explicit extensions.
 import { FileUploadSessionRepository } from "./session-repository.ts";
 
 const ACTIVE_UPLOAD_STATES = new Set<UploadSessionState>(["receiving", "verifying"]);

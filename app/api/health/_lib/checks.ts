@@ -2,7 +2,6 @@ import { constants } from "node:fs";
 import { access } from "node:fs/promises";
 import { isAbsolute } from "node:path";
 // Node's strip-types contract runner requires the source extension.
-// @ts-expect-error TS5097: runtime contract tests import this module directly.
 import { resolveSupabaseDataSchema } from "../../../../lib/data-authority.ts";
 import {
   HEALTH_BRAND_NAME,

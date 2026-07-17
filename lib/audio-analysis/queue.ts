@@ -3,13 +3,11 @@ import {
   sha256Canonical,
   type MediaIntelligenceScope,
   type SourceChecksumAuthority,
-// @ts-expect-error -- Node's strip-only test loader requires explicit local TypeScript extensions.
 } from "../transcript/durable.ts";
 import {
   deterministicUuid,
   isSameTranscriptSource,
   type TranscriptSourceBinding,
-// @ts-expect-error -- Node's strip-only test loader requires explicit local TypeScript extensions.
 } from "../transcript/core.ts";
 
 export const MEDIA_INTELLIGENCE_QUEUE_SCHEMA = "cco.media-intelligence-queue.v1" as const;

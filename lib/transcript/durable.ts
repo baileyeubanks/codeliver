@@ -2,7 +2,6 @@ import { createHash } from "node:crypto";
 import {
   validateAudioAnalysisRunAgainstTranscript,
   type AudioAnalysisRun,
-// @ts-expect-error -- Node's strip-only test loader requires explicit local TypeScript extensions.
 } from "../audio-analysis/core.ts";
 import {
   buildTranscriptSourceBinding,
@@ -12,7 +11,6 @@ import {
   validateTranscriptDocument,
   type TranscriptDocument,
   type TranscriptSourceBinding,
-// @ts-expect-error -- Node's strip-only test loader requires explicit local TypeScript extensions.
 } from "./core.ts";
 
 export const MEDIA_INTELLIGENCE_RECORD_SCHEMA = "cco.media-intelligence-record.v1" as const;

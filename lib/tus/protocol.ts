@@ -1,4 +1,3 @@
-// @ts-expect-error Node's native TypeScript test runner requires explicit extensions.
 import { UploadOrchestrationError } from "./errors.ts";
 
 export const TUS_VERSION = "1.0.0";

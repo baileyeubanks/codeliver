@@ -1,7 +1,6 @@
 import { createHash } from "node:crypto";
 import { posix } from "node:path";
 
-// @ts-expect-error Node's native TypeScript test runner requires explicit extensions.
 import { StorageError } from "./errors.ts";
 
 const MAX_OBJECT_KEY_LENGTH = 1024;

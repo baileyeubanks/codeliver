@@ -11,13 +11,9 @@ import {
 import { dirname } from "node:path";
 
 import type { UploadSession, UploadSessionEvent } from "./session";
-// @ts-expect-error Node's native TypeScript test runner requires explicit extensions.
 import { UPLOAD_SESSION_STATES } from "./session.ts";
-// @ts-expect-error Node's native TypeScript test runner requires explicit extensions.
 import { UploadOrchestrationError } from "./errors.ts";
-// @ts-expect-error Node's native TypeScript test runner requires explicit extensions.
 import { appendDurable, syncDurableDirectory, writeDurableExclusive, writeDurableReplace } from "../storage/durable-files.ts";
-// @ts-expect-error Node's native TypeScript test runner requires explicit extensions.
 import { assertSafeRegularFile, ensureSafeDirectoryTree, resolveExistingRoot, resolvePathInsideRoot } from "../storage/path-safety.ts";
 
 const UPLOAD_ID_PATTERN =

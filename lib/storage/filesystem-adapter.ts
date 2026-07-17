@@ -26,13 +26,9 @@ import type {
   StoredObjectReceipt,
 } from "./contracts";
 import type { StorageRuntimeConfig } from "./config";
-// @ts-expect-error Node's native TypeScript test runner requires explicit extensions.
 import { syncDurableDirectory } from "./durable-files.ts";
-// @ts-expect-error Node's native TypeScript test runner requires explicit extensions.
 import { StorageError, isStorageError } from "./errors.ts";
-// @ts-expect-error Node's native TypeScript test runner requires explicit extensions.
 import { assertSafeObjectKey } from "./object-key.ts";
-// @ts-expect-error Node's native TypeScript test runner requires explicit extensions.
 import { assertSafeRegularFile, ensureSafeDirectoryTree, resolveExistingRoot, resolvePathInsideRoot } from "./path-safety.ts";
 
 const UPLOAD_ID_PATTERN =

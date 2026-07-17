@@ -1,7 +1,6 @@
 import { createHash } from "node:crypto";
 
 import type { StorageAdapter } from "../storage/contracts";
-// @ts-expect-error TS5097: Node's native TypeScript test runner requires explicit extensions.
 import { mediaPipelineReceiptCatalogCapability } from "./receipt-catalog.ts";
 
 export type MediaPipelineProviderCatalogFindingCode =

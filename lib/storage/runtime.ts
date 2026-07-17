@@ -1,9 +1,6 @@
 import type { StorageAdapter, StorageReadiness } from "./contracts";
-// @ts-expect-error Node's native TypeScript test runner requires explicit extensions.
 import { readStorageConfig, type StorageRuntimeConfig } from "./config.ts";
-// @ts-expect-error Node's native TypeScript test runner requires explicit extensions.
 import { FilesystemStorageAdapter } from "./filesystem-adapter.ts";
-// @ts-expect-error Node's native TypeScript test runner requires explicit extensions.
 import { ReadinessOnlyStorageAdapter } from "./remote-adapter.ts";
 
 export interface StorageRuntime {

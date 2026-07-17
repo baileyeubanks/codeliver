@@ -169,7 +169,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
     assetId,
     inviteId,
     requestId,
-    actor: { id: user.id, name: user.email ?? "Co-Production Pro operator" },
+    actor: { id: user.id, name: user.email ?? "Co-VideoPro operator" },
   });
   if (!result.ok) return NextResponse.json(result, { status: result.status });
   return NextResponse.json(result);
@@ -198,7 +198,7 @@ export async function DELETE(req: Request, { params }: { params: Promise<{ id: s
     client: getSupabase(),
     assetId,
     inviteId,
-    actor: { id: user.id, name: user.email ?? "Co-Production Pro operator" },
+    actor: { id: user.id, name: user.email ?? "Co-VideoPro operator" },
   });
   if (!result.ok) return NextResponse.json(result, { status: result.status });
   return NextResponse.json(result);

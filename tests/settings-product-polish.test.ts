@@ -73,7 +73,7 @@ test("brand settings expose product identity and honest asset readiness", () => 
 
   assert.match(brandSettings, /CoProductionBrand/);
   assert.match(brandSettings, /Product identity/);
-  assert.match(brandSettings, /Co-Production Pro/);
+  assert.match(brandSettings, /Co-VideoPro/);
   assert.match(brandSettings, /Supplied raster lockup/);
   assert.match(brandSettings, /Review portal/);
   assert.match(brandSettings, /Backend gated/);

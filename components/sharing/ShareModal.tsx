@@ -471,12 +471,12 @@ function ShareModalContent({
         className="max-h-[92vh] w-full max-w-5xl overflow-y-auto rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface)] shadow-2xl"
         role="dialog"
         aria-modal="true"
-        aria-label="Co-Production Pro sharing controls"
+        aria-label="Co-VideoPro sharing controls"
       >
         <div className="flex items-start justify-between gap-4 border-b border-[var(--border)] px-6 py-5">
           <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-2 text-xs text-[var(--muted)]">
-              <span className="rounded-[var(--radius-sm)] bg-[var(--surface-2)] px-3 py-1">Co-Production Pro sharing</span>
+              <span className="rounded-[var(--radius-sm)] bg-[var(--surface-2)] px-3 py-1">Co-VideoPro sharing</span>
               {statusLabel ? (
                 <span className="rounded-[var(--radius-sm)] bg-[var(--surface-2)] px-3 py-1 capitalize">
                   {statusLabel}
@@ -487,7 +487,7 @@ function ShareModalContent({
               Share or hand off {assetTitle ? <span className="text-[var(--accent)]">{assetTitle}</span> : "this asset"}
             </h3>
             <p className="mt-2 max-w-2xl text-sm leading-6 text-[var(--muted)]">
-              Pick the outcome first, then Co-Production Pro will frame the link so the recipient knows whether they
+              Pick the outcome first, then Co-VideoPro will frame the link so the recipient knows whether they
               are reviewing, approving, or receiving the final delivery.
             </p>
           </div>
@@ -914,7 +914,7 @@ function ShareModalContent({
                 </p>
                 <div className="mt-4 space-y-4 text-sm leading-6 text-[var(--muted)]">
                   <p>
-                    Co-Production Pro will present this as <span className="font-medium text-[var(--ink)]">{intentDefinition.label}</span>,
+                    Co-VideoPro will present this as <span className="font-medium text-[var(--ink)]">{intentDefinition.label}</span>,
                     so the recipient understands the intent before they interact with the asset.
                   </p>
                   <p>

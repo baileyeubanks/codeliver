@@ -133,7 +133,7 @@ export default function LibraryPage() {
           <p className="mb-1 text-[10px] font-bold uppercase text-[var(--dim)]">Asset management</p>
           <h1 className="text-[22px] font-bold leading-tight text-[var(--ink)]">Media library</h1>
           <p className="mt-1 max-w-2xl text-sm text-[var(--muted)]">
-            Search, inspect, and reopen project assets without leaving the Co-Production Pro workspace.
+            Search, inspect, and reopen project assets without leaving the Co-VideoPro workspace.
           </p>
         </div>
         <Link

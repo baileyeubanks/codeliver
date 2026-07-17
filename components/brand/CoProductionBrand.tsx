@@ -1,4 +1,3 @@
-import Image from "next/image";
 import styles from "./CoProductionBrand.module.css";
 
 export type CoProductionBrandVariant =
@@ -10,17 +9,13 @@ export interface CoProductionBrandProps {
   variant?: CoProductionBrandVariant;
   className?: string;
   label?: string;
+  /** Retained for API compatibility with the former raster lockup. */
   priority?: boolean;
+  /** Retained for API compatibility with the former raster lockup. */
   sizes?: string;
 }
 
-const DEFAULT_LABEL = "Co-Production Pro by Content Co-op";
-
-const SOURCE_BY_VARIANT: Record<CoProductionBrandVariant, string> = {
-  horizontal: "/brand/co-production-pro-horizontal.png",
-  stacked: "/brand/co-production-pro-stacked.png",
-  "compact-mark": "/brand/co-production-pro-horizontal.png",
-};
+const DEFAULT_LABEL = "Co-VideoPro by Content Co-op";
 
 const CLASS_BY_VARIANT: Record<CoProductionBrandVariant, string> = {
   horizontal: styles.horizontal,
@@ -28,36 +23,31 @@ const CLASS_BY_VARIANT: Record<CoProductionBrandVariant, string> = {
   "compact-mark": styles.compactMark,
 };
 
-const SIZES_BY_VARIANT: Record<CoProductionBrandVariant, string> = {
-  horizontal: "(max-width: 480px) 152px, 172px",
-  stacked: "(max-width: 480px) 260px, 300px",
-  "compact-mark": "(max-width: 480px) 40px, 44px",
-};
-
+/**
+ * Co-VideoPro lockup. Rendered as a text wordmark so the product name is real,
+ * selectable, theme-aware copy — not a baked raster. The retired
+ * co-production-pro PNG lockups remain in /public/brand for reference only.
+ */
 export function CoProductionBrand({
   variant = "horizontal",
   className,
   label = DEFAULT_LABEL,
-  priority = false,
-  sizes,
 }: CoProductionBrandProps) {
   const rootClassName = [styles.brand, CLASS_BY_VARIANT[variant], className]
     .filter(Boolean)
     .join(" ");
 
   return (
-    <span className={rootClassName} data-brand-variant={variant}>
-      <Image
-        className={styles.image}
-        src={SOURCE_BY_VARIANT[variant]}
-        alt={label}
-        width={7296}
-        height={4096}
-        sizes={sizes ?? SIZES_BY_VARIANT[variant]}
-        priority={priority}
-        unoptimized
-        draggable={false}
-      />
+    <span className={rootClassName} data-brand-variant={variant} role="img" aria-label={label}>
+      <span className={styles.mark} aria-hidden="true">
+        <span className={styles.markGlyph}>CV</span>
+      </span>
+      {variant !== "compact-mark" ? (
+        <span className={styles.wordmark} aria-hidden="true">
+          <span className={styles.product}>Co-VideoPro</span>
+          <span className={styles.company}>by Content Co-op</span>
+        </span>
+      ) : null}
     </span>
   );
 }

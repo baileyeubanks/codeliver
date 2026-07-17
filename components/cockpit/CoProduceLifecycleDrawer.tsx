@@ -156,7 +156,7 @@ export default function CoProduceLifecycleDrawer({
   className,
   id,
   triggerLabel = "Lifecycle",
-  title = "Co-Production Pro lifecycle",
+  title = "Co-VideoPro lifecycle",
   description = "Agent and human checkpoints across four production phases.",
   open,
   defaultOpen = false,
@@ -251,7 +251,7 @@ export default function CoProduceLifecycleDrawer({
             </header>
 
             <div className={styles.body}>
-              <ol className={styles.phaseList} aria-label="Co-Production Pro lifecycle phases">
+              <ol className={styles.phaseList} aria-label="Co-VideoPro lifecycle phases">
                 {PHASE_DEFINITIONS.map(({ id: phaseId, label, sequence, icon: Icon }) => {
                   const phase = phases[phaseId];
                   const progress = normalizeProgress(phase.progress);

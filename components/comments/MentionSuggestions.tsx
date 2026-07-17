@@ -15,7 +15,8 @@ interface MentionSuggestionsProps {
 
 const MOCK_USERS: Suggestion[] = [
   { name: "Bailey Eubanks", email: "bailey@contentco-op.com" },
-  { name: "Caio Gustin", email: "caio@astrocleanings.com" },
+  { name: "Morgan Lee", email: "morgan@ica.example" },
+  { name: "Dana Whitfield", email: "dana@schneider.example" },
 ];
 
 function getInitials(name: string): string {

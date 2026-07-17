@@ -1,70 +1,97 @@
 .brand {
-  position: relative;
-  display: block;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
   flex: 0 0 auto;
-  width: min(100%, var(--co-production-brand-width, var(--brand-default-width)));
   max-width: 100%;
-  overflow: hidden;
-  aspect-ratio: var(--crop-width) / var(--crop-height);
-  background: #ffffff;
+  color: inherit;
   contain: layout paint;
 }
 
-.image {
-  position: absolute;
-  top: var(--image-top);
-  left: var(--image-left);
-  display: block;
-  width: var(--image-width);
-  height: auto;
-  max-width: none;
-  pointer-events: none;
-  user-select: none;
+.mark {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 8px;
+  background: linear-gradient(150deg, #3d7ef7 0%, #2456d6 100%);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.14);
+  flex: 0 0 auto;
+}
+
+.markGlyph {
+  color: #ffffff;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  line-height: 1;
+}
+
+.wordmark {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  line-height: 1.05;
+  min-width: 0;
+}
+
+.product {
+  font-size: 15px;
+  font-weight: 750;
+  letter-spacing: -0.01em;
+  white-space: nowrap;
+}
+
+.company {
+  margin-top: 3px;
+  font-size: 9.5px;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  opacity: 0.58;
+  white-space: nowrap;
 }
 
 .horizontal {
-  --brand-default-width: 172px;
-  --crop-x: 560;
-  --crop-y: 1220;
-  --crop-width: 6400;
-  --crop-height: 1470;
-  --image-width: 114%;
-  --image-left: -8.75%;
-  --image-top: -82.9932%;
+  /* default inline lockup */
 }
 
 .stacked {
-  --brand-default-width: 300px;
-  --crop-x: 1660;
-  --crop-y: 965;
-  --crop-width: 4050;
-  --crop-height: 1975;
-  --image-width: 180.1481%;
-  --image-left: -40.9877%;
-  --image-top: -48.8608%;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 12px;
 }
 
-.compactMark {
-  --brand-default-width: 44px;
-  --crop-x: 620;
-  --crop-y: 1240;
-  --crop-width: 1560;
-  --crop-height: 1430;
-  --image-width: 467.6923%;
-  --image-left: -39.7436%;
-  --image-top: -86.7133%;
+.stacked .wordmark {
+  align-items: flex-start;
+}
+
+.stacked .product {
+  font-size: 22px;
+}
+
+.compactMark .mark {
+  width: 38px;
+  height: 38px;
+  border-radius: 10px;
+}
+
+.compactMark .markGlyph {
+  font-size: 13px;
 }
 
 @media (max-width: 480px) {
-  .horizontal {
-    --brand-default-width: 152px;
+  .mark {
+    width: 28px;
+    height: 28px;
   }
 
-  .stacked {
-    --brand-default-width: 260px;
+  .product {
+    font-size: 14px;
   }
 
-  .compactMark {
-    --brand-default-width: 40px;
+  .stacked .product {
+    font-size: 19px;
   }
 }

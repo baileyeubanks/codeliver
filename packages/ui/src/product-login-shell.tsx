@@ -47,17 +47,10 @@ const THEMES: Record<string, ProductTheme> = {
     manifesto: "Feedback gets cleaner when versions, comments, and final approvals sit on the same track instead of splitting across inboxes.",
     features: ["Timecoded review", "Version control", "Stakeholder sign-off"],
   },
-  "Co-Production Pro": {
-    accent: "#8dc0ff",
-    accentSoft: "rgba(141, 192, 255, 0.14)",
-    eyebrow: "Production and delivery system",
-    manifesto: "Planning, production, review, editing, and delivery stay in one governed workspace from first brief to final handoff.",
-    features: ["End-to-end production", "Frame-accurate review", "Controlled delivery"],
-  },
   "Co-VideoPro": {
     accent: "#8dc0ff",
     accentSoft: "rgba(141, 192, 255, 0.14)",
-    displayLabel: "Co-Production Pro",
+    displayLabel: "Co-VideoPro",
     eyebrow: "Production and delivery system",
     manifesto: "Planning, production, review, editing, and delivery stay in one governed workspace from first brief to final handoff.",
     features: ["End-to-end production", "Frame-accurate review", "Controlled delivery"],
@@ -66,7 +59,7 @@ const THEMES: Record<string, ProductTheme> = {
     accent: "#b6d2ff",
     accentSoft: "rgba(182, 210, 255, 0.14)",
     eyebrow: "Operations access",
-    manifesto: "The operating surface for ACS and Content Co-op. Internal systems, finance, quotes, dispatch, and delivery all route through here.",
+    manifesto: "The operating surface for Content Co-op productions. Internal systems, scheduling, and delivery all route through here.",
     features: ["Internal ops access", "Shared business controls", "Protected workspace"],
   },
 };

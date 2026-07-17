@@ -1,8 +1,11 @@
 export type WorkspaceRole = "owner" | "producer" | "editor" | "reviewer" | "viewer";
 
 export type WorkspaceCapability =
+  | "home:read"
   | "projects:read"
   | "projects:create"
+  | "opportunities:read"
+  | "opportunities:write"
   | "media:read"
   | "media:write"
   | "reviews:read"
@@ -15,7 +18,9 @@ export type NavigationIconName =
   | "activity"
   | "archive"
   | "folder"
+  | "home"
   | "library"
+  | "opportunities"
   | "plus"
   | "reviews"
   | "settings"
@@ -41,8 +46,11 @@ export interface WorkspaceNavigationSection {
 
 const ROLE_CAPABILITIES: Record<WorkspaceRole, ReadonlySet<WorkspaceCapability>> = {
   owner: new Set<WorkspaceCapability>([
+    "home:read",
     "projects:read",
     "projects:create",
+    "opportunities:read",
+    "opportunities:write",
     "media:read",
     "media:write",
     "reviews:read",
@@ -52,8 +60,11 @@ const ROLE_CAPABILITIES: Record<WorkspaceRole, ReadonlySet<WorkspaceCapability>>
     "workspace:manage",
   ]),
   producer: new Set<WorkspaceCapability>([
+    "home:read",
     "projects:read",
     "projects:create",
+    "opportunities:read",
+    "opportunities:write",
     "media:read",
     "media:write",
     "reviews:read",
@@ -62,7 +73,9 @@ const ROLE_CAPABILITIES: Record<WorkspaceRole, ReadonlySet<WorkspaceCapability>>
     "activity:read",
   ]),
   editor: new Set<WorkspaceCapability>([
+    "home:read",
     "projects:read",
+    "opportunities:read",
     "media:read",
     "media:write",
     "reviews:read",
@@ -70,6 +83,7 @@ const ROLE_CAPABILITIES: Record<WorkspaceRole, ReadonlySet<WorkspaceCapability>>
     "activity:read",
   ]),
   reviewer: new Set<WorkspaceCapability>([
+    "home:read",
     "projects:read",
     "media:read",
     "reviews:read",
@@ -77,6 +91,7 @@ const ROLE_CAPABILITIES: Record<WorkspaceRole, ReadonlySet<WorkspaceCapability>>
     "reviews:approve",
   ]),
   viewer: new Set<WorkspaceCapability>([
+    "home:read",
     "projects:read",
     "media:read",
     "reviews:read",
@@ -85,9 +100,20 @@ const ROLE_CAPABILITIES: Record<WorkspaceRole, ReadonlySet<WorkspaceCapability>>
 
 export const WORKSPACE_NAVIGATION: WorkspaceNavigationSection[] = [
   {
-    id: "work",
-    label: "Workspace",
+    id: "operate",
+    label: "Operate",
     items: [
+      {
+        id: "home",
+        label: "Home",
+        shortLabel: "Home",
+        description: "What needs your attention across every production",
+        href: "/",
+        icon: "home",
+        capability: "home:read",
+        primary: true,
+        mobile: true,
+      },
       {
         id: "projects",
         label: "Projects",
@@ -100,6 +126,23 @@ export const WORKSPACE_NAVIGATION: WorkspaceNavigationSection[] = [
         mobile: true,
       },
       {
+        id: "opportunities",
+        label: "Opportunities",
+        shortLabel: "Pipeline",
+        description: "Inquiries, leads, clients, and proposal pipeline",
+        href: "/opportunities",
+        icon: "opportunities",
+        capability: "opportunities:read",
+        primary: true,
+        mobile: true,
+      },
+    ],
+  },
+  {
+    id: "create",
+    label: "Create",
+    items: [
+      {
         id: "reviews",
         label: "Reviews",
         shortLabel: "Reviews",
@@ -108,7 +151,6 @@ export const WORKSPACE_NAVIGATION: WorkspaceNavigationSection[] = [
         icon: "reviews",
         capability: "reviews:read",
         primary: true,
-        mobile: true,
       },
       {
         id: "library",
@@ -119,8 +161,13 @@ export const WORKSPACE_NAVIGATION: WorkspaceNavigationSection[] = [
         icon: "library",
         capability: "media:read",
         primary: true,
-        mobile: true,
       },
+    ],
+  },
+  {
+    id: "workspace",
+    label: "Workspace",
+    items: [
       {
         id: "activity",
         label: "Activity",
@@ -131,12 +178,6 @@ export const WORKSPACE_NAVIGATION: WorkspaceNavigationSection[] = [
         capability: "activity:read",
         primary: true,
       },
-    ],
-  },
-  {
-    id: "lifecycle",
-    label: "Lifecycle",
-    items: [
       {
         id: "archive",
         label: "Archive",

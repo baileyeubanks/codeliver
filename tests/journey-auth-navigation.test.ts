@@ -73,8 +73,10 @@ test("every desktop and mobile navigation target resolves to the same role-filte
 
   assert.deepEqual(
     mobileNavigation("owner").map((item) => item.href),
-    ["/projects", "/reviews", "/library"],
+    ["/", "/projects", "/opportunities"],
   );
+  assert.equal(activeNavigationId("/", "owner"), "home");
+  assert.equal(activeNavigationId("/opportunities", "owner"), "opportunities");
   assert.equal(activeNavigationId("/settings", "viewer"), null);
 });
 

@@ -2,7 +2,7 @@ import "./globals.css";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "Co-Production Pro | Content Co-op",
+  title: "Co-VideoPro | Content Co-op",
   description: "All-in-one video production workspace for planning, review, approval, editing, and delivery.",
 };
 

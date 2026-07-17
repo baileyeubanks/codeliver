@@ -1,6 +1,6 @@
 @import "tailwindcss";
 
-/* Co-Production Pro review design system */
+/* Co-VideoPro review design system */
 /* Dark theme: deep navy backgrounds, green accent CTAs             */
 
 :root {
@@ -104,7 +104,7 @@ html, body {
 
 a { color: inherit; text-decoration: none; }
 
-/* ── Co-Production Pro exterior/loading states ───────────────── */
+/* ── Co-VideoPro exterior/loading states ───────────────── */
 .exterior-state,
 .project-state {
   min-height: 100svh;
@@ -2926,7 +2926,7 @@ a { color: inherit; text-decoration: none; }
   .demo-share-created-list img { width: 52px; height: 34px; }
 }
 
-/* Co-Production Pro project cockpit: canonical Content Co-op visual target */
+/* Co-VideoPro project cockpit: canonical Content Co-op visual target */
 .cockpit-shell {
   --cockpit-accent: #145bb8;
   --cockpit-accent-strong: #0c4ba2;

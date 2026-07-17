@@ -78,6 +78,21 @@ export const CO_PRODUCE_PERMISSION_CONTRACTS = {
     state: "enforced",
     description: "Manage team, workspace, and policy settings.",
   },
+  "home:read": {
+    authority: "workspace-rbac",
+    state: "enforced",
+    description: "Read the cross-project attention queue and production home.",
+  },
+  "opportunities:read": {
+    authority: "workspace-rbac",
+    state: "enforced",
+    description: "Read inquiries, clients, contacts, and the proposal pipeline.",
+  },
+  "opportunities:write": {
+    authority: "workspace-rbac",
+    state: "enforced",
+    description: "Capture, qualify, convert, and decline inquiries; manage client records.",
+  },
   "preproduction:write": {
     authority: "workspace-rbac",
     state: "planned",
@@ -191,7 +206,7 @@ export const CO_PRODUCE_RECORDS = {
     storage: "projects",
     scope: "project",
     parent: null,
-    writeRule: "Project writes remain under authenticated Co-Production Pro project ownership.",
+    writeRule: "Project writes remain under authenticated Co-VideoPro project ownership.",
     status: {
       kind: "authoritative-field",
       field: "projects.status",
@@ -424,7 +439,7 @@ export const CO_PRODUCE_RECORDS = {
     storage: "teams",
     scope: "workspace",
     parent: null,
-    writeRule: "Workspace membership and roles remain Co-Production Pro identity authority.",
+    writeRule: "Workspace membership and roles remain Co-VideoPro identity authority.",
     status: {
       kind: "immutable",
       field: null,

@@ -210,7 +210,7 @@ export default function Shell({ children }: { children: React.ReactNode }) {
           >
             <Menu size={19} />
           </button>
-          <Link href={withWorkspaceQuery("/projects", demoSuffix)} aria-label="Co-Production Pro projects">
+          <Link href={withWorkspaceQuery("/", demoSuffix)} aria-label="Co-VideoPro home">
             <CoProductionBrand className={styles.brandLockup} priority />
           </Link>
         </div>
@@ -281,7 +281,7 @@ export default function Shell({ children }: { children: React.ReactNode }) {
                     onClick={() => setNotificationsOpen(false)}
                   >
                     <span>{item.actor_name} {activityLabel(item.action)}</span>
-                    <small>{item.details.asset_title ?? "Co-Production Pro workspace"}</small>
+                    <small>{item.details.asset_title ?? "Co-VideoPro workspace"}</small>
                   </Link>
                 ))}
                 {demoWorkspace.activity.length === 0 ? <p>No new notifications.</p> : null}

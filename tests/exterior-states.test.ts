@@ -10,7 +10,7 @@ function source(path: string): string {
   return readFileSync(resolve(repositoryRoot, path), "utf8");
 }
 
-test("not-found and loading states stay inside the Co-Production Pro exterior shell", () => {
+test("not-found and loading states stay inside the Co-VideoPro exterior shell", () => {
   const notFound = source("app/not-found.tsx");
   const loading = source("app/loading.tsx");
   const globalError = source("app/global-error.tsx");
@@ -18,40 +18,41 @@ test("not-found and loading states stay inside the Co-Production Pro exterior sh
   const demoGuard = source("components/demo/DemoSessionGuard.tsx");
   const globals = source("app/globals.css");
   const exteriorStyles = globals.slice(
-    globals.indexOf("/* ── Co-Production Pro exterior/loading states"),
+    globals.indexOf("/* ── Co-VideoPro exterior/loading states"),
     globals.indexOf("/* ── Top Navigation"),
   );
 
   assert.match(notFound, /CoProductionBrand/);
   assert.match(notFound, /variant="stacked"/);
-  assert.match(notFound, /Co-Production Pro surface/);
+  assert.match(notFound, /Co-VideoPro surface/);
   assert.match(notFound, /Workspace route unavailable/);
   assert.doesNotMatch(notFound, />404</);
   assert.doesNotMatch(notFound, /Page not found/);
 
   assert.match(loading, /CoProductionBrand/);
   assert.match(loading, /variant="stacked"/);
-  assert.match(loading, /Loading Co-Production Pro workspace/);
+  assert.match(loading, /Loading Co-VideoPro workspace/);
   assert.match(loading, /aria-busy="true"/);
 
   assert.match(globalError, /CoProductionBrand/);
   assert.match(globalError, /variant="stacked"/);
   assert.match(globalError, /Workspace recovery/);
-  assert.match(globalError, /Co-Production Pro needs a quick refresh/);
+  assert.match(globalError, /Co-VideoPro needs a quick refresh/);
   assert.match(globalError, /onClick=\{reset\}/);
   assert.match(globalError, /href="\/projects"/);
   assert.doesNotMatch(globalError, /style=\{\{/);
   assert.doesNotMatch(globalError, /#0f172a|#f1f5f9|#94a3b8/);
 
-  assert.match(dashboardRedirect, /CoProductionBrand/);
-  assert.match(dashboardRedirect, /variant="stacked"/);
-  assert.match(dashboardRedirect, /Loading Co-Production Pro projects/);
-  assert.match(dashboardRedirect, /exterior-state--loading/);
-  assert.doesNotMatch(dashboardRedirect, /<div className="spinner" \/>/);
+  assert.match(dashboardRedirect, /useDemoWorkspace/);
+  assert.match(dashboardRedirect, /What needs attention/);
+  assert.match(dashboardRedirect, /Productions by stage/);
+  assert.match(dashboardRedirect, /PROJECT_STAGE_META/);
+  assert.match(dashboardRedirect, /opportunities\?compose=inquiry/);
+  assert.doesNotMatch(dashboardRedirect, /router\.replace/);
 
   assert.match(demoGuard, /CoProductionBrand/);
   assert.match(demoGuard, /variant="stacked"/);
-  assert.match(demoGuard, /Returning to Co-Production Pro sign in/);
+  assert.match(demoGuard, /Returning to Co-VideoPro sign in/);
   assert.match(demoGuard, /aria-busy="true"/);
   assert.match(demoGuard, /sr-only">Returning to sign in/);
   assert.doesNotMatch(demoGuard, /className="spinner"/);

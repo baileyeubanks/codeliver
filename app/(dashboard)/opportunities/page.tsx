@@ -236,25 +236,31 @@ export default function OpportunitiesPage() {
             {workspace.organizations.map((organization) => {
               const contacts = workspace.contacts.filter((contact) => contact.organization_id === organization.id);
               const projects = workspace.projects.filter((project) => project.organization_id === organization.id);
+              const initials = organization.name.split(/\s+/).filter(Boolean).slice(0, 2).map((part) => part[0]?.toUpperCase()).join("");
               return (
-                <article key={organization.id} className="rounded-lg border border-[var(--border)] bg-white p-3">
-                  <p className="text-sm font-semibold text-[var(--ink)]">{organization.name}</p>
-                  <p className="mt-0.5 text-xs text-[var(--muted)]">{organization.industry ?? "—"}</p>
-                  <p className="mt-1 text-xs text-[var(--muted)]">
-                    {contacts.map((contact) => contact.name).join(", ") || "No contacts"}
-                  </p>
-                  {projects.length > 0 ? (
-                    <p className="mt-1 text-xs">
-                      {projects.map((project, index) => (
-                        <span key={project.id}>
-                          {index > 0 ? " · " : ""}
-                          <Link className="text-[var(--accent)]" href={withWorkspaceQuery(`/projects/${project.id}`, demoSuffix)}>
-                            {project.name}
-                          </Link>
-                        </span>
-                      ))}
+                <article key={organization.id} className="flex gap-3 rounded-lg border border-[var(--border)] bg-white p-3">
+                  <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-[var(--accent-dim)] text-xs font-bold text-[var(--accent)]" aria-hidden="true">
+                    {initials}
+                  </span>
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-semibold text-[var(--ink)]">{organization.name}</p>
+                    <p className="mt-0.5 text-xs text-[var(--muted)]">{organization.industry ?? "—"}</p>
+                    <p className="mt-1 truncate text-xs text-[var(--muted)]">
+                      {contacts.map((contact) => contact.name).join(", ") || "No contacts"}
                     </p>
-                  ) : null}
+                    {projects.length > 0 ? (
+                      <p className="mt-1 text-xs">
+                        {projects.map((project, index) => (
+                          <span key={project.id}>
+                            {index > 0 ? " · " : ""}
+                            <Link className="text-[var(--accent)]" href={withWorkspaceQuery(`/projects/${project.id}`, demoSuffix)}>
+                              {project.name}
+                            </Link>
+                          </span>
+                        ))}
+                      </p>
+                    ) : null}
+                  </div>
                 </article>
               );
             })}
@@ -275,7 +281,7 @@ export default function OpportunitiesPage() {
                   <span className="demo-pill">{proposal.status}</span>
                 </header>
                 <p className="mt-1 text-xs text-[var(--muted)]">
-                  {project?.name} · v{proposal.version} · ${total.toLocaleString(undefined, { maximumFractionDigits: 0 })}
+                  {project?.name} · v{proposal.version} · <strong className="text-sm font-semibold text-[var(--ink)]" style={{ fontVariantNumeric: "tabular-nums" }}>${total.toLocaleString(undefined, { maximumFractionDigits: 0 })}</strong>
                   {proposal.valid_until ? ` · valid until ${proposal.valid_until}` : ""}
                 </p>
                 <div className="mt-3 flex flex-wrap gap-2">

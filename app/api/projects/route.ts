@@ -3,17 +3,24 @@ import { requireAuthWithClient } from "@/lib/auth-client";
 import { getSupabaseDataSchema } from "@/lib/data-authority";
 import { requireTeamRole } from "@/lib/middleware/rbac";
 
+const UUID_PATTERN =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+const PROJECT_LIST_COLUMNS =
+  "id, team_id, owner_id, name, description, status, thumbnail_url, created_at, updated_at, assets(id, status)";
+const PROJECT_LIST_COLUMNS_WITH_RECORD =
+  "id, team_id, owner_id, name, description, status, stage, organization_id, primary_contact_id, thumbnail_url, created_at, updated_at, assets(id, status)";
+
 export async function GET() {
   const { user, supabase } = await requireAuthWithClient();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   try {
+    const isolated = getSupabaseDataSchema() === "co_production";
     let query = supabase
       .from("projects")
-      .select(
-        "id, team_id, owner_id, name, description, status, thumbnail_url, created_at, updated_at, assets(id, status)",
-      );
-    if (getSupabaseDataSchema() === "public") {
+      .select(isolated ? PROJECT_LIST_COLUMNS_WITH_RECORD : PROJECT_LIST_COLUMNS);
+    if (!isolated) {
       query = query.eq("owner_id", user.id);
     }
     const { data, error } = await query
@@ -65,6 +72,64 @@ export async function POST(req: Request) {
       }
     }
 
+    // Operating-record links live only in the co_production schema. The caller
+    // may attach their own organization/contact at creation; anything else is
+    // indistinguishable from a record that does not exist (404). `stage` is
+    // never accepted from the body — it moves only through transition
+    // validators (see the inquiry convert route).
+    let organizationId: string | null = null;
+    let primaryContactId: string | null = null;
+    if (isolated) {
+      if (body.organization_id !== undefined && body.organization_id !== null) {
+        if (typeof body.organization_id !== "string" || !UUID_PATTERN.test(body.organization_id)) {
+          return NextResponse.json({ error: "organization_id is invalid" }, { status: 400 });
+        }
+        organizationId = body.organization_id;
+      }
+      if (body.primary_contact_id !== undefined && body.primary_contact_id !== null) {
+        if (typeof body.primary_contact_id !== "string" || !UUID_PATTERN.test(body.primary_contact_id)) {
+          return NextResponse.json({ error: "primary_contact_id is invalid" }, { status: 400 });
+        }
+        primaryContactId = body.primary_contact_id;
+      }
+      if (organizationId) {
+        const { data: organization, error: organizationError } = await supabase
+          .from("organizations")
+          .select("id")
+          .eq("id", organizationId)
+          .eq("owner_id", user.id)
+          .maybeSingle();
+        if (organizationError) {
+          console.error("Projects POST organization check error:", organizationError.message);
+          return NextResponse.json(
+            { error: "The project could not be created" },
+            { status: 503 },
+          );
+        }
+        if (!organization) {
+          return NextResponse.json({ error: "Organization not found" }, { status: 404 });
+        }
+      }
+      if (primaryContactId) {
+        const { data: contact, error: contactError } = await supabase
+          .from("contacts")
+          .select("id")
+          .eq("id", primaryContactId)
+          .eq("owner_id", user.id)
+          .maybeSingle();
+        if (contactError) {
+          console.error("Projects POST contact check error:", contactError.message);
+          return NextResponse.json(
+            { error: "The project could not be created" },
+            { status: 503 },
+          );
+        }
+        if (!contact) {
+          return NextResponse.json({ error: "Contact not found" }, { status: 404 });
+        }
+      }
+    }
+
     const { data, error } = await supabase
       .from("projects")
       .insert({
@@ -75,6 +140,8 @@ export async function POST(req: Request) {
             ? body.description.trim() || null
             : null,
         ...(teamId ? { team_id: teamId } : {}),
+        ...(organizationId ? { organization_id: organizationId } : {}),
+        ...(primaryContactId ? { primary_contact_id: primaryContactId } : {}),
       })
       .select()
       .single();

@@ -1,5 +1,11 @@
 -- Co-VideoPro — Migration: payment milestones + notification outbox
 -- Follows 20260716120000_project_operating_record.sql conventions.
+--
+-- Writes to both tables are service-role-only by design: all mutations flow
+-- through the API routes (service client, which bypasses RLS), while the
+-- authenticated role receives SELECT-only grants guarded by the
+-- project-owner policies below. FORCE ROW LEVEL SECURITY keeps those
+-- policies binding even for the table owner.
 
 BEGIN;
 
@@ -45,15 +51,28 @@ CREATE INDEX IF NOT EXISTS idx_payment_milestones_project ON co_production.payme
 CREATE INDEX IF NOT EXISTS idx_notification_outbox_project ON co_production.notification_outbox(project_id, status);
 
 ALTER TABLE co_production.payment_milestones ENABLE ROW LEVEL SECURITY;
+ALTER TABLE co_production.payment_milestones FORCE ROW LEVEL SECURITY;
 CREATE POLICY payment_milestones_select_owner ON co_production.payment_milestones FOR SELECT USING (EXISTS (
   SELECT 1 FROM co_production.projects p
   WHERE p.id = payment_milestones.project_id AND p.owner_id = auth.uid()
 ));
 
 ALTER TABLE co_production.notification_outbox ENABLE ROW LEVEL SECURITY;
+ALTER TABLE co_production.notification_outbox FORCE ROW LEVEL SECURITY;
 CREATE POLICY notification_outbox_select_owner ON co_production.notification_outbox FOR SELECT USING (EXISTS (
   SELECT 1 FROM co_production.projects p
   WHERE p.id = notification_outbox.project_id AND p.owner_id = auth.uid()
 ));
+
+-- Service role owns all writes; authenticated reads through the policies above.
+GRANT ALL ON TABLE
+  co_production.payment_milestones,
+  co_production.notification_outbox
+TO service_role;
+
+GRANT SELECT ON TABLE
+  co_production.payment_milestones,
+  co_production.notification_outbox
+TO authenticated;
 
 COMMIT;

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getProjectAccess } from "@/lib/access-control";
 import { requireAuth } from "@/lib/auth";
+import { getSupabaseDataSchema } from "@/lib/data-authority";
 import { normalizeMediaReference } from "@/lib/security/media-reference";
 import { getSupabase } from "@/lib/supabase";
 
@@ -19,7 +20,9 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
   const { data, error } = await getSupabase()
     .from("projects")
     .select(
-      "id, team_id, owner_id, name, description, status, thumbnail_url, created_at, updated_at",
+      getSupabaseDataSchema() === "co_production"
+        ? "id, team_id, owner_id, name, description, status, stage, organization_id, primary_contact_id, thumbnail_url, created_at, updated_at"
+        : "id, team_id, owner_id, name, description, status, thumbnail_url, created_at, updated_at",
     )
     .eq("id", id)
     .maybeSingle();

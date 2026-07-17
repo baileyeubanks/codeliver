@@ -3,6 +3,12 @@
 -- Conventions follow 20260715093300_fail_closed_co_production_authority.sql:
 -- co_production schema, gen_random_uuid(), text+CHECK status columns whose
 -- allowed values mirror lib/covideopro/transitions.ts, RLS enabled everywhere.
+--
+-- Writes to every table created here are service-role-only by design: all
+-- mutations flow through the API routes (service client, which bypasses RLS),
+-- while the authenticated role receives SELECT-only grants guarded by the
+-- owner-scoped policies below. FORCE ROW LEVEL SECURITY keeps those policies
+-- binding even for the table owner.
 
 BEGIN;
 
@@ -256,6 +262,7 @@ DECLARE
 BEGIN
   FOREACH t IN ARRAY project_scoped LOOP
     EXECUTE format('ALTER TABLE co_production.%I ENABLE ROW LEVEL SECURITY', t);
+    EXECUTE format('ALTER TABLE co_production.%I FORCE ROW LEVEL SECURITY', t);
     EXECUTE format(
       'CREATE POLICY %I ON co_production.%I FOR SELECT USING (EXISTS (
          SELECT 1 FROM co_production.projects p
@@ -267,24 +274,66 @@ BEGIN
 END $$;
 
 ALTER TABLE co_production.organizations ENABLE ROW LEVEL SECURITY;
+ALTER TABLE co_production.organizations FORCE ROW LEVEL SECURITY;
 CREATE POLICY organizations_select_owner ON co_production.organizations
   FOR SELECT USING (owner_id = auth.uid());
 
 ALTER TABLE co_production.contacts ENABLE ROW LEVEL SECURITY;
+ALTER TABLE co_production.contacts FORCE ROW LEVEL SECURITY;
 CREATE POLICY contacts_select_owner ON co_production.contacts
   FOR SELECT USING (owner_id = auth.uid());
 
 ALTER TABLE co_production.inquiries ENABLE ROW LEVEL SECURITY;
+ALTER TABLE co_production.inquiries FORCE ROW LEVEL SECURITY;
 CREATE POLICY inquiries_select_owner ON co_production.inquiries
   FOR SELECT USING (owner_id = auth.uid());
 
 -- sequence_clips scope through their sequence rather than carrying project_id.
 ALTER TABLE co_production.sequence_clips ENABLE ROW LEVEL SECURITY;
+ALTER TABLE co_production.sequence_clips FORCE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS sequence_clips_select_owner ON co_production.sequence_clips;
 CREATE POLICY sequence_clips_select_owner ON co_production.sequence_clips FOR SELECT USING (EXISTS (
   SELECT 1 FROM co_production.sequences s
   JOIN co_production.projects p ON p.id = s.project_id
   WHERE s.id = sequence_clips.sequence_id AND p.owner_id = auth.uid()
 ));
+
+-- Privileges (mirrors 20260715093300_fail_closed_co_production_authority.sql):
+-- the service role owns all writes; authenticated reads through the
+-- owner-scoped SELECT policies above. Without these grants every API route
+-- 500s on the new tables.
+GRANT ALL ON TABLE
+  co_production.organizations,
+  co_production.contacts,
+  co_production.inquiries,
+  co_production.briefs,
+  co_production.brief_versions,
+  co_production.proposals,
+  co_production.proposal_versions,
+  co_production.plan_items,
+  co_production.selects,
+  co_production.sequences,
+  co_production.sequence_clips,
+  co_production.revision_requests,
+  co_production.decisions,
+  co_production.deliverables
+TO service_role;
+
+GRANT SELECT ON TABLE
+  co_production.organizations,
+  co_production.contacts,
+  co_production.inquiries,
+  co_production.briefs,
+  co_production.brief_versions,
+  co_production.proposals,
+  co_production.proposal_versions,
+  co_production.plan_items,
+  co_production.selects,
+  co_production.sequences,
+  co_production.sequence_clips,
+  co_production.revision_requests,
+  co_production.decisions,
+  co_production.deliverables
+TO authenticated;
 
 COMMIT;

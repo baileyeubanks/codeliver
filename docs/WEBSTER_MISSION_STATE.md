@@ -61,3 +61,7 @@
 - **Researcher (fact register)** — new surface feeding `decisions` with CONFIRMED/UNVERIFIED/REFUTED + URL; the El Paso instance carries 8 live flagged claims as test data.
 - **T5 sharpened:** shot list needs an **A-priority flag** ("do not leave Brook Hollow without the Rockwell-beside-new-PLC frame").
 - Confirmed doctrine for every stage: agents propose; deterministic code owns money, access, state, timecode, versions; the human keeps the paper cut, the interview, the decision, and the liability.
+
+## Back burner (user decision 2026-07-17)
+
+**Cut Check (AI Review Assist, pass 1)** — verified and parked. Spec (`docs/superpowers/specs/2026-07-17-cut-check-design.md`) and 8-task TDD plan (`docs/superpowers/plans/2026-07-17-cut-check.md`) reviewed: deterministic engine (hook/pacing/structure/proof/cta), provenance citations, honest no-transcript path, approval surface with liability note, tenant/IDOR tests required, named drops honored — doctrine-aligned, no fake-AI. Parked behind: El Paso tranches + CCO OS money-surface port. Resume trigger: user says go, or post-El Paso hardening.

@@ -20,6 +20,7 @@ export const demoProjects: DemoProject[] = [
   { id: "schneider-epc", name: "Schneider + EPC", stage: "post", organization_id: "org-schneider", primary_contact_id: "contact-dana-schneider" },
   { id: "bp", name: "bp", stage: "production", organization_id: "org-bp", primary_contact_id: "contact-rachel-bp" },
   { id: "conexon", name: "Conexon", stage: "development", organization_id: "org-conexon", primary_contact_id: "contact-sam-conexon" },
+  { id: "el-paso", name: "Physical Edge — El Paso", stage: "preproduction", organization_id: "org-schneider", primary_contact_id: "contact-dana-schneider" },
 ];
 
 export const demoFolders: FolderNode[] = [
@@ -34,6 +35,7 @@ export const demoFolders: FolderNode[] = [
   },
   { id: "bp", name: "bp", children: [] },
   { id: "conexon", name: "Conexon", children: [] },
+  { id: "el-paso", name: "Physical Edge — El Paso", children: [] },
 ];
 
 export const demoAssets: MediaAsset[] = [

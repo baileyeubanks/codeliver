@@ -9,15 +9,20 @@
 
 import type {
   Brief,
+  CallSheet,
   Contact,
+  CrewMember,
   Decision,
   Deliverable,
   Inquiry,
+  Location,
   NotificationOutboxItem,
   Organization,
   PaymentMilestone,
   PlanItem,
+  ProductionDay,
   Proposal,
+  Release,
   RevisionRequest,
   Select,
   Sequence,
@@ -275,3 +280,33 @@ export const seedNotificationOutbox: NotificationOutboxItem[] = [
     created_at: "2026-07-14T20:36:00.000Z", updated_at: "2026-07-14T20:36:00.000Z", created_by: BAILEY,
   },
 ];
+
+/* ------------------------- El Paso production seed -------------------------- */
+
+export const seedProductionDays: ProductionDay[] = [
+  { id: "pd-elpaso-scout", project_id: "el-paso", date: "2026-08-17", call: "09:00", wrap: "14:00", type: "scout", status: "scheduled", notes: "Tech scout: KBH Desalination + Brook Hollow gate access", created_at: T3, updated_at: T3, created_by: BAILEY },
+  { id: "pd-elpaso-d1", project_id: "el-paso", date: "2026-08-18", call: "06:30", wrap: "18:30", type: "principal", status: "scheduled", notes: "Control room interview (Adam) + switchgear. Heat rule 10:00–17:00.", created_at: T3, updated_at: T3, created_by: BAILEY },
+  { id: "pd-elpaso-d2", project_id: "el-paso", date: "2026-08-19", call: "06:00", wrap: "18:00", type: "principal", status: "scheduled", notes: "Weather mast dawn, Gisela interview, Brook Hollow Rockwell frame", created_at: T3, updated_at: T3, created_by: BAILEY },
+  { id: "pd-elpaso-d3", project_id: "el-paso", date: "2026-08-20", call: "06:30", wrap: "17:00", type: "principal", status: "scheduled", notes: "Pickups, glass-at-dawn kitchen, TecH2O", created_at: T3, updated_at: T3, created_by: BAILEY },
+  { id: "pd-elpaso-d4", project_id: "el-paso", date: "2026-08-21", call: null, wrap: null, type: "contingency", status: "scheduled", notes: "Weather/schedule contingency only", created_at: T3, updated_at: T3, created_by: BAILEY },
+];
+
+export const seedCrewMembers: CrewMember[] = [
+  { id: "crew-bailey", project_id: "el-paso", name: "Bailey Eubanks", role: "Director / Producer / Interviewer", rate_basis: "flat", days: 4, contact: "(501) 351-5927", created_at: T3, updated_at: T3, created_by: BAILEY },
+  { id: "crew-cesar", project_id: "el-paso", name: "Cesar Berrones", role: "DP (camera, lighting, sound)", rate_basis: "day", days: 4, contact: null, created_at: T3, updated_at: T3, created_by: BAILEY },
+  { id: "crew-alex", project_id: "el-paso", name: "Alex Addison", role: "Photo / BTS / Stills", rate_basis: "day", days: 3, contact: null, created_at: T3, updated_at: T3, created_by: BAILEY },
+];
+
+export const seedLocations: Location[] = [
+  { id: "loc-kbh", project_id: "el-paso", name: "KBH Desalination Plant", address: "El Paso, TX", contact: "Plant operations office", access_window: "Aug 18 06:30–10:00", cleared_to_film: ["exterior process areas", "control room (escorted)"], restricted: ["control screens", "credentials", "IP addresses"], agreement_status: "signed", created_at: T3, updated_at: T3, created_by: BAILEY },
+  { id: "loc-brookhollow", project_id: "el-paso", name: "Brook Hollow", address: "El Paso, TX", contact: "Community liaison", access_window: "Aug 19 afternoon", cleared_to_film: ["street exteriors", "Rockwell cabinet (one frame, approved)"], restricted: ["residents' homes", "license plates"], agreement_status: "sent", created_at: T3, updated_at: T3, created_by: BAILEY },
+  { id: "loc-weathermast", project_id: "el-paso", name: "Weather station field site", address: "Franklin Mountains area", contact: null, access_window: "Aug 19 dawn", cleared_to_film: ["mast", "landscape"], restricted: [], agreement_status: "none", created_at: T3, updated_at: T3, created_by: BAILEY },
+];
+
+export const seedReleases: Release[] = [
+  { id: "rel-adam", project_id: "el-paso", person_name: "Adam Wickersham", type: "appearance", status: "sent", signed_at: null, file_url: null, language: "en", production_day_ids: ["pd-elpaso-d1"], created_at: T3, updated_at: T3, created_by: BAILEY },
+  { id: "rel-gisela", project_id: "el-paso", person_name: "Gisela Rivas", type: "appearance", status: "signed", signed_at: "2026-07-14T18:22:00.000Z", file_url: null, language: "es", production_day_ids: ["pd-elpaso-d2"], created_at: T3, updated_at: T3, created_by: BAILEY },
+  { id: "rel-ephram", project_id: "el-paso", person_name: "Ephram Sims", type: "appearance", status: "unsent", signed_at: null, file_url: null, language: "en", production_day_ids: ["pd-elpaso-d2", "pd-elpaso-d3"], created_at: T3, updated_at: T3, created_by: BAILEY },
+];
+
+export const seedCallSheets: CallSheet[] = [];

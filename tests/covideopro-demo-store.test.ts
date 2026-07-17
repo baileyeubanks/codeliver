@@ -64,6 +64,7 @@ test("seed v2 carries the Project Operating Record and zero ACS contamination", 
     "schneider-epc": "post",
     bp: "production",
     conexon: "development",
+    "el-paso": "preproduction",
   });
 });
 

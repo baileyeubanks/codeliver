@@ -32,7 +32,12 @@ import {
   type PaymentMethod,
   type PaymentMilestone,
   type PlanItem,
+  type ProductionDay,
   type ProjectStage,
+  type Release,
+  type Location,
+  type CrewMember,
+  type CallSheet,
   type Proposal,
   type RevisionRequest,
   type Select,
@@ -41,13 +46,18 @@ import {
 } from "@/lib/covideopro/record.ts";
 import {
   clipsFromSelects,
+  chaseList,
+  nextCallSheetVersion,
   nextRevisionRound,
   transitionBrief,
   transitionDeliverable,
   transitionInquiry,
+  transitionLocationAgreement,
   transitionPaymentMilestone,
+  transitionProductionDay,
   transitionProjectStage,
   transitionProposal,
+  transitionRelease,
   transitionRevisionRequest,
   transitionSequence,
   validateSequenceClip,
@@ -62,15 +72,20 @@ import {
 } from "@/lib/covideopro/notifications.ts";
 import {
   seedBriefs,
+  seedCallSheets,
   seedContacts,
+  seedCrewMembers,
   seedDecisions,
   seedDeliverables,
   seedInquiries,
+  seedLocations,
   seedNotificationOutbox,
   seedOrganizations,
   seedPaymentMilestones,
   seedPlanItems,
+  seedProductionDays,
   seedProposals,
+  seedReleases,
   seedRevisionRequests,
   seedSelects,
   seedSequenceClips,
@@ -250,6 +265,11 @@ export interface DemoWorkspaceState {
   deliverables: Deliverable[];
   paymentMilestones: PaymentMilestone[];
   notificationOutbox: NotificationOutboxItem[];
+  productionDays: ProductionDay[];
+  crewMembers: CrewMember[];
+  locations: Location[];
+  releases: Release[];
+  callSheets: CallSheet[];
 }
 
 export interface CreateDemoShareInput {
@@ -592,6 +612,11 @@ export function createInitialDemoWorkspace(): DemoWorkspaceState {
     deliverables: seedDeliverables.map((record) => ({ ...record, spec: { ...record.spec } })),
     paymentMilestones: seedPaymentMilestones.map((record) => ({ ...record })),
     notificationOutbox: seedNotificationOutbox.map((record) => ({ ...record })),
+    productionDays: seedProductionDays.map((record) => ({ ...record })),
+    crewMembers: seedCrewMembers.map((record) => ({ ...record })),
+    locations: seedLocations.map((record) => ({ ...record, cleared_to_film: [...record.cleared_to_film], restricted: [...record.restricted] })),
+    releases: seedReleases.map((record) => ({ ...record, production_day_ids: [...record.production_day_ids] })),
+    callSheets: seedCallSheets.map((record) => ({ ...record })),
   };
 }
 
@@ -697,6 +722,11 @@ export function restoreDemoWorkspace(raw: string | null): DemoWorkspaceState {
       deliverables: mergeSeededRecords(parsed.deliverables, fallback.deliverables),
       paymentMilestones: mergeSeededRecords(parsed.paymentMilestones, fallback.paymentMilestones),
       notificationOutbox: mergeSeededRecords(parsed.notificationOutbox, fallback.notificationOutbox),
+      productionDays: mergeSeededRecords(parsed.productionDays, fallback.productionDays),
+      crewMembers: mergeSeededRecords(parsed.crewMembers, fallback.crewMembers),
+      locations: mergeSeededRecords(parsed.locations, fallback.locations),
+      releases: mergeSeededRecords(parsed.releases, fallback.releases),
+      callSheets: mergeSeededRecords(parsed.callSheets, fallback.callSheets),
       settings: {
         profile: { ...fallback.settings.profile, ...savedSettings?.profile },
         appearance: { ...fallback.settings.appearance, ...savedSettings?.appearance },
@@ -2473,4 +2503,231 @@ export function setDemoSessionRole(role: DemoWorkspaceState["session"]["role"]) 
     ...state,
     session: { ...state.session, role },
   }));
+}
+
+/* -------------------- Production entity mutations (El Paso) ------------------ */
+
+export function addProductionDay(input: {
+  projectId: string;
+  date: string;
+  call?: string | null;
+  wrap?: string | null;
+  type: ProductionDay["type"];
+  notes?: string;
+}): RecordMutationResult {
+  if (!input.date) return { ok: false, reason: "A production day needs a date." };
+  const id = createId("pd");
+  const now = new Date().toISOString();
+  updateState((state) => ({
+    ...state,
+    productionDays: [
+      ...state.productionDays,
+      { id, project_id: input.projectId, date: input.date, call: input.call ?? null, wrap: input.wrap ?? null, type: input.type, status: "scheduled" as const, notes: input.notes ?? "", created_at: now, updated_at: now, created_by: "user-bailey" },
+    ],
+    activity: recordActivity(state, { action: `added_production_day`, actor_name: RECORD_ACTOR, project_id: input.projectId, details: { date: input.date, type: input.type } }),
+  }));
+  return { ok: true, id };
+}
+
+export function setProductionDayStatus(id: string, to: ProductionDay["status"]): RecordMutationResult {
+  const day = getSnapshot().productionDays.find((candidate) => candidate.id === id);
+  if (!day) return { ok: false, reason: "Production day not found." };
+  const verdict = transitionProductionDay(day, to);
+  if (!verdict.ok) return verdict;
+  updateState((state) => ({
+    ...state,
+    productionDays: state.productionDays.map((candidate) =>
+      candidate.id === id ? { ...candidate, status: to, updated_at: new Date().toISOString() } : candidate,
+    ),
+    activity: recordActivity(state, { action: `production_day_${to}`, actor_name: RECORD_ACTOR, project_id: day.project_id, details: { date: day.date } }),
+  }));
+  return { ok: true, id };
+}
+
+export function addCrewMember(input: {
+  projectId: string;
+  name: string;
+  role: string;
+  rateBasis?: CrewMember["rate_basis"];
+  days?: number;
+  contact?: string | null;
+}): RecordMutationResult {
+  if (!input.name.trim()) return { ok: false, reason: "Crew member needs a name." };
+  const id = createId("crew");
+  const now = new Date().toISOString();
+  updateState((state) => ({
+    ...state,
+    crewMembers: [
+      ...state.crewMembers,
+      { id, project_id: input.projectId, name: input.name.trim(), role: input.role.trim(), rate_basis: input.rateBasis ?? "day", days: input.days ?? 1, contact: input.contact ?? null, created_at: now, updated_at: now, created_by: "user-bailey" },
+    ],
+    activity: recordActivity(state, { action: "added_crew_member", actor_name: RECORD_ACTOR, project_id: input.projectId, details: { name: input.name.trim(), role: input.role.trim() } }),
+  }));
+  return { ok: true, id };
+}
+
+export function addLocation(input: {
+  projectId: string;
+  name: string;
+  address?: string | null;
+  contact?: string | null;
+  accessWindow?: string | null;
+  clearedToFilm?: string[];
+  restricted?: string[];
+}): RecordMutationResult {
+  if (!input.name.trim()) return { ok: false, reason: "Location needs a name." };
+  const id = createId("loc");
+  const now = new Date().toISOString();
+  updateState((state) => ({
+    ...state,
+    locations: [
+      ...state.locations,
+      { id, project_id: input.projectId, name: input.name.trim(), address: input.address ?? null, contact: input.contact ?? null, access_window: input.accessWindow ?? null, cleared_to_film: input.clearedToFilm ?? [], restricted: input.restricted ?? [], agreement_status: "none" as const, created_at: now, updated_at: now, created_by: "user-bailey" },
+    ],
+    activity: recordActivity(state, { action: "added_location", actor_name: RECORD_ACTOR, project_id: input.projectId, details: { name: input.name.trim() } }),
+  }));
+  return { ok: true, id };
+}
+
+export function setLocationAgreementStatus(id: string, to: Location["agreement_status"]): RecordMutationResult {
+  const location = getSnapshot().locations.find((candidate) => candidate.id === id);
+  if (!location) return { ok: false, reason: "Location not found." };
+  const verdict = transitionLocationAgreement(location, to);
+  if (!verdict.ok) return verdict;
+  updateState((state) => ({
+    ...state,
+    locations: state.locations.map((candidate) =>
+      candidate.id === id ? { ...candidate, agreement_status: to, updated_at: new Date().toISOString() } : candidate,
+    ),
+    activity: recordActivity(state, { action: `location_agreement_${to}`, actor_name: RECORD_ACTOR, project_id: location.project_id, details: { name: location.name } }),
+  }));
+  return { ok: true, id };
+}
+
+export function addRelease(input: {
+  projectId: string;
+  personName: string;
+  type: Release["type"];
+  language?: string;
+  productionDayIds?: string[];
+}): RecordMutationResult {
+  if (!input.personName.trim()) return { ok: false, reason: "Release needs a person name." };
+  const id = createId("rel");
+  const now = new Date().toISOString();
+  updateState((state) => ({
+    ...state,
+    releases: [
+      ...state.releases,
+      { id, project_id: input.projectId, person_name: input.personName.trim(), type: input.type, status: "unsent" as const, signed_at: null, file_url: null, language: input.language ?? "en", production_day_ids: input.productionDayIds ?? [], created_at: now, updated_at: now, created_by: "user-bailey" },
+    ],
+    activity: recordActivity(state, { action: "opened_release", actor_name: RECORD_ACTOR, project_id: input.projectId, details: { person: input.personName.trim() } }),
+  }));
+  return { ok: true, id };
+}
+
+export function setReleaseStatus(id: string, to: Release["status"]): RecordMutationResult {
+  const release = getSnapshot().releases.find((candidate) => candidate.id === id);
+  if (!release) return { ok: false, reason: "Release not found." };
+  const verdict = transitionRelease(release, to);
+  if (!verdict.ok) return verdict;
+  const now = new Date().toISOString();
+  updateState((state) => ({
+    ...state,
+    releases: state.releases.map((candidate) =>
+      candidate.id === id ? { ...candidate, status: to, signed_at: to === "signed" ? now : candidate.signed_at, updated_at: now } : candidate,
+    ),
+    activity: recordActivity(state, { action: `release_${to}`, actor_name: RECORD_ACTOR, project_id: release.project_id, details: { person: release.person_name } }),
+  }));
+  return { ok: true, id };
+}
+
+/* --------------------- Agent 2 (1st AD): call-sheet FORM --------------------- */
+
+function sunTimesFor(date: string): { sunrise: string; sunset: string; golden: string } {
+  // El Paso mid-August approximate; FORM math owned by the 1st AD agent.
+  void date;
+  return { sunrise: "06:14", sunset: "19:47", golden: "18:52–19:47" };
+}
+
+function buildCallSheetContent(input: {
+  day: ProductionDay;
+  dayNumber: number;
+  totalDays: number;
+  crew: CrewMember[];
+  locations: Location[];
+  releases: Release[];
+  projectName: string;
+}): string {
+  const sun = sunTimesFor(input.day.date);
+  const unsigned = input.releases.filter((release) => release.status !== "signed");
+  const lines = [
+    `${input.projectName.toUpperCase()} — DAY ${input.dayNumber} OF ${input.totalDays}`,
+    `DATE ${input.day.date}   CALL ${input.day.call ?? "—"}   WRAP (est) ${input.day.wrap ?? "—"}`,
+    `SUNRISE ${sun.sunrise}  SUNSET ${sun.sunset}  GOLDEN ${sun.golden}`,
+    input.day.notes ? `⚠ ${input.day.notes}` : "",
+    "",
+    "UNIT",
+    ...input.crew.map((member) => `  ${member.name}   ${member.role}   ${member.contact ?? ""}`),
+    "",
+    "LOCATIONS (in order)",
+    ...input.locations.map((location, index) =>
+      `  ${index + 1}. ${location.name}  arrive ____  contact: ${location.contact ?? "—"}  [agreement: ${location.agreement_status}]${location.restricted.length > 0 ? `  NOT cleared: ${location.restricted.join(", ")}` : ""}`,
+    ),
+    "",
+    "CONTRIBUTORS TODAY",
+    ...input.releases.map((release) => `  ${release.person_name}   ${release.type}   RELEASE SIGNED? ${release.status === "signed" ? "☑" : "☐"}`),
+    unsigned.length > 0 ? `  ⚠ CHASE: ${unsigned.map((release) => release.person_name).join(", ")} — unsigned as of generation` : "",
+    "",
+    "TODAY'S PRIORITY (if we get nothing else)",
+  ];
+  return lines.filter((line) => line !== null).join("\n");
+}
+
+/** Agent 2 produces the FORM artifact; the operator approves by generating. */
+export function generateCallSheet(productionDayId: string): RecordMutationResult {
+  const state = getSnapshot();
+  const day = state.productionDays.find((candidate) => candidate.id === productionDayId);
+  if (!day) return { ok: false, reason: "Production day not found." };
+  if (day.status === "cancelled") return { ok: false, reason: "Cancelled days get no call sheet." };
+
+  const project = state.projects.find((candidate) => candidate.id === day.project_id);
+  const principalDays = state.productionDays
+    .filter((candidate) => candidate.project_id === day.project_id && candidate.type === "principal")
+    .sort((a, b) => a.date.localeCompare(b.date));
+  const dayNumber = day.type === "principal" ? principalDays.findIndex((candidate) => candidate.id === day.id) + 1 : 0;
+
+  const content = buildCallSheetContent({
+    day,
+    dayNumber,
+    totalDays: principalDays.length,
+    crew: state.crewMembers.filter((member) => member.project_id === day.project_id),
+    locations: state.locations.filter((location) => location.project_id === day.project_id),
+    releases: state.releases.filter((release) => release.project_id === day.project_id && release.production_day_ids.includes(day.id)),
+    projectName: project?.name ?? "Production",
+  });
+
+  const id = createId("callsheet");
+  const version = nextCallSheetVersion(state.callSheets, productionDayId);
+  const now = new Date().toISOString();
+  updateState((current) => ({
+    ...current,
+    callSheets: [
+      ...current.callSheets,
+      { id, project_id: day.project_id, production_day_id: productionDayId, version, generated_at: now, pdf_url: null, content, created_at: now, updated_at: now, created_by: "user-bailey" },
+    ],
+    activity: recordActivity(current, { action: `generated_call_sheet_v${version}`, actor_name: "Agent 2 (1st AD)", project_id: day.project_id, details: { date: day.date } }),
+  }));
+  return { ok: true, id };
+}
+
+/** The chase list: who films soon and has not signed. */
+export function getChaseList(projectId: string, withinDays = 2, fromDate?: string) {
+  const state = getSnapshot();
+  const today = fromDate ?? new Date().toISOString().slice(0, 10);
+  return chaseList(
+    state.releases.filter((release) => release.project_id === projectId),
+    state.productionDays.filter((day) => day.project_id === projectId),
+    today,
+    withinDays,
+  );
 }

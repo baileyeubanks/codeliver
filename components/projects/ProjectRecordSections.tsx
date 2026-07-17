@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Check, FileText, Lightbulb, ListChecks, PackageCheck, Plus, X } from "lucide-react";
+import { Check, FileText, Flag, Lightbulb, ListChecks, PackageCheck, Plus, X } from "lucide-react";
 import {
   addPlanItem,
   addRevisionRequest,
@@ -9,6 +9,7 @@ import {
   createMilestoneCheckout,
   createSequenceFromSelects,
   dispatchNotificationOutbox,
+  generateCallSheet,
   recordMilestonePayment,
   renderSequenceToAsset,
   saveBrief,
@@ -16,8 +17,11 @@ import {
   saveProposal,
   setBriefStatus,
   setDeliverableStatus,
+  setLocationAgreementStatus,
   setPlanItemStatus,
+  setProductionDayStatus,
   setProposalStatus,
+  setReleaseStatus,
   setRevisionRequestStatus,
   setSequenceStatus,
   updateSelectRange,
@@ -444,6 +448,8 @@ export function PlanSection({ projectId, demoMode, onNotice }: SectionProps) {
           </section>
         );
       })}
+
+      <ProductionBlock projectId={projectId} demoMode={demoMode} onNotice={onNotice} />
     </>
   );
 }
@@ -987,6 +993,165 @@ export function NotificationOutboxSection({ projectId, demoMode, onNotice }: Sec
         ))}
         {items.length === 0 ? <p className="cockpit-rail-empty">No notifications yet — creating a review link with channels queues them here.</p> : null}
       </div>
+    </section>
+  );
+}
+
+/* ------------------------------ Production --------------------------------- */
+
+const PD_NEXT: Record<string, string | null> = {
+  scheduled: "in_progress",
+  in_progress: "wrapped",
+  wrapped: null,
+  cancelled: "scheduled",
+};
+
+const AGREEMENT_NEXT: Record<string, string | null> = {
+  none: "drafted",
+  drafted: "sent",
+  sent: "signed",
+  signed: null,
+};
+
+const RELEASE_NEXT: Record<string, string | null> = {
+  unsent: "sent",
+  sent: "signed",
+  signed: null,
+};
+
+export function ProductionBlock({ projectId, demoMode, onNotice }: SectionProps) {
+  const workspace = useDemoWorkspace();
+  if (!demoMode) return null;
+
+  const days = workspace.productionDays
+    .filter((day) => day.project_id === projectId)
+    .sort((a, b) => a.date.localeCompare(b.date));
+  const crew = workspace.crewMembers.filter((member) => member.project_id === projectId);
+  const locations = workspace.locations.filter((location) => location.project_id === projectId);
+  const releases = workspace.releases.filter((release) => release.project_id === projectId);
+  const sheets = workspace.callSheets.filter((sheet) => sheet.project_id === projectId);
+  const unsigned = releases.filter((release) => release.status !== "signed");
+
+  if (days.length === 0 && crew.length === 0 && releases.length === 0) return null;
+
+  return (
+    <section aria-label="Production" style={{ marginTop: 22 }}>
+      <h3 className="cockpit-record-group-title">Production days ({days.length})</h3>
+      <div className="cockpit-table-list">
+        {days.map((day) => {
+          const daySheets = sheets.filter((sheet) => sheet.production_day_id === day.id).sort((a, b) => b.version - a.version);
+          const latest = daySheets[0];
+          return (
+            <article key={day.id} style={{ gridTemplateColumns: "34px minmax(0,1fr) auto auto auto" }}>
+              <span className="cockpit-list-icon"><ListChecks size={18} /></span>
+              <div>
+                <strong>{day.date} · {day.type}</strong>
+                <small>call {day.call ?? "—"} · wrap {day.wrap ?? "—"}{day.notes ? ` · ${day.notes}` : ""}</small>
+              </div>
+              <span className={day.status === "wrapped" ? "status-active" : "status-pending"}>{day.status.replace("_", " ")}</span>
+              {PD_NEXT[day.status] ? (
+                <button type="button" onClick={() => {
+                  const result = setProductionDayStatus(day.id, PD_NEXT[day.status] as never);
+                  onNotice(result.ok ? `${day.date} → ${PD_NEXT[day.status]?.replace("_", " ")}.` : result.reason);
+                }}>
+                  Mark {PD_NEXT[day.status]?.replace("_", " ")}
+                </button>
+              ) : null}
+              {day.status === "scheduled" || day.status === "in_progress" ? (
+                <button type="button" onClick={() => {
+                  const result = generateCallSheet(day.id);
+                  onNotice(result.ok ? `Call sheet v${latest ? latest.version + 1 : 1} generated for ${day.date}.` : result.reason);
+                }}>
+                  {latest ? `Regenerate call sheet (v${latest.version + 1})` : "Generate call sheet"}
+                </button>
+              ) : <span />}
+              {latest ? (
+                <details style={{ gridColumn: "1 / -1", marginTop: 4 }}>
+                  <summary style={{ cursor: "pointer", fontSize: 10, color: "var(--cockpit-accent)" }}>
+                    Call sheet v{latest.version} · generated {new Date(latest.generated_at).toLocaleString()}
+                  </summary>
+                  <pre style={{ margin: "8px 0 0", padding: 12, background: "#0b0f14", color: "#dbe6f4", borderRadius: 8, fontSize: 10.5, lineHeight: 1.55, overflowX: "auto", whiteSpace: "pre-wrap" }}>{latest.content}</pre>
+                </details>
+              ) : null}
+            </article>
+          );
+        })}
+        {days.length === 0 ? <p className="cockpit-rail-empty">No production days scheduled.</p> : null}
+      </div>
+
+      {releases.length > 0 ? (
+        <>
+          <h3 className="cockpit-record-group-title">
+            Releases {unsigned.length > 0 ? `— ⚠ ${unsigned.length} unsigned` : "— all signed"}
+          </h3>
+          <div className="cockpit-table-list">
+            {releases.map((release) => (
+              <article key={release.id} style={{ gridTemplateColumns: "34px minmax(0,1fr) auto auto" }}>
+                <span className="cockpit-list-icon"><FileText size={16} /></span>
+                <div>
+                  <strong>{release.person_name}</strong>
+                  <small>{release.type} · {release.language}{release.signed_at ? ` · signed ${new Date(release.signed_at).toLocaleDateString()}` : ""}</small>
+                </div>
+                <span className={release.status === "signed" ? "status-active" : "status-pending"}>{release.status}</span>
+                {RELEASE_NEXT[release.status] ? (
+                  <button type="button" onClick={() => {
+                    const result = setReleaseStatus(release.id, RELEASE_NEXT[release.status] as never);
+                    onNotice(result.ok ? `${release.person_name} → ${RELEASE_NEXT[release.status]}.` : result.reason);
+                  }}>
+                    Mark {RELEASE_NEXT[release.status]}
+                  </button>
+                ) : <Check size={17} />}
+              </article>
+            ))}
+          </div>
+        </>
+      ) : null}
+
+      {locations.length > 0 ? (
+        <>
+          <h3 className="cockpit-record-group-title">Locations & agreements</h3>
+          <div className="cockpit-table-list">
+            {locations.map((location) => (
+              <article key={location.id} style={{ gridTemplateColumns: "34px minmax(0,1fr) auto auto" }}>
+                <span className="cockpit-list-icon"><Flag size={16} /></span>
+                <div>
+                  <strong>{location.name}</strong>
+                  <small>
+                    {location.access_window ?? "window TBD"}
+                    {location.restricted.length > 0 ? ` · NOT cleared: ${location.restricted.join(", ")}` : ""}
+                  </small>
+                </div>
+                <span className={location.agreement_status === "signed" ? "status-active" : "status-pending"}>{location.agreement_status}</span>
+                {AGREEMENT_NEXT[location.agreement_status] ? (
+                  <button type="button" onClick={() => {
+                    const result = setLocationAgreementStatus(location.id, AGREEMENT_NEXT[location.agreement_status] as never);
+                    onNotice(result.ok ? `${location.name} agreement → ${AGREEMENT_NEXT[location.agreement_status]}.` : result.reason);
+                  }}>
+                    Mark {AGREEMENT_NEXT[location.agreement_status]}
+                  </button>
+                ) : <Check size={17} />}
+              </article>
+            ))}
+          </div>
+        </>
+      ) : null}
+
+      {crew.length > 0 ? (
+        <>
+          <h3 className="cockpit-record-group-title">Unit ({crew.length})</h3>
+          <div className="cockpit-table-list">
+            {crew.map((member) => (
+              <article key={member.id} style={{ gridTemplateColumns: "34px minmax(0,1fr) auto" }}>
+                <span className="cockpit-list-icon"><Check size={16} /></span>
+                <div>
+                  <strong>{member.name}</strong>
+                  <small>{member.role} · {member.days} day{member.days === 1 ? "" : "s"} · {member.rate_basis.replace("_", " ")}{member.contact ? ` · ${member.contact}` : ""}</small>
+                </div>
+              </article>
+            ))}
+          </div>
+        </>
+      ) : null}
     </section>
   );
 }

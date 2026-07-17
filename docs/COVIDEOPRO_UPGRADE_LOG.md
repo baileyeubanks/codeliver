@@ -104,3 +104,11 @@ Baseline: `e068ee8` (checkpoint of the prior session's transformation state).
 - **Loop 2 (G4, delegated to agent-15, independently verified):** Playwright E2E harness (`@playwright/test@1.61.1`, `playwright.config.ts`, `tests/e2e/`): 5 demo smoke flows (login, home, opportunities triage, brief approval, sequences timeline) + design-evidence capture — **6/6 pass in the parent agent's own run (7.2s)**. Agent found+fixed a real product bug: `.workspace-shell .demo-pill{display:none}` hid all status pills on shell pages.
 - **Loop 3 (G1, in flight):** parity plan adopted (docs/COVIDEOPRO_G1_PROD_PARITY_PLAN.md); M1 delegated to agent-17.
 - Suite: 562/562 node:test + 6/6 e2e; tsc clean.
+
+## U12 — Intentionality re-alignment + El Paso doctrine slice (2026-07-17)
+
+- **Intentionality extraction** (find-intentionality skill): `COVIDEOPRO_INTENTIONALITY.md` — the user's own doctrine from `PRODUCTION_MACHINE_v1.md` (FORM/JUDGMENT/CRAFT, five agents, six documents, named drops, El Paso forcing function), brand artwork adoption (CVP BLUE family → `public/brand/cvp-*`), and the UI-regression critique.
+- **Loop re-aligned** (`COVIDEOPRO_IMPROVEMENT_LOOP.md`): El Paso entities top of register; named drops documented.
+- **E3 design restoration:** media-first Home (production cards, quiet attention rows, latest-media strip); Opportunities monograms + prominent amounts; status-pill CSS bug fixed by agent-15 visible throughout.
+- **E1+E2 El Paso entities:** production_days, crew_members, locations, releases, call_sheets in record.ts + transitions (chaseList, call-sheet versioning) + demo store + seed (El Paso: 5 days, 3 crew, 3 locations, Adam/Gisela/Ephram releases) + migration `20260716140000_production_entities.sql` (GRANTs + FORCE RLS from the start, M1 lesson) + Production block in Plan section (days, chase board ⚠2 unsigned, locations/agreements, unit, call-sheet generation with printable content incl. CHASE warning).
+- Tests: 5 new production-entity tests; suite **566/566**; e2e 6/6; tsc clean. Screenshots 23–25.

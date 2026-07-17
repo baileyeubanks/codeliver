@@ -444,3 +444,74 @@ export interface NotificationOutboxItem extends RecordBase {
   attempt_count: number;
   last_error: string | null;
 }
+
+/* -------------------------------------------------------------------------- */
+/* Production entities (PRODUCTION_MACHINE_v1.md Part 7 — El Paso spec)        */
+/* -------------------------------------------------------------------------- */
+
+export const PRODUCTION_DAY_TYPES = ["scout", "principal", "contingency"] as const;
+export type ProductionDayType = (typeof PRODUCTION_DAY_TYPES)[number];
+
+export const PRODUCTION_DAY_STATUSES = ["scheduled", "in_progress", "wrapped", "cancelled"] as const;
+export type ProductionDayStatus = (typeof PRODUCTION_DAY_STATUSES)[number];
+
+export interface ProductionDay extends ProjectScoped {
+  date: string;
+  call: string | null;
+  wrap: string | null;
+  type: ProductionDayType;
+  status: ProductionDayStatus;
+  notes: string;
+}
+
+export const CREW_RATE_BASES = ["day", "half_day", "flat", "hourly"] as const;
+export type CrewRateBasis = (typeof CREW_RATE_BASES)[number];
+
+export interface CrewMember extends ProjectScoped {
+  name: string;
+  role: string;
+  rate_basis: CrewRateBasis;
+  days: number;
+  contact: string | null;
+}
+
+export const LOCATION_AGREEMENT_STATUSES = ["none", "drafted", "sent", "signed"] as const;
+export type LocationAgreementStatus = (typeof LOCATION_AGREEMENT_STATUSES)[number];
+
+export interface Location extends ProjectScoped {
+  name: string;
+  address: string | null;
+  contact: string | null;
+  access_window: string | null;
+  /** What may be filmed (screens, labels, credentials — spelled out). */
+  cleared_to_film: string[];
+  /** What may NOT be filmed. */
+  restricted: string[];
+  agreement_status: LocationAgreementStatus;
+}
+
+export const RELEASE_TYPES = ["appearance", "location"] as const;
+export type ReleaseType = (typeof RELEASE_TYPES)[number];
+
+export const RELEASE_STATUSES = ["unsent", "sent", "signed"] as const;
+export type ReleaseStatus = (typeof RELEASE_STATUSES)[number];
+
+export interface Release extends ProjectScoped {
+  person_name: string;
+  type: ReleaseType;
+  status: ReleaseStatus;
+  signed_at: ISODateTime | null;
+  file_url: string | null;
+  language: string;
+  /** Production days this person is expected on set (ids). */
+  production_day_ids: string[];
+}
+
+export interface CallSheet extends ProjectScoped {
+  production_day_id: string;
+  version: number;
+  generated_at: ISODateTime;
+  pdf_url: string | null;
+  /** The generated one-page content (markdown-ish text, printable). */
+  content: string;
+}

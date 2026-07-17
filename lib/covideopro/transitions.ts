@@ -13,16 +13,23 @@ import {
   projectStageIndex,
   type Brief,
   type BriefStatus,
+  type CallSheet,
   type Deliverable,
   type DeliverableStatus,
   type Inquiry,
   type InquiryStatus,
+  type Location,
+  type LocationAgreementStatus,
   type PaymentMethod,
   type PaymentMilestone,
   type PaymentMilestoneStatus,
   type PlanItem,
+  type ProductionDay,
+  type ProductionDayStatus,
   type ProjectRecordHeader,
   type ProjectStage,
+  type Release,
+  type ReleaseStatus,
   type Proposal,
   type ProposalStatus,
   type RevisionRequest,
@@ -412,4 +419,104 @@ export function transitionPaymentMilestone(
     return fail("A pending milestone can only be marked paid as a manual (offline) payment.");
   }
   return OK;
+}
+
+/* -------------------------------------------------------------------------- */
+/* Production entities (El Paso doctrine)                                     */
+/* -------------------------------------------------------------------------- */
+
+const PRODUCTION_DAY_EDGES: Record<ProductionDayStatus, readonly ProductionDayStatus[]> = {
+  scheduled: ["in_progress", "cancelled"],
+  in_progress: ["wrapped"],
+  wrapped: [],
+  cancelled: ["scheduled"],
+};
+
+export function transitionProductionDay(
+  day: Pick<ProductionDay, "status">,
+  to: ProductionDayStatus,
+): TransitionResult {
+  return assertEdge(PRODUCTION_DAY_EDGES, day.status, to);
+}
+
+const RELEASE_EDGES: Record<ReleaseStatus, readonly ReleaseStatus[]> = {
+  unsent: ["sent"],
+  sent: ["signed", "unsent"],
+  signed: [],
+};
+
+export function transitionRelease(
+  release: Pick<Release, "status" | "person_name">,
+  to: ReleaseStatus,
+): TransitionResult {
+  const edge = assertEdge(RELEASE_EDGES, release.status, to);
+  if (!edge.ok) return edge;
+  return OK;
+}
+
+const LOCATION_AGREEMENT_EDGES: Record<LocationAgreementStatus, readonly LocationAgreementStatus[]> = {
+  none: ["drafted"],
+  drafted: ["sent"],
+  sent: ["signed", "drafted"],
+  signed: [],
+};
+
+export function transitionLocationAgreement(
+  location: Pick<Location, "agreement_status">,
+  to: LocationAgreementStatus,
+): TransitionResult {
+  return assertEdge(LOCATION_AGREEMENT_EDGES, location.agreement_status, to);
+}
+
+/* --------------------------- The chase list --------------------------------- */
+
+export interface ChaseListEntry {
+  releaseId: string;
+  personName: string;
+  status: ReleaseStatus;
+  productionDayId: string;
+  productionDate: string;
+  daysUntilShoot: number;
+}
+
+/**
+ * The query that justifies the build: who films within `withinDays` of
+ * `fromDate` and has NOT signed? Sorted nearest shoot first.
+ */
+export function chaseList(
+  releases: Pick<Release, "id" | "person_name" | "status" | "production_day_ids">[],
+  productionDays: Pick<ProductionDay, "id" | "date" | "status">[],
+  fromDate: string,
+  withinDays = 2,
+): ChaseListEntry[] {
+  const from = new Date(`${fromDate}T00:00:00Z`).getTime();
+  const dayMs = 86_400_000;
+  const dayById = new Map(productionDays.map((day) => [day.id, day]));
+
+  const entries: ChaseListEntry[] = [];
+  for (const release of releases) {
+    if (release.status === "signed") continue;
+    for (const dayId of release.production_day_ids) {
+      const day = dayById.get(dayId);
+      if (!day || day.status === "cancelled") continue;
+      const shootAt = new Date(`${day.date}T00:00:00Z`).getTime();
+      const daysUntil = Math.round((shootAt - from) / dayMs);
+      if (daysUntil < 0 || daysUntil > withinDays) continue;
+      entries.push({
+        releaseId: release.id,
+        personName: release.person_name,
+        status: release.status,
+        productionDayId: day.id,
+        productionDate: day.date,
+        daysUntilShoot: daysUntil,
+      });
+    }
+  }
+  return entries.sort((a, b) => a.daysUntilShoot - b.daysUntilShoot || a.personName.localeCompare(b.personName));
+}
+
+/** Call-sheet versioning: each generation bumps the version for that day. */
+export function nextCallSheetVersion(existing: Pick<CallSheet, "production_day_id" | "version">[], productionDayId: string): number {
+  const versions = existing.filter((sheet) => sheet.production_day_id === productionDayId).map((sheet) => sheet.version);
+  return versions.length === 0 ? 1 : Math.max(...versions) + 1;
 }

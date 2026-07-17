@@ -53,7 +53,7 @@ import {
   validateSequenceClip,
 } from "@/lib/covideopro/transitions.ts";
 import { buildMilestonesForApproval, mockCheckoutUrl } from "@/lib/covideopro/payments.ts";
-import { buildConcatPlan } from "@/lib/covideopro/render.ts";
+import { buildConcatPlan } from "@/lib/covideopro/render-plan.ts";
 import {
   buildReviewLinkDrafts,
   dedupeOutboxDrafts,
@@ -2429,4 +2429,35 @@ export async function renderSequenceToAsset(
     }),
   }));
   return { ok: true, id: assetId };
+}
+
+/** Refine a select's range (word-level boundary control). */
+export function updateSelectRange(input: {
+  selectId: string;
+  inSeconds: number;
+  outSeconds: number;
+}): RecordMutationResult {
+  if (!(input.outSeconds > input.inSeconds) || input.inSeconds < 0) {
+    return { ok: false, reason: "Select out-point must be after its in-point." };
+  }
+  const state = getSnapshot();
+  const select = state.selects.find((candidate) => candidate.id === input.selectId);
+  if (!select) return { ok: false, reason: "Select not found." };
+
+  updateState((current) => ({
+    ...current,
+    selects: current.selects.map((candidate) =>
+      candidate.id === input.selectId
+        ? { ...candidate, in_seconds: input.inSeconds, out_seconds: input.outSeconds, updated_at: new Date().toISOString() }
+        : candidate,
+    ),
+    activity: recordActivity(current, {
+      action: "refined_select",
+      actor_name: RECORD_ACTOR,
+      project_id: select.project_id,
+      asset_id: select.asset_id,
+      details: { range: `${input.inSeconds}→${input.outSeconds}` },
+    }),
+  }));
+  return { ok: true, id: select.id };
 }

@@ -20,11 +20,13 @@ import {
   setProposalStatus,
   setRevisionRequestStatus,
   setSequenceStatus,
+  updateSelectRange,
   useDemoWorkspace,
 } from "@/lib/demo/workspace-store";
 import { seedTranscriptSegments } from "@/lib/demo/record-seed";
 import { formatCents } from "@/lib/covideopro/payments.ts";
 import { proposeRadioCut } from "@/lib/covideopro/reasoning.ts";
+import { captionsFilename, segmentsToSrt, segmentsToVtt } from "@/lib/covideopro/captions.ts";
 import SequenceTimeline from "@/components/projects/SequenceTimeline";
 import {
   currentBrief,
@@ -645,6 +647,37 @@ export function SequencesSection({ projectId, demoMode, onNotice }: SectionProps
     );
   }
 
+  function downloadCaptions(assetTitle: string, format: "srt" | "vtt") {
+    const segments = transcriptAssets.flatMap(({ segments }) => segments);
+    if (segments.length === 0) {
+      onNotice("No transcript segments to export.");
+      return;
+    }
+    const content = format === "srt" ? segmentsToSrt(segments) : segmentsToVtt(segments);
+    const blob = new Blob([content], { type: "text/plain" });
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement("a");
+    anchor.href = url;
+    anchor.download = captionsFilename(assetTitle, format);
+    anchor.click();
+    URL.revokeObjectURL(url);
+    onNotice(`${format.toUpperCase()} captions exported from ${segments.length} segments.`);
+  }
+
+  function refineRange(selectId: string, field: "in" | "out", value: string, current: { in_seconds: number; out_seconds: number }) {
+    const parsed = Number(value);
+    if (!Number.isFinite(parsed)) {
+      onNotice("Range values must be numbers (seconds).");
+      return;
+    }
+    const result = updateSelectRange({
+      selectId,
+      inSeconds: field === "in" ? parsed : current.in_seconds,
+      outSeconds: field === "out" ? parsed : current.out_seconds,
+    });
+    onNotice(result.ok ? "Select range refined." : result.reason);
+  }
+
   return (
     <>
       <header>
@@ -691,7 +724,7 @@ export function SequencesSection({ projectId, demoMode, onNotice }: SectionProps
         {selects.map((select) => {
           const asset = workspace.assets.find((candidate) => candidate.id === select.asset_id);
           return (
-            <article key={select.id} style={{ gridTemplateColumns: "auto 34px minmax(0,1fr) auto" }}>
+            <article key={select.id} style={{ gridTemplateColumns: "auto 34px minmax(0,1fr) auto auto" }}>
               <input
                 type="checkbox"
                 checked={picked.has(select.id)}
@@ -703,6 +736,26 @@ export function SequencesSection({ projectId, demoMode, onNotice }: SectionProps
                 <strong>{select.label}</strong>
                 <small>{asset?.title ?? select.asset_id} · {formatSeconds(select.in_seconds)}→{formatSeconds(select.out_seconds)} · {select.source}</small>
               </div>
+              <span className="cockpit-record-actions" style={{ marginLeft: 0 }}>
+                <input
+                  key={`in-${select.id}-${select.in_seconds}`}
+                  className="input"
+                  style={{ width: 64, minHeight: 26, fontSize: 10 }}
+                  defaultValue={select.in_seconds}
+                  inputMode="decimal"
+                  aria-label="Select in-point (seconds)"
+                  onBlur={(event) => refineRange(select.id, "in", event.target.value, select)}
+                />
+                <input
+                  key={`out-${select.id}-${select.out_seconds}`}
+                  className="input"
+                  style={{ width: 64, minHeight: 26, fontSize: 10 }}
+                  defaultValue={select.out_seconds}
+                  inputMode="decimal"
+                  aria-label="Select out-point (seconds)"
+                  onBlur={(event) => refineRange(select.id, "out", event.target.value, select)}
+                />
+              </span>
             </article>
           );
         })}
@@ -715,6 +768,12 @@ export function SequencesSection({ projectId, demoMode, onNotice }: SectionProps
             Transcript
             <button type="button" onClick={proposeCut} style={{ marginLeft: 10, padding: "4px 10px", border: "1px solid var(--cockpit-border)", borderRadius: 5, background: "#fff", color: "var(--cockpit-accent)", fontSize: 9, fontWeight: 650 }}>
               Propose 90s radio cut
+            </button>
+            <button type="button" onClick={() => downloadCaptions("transcript", "srt")} style={{ marginLeft: 6, padding: "4px 10px", border: "1px solid var(--cockpit-border)", borderRadius: 5, background: "#fff", color: "var(--cockpit-accent)", fontSize: 9, fontWeight: 650 }}>
+              Export SRT
+            </button>
+            <button type="button" onClick={() => downloadCaptions("transcript", "vtt")} style={{ marginLeft: 6, padding: "4px 10px", border: "1px solid var(--cockpit-border)", borderRadius: 5, background: "#fff", color: "var(--cockpit-accent)", fontSize: 9, fontWeight: 650 }}>
+              Export VTT
             </button>
           </h3>
           {transcriptAssets.map(({ asset, segments }) => (

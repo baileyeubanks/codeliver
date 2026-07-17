@@ -27,9 +27,9 @@ registerHooks({
 
 import {
   buildConcatPlan,
-  renderConcatPlan,
   type ConcatPlanEntry,
-} from "../lib/covideopro/render.ts";
+} from "../lib/covideopro/render-plan.ts";
+import { renderConcatPlan } from "../lib/covideopro/render.ts";
 
 type DemoStore = typeof import("../lib/demo/workspace-store.ts");
 let demoStore: DemoStore | null = null;

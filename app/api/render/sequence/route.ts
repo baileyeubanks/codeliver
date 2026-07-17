@@ -2,7 +2,8 @@ import { mkdirSync } from "node:fs";
 import { join, resolve, sep } from "node:path";
 import { NextRequest, NextResponse } from "next/server";
 
-import { renderConcatPlan, type ConcatPlanEntry } from "@/lib/covideopro/render.ts";
+import { renderConcatPlan } from "@/lib/covideopro/render.ts";
+import type { ConcatPlanEntry } from "@/lib/covideopro/render-plan.ts";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";

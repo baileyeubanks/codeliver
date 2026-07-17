@@ -119,3 +119,10 @@ Baseline: `e068ee8` (checkpoint of the prior session's transformation state).
 - `FinishReviewBar` in the guest approval rail (Approve/Request changes/Notes only) — screenshot 28.
 - Decision Ledger in cockpit Reviews: decisions with decider, source, supersession, implementation status + transitions (screenshot 27).
 - Decision model + migration 20260716150000 (supersedes_id, implementation_status); 4 tests; suite 570/570; tsc clean.
+
+## U14 — T2: Adaptive Discovery (Webster blueprint §6.1)
+
+- `lib/covideopro/discovery.ts`: 8-question bank, each with a visible "why this matters"; deterministic normalization to a structured brief seed; missing/blank answers are visible gaps, never empty truth; next-question semantics (unknown closes, conflicted re-asks).
+- Store: start/answer/complete + `getDiscoveryForInquiry`; completed discovery seeds a brief v1 on inquiry conversion.
+- Opportunities: per-inquiry discovery panel (question card, why note, confidence selector, Unknown/Conflict paths, completion + missing summary). Seed: Wendy's mid-flow. Migration 20260716160000.
+- 4 tests; suite 574/574; screenshot 29.

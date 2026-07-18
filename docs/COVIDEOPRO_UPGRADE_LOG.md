@@ -189,3 +189,10 @@ Baseline: `e068ee8` (checkpoint of the prior session's transformation state).
 - The renders' royal **Upload** pill now lives in the command bar (demo workspaces). It opens a real flow — project picker + file input — because uploads belong to a project (the library's own doctrine). Files register via `putDemoMediaBlob` + `addDemoAssets`, then land in the chosen project's cockpit. Honesty line: local workspace, files stay on this machine.
 - **Share deliberately omitted** from the command bar: no global share flow exists (review links are per-asset). Dead-end law — it arrives with its studio.
 - e2e `s1b-upload.spec.ts`: dialog opens, file registers, routes to the project cockpit with the asset in the selector. Suite **610/610**; e2e **15/15**; tsc clean. Evidence `s1b-upload-dialog.png`.
+
+## U25 — S2: Production Pipeline strip on the overview (mission slice 5)
+
+- **`lib/covideopro/pipeline.ts`:** the master narrative's stage rhythm — Pre-Production → Production → Post-Production → Delivery & Assets. State comes from the project's own stage (the record's coarse truth: nine project stages collapse to four phases); progress from record detail — brief/proposal approvals, days scheduled, shot lists, releases signed (pre); wrapped days (production); reviewed assets + sequences (post); delivered/total (delivery). Every stage names owner, next action, and a cockpit doorway. Archived projects read complete everywhere.
+- **`PipelineStrip`** on the cockpit overview (demo mode): four cards with state chips, progress bars, and "Open Creative/Plan/Sequences/Delivery →" doorways wired to `selectSection`. On a media-less project (el-paso) the strip IS the narrative — the master-surface doctrine.
+- Right-rail substance (approval stair, activity, recent assets, project info) already lives in the operator dock; composition stays as-is per minimal intrusion.
+- Tests: 6 engine tests (suite **616/616**); e2e **17/17** incl. `s2-pipeline.spec.ts` (el-paso active 30% + doorway click-through, ica 100/100/post-active); tsc clean. Evidence `s2-pipeline-strip.png`.

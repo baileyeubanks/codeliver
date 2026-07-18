@@ -5499,6 +5499,22 @@ input[type="range"].cv-range:focus-visible {
 .cv-project-card__meta i { width: 7px; height: 7px; border-radius: 50%; background: var(--orange, #e4ad5b); }
 
 .cv-attention-list { display: grid; }
+/* S2 Production pipeline strip */
+.cv-pipeline { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; margin: 16px 0; }
+.cv-pipeline-card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 14px; display: grid; gap: 8px; align-content: start; }
+.cv-pipeline-card header { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.cv-pipeline-card strong { font-size: 0.85rem; }
+.cv-pipeline-state { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; color: var(--muted); }
+.cv-pipeline-card[data-state="complete"] .cv-pipeline-state { color: var(--signal-green); }
+.cv-pipeline-card[data-state="active"] .cv-pipeline-state { color: var(--accent); }
+.cv-pipeline-bar { height: 4px; border-radius: 999px; background: var(--border); overflow: hidden; }
+.cv-pipeline-bar i { display: block; height: 100%; background: var(--accent); border-radius: 999px; }
+.cv-pipeline-card[data-state="complete"] .cv-pipeline-bar i { background: var(--signal-green); }
+.cv-pipeline-card small { color: var(--muted); font-size: 11px; }
+.cv-pipeline-card > button { justify-self: start; display: inline-flex; align-items: center; gap: 5px; border: 0; background: transparent; color: var(--accent); font-size: 11.5px; font-weight: 620; cursor: pointer; padding: 0; min-height: 32px; }
+@media (max-width: 900px) { .cv-pipeline { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 560px) { .cv-pipeline { grid-template-columns: 1fr; } }
+
 /* N2 exception rail: severity signal + repair verb pill */
 .cv-attention-row { display: grid; grid-template-columns: 76px minmax(0, 1fr) auto auto; align-items: center; gap: 12px; padding: 11px 2px; border-bottom: 1px solid var(--border); text-decoration: none; }
 .cv-attention-row:hover { border-bottom-color: var(--accent); }

@@ -68,6 +68,8 @@ import {
 import CockpitToolbar from "@/components/cockpit/CockpitToolbar";
 import VersionCompareDock from "@/components/cockpit/VersionCompareDock";
 import { COCKPIT_NAVIGATION, type CockpitSection } from "@/components/cockpit/cockpit-navigation";
+import { projectPipeline } from "@/lib/covideopro/pipeline.ts";
+import PipelineStrip from "@/components/projects/PipelineStrip";
 import { useCockpitLayout } from "@/components/cockpit/useCockpitLayout";
 import type { MediaAsset } from "@/components/projects/MediaCard";
 import {
@@ -564,6 +566,19 @@ export default function ProjectCockpit({
   const approvedReviewerCount = approvalStages.reduce((sum, stage) => sum + stage.approved_reviewer_names.length, 0);
   const activeShareLinkCount = projectLinks.filter((link) => link.is_active).length;
   const systemsHref = demoMode ? "/settings?section=systems&demo=1" : "/settings?section=systems";
+  const pipelineStages = demoMode
+    ? projectPipeline({
+        stage: project.stage ?? "development",
+        briefs: workspace.briefs.filter((brief) => brief.project_id === project.id),
+        proposals: workspace.proposals.filter((proposal) => proposal.project_id === project.id),
+        productionDays: workspace.productionDays.filter((day) => day.project_id === project.id),
+        releases: workspace.releases.filter((release) => release.project_id === project.id),
+        shots: workspace.shots.filter((shot) => shot.project_id === project.id),
+        sequences: workspace.sequences.filter((sequence) => sequence.project_id === project.id),
+        deliverables: workspace.deliverables.filter((deliverable) => deliverable.project_id === project.id),
+        assets,
+      })
+    : [];
   const reviewReadinessItems = activeAsset ? [
     {
       id: "status",
@@ -1956,6 +1971,10 @@ export default function ProjectCockpit({
                     onSeek={seekTo}
                     onMarkerActivate={(marker) => seekTo(marker.timeSeconds)}
                   />
+                ) : null}
+
+                {pipelineStages.length > 0 ? (
+                  <PipelineStrip stages={pipelineStages} onOpen={(surface) => selectSection(surface)} />
                 ) : null}
 
                 {activeAsset ? (

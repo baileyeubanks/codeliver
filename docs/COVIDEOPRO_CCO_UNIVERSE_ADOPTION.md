@@ -59,3 +59,44 @@ Color = state only (law 2). Every number is a door (law 3). Nothing beautiful th
 - **CCO OS** = the Content Co-op universe as a whole (public site + admin shell + client surfaces).
 - **co-videopro** = the admin/operator shell (this repo's product; the MAIN_INSPIRATION surface direction). Client surfaces stay radically simpler. The public contentco-op.com branding is untouched (Cream Editorial — "it's great").
 - **CVP four-color identity: kept, MUTED.** The saturated four-color mark is replaced in-app by a muted colorway (`public/brand/cvp-mark-muted.png`, `cvp-stacked-muted.png` — ffmpeg hue=s=0.5: terracotta, slate blue, sage-teal, honey) so identity blends with the graphite/cream aesthetics. Originals preserved on disk; saturated mark may still fly at the door (public marketing) but not inside working surfaces.
+
+## 6. Cherry-pick registry walk — every row judged (2026-07-17)
+
+Verdicts: **SHIPPED** (in the build, verified) · **ABSORBED** (substance landed in different form) · **DEFERRED** (consciously parked, lane named) · **REJECTED** (will not adopt, reason given).
+
+| # | Element | Verdict | Evidence / reason |
+|---|---|---|---|
+| 1 | Public review room | SHIPPED | `components/review/PublicReviewWorkspace.tsx` |
+| 2 | Edit bay (SequenceTimeline + EDL) | SHIPPED | `components/projects/SequenceTimeline.tsx`, EDL export (U10) |
+| 3 | Writing desk (paper desk) | DEFERRED | Paper Desk adoption timing is an open user decision (§4) |
+| 4 | Guided script wizard | DEFERRED | Script-studio lane, with #3 |
+| 5 | Proposal Studio 3-column composer | ABSORBED | Live totals + honesty badge + lifecycle verbs live in the proposal surface + EstimateLineEditor; the 3-pane frame rejected as duplicate machinery |
+| 6 | Spreadsheet line-item editor | SHIPPED | `EstimateLineEditor` (U18) |
+| 7 | ROOT terminal shell | REJECTED | The shell is the new left-rail shell (U23); only the density/tabular doctrine absorbed |
+| 8 | Quote console 4-tab | ABSORBED | Estimate table + approval provenance on the proposal surface; activity = record activity |
+| 9 | Brief wizard 14-step choreography | REJECTED | Admin-shell intake = opportunities inbox + adaptive discovery (T2); the public funnel belongs to contentco-op.com |
+| 10 | 1,330-line estimate engine | ABSORBED | T3's deterministic Brief-to-Bid compiler covers the rate-card path; full engine parked |
+| 11 | Light quote/invoice PDF renderer | SHIPPED | `lib/covideopro/documents.ts` renderQuote/renderInvoice (U18) |
+| 12 | Dark cinematic quote cover | SHIPPED | renderQuoteCover (U18) — dark survives as nature |
+| 13 | Invoice one-pager (TOTAL DUE NOW) | SHIPPED | renderInvoice (U18) |
+| 14 | 9-page proposal document system | DEFERRED | Document suite v1 covers quote + invoice; long-form parked |
+| 15 | Cream/navy login | SHIPPED | Login surface under cream editorial law |
+| 16 | Multi-product login shell | REJECTED | One product, one door |
+| 17 | MegaShell player mock | ABSORBED | Review theater in the cockpit player (N1) |
+| 18 | Konva annotation engine | ABSORBED | Frame pins + timecoded comments shipped; freehand/shape drawing parked |
+| 19 | Co-Cut full NLE vocabulary | DEFERRED | SequenceTimeline covers assembly/trim/EDL; the 6-tool Premiere model parked for the day the bay grows up |
+| 20 | Screenplay page editor | DEFERRED | Script-studio lane |
+| 21 | Fountain live preview | DEFERRED | Script-studio lane |
+| 22 | Brand direction option 13 | SHIPPED | Its descendant: CVP + cream editorial (U15/U16) |
+| 23 | Brand bible (11 sections) | SHIPPED | Design bible adopted (U15 era), cream law update (U19) |
+| 24 | Token authority | SHIPPED | globals.css token layers + signal system |
+| 25 | Document preview grammar | SHIPPED | documents.ts renderers share one grammar |
+| 26 | Rate card truth (Jul 2026) | SHIPPED | T3 rate cards + Brief-to-Bid compiler (seed "CCo Standard 2026") |
+| 27 | Legal voice (CC SOW + terms) | DEFERRED | Agreement templates not ported; parked for the proposal-agreement page |
+| 28 | Thumbnail doctrine | SHIPPED | Media-first surfaces everywhere (E3) |
+| 29 | Studio control plane (IDE drawer) | SHIPPED | Operator dock + Lifecycle drawer |
+| 30 | Client review inbox | SHIPPED | /reviews review-links inbox + finish-review ritual (T1) |
+| 31 | Transcript workbench | SHIPPED | `components/transcript/TranscriptWorkbench.tsx` + waveform + radio-cut reasoning |
+| 32 | Script→tasks materialization | DEFERRED | Script-studio lane; tasks materialize from plan items today |
+
+Tally: 18 shipped · 7 absorbed · 6 deferred (5 of them the script-studio lane, waiting on the Paper Desk decision) · 3 rejected. No row unexamined.

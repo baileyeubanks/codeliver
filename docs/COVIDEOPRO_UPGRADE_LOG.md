@@ -215,3 +215,8 @@ Baseline: `e068ee8` (checkpoint of the prior session's transformation state).
 
 - **`tests/e2e/doorway-audit.spec.ts`:** every door opens a real surface, asserted by landmark, not just URL. All 10 workspace-rail links (Overview → Settings), all 11 cockpit sections + the Settings door out of the cockpit, all 4 pipeline doorways, and the Home repair verbs (milestone → conexon plan, QC → ica delivery). Zero "coming soon / not implemented / placeholder" text anywhere.
 - Suite **620/620**; e2e **22/22**; tsc clean. Evidence PNGs re-captured under the new shell.
+
+## U29 — Cherry-pick registry walk: all 32 rows judged (mission slice 9)
+
+- Adoption map §6: every registry row carries a verdict with evidence or a reason. Tally: **18 shipped · 7 absorbed · 6 deferred** (five of them the script-studio lane, waiting on the user's Paper Desk decision) **· 3 rejected** (ROOT shell, multi-product login, public brief funnel in the admin shell). No row unexamined.
+- Registry verdicts cross-checked against the build where uncertain (TranscriptWorkbench, PublicReviewWorkspace, rate cards, agreement templates).

@@ -210,3 +210,8 @@ Baseline: `e068ee8` (checkpoint of the prior session's transformation state).
 - **`tests/e2e/lifecycle.spec.ts`:** one inquiry becomes one project, and the whole thread runs on its record — inquiry captured → triaged → qualified → converted; brief drafted/submitted/approved; proposal compiled from the rate card, sent, client-approved; shoot day planned and worked to done; media uploaded; timecoded review comment; deliverable specced against the uploaded cut, QC-gated, shipped. The pipeline strip reads the journey back (delivery 100%).
 - **Gap closed by the walk:** the delivery spec form couldn't freeze a source version, so new deliverables could never enter QC. The form now freezes to a project asset version at spec time — the walk's upload becomes the deliverable's source.
 - Suite **620/620**; e2e **19/19**; tsc clean. Evidence `lifecycle-final-overview.png`.
+
+## U28 — The doorway audit (mission slice 8)
+
+- **`tests/e2e/doorway-audit.spec.ts`:** every door opens a real surface, asserted by landmark, not just URL. All 10 workspace-rail links (Overview → Settings), all 11 cockpit sections + the Settings door out of the cockpit, all 4 pipeline doorways, and the Home repair verbs (milestone → conexon plan, QC → ica delivery). Zero "coming soon / not implemented / placeholder" text anywhere.
+- Suite **620/620**; e2e **22/22**; tsc clean. Evidence PNGs re-captured under the new shell.

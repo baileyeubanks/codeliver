@@ -47,6 +47,7 @@ import {
   type Select,
   type Sequence,
   type SequenceClip,
+  type Shot,
 } from "@/lib/covideopro/record.ts";
 import {
   clipsFromSelects,
@@ -66,6 +67,7 @@ import {
   transitionRelease,
   transitionRevisionRequest,
   transitionSequence,
+  transitionShot,
   validateSequenceClip,
 } from "@/lib/covideopro/transitions.ts";
 import { buildMilestonesForApproval, mockCheckoutUrl } from "@/lib/covideopro/payments.ts";
@@ -106,6 +108,7 @@ import {
   seedSelects,
   seedSequenceClips,
   seedSequences,
+  seedShots,
 } from "./record-seed";
 
 export const DEMO_WORKSPACE_STORAGE_KEY = "co-videopro.workspace.v2";
@@ -286,6 +289,7 @@ export interface DemoWorkspaceState {
   locations: Location[];
   releases: Release[];
   callSheets: CallSheet[];
+  shots: Shot[];
   discoverySessions: DiscoverySession[];
   discoveryAnswers: DiscoveryAnswer[];
   rateCards: RateCard[];
@@ -637,6 +641,7 @@ export function createInitialDemoWorkspace(): DemoWorkspaceState {
     locations: seedLocations.map((record) => ({ ...record, cleared_to_film: [...record.cleared_to_film], restricted: [...record.restricted] })),
     releases: seedReleases.map((record) => ({ ...record, production_day_ids: [...record.production_day_ids] })),
     callSheets: seedCallSheets.map((record) => ({ ...record })),
+    shots: seedShots.map((record) => ({ ...record })),
     discoverySessions: seedDiscoverySessions.map((record) => ({ ...record })),
     discoveryAnswers: seedDiscoveryAnswers.map((record) => ({ ...record })),
     rateCards: seedRateCards.map((record) => ({ ...record })),
@@ -751,6 +756,7 @@ export function restoreDemoWorkspace(raw: string | null): DemoWorkspaceState {
       locations: mergeSeededRecords(parsed.locations, fallback.locations),
       releases: mergeSeededRecords(parsed.releases, fallback.releases),
       callSheets: mergeSeededRecords(parsed.callSheets, fallback.callSheets),
+      shots: mergeSeededRecords(parsed.shots, fallback.shots),
       discoverySessions: mergeSeededRecords(parsed.discoverySessions, fallback.discoverySessions),
       discoveryAnswers: mergeSeededRecords(parsed.discoveryAnswers, fallback.discoveryAnswers),
       rateCards: mergeSeededRecords(parsed.rateCards, fallback.rateCards),
@@ -2673,6 +2679,59 @@ export function setReleaseStatus(id: string, to: Release["status"]): RecordMutat
       candidate.id === id ? { ...candidate, status: to, signed_at: to === "signed" ? now : candidate.signed_at, updated_at: now } : candidate,
     ),
     activity: recordActivity(state, { action: `release_${to}`, actor_name: RECORD_ACTOR, project_id: release.project_id, details: { person: release.person_name } }),
+  }));
+  return { ok: true, id };
+}
+
+export function addShot(input: {
+  projectId: string;
+  productionDayId: string;
+  scene: string;
+  description: string;
+  size?: Shot["size"];
+  priority?: Shot["priority"];
+  notes?: string;
+}): RecordMutationResult {
+  if (!input.description.trim()) return { ok: false, reason: "Shot needs a description." };
+  const day = getSnapshot().productionDays.find((candidate) => candidate.id === input.productionDayId);
+  if (!day) return { ok: false, reason: "Production day not found." };
+  const id = createId("shot");
+  const now = new Date().toISOString();
+  updateState((state) => ({
+    ...state,
+    shots: [
+      ...state.shots,
+      {
+        id,
+        project_id: input.projectId,
+        production_day_id: input.productionDayId,
+        scene: input.scene.trim(),
+        description: input.description.trim(),
+        size: input.size ?? "other",
+        priority: input.priority ?? "nice",
+        status: "planned",
+        notes: input.notes?.trim() ?? "",
+        created_at: now,
+        updated_at: now,
+        created_by: "user-bailey",
+      },
+    ],
+    activity: recordActivity(state, { action: "added_shot", actor_name: RECORD_ACTOR, project_id: input.projectId, details: { date: day.date, description: input.description.trim() } }),
+  }));
+  return { ok: true, id };
+}
+
+export function setShotStatus(id: string, to: Shot["status"]): RecordMutationResult {
+  const shot = getSnapshot().shots.find((candidate) => candidate.id === id);
+  if (!shot) return { ok: false, reason: "Shot not found." };
+  const verdict = transitionShot(shot, to);
+  if (!verdict.ok) return verdict;
+  updateState((state) => ({
+    ...state,
+    shots: state.shots.map((candidate) =>
+      candidate.id === id ? { ...candidate, status: to, updated_at: new Date().toISOString() } : candidate,
+    ),
+    activity: recordActivity(state, { action: `shot_${to}`, actor_name: RECORD_ACTOR, project_id: shot.project_id, details: { description: shot.description } }),
   }));
   return { ok: true, id };
 }

@@ -1,11 +1,12 @@
 "use client";
 
 import { useMemo, useRef, useState } from "react";
-import { Check, FileText, Flag, Lightbulb, ListChecks, PackageCheck, Plus, Printer, X } from "lucide-react";
+import { Check, Clapperboard, FileText, Flag, Lightbulb, ListChecks, PackageCheck, Plus, Printer, X } from "lucide-react";
 import {
   addPlanItem,
   addRevisionRequest,
   addSelect,
+  addShot,
   compileBidToProposal,
   createMilestoneCheckout,
   createSequenceFromSelects,
@@ -26,6 +27,7 @@ import {
   setReleaseStatus,
   setRevisionRequestStatus,
   setSequenceStatus,
+  setShotStatus,
   updateSelectRange,
   useDemoWorkspace,
 } from "@/lib/demo/workspace-store";
@@ -34,6 +36,7 @@ import { formatCents } from "@/lib/covideopro/payments.ts";
 import { documentTotals, renderInvoice, renderQuoteCover } from "@/lib/covideopro/documents.ts";
 import { proposeRadioCut } from "@/lib/covideopro/reasoning.ts";
 import { captionsFilename, segmentsToSrt, segmentsToVtt } from "@/lib/covideopro/captions.ts";
+import { projectShotRollup } from "@/lib/covideopro/shots.ts";
 import SequenceTimeline from "@/components/projects/SequenceTimeline";
 import EstimateLineEditor from "@/components/projects/EstimateLineEditor";
 import {
@@ -1054,6 +1057,8 @@ const RELEASE_NEXT: Record<string, string | null> = {
 
 export function ProductionBlock({ projectId, demoMode, onNotice }: SectionProps) {
   const workspace = useDemoWorkspace();
+  const [shotFormDay, setShotFormDay] = useState<string | null>(null);
+  const [shotForm, setShotForm] = useState({ scene: "", description: "", size: "other", priority: "nice" });
   if (!demoMode) return null;
 
   const days = workspace.productionDays
@@ -1064,6 +1069,8 @@ export function ProductionBlock({ projectId, demoMode, onNotice }: SectionProps)
   const releases = workspace.releases.filter((release) => release.project_id === projectId);
   const sheets = workspace.callSheets.filter((sheet) => sheet.project_id === projectId);
   const unsigned = releases.filter((release) => release.status !== "signed");
+  const shots = workspace.shots.filter((shot) => shot.project_id === projectId);
+  const shotRollup = projectShotRollup(days, shots);
 
   if (days.length === 0 && crew.length === 0 && releases.length === 0) return null;
 
@@ -1111,6 +1118,90 @@ export function ProductionBlock({ projectId, demoMode, onNotice }: SectionProps)
         })}
         {days.length === 0 ? <p className="cockpit-rail-empty">No production days scheduled.</p> : null}
       </div>
+
+      {shotRollup.perDay.length > 0 ? (
+        <>
+          <h3 className="cockpit-record-group-title">
+            Shot list — {shotRollup.covered}/{shotRollup.total} covered · must {shotRollup.mustCovered}/{shotRollup.mustTotal}{shotRollup.unplannedDays > 0 ? ` · ⚠ ${shotRollup.unplannedDays} day${shotRollup.unplannedDays === 1 ? "" : "s"} unplanned` : ""}
+          </h3>
+          <div className="cockpit-table-list">
+            {shotRollup.perDay.map((entry) => {
+              const day = days.find((candidate) => candidate.id === entry.productionDayId);
+              if (!day) return null;
+              const dayShots = shots
+                .filter((shot) => shot.production_day_id === day.id && shot.status !== "dropped")
+                .sort((a, b) => (a.priority === b.priority ? a.scene.localeCompare(b.scene) : a.priority === "must" ? -1 : 1));
+              return (
+                <article key={day.id} style={{ gridTemplateColumns: "34px minmax(0,1fr) auto auto" }}>
+                  <span className="cockpit-list-icon"><Clapperboard size={18} /></span>
+                  <div>
+                    <strong>{day.date} — {entry.covered}/{entry.total} covered</strong>
+                    <small>must {entry.mustCovered}/{entry.mustTotal}{entry.total === 0 ? " · no shot list yet" : ""}</small>
+                  </div>
+                  <span className={entry.readiness === "listed" || entry.readiness === "ready" || entry.readiness === "wrapped" ? "status-active" : "status-pending"}>{entry.readiness}</span>
+                  <button type="button" onClick={() => {
+                    setShotFormDay(shotFormDay === day.id ? null : day.id);
+                    setShotForm({ scene: "", description: "", size: "other", priority: "nice" });
+                  }}>
+                    {shotFormDay === day.id ? "Close" : "+ Add shot"}
+                  </button>
+                  {dayShots.length > 0 ? (
+                    <div style={{ gridColumn: "1 / -1", display: "grid", gap: 4, marginTop: 4 }}>
+                      {dayShots.map((shot) => (
+                        <div key={shot.id} style={{ display: "flex", alignItems: "center", gap: 10, fontSize: 11 }}>
+                          <span className="status-pending">{shot.size}</span>
+                          <span style={{ flex: 1, minWidth: 0, textDecoration: shot.status === "covered" ? "line-through" : "none", opacity: shot.status === "covered" ? 0.6 : 1 }}>
+                            <strong>{shot.scene}</strong> — {shot.description}
+                          </span>
+                          <span className={shot.priority === "must" ? "status-pending" : "status-active"}>{shot.priority}</span>
+                          {shot.status === "planned" ? (
+                            <>
+                              <button type="button" onClick={() => {
+                                const result = setShotStatus(shot.id, "covered");
+                                onNotice(result.ok ? `Covered: ${shot.description}.` : result.reason);
+                              }}>Mark covered</button>
+                              <button type="button" onClick={() => {
+                                const result = setShotStatus(shot.id, "dropped");
+                                onNotice(result.ok ? `Dropped: ${shot.description}.` : result.reason);
+                              }}>Drop</button>
+                            </>
+                          ) : (
+                            <button type="button" onClick={() => {
+                              const result = setShotStatus(shot.id, "planned");
+                              onNotice(result.ok ? `Reopened: ${shot.description}.` : result.reason);
+                            }}>Reopen</button>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  ) : null}
+                  {shotFormDay === day.id ? (
+                    <div style={{ gridColumn: "1 / -1", display: "flex", gap: 6, marginTop: 6, flexWrap: "wrap" }}>
+                      <input aria-label="Shot scene" value={shotForm.scene} onChange={(event) => setShotForm({ ...shotForm, scene: event.target.value })} placeholder="Scene" style={{ width: 130 }} />
+                      <input aria-label="Shot description" value={shotForm.description} onChange={(event) => setShotForm({ ...shotForm, description: event.target.value })} placeholder="Shot description" style={{ flex: 1, minWidth: 200 }} />
+                      <select aria-label="Shot size" value={shotForm.size} onChange={(event) => setShotForm({ ...shotForm, size: event.target.value })}>
+                        {["wide", "medium", "close", "insert", "aerial", "other"].map((size) => <option key={size} value={size}>{size}</option>)}
+                      </select>
+                      <select aria-label="Shot priority" value={shotForm.priority} onChange={(event) => setShotForm({ ...shotForm, priority: event.target.value })}>
+                        <option value="must">must</option>
+                        <option value="nice">nice</option>
+                      </select>
+                      <button type="button" onClick={() => {
+                        const result = addShot({ projectId, productionDayId: day.id, scene: shotForm.scene, description: shotForm.description, size: shotForm.size as never, priority: shotForm.priority as never });
+                        onNotice(result.ok ? `Shot added to ${day.date}.` : result.reason);
+                        if (result.ok) {
+                          setShotFormDay(null);
+                          setShotForm({ scene: "", description: "", size: "other", priority: "nice" });
+                        }
+                      }}>Add shot</button>
+                    </div>
+                  ) : null}
+                </article>
+              );
+            })}
+          </div>
+        </>
+      ) : null}
 
       {releases.length > 0 ? (
         <>

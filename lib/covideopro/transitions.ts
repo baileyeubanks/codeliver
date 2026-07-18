@@ -40,6 +40,8 @@ import {
   type Sequence,
   type SequenceClip,
   type SequenceStatus,
+  type Shot,
+  type ShotStatus,
 } from "./record.ts";
 
 export type TransitionResult =
@@ -454,6 +456,19 @@ export function transitionRelease(
   const edge = assertEdge(RELEASE_EDGES, release.status, to);
   if (!edge.ok) return edge;
   return OK;
+}
+
+const SHOT_EDGES: Record<ShotStatus, readonly ShotStatus[]> = {
+  planned: ["covered", "dropped"],
+  covered: ["planned"],
+  dropped: ["planned"],
+};
+
+export function transitionShot(
+  shot: Pick<Shot, "status">,
+  to: ShotStatus,
+): TransitionResult {
+  return assertEdge(SHOT_EDGES, shot.status, to);
 }
 
 const LOCATION_AGREEMENT_EDGES: Record<LocationAgreementStatus, readonly LocationAgreementStatus[]> = {

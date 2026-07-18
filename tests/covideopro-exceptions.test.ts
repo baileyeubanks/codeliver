@@ -9,6 +9,7 @@ function base(overrides: Partial<Parameters<typeof deriveExceptions>[0]> = {}) {
   return {
     releases: [],
     productionDays: [],
+    shots: [],
     proposals: [],
     revisionRequests: [],
     deliverables: [],
@@ -26,6 +27,9 @@ test("unsigned release near shoot is critical and carries the repair verb", () =
     ],
     productionDays: [
       { id: "d1", project_id: "p", date: "2026-07-19", call: null, wrap: null, type: "principal", status: "scheduled", notes: "", created_at: "", updated_at: "", created_by: "u" },
+    ],
+    shots: [
+      { id: "s1", project_id: "p", production_day_id: "d1", scene: "Control room", description: "Wide establishing", size: "wide", priority: "must", status: "planned", notes: "", created_at: "", updated_at: "", created_by: "u" },
     ],
   }), "2026-07-17");
 
@@ -79,6 +83,28 @@ test("stale proposal, stale revision, stale QC, overdue milestone all fire with 
   assert.equal(exceptions.find((exception) => exception.kind === "plan_overdue")?.severity, "critical", "overdue milestone is critical");
 });
 
+test("shoot day without a shot list fires; listed, far, and cancelled days stay quiet", () => {
+  const exceptions = deriveExceptions(base({
+    productionDays: [
+      { id: "d1", project_id: "p", date: "2026-07-18", call: null, wrap: null, type: "principal", status: "scheduled", notes: "", created_at: "", updated_at: "", created_by: "u" },
+      { id: "d2", project_id: "p", date: "2026-07-19", call: null, wrap: null, type: "principal", status: "scheduled", notes: "", created_at: "", updated_at: "", created_by: "u" },
+      { id: "d3", project_id: "p", date: "2026-09-01", call: null, wrap: null, type: "principal", status: "scheduled", notes: "", created_at: "", updated_at: "", created_by: "u" },
+      { id: "d4", project_id: "p", date: "2026-07-18", call: null, wrap: null, type: "principal", status: "cancelled", notes: "", created_at: "", updated_at: "", created_by: "u" },
+    ],
+    shots: [
+      { id: "s1", project_id: "p", production_day_id: "d2", scene: "Control room", description: "Wide establishing", size: "wide", priority: "must", status: "planned", notes: "", created_at: "", updated_at: "", created_by: "u" },
+    ],
+  }), "2026-07-17");
+
+  assert.equal(exceptions.length, 1, "only the bare, near, scheduled day fires");
+  const exception = exceptions[0];
+  assert.equal(exception.kind, "shots_unplanned");
+  assert.equal(exception.severity, "critical", "one day out is critical");
+  assert.match(exception.title, /no shot list/);
+  assert.equal(exception.repair.label, "Build shot list");
+  assert.match(exception.repair.href, /surface=plan/);
+});
+
 test("critical exceptions outrank attention; nothing fires inside freshness windows", () => {
   const exceptions = deriveExceptions(base({
     proposals: [
@@ -89,6 +115,9 @@ test("critical exceptions outrank attention; nothing fires inside freshness wind
     ],
     productionDays: [
       { id: "d1", project_id: "p", date: "2026-07-18", call: null, wrap: null, type: "principal", status: "scheduled", notes: "", created_at: "", updated_at: "", created_by: "u" },
+    ],
+    shots: [
+      { id: "s1", project_id: "p", production_day_id: "d1", scene: "Control room", description: "Wide establishing", size: "wide", priority: "must", status: "planned", notes: "", created_at: "", updated_at: "", created_by: "u" },
     ],
   }), "2026-07-17");
 

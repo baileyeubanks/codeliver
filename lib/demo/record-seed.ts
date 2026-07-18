@@ -31,6 +31,7 @@ import type {
   Select,
   Sequence,
   SequenceClip,
+  Shot,
 } from "@/lib/covideopro/record.ts";
 
 const T0 = "2026-07-10T15:00:00.000Z";
@@ -316,6 +317,19 @@ export const seedReleases: Release[] = [
   { id: "rel-adam", project_id: "el-paso", person_name: "Adam Wickersham", type: "appearance", status: "sent", signed_at: null, file_url: null, language: "en", production_day_ids: ["pd-elpaso-d1"], created_at: T3, updated_at: T3, created_by: BAILEY },
   { id: "rel-gisela", project_id: "el-paso", person_name: "Gisela Rivas", type: "appearance", status: "signed", signed_at: "2026-07-14T18:22:00.000Z", file_url: null, language: "es", production_day_ids: ["pd-elpaso-d2"], created_at: T3, updated_at: T3, created_by: BAILEY },
   { id: "rel-ephram", project_id: "el-paso", person_name: "Ephram Sims", type: "appearance", status: "unsent", signed_at: null, file_url: null, language: "en", production_day_ids: ["pd-elpaso-d2", "pd-elpaso-d3"], created_at: T3, updated_at: T3, created_by: BAILEY },
+];
+
+/** The El Paso shot list — what each principal day owes the edit. */
+export const seedShots: Shot[] = [
+  { id: "shot-ep-d1-interview", project_id: "el-paso", production_day_id: "pd-elpaso-d1", scene: "Control room", description: "Adam interview — A-cam, slow push-in on the boards", size: "medium", priority: "must", status: "planned", notes: "Escorted; no control screens in frame.", created_at: T3, updated_at: T3, created_by: BAILEY },
+  { id: "shot-ep-d1-wide", project_id: "el-paso", production_day_id: "pd-elpaso-d1", scene: "Control room", description: "Wide establishing — operators at consoles", size: "wide", priority: "must", status: "planned", notes: "", created_at: T3, updated_at: T3, created_by: BAILEY },
+  { id: "shot-ep-d1-inserts", project_id: "el-paso", production_day_id: "pd-elpaso-d1", scene: "Switchgear", description: "Inserts — hands on breakers, cleared labels only", size: "insert", priority: "must", status: "planned", notes: "Credentials and IP addresses are restricted.", created_at: T3, updated_at: T3, created_by: BAILEY },
+  { id: "shot-ep-d1-exterior", project_id: "el-paso", production_day_id: "pd-elpaso-d1", scene: "Plant exterior", description: "Golden-hour wides of the process areas", size: "wide", priority: "nice", status: "planned", notes: "", created_at: T3, updated_at: T3, created_by: BAILEY },
+  { id: "shot-ep-d2-aerial", project_id: "el-paso", production_day_id: "pd-elpaso-d2", scene: "Weather mast", description: "Dawn aerial orbit of the mast", size: "aerial", priority: "must", status: "planned", notes: "Dawn window; heat rule starts 10:00.", created_at: T3, updated_at: T3, created_by: BAILEY },
+  { id: "shot-ep-d2-gisela", project_id: "el-paso", production_day_id: "pd-elpaso-d2", scene: "Brook Hollow", description: "Gisela interview — porch light", size: "medium", priority: "must", status: "planned", notes: "Spanish primary; release signed.", created_at: T3, updated_at: T3, created_by: BAILEY },
+  { id: "shot-ep-d2-rockwell", project_id: "el-paso", production_day_id: "pd-elpaso-d2", scene: "Brook Hollow", description: "Rockwell cabinet — the one approved frame", size: "close", priority: "must", status: "planned", notes: "One frame, cleared by the community liaison.", created_at: T3, updated_at: T3, created_by: BAILEY },
+  { id: "shot-ep-d3-kitchen", project_id: "el-paso", production_day_id: "pd-elpaso-d3", scene: "Kitchen", description: "Glass at dawn — condensation macro", size: "insert", priority: "nice", status: "planned", notes: "", created_at: T3, updated_at: T3, created_by: BAILEY },
+  { id: "shot-ep-d3-tech2o", project_id: "el-paso", production_day_id: "pd-elpaso-d3", scene: "TecH2O", description: "Exterior approach, wide", size: "wide", priority: "nice", status: "planned", notes: "", created_at: T3, updated_at: T3, created_by: BAILEY },
 ];
 
 export const seedCallSheets: CallSheet[] = [];

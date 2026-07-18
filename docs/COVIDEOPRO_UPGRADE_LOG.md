@@ -160,3 +160,11 @@ Baseline: `e068ee8` (checkpoint of the prior session's transformation state).
 - Seed truth pass: Conexon proposal sent 2026-07-08, ICA social deliverable in QC since 2026-07-13, Conexon brief milestone dated 2026-07-15 — three live exceptions at any "today" from 2026-07-17 on. El Paso release chase fires naturally Aug 4–20.
 - Tests: 4 engine + 4 recents node tests (suite **600/600**); e2e 9/9 incl. new `n2-evidence.spec.ts` (rail ranking/verbs, drawer order, 375px hold); tsc clean. Evidence: `docs/design-evidence/e2e/n2-*.png`.
 - Observed, parked for a polish loop: cockpit top-left chrome cluster (Upload/bell/avatar) overlaps the rail header at desktop widths — pre-existing, out of N2 scope.
+
+## U21 — T5: shot list + readiness roll-up (mission-goal slice 1)
+
+- **Shot entity** (record.ts): scene, description, size (wide/medium/close/insert/aerial/other), priority (must/nice), status (planned/covered/dropped), owned by a production day. Edges in transitions.ts; migration `20260717120000_shots.sql` (GRANTs + FORCE RLS from the start).
+- **`lib/covideopro/shots.ts` readiness engine:** deterministic, keyed to the day's lifecycle — scheduled day: unplanned/listed; in-progress/wrapped: behind → ready (all must covered) → wrapped (all covered). Dropped never counts; cancelled/scout/contingency days never roll up.
+- **Exception kind `shots_unplanned`:** a principal day inside 14 days with no shot list fires (critical ≤2 days, repair verb "Build shot list"); reuses the readiness engine.
+- **ProductionBlock shot board:** per-day coverage header (covered + must counts), readiness chip, shot rows with size/priority chips and Mark covered / Drop / Reopen verbs, inline + Add shot form (scene/description/size/priority). Seed: 9 shots across El Paso's three principal days (musts carry clearance notes — "no control screens", "one approved frame").
+- Tests: 5 roll-up + 1 exception tests (suite **606/606**); e2e 11/11 incl. `t5-shots.spec.ts` (roll-up moves on cover, inline add grows the list); tsc clean. Evidence `docs/design-evidence/e2e/t5-shot-list.png`.

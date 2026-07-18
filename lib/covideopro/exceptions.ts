@@ -14,10 +14,13 @@ import type {
   Proposal,
   Release,
   RevisionRequest,
+  Shot,
 } from "./record.ts";
+import { shotReadinessForDay } from "./shots.ts";
 
 export type ExceptionKind =
   | "release_unsigned"
+  | "shots_unplanned"
   | "proposal_stale"
   | "revision_stale"
   | "qc_stale"
@@ -38,6 +41,7 @@ export interface RecordException {
 interface ExceptionInput {
   releases: Release[];
   productionDays: ProductionDay[];
+  shots: Shot[];
   proposals: Proposal[];
   revisionRequests: RevisionRequest[];
   deliverables: Deliverable[];
@@ -81,6 +85,27 @@ export function deriveExceptions(input: ExceptionInput, fromDate: string): Recor
         rankScore: (severity === "critical" ? 100 : 60) - until,
       });
     }
+  }
+
+  // Shoot days approaching with no shot list — no list, no plan.
+  for (const day of input.productionDays) {
+    if (day.status === "cancelled") continue;
+    if (day.type !== "principal") continue;
+    const until = daysBetween(fromDate, day.date);
+    if (until < 0 || until > 14) continue;
+    if (shotReadinessForDay(day, input.shots).readiness !== "unplanned") continue;
+    const severity = until <= 2 ? "critical" : "attention";
+    exceptions.push({
+      id: `shots-${day.id}`,
+      kind: "shots_unplanned",
+      severity,
+      title: `${day.type === "principal" ? "Shoot" : day.type} ${day.date} has no shot list — ${until === 0 ? "today" : until === 1 ? "tomorrow" : `in ${until} days`}`,
+      detail: day.notes || "The day owes the edit nothing on paper yet.",
+      owner: input.ownerName,
+      repair: { label: "Build shot list", href: `/projects/${day.project_id}?surface=plan` },
+      clearCondition: "Day has a planned shot list (or is cancelled).",
+      rankScore: (severity === "critical" ? 90 : 55) - until,
+    });
   }
 
   // Proposals sent and unanswered past the patience window.

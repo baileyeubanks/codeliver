@@ -12,6 +12,7 @@ import { withWorkspaceQuery } from "@/components/navigation/navigation-model";
 
 const EXCEPTION_KIND_LABEL: Record<RecordException["kind"], string> = {
   release_unsigned: "Release",
+  shots_unplanned: "Shot list",
   proposal_stale: "Proposal",
   revision_stale: "Revision",
   qc_stale: "Delivery",
@@ -36,6 +37,7 @@ export default function HomePage() {
       {
         releases: workspace.releases,
         productionDays: workspace.productionDays,
+        shots: workspace.shots,
         proposals: workspace.proposals,
         revisionRequests: workspace.revisionRequests,
         deliverables: workspace.deliverables,

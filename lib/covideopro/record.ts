@@ -540,6 +540,26 @@ export interface Release extends ProjectScoped {
   production_day_ids: string[];
 }
 
+export const SHOT_SIZES = ["wide", "medium", "close", "insert", "aerial", "other"] as const;
+export type ShotSize = (typeof SHOT_SIZES)[number];
+
+export const SHOT_PRIORITIES = ["must", "nice"] as const;
+export type ShotPriority = (typeof SHOT_PRIORITIES)[number];
+
+export const SHOT_STATUSES = ["planned", "covered", "dropped"] as const;
+export type ShotStatus = (typeof SHOT_STATUSES)[number];
+
+/** One line of the shot list — what a production day owes the edit. */
+export interface Shot extends ProjectScoped {
+  production_day_id: string;
+  scene: string;
+  description: string;
+  size: ShotSize;
+  priority: ShotPriority;
+  status: ShotStatus;
+  notes: string;
+}
+
 export interface CallSheet extends ProjectScoped {
   production_day_id: string;
   version: number;

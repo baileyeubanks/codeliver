@@ -196,3 +196,11 @@ Baseline: `e068ee8` (checkpoint of the prior session's transformation state).
 - **`PipelineStrip`** on the cockpit overview (demo mode): four cards with state chips, progress bars, and "Open Creative/Plan/Sequences/Delivery →" doorways wired to `selectSection`. On a media-less project (el-paso) the strip IS the narrative — the master-surface doctrine.
 - Right-rail substance (approval stair, activity, recent assets, project info) already lives in the operator dock; composition stays as-is per minimal intrusion.
 - Tests: 6 engine tests (suite **616/616**); e2e **17/17** incl. `s2-pipeline.spec.ts` (el-paso active 30% + doorway click-through, ica 100/100/post-active); tsc clean. Evidence `s2-pipeline-strip.png`.
+
+## U26 — T12: Delivery Center — QC gates + manifest (mission slice 6)
+
+- **`lib/covideopro/qc.ts`:** the QC checklist derives from the frozen spec — caption and watermark gates exist only when specced; every gate required. `qc_checks` on the deliverable records what was verified (migration `20260717130000_deliverable_qc.sql`).
+- **The gate bites:** `setDeliverableStatus(qc → ready)` refuses until the checklist is complete; `toggleQcCheck` only moves inside QC, unknown gates refused, locked after QC closes. Seeds: master grandfathered 7/7 (matches its QC notes), social at 2/7.
+- **QC UI** in the Delivery section: per-deliverable gate checklist with progress in the row (QC x/7), Move-to-ready disabled with the honest count until clear.
+- **`lib/covideopro/manifest.ts`:** the delivery manifest — generated from the record, printable/copyable, per-deliverable spec + conveyor state + QC proof + delivered timestamp.
+- Tests: 3 engine + 1 store-guard test (suite **620/620**); e2e **18/18** incl. `t12-delivery.spec.ts` (gates block → pass all → ready → manifest CLEAR); tsc clean. Evidence `t12-delivery-qc.png`.

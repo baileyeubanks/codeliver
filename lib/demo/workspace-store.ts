@@ -71,6 +71,7 @@ import {
   validateSequenceClip,
 } from "@/lib/covideopro/transitions.ts";
 import { buildMilestonesForApproval, mockCheckoutUrl } from "@/lib/covideopro/payments.ts";
+import { qcChecklistFor, qcProgress } from "@/lib/covideopro/qc.ts";
 import { activeRateCard, compileBid } from "@/lib/covideopro/bid.ts";
 import {
   DISCOVERY_QUESTIONS,
@@ -2181,6 +2182,7 @@ export function saveDeliverable(input: {
         spec: input.spec,
         source_version_id: input.sourceVersionId ?? null,
         status: "specced" as const,
+        qc_checks: [],
         qc_notes: "",
         delivered_at: null,
         created_at: now,
@@ -2198,6 +2200,10 @@ export function setDeliverableStatus(id: string, to: Deliverable["status"]): Rec
   if (!deliverable) return { ok: false, reason: "Deliverable not found." };
   const verdict = transitionDeliverable(deliverable, to);
   if (!verdict.ok) return verdict;
+  if (to === "ready") {
+    const qc = qcProgress(deliverable);
+    if (!qc.complete) return { ok: false, reason: `QC checklist unfinished — ${qc.passed}/${qc.total} gates passed.` };
+  }
 
   const now = new Date().toISOString();
   updateState((state) => ({
@@ -2208,6 +2214,27 @@ export function setDeliverableStatus(id: string, to: Deliverable["status"]): Rec
         : candidate,
     ),
     activity: recordActivity(state, { action: `deliverable_${to}`, actor_name: RECORD_ACTOR, project_id: deliverable.project_id, details: { name: deliverable.name } }),
+  }));
+  return { ok: true, id };
+}
+
+export function toggleQcCheck(id: string, checkId: string): RecordMutationResult {
+  const deliverable = getSnapshot().deliverables.find((candidate) => candidate.id === id);
+  if (!deliverable) return { ok: false, reason: "Deliverable not found." };
+  if (deliverable.status !== "qc") return { ok: false, reason: "QC checks only move while the deliverable is in QC." };
+  if (!qcChecklistFor(deliverable).some((check) => check.id === checkId)) {
+    return { ok: false, reason: "Unknown QC gate for this spec." };
+  }
+  const passed = deliverable.qc_checks.includes(checkId);
+  const nextChecks = passed
+    ? deliverable.qc_checks.filter((candidate) => candidate !== checkId)
+    : [...deliverable.qc_checks, checkId];
+  updateState((state) => ({
+    ...state,
+    deliverables: state.deliverables.map((candidate) =>
+      candidate.id === id ? { ...candidate, qc_checks: nextChecks, updated_at: new Date().toISOString() } : candidate,
+    ),
+    activity: recordActivity(state, { action: passed ? "qc_gate_reopened" : "qc_gate_passed", actor_name: RECORD_ACTOR, project_id: deliverable.project_id, details: { name: deliverable.name, gate: checkId } }),
   }));
   return { ok: true, id };
 }

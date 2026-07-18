@@ -377,6 +377,8 @@ export interface Deliverable extends ProjectScoped {
   /** Frozen from the moment QC starts — never re-pointed in place. */
   source_version_id: string | null;
   status: DeliverableStatus;
+  /** Passed QC check ids (see lib/covideopro/qc.ts). QC is a gate, not a suggestion. */
+  qc_checks: string[];
   qc_notes: string;
   delivered_at: ISODateTime | null;
 }

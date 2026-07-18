@@ -29,6 +29,7 @@ import {
   setRevisionRequestStatus,
   setSequenceStatus,
   setShotStatus,
+  toggleQcCheck,
   updateSelectRange,
   useDemoWorkspace,
 } from "@/lib/demo/workspace-store";
@@ -38,6 +39,8 @@ import { documentTotals, renderInvoice, renderQuoteCover } from "@/lib/covideopr
 import { proposeRadioCut } from "@/lib/covideopro/reasoning.ts";
 import { captionsFilename, segmentsToSrt, segmentsToVtt } from "@/lib/covideopro/captions.ts";
 import { projectShotRollup } from "@/lib/covideopro/shots.ts";
+import { qcChecklistFor, qcProgress } from "@/lib/covideopro/qc.ts";
+import { buildDeliveryManifest } from "@/lib/covideopro/manifest.ts";
 import SequenceTimeline from "@/components/projects/SequenceTimeline";
 import EstimateLineEditor from "@/components/projects/EstimateLineEditor";
 import {
@@ -500,8 +503,18 @@ export function DeliverySection({ projectId, demoMode, onNotice }: SectionProps)
     [workspace.deliverables, projectId],
   );
   const [form, setForm] = useState({ name: "", resolution: "1920x1080", codec: "H.264 12Mbps", aspect: "16:9" });
+  const [manifest, setManifest] = useState<string | null>(null);
 
   if (!demoMode) return <SectionEmpty title="Delivery" body="Deliverables are available in the local workspace." />;
+
+  function generateManifest() {
+    const project = workspace.projects.find((candidate) => candidate.id === projectId);
+    setManifest(buildDeliveryManifest({
+      projectName: project?.name ?? projectId,
+      deliverables,
+      generatedAt: new Date().toISOString(),
+    }));
+  }
 
   function addDeliverable() {
     const result = saveDeliverable({
@@ -526,7 +539,22 @@ export function DeliverySection({ projectId, demoMode, onNotice }: SectionProps)
           <h2>Delivery & QC</h2>
           <p>Deliverables with frozen specs, QC gates, and delivery state — the end of the record.</p>
         </div>
+        <button type="button" onClick={generateManifest} disabled={deliverables.length === 0}>
+          <FileText size={15} /> {manifest ? "Refresh manifest" : "Generate manifest"}
+        </button>
       </header>
+
+      {manifest ? (
+        <details open style={{ marginBottom: 14 }}>
+          <summary style={{ cursor: "pointer", fontSize: 10, color: "var(--cockpit-accent)" }}>
+            Delivery manifest · generated from the record
+          </summary>
+          <pre style={{ margin: "8px 0 0", padding: 12, background: "#0b0f14", color: "#dbe6f4", borderRadius: 8, fontSize: 10.5, lineHeight: 1.55, overflowX: "auto", whiteSpace: "pre-wrap" }}>{manifest}</pre>
+          <button type="button" style={{ marginTop: 6 }} onClick={() => { void navigator.clipboard?.writeText(manifest); onNotice("Manifest copied."); }}>
+            Copy manifest
+          </button>
+        </details>
+      ) : null}
 
       <form className="cockpit-record-form" aria-label="Spec deliverable" onSubmit={(event) => { event.preventDefault(); addDeliverable(); }}>
         <div className="cockpit-record-form-grid">
@@ -548,6 +576,7 @@ export function DeliverySection({ projectId, demoMode, onNotice }: SectionProps)
       <div className="cockpit-table-list">
         {deliverables.map((deliverable) => {
           const next = NEXT[deliverable.status];
+          const qc = qcProgress(deliverable);
           return (
             <article key={deliverable.id}>
               <span className="cockpit-list-icon"><PackageCheck size={18} /></span>
@@ -556,11 +585,24 @@ export function DeliverySection({ projectId, demoMode, onNotice }: SectionProps)
                 <small>
                   {deliverable.spec.resolution} · {deliverable.spec.codec} · {deliverable.spec.aspect}
                   {deliverable.spec.captions ? " · captioned" : ""}
+                  {deliverable.status === "qc" || deliverable.status === "ready" || deliverable.status === "delivered" ? ` · QC ${qc.passed}/${qc.total}` : ""}
                   {deliverable.qc_notes ? ` · ${deliverable.qc_notes}` : ""}
                 </small>
               </div>
               <span className={deliverable.status === "delivered" ? "status-active" : "status-pending"}>{deliverable.status}</span>
-              {next ? (
+              {next === "ready" ? (
+                <button
+                  type="button"
+                  disabled={!qc.complete}
+                  title={qc.complete ? "QC clear — ship it" : `QC gate: ${qc.passed}/${qc.total} checks passed`}
+                  onClick={() => {
+                    const result = setDeliverableStatus(deliverable.id, "ready");
+                    onNotice(result.ok ? `${deliverable.name} → ready.` : result.reason);
+                  }}
+                >
+                  Move to ready
+                </button>
+              ) : next ? (
                 <button type="button" onClick={() => {
                   const result = setDeliverableStatus(deliverable.id, next as never);
                   onNotice(result.ok ? `${deliverable.name} → ${next}.` : result.reason);
@@ -568,6 +610,23 @@ export function DeliverySection({ projectId, demoMode, onNotice }: SectionProps)
                   Move to {next}
                 </button>
               ) : <Check size={17} />}
+              {deliverable.status === "qc" ? (
+                <div style={{ gridColumn: "1 / -1", marginTop: 4 }} aria-label={`QC gates for ${deliverable.name}`}>
+                  {qcChecklistFor(deliverable).map((check) => (
+                    <label key={check.id} style={{ display: "flex", gap: 8, alignItems: "center", fontSize: 11, padding: "4px 0", cursor: "pointer" }}>
+                      <input
+                        type="checkbox"
+                        checked={deliverable.qc_checks.includes(check.id)}
+                        onChange={() => {
+                          const result = toggleQcCheck(deliverable.id, check.id);
+                          if (!result.ok) onNotice(result.reason);
+                        }}
+                      />
+                      <span>{check.label}</span>
+                    </label>
+                  ))}
+                </div>
+              ) : null}
             </article>
           );
         })}

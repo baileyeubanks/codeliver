@@ -235,3 +235,37 @@ test("sequence assembly + deliverable QC guard", async () => {
   assert.equal(setDeliverableStatus(deliverable.id, "encoding").ok, true);
   assert.equal(setDeliverableStatus(deliverable.id, "qc").ok, false, "frozen source version required");
 });
+
+test("delivery QC gate: ready requires every checklist gate passed (T12)", async () => {
+  const {
+    saveDeliverable,
+    setDeliverableStatus,
+    toggleQcCheck,
+    getDemoWorkspaceSnapshot,
+  } = await store();
+
+  const deliverable = saveDeliverable({
+    projectId: "ica",
+    name: "ICA_ROADSHOW_TEASER_16x9.mp4",
+    spec: { resolution: "1920x1080", codec: "H.264", aspect: "16:9", captions: true, audio: "stereo", watermark: false },
+    sourceVersionId: "ver-ica-final-v5",
+  });
+  assert.equal(deliverable.ok, true);
+  assert.equal(setDeliverableStatus(deliverable.id, "encoding").ok, true);
+  assert.equal(setDeliverableStatus(deliverable.id, "qc").ok, true);
+  assert.equal(setDeliverableStatus(deliverable.id, "ready").ok, false, "QC checklist gates the ready state");
+
+  // Unknown gates and checks outside QC are refused.
+  assert.equal(toggleQcCheck(deliverable.id, "bogus").ok, false);
+
+  for (const gate of ["spec-lock", "resolution", "codec", "aspect", "captions", "audio", "playthrough"]) {
+    assert.equal(toggleQcCheck(deliverable.id, gate).ok, true, gate);
+  }
+  const record = getDemoWorkspaceSnapshot().deliverables.find((candidate) => candidate.id === deliverable.id);
+  assert.equal(record?.qc_checks.length, 7);
+
+  assert.equal(setDeliverableStatus(deliverable.id, "ready").ok, true, "all gates passed — clear to ship");
+
+  // Checks are locked once the deliverable leaves QC.
+  assert.equal(toggleQcCheck(deliverable.id, "audio").ok, false, "no edits after QC closes");
+});

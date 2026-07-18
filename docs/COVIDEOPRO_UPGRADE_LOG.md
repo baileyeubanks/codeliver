@@ -204,3 +204,9 @@ Baseline: `e068ee8` (checkpoint of the prior session's transformation state).
 - **QC UI** in the Delivery section: per-deliverable gate checklist with progress in the row (QC x/7), Move-to-ready disabled with the honest count until clear.
 - **`lib/covideopro/manifest.ts`:** the delivery manifest — generated from the record, printable/copyable, per-deliverable spec + conveyor state + QC proof + delivered timestamp.
 - Tests: 3 engine + 1 store-guard test (suite **620/620**); e2e **18/18** incl. `t12-delivery.spec.ts` (gates block → pass all → ready → manifest CLEAR); tsc clean. Evidence `t12-delivery-qc.png`.
+
+## U27 — THE LIFECYCLE: end-to-end acceptance walk (mission slice 7)
+
+- **`tests/e2e/lifecycle.spec.ts`:** one inquiry becomes one project, and the whole thread runs on its record — inquiry captured → triaged → qualified → converted; brief drafted/submitted/approved; proposal compiled from the rate card, sent, client-approved; shoot day planned and worked to done; media uploaded; timecoded review comment; deliverable specced against the uploaded cut, QC-gated, shipped. The pipeline strip reads the journey back (delivery 100%).
+- **Gap closed by the walk:** the delivery spec form couldn't freeze a source version, so new deliverables could never enter QC. The form now freezes to a project asset version at spec time — the walk's upload becomes the deliverable's source.
+- Suite **620/620**; e2e **19/19**; tsc clean. Evidence `lifecycle-final-overview.png`.

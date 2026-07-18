@@ -502,10 +502,12 @@ export function DeliverySection({ projectId, demoMode, onNotice }: SectionProps)
     () => workspace.deliverables.filter((deliverable) => deliverable.project_id === projectId),
     [workspace.deliverables, projectId],
   );
-  const [form, setForm] = useState({ name: "", resolution: "1920x1080", codec: "H.264 12Mbps", aspect: "16:9" });
+  const [form, setForm] = useState({ name: "", resolution: "1920x1080", codec: "H.264 12Mbps", aspect: "16:9", sourceVersionId: "" });
   const [manifest, setManifest] = useState<string | null>(null);
 
   if (!demoMode) return <SectionEmpty title="Delivery" body="Deliverables are available in the local workspace." />;
+
+  const projectAssets = workspace.assets.filter((asset) => asset.project_id === projectId);
 
   function generateManifest() {
     const project = workspace.projects.find((candidate) => candidate.id === projectId);
@@ -521,12 +523,13 @@ export function DeliverySection({ projectId, demoMode, onNotice }: SectionProps)
       projectId,
       name: form.name,
       spec: { resolution: form.resolution, codec: form.codec, aspect: form.aspect, captions: true, audio: "stereo 48kHz", watermark: false },
+      sourceVersionId: form.sourceVersionId || null,
     });
     if (!result.ok) {
       onNotice(result.reason);
       return;
     }
-    setForm({ name: "", resolution: "1920x1080", codec: "H.264 12Mbps", aspect: "16:9" });
+    setForm({ name: "", resolution: "1920x1080", codec: "H.264 12Mbps", aspect: "16:9", sourceVersionId: "" });
     onNotice("Deliverable specced.");
   }
 
@@ -566,6 +569,12 @@ export function DeliverySection({ projectId, demoMode, onNotice }: SectionProps)
             <option value="9:16">9:16</option>
             <option value="1:1">1:1</option>
             <option value="4:5">4:5</option>
+          </select>
+          <select className="input" value={form.sourceVersionId} onChange={(event) => setForm((current) => ({ ...current, sourceVersionId: event.target.value }))} aria-label="Source version">
+            <option value="">No source version</option>
+            {projectAssets.map((asset) => (
+              <option key={asset.id} value={asset.id}>{asset.title} · v{asset.version_count ?? 1}</option>
+            ))}
           </select>
         </div>
         <div className="cockpit-record-form-actions">

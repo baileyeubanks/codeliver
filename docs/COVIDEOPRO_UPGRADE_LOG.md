@@ -183,3 +183,9 @@ Baseline: `e068ee8` (checkpoint of the prior session's transformation state).
 - One navigation source: `WORKSPACE_NAVIGATION` restructured in place (drawer inherits the new groups); rail component `WorkspaceRail.tsx` at ≥901px; mobile bottom bar + drawer untouched. Header grid re-colummned (brand | search | actions).
 - Reconciled: navigation-model viewer pin now includes `field`; `primaryNavigation` retired from WorkspaceNavigation.
 - Suite **610/610**; e2e **14/14** incl. `s1-rail.spec.ts` (groups, active states, recents order, rail navigation, mobile preservation); tsc clean. Evidence `s1-rail-desktop.png` / `s1-rail-mobile.png`.
+
+## U24 — S1b: top command bar Upload (mission slice 4)
+
+- The renders' royal **Upload** pill now lives in the command bar (demo workspaces). It opens a real flow — project picker + file input — because uploads belong to a project (the library's own doctrine). Files register via `putDemoMediaBlob` + `addDemoAssets`, then land in the chosen project's cockpit. Honesty line: local workspace, files stay on this machine.
+- **Share deliberately omitted** from the command bar: no global share flow exists (review links are per-asset). Dead-end law — it arrives with its studio.
+- e2e `s1b-upload.spec.ts`: dialog opens, file registers, routes to the project cockpit with the asset in the selector. Suite **610/610**; e2e **15/15**; tsc clean. Evidence `s1b-upload-dialog.png`.

@@ -14,6 +14,7 @@ import {
   Plus,
   Search,
   Settings,
+  Upload,
   User,
   WifiOff,
 } from "lucide-react";
@@ -21,6 +22,7 @@ import CommandPalette, { type CommandPaletteItem } from "./navigation/CommandPal
 import CoProductionBrand from "./brand/CoProductionBrand";
 import WorkspaceNavigation from "./navigation/WorkspaceNavigation";
 import WorkspaceRail from "./navigation/WorkspaceRail";
+import GlobalUploadDialog from "./navigation/GlobalUploadDialog";
 import { NAVIGATION_ICONS } from "./navigation/navigation-icons";
 import {
   roleCan,
@@ -58,6 +60,7 @@ export default function Shell({ children }: { children: React.ReactNode }) {
   const demoWorkspace = useDemoWorkspace();
   const online = useOnlineStatus();
   const [commandOpen, setCommandOpen] = useState(false);
+  const [uploadOpen, setUploadOpen] = useState(false);
   const [accountOpen, setAccountOpen] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [navigationOpen, setNavigationOpen] = useState(false);
@@ -250,6 +253,20 @@ export default function Shell({ children }: { children: React.ReactNode }) {
         </button>
 
         <div className="workspace-actions">
+          {demoSuffix ? (
+            <button
+              className="btn btn-primary workspace-upload-button"
+              type="button"
+              onClick={() => {
+                setAccountOpen(false);
+                setNotificationsOpen(false);
+                setUploadOpen(true);
+              }}
+              aria-label="Upload media to a project"
+            >
+              <Upload size={15} /> <span className="workspace-upload-label">Upload</span>
+            </button>
+          ) : null}
           <a
             className="workspace-icon-button workspace-help"
             href="mailto:hello@contentco-op.com?subject=Co-Production%20Pro%20feedback"
@@ -370,6 +387,10 @@ export default function Shell({ children }: { children: React.ReactNode }) {
           <div className={styles.content}>{children}</div>
         </main>
       </div>
+
+      {uploadOpen && demoSuffix ? (
+        <GlobalUploadDialog querySuffix={demoSuffix} onClose={() => setUploadOpen(false)} />
+      ) : null}
 
       {commandOpen ? (
         <CommandPalette

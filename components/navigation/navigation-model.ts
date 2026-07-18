@@ -17,6 +17,7 @@ export type WorkspaceCapability =
 export type NavigationIconName =
   | "activity"
   | "archive"
+  | "field"
   | "folder"
   | "home"
   | "library"
@@ -100,12 +101,12 @@ const ROLE_CAPABILITIES: Record<WorkspaceRole, ReadonlySet<WorkspaceCapability>>
 
 export const WORKSPACE_NAVIGATION: WorkspaceNavigationSection[] = [
   {
-    id: "operate",
-    label: "Operate",
+    id: "workspace",
+    label: "Workspace",
     items: [
       {
         id: "home",
-        label: "Home",
+        label: "Overview",
         shortLabel: "Home",
         description: "What needs your attention across every production",
         href: "/",
@@ -136,12 +137,6 @@ export const WORKSPACE_NAVIGATION: WorkspaceNavigationSection[] = [
         primary: true,
         mobile: true,
       },
-    ],
-  },
-  {
-    id: "create",
-    label: "Create",
-    items: [
       {
         id: "reviews",
         label: "Reviews",
@@ -152,6 +147,37 @@ export const WORKSPACE_NAVIGATION: WorkspaceNavigationSection[] = [
         capability: "reviews:read",
         primary: true,
       },
+      {
+        id: "activity",
+        label: "Activity",
+        shortLabel: "Activity",
+        description: "Review workspace and delivery history",
+        href: "/activity",
+        icon: "activity",
+        capability: "activity:read",
+        primary: true,
+      },
+    ],
+  },
+  {
+    id: "production",
+    label: "Production",
+    items: [
+      {
+        id: "field",
+        label: "Field",
+        shortLabel: "Field",
+        description: "The shoot day in your pocket — shots, releases, clearances",
+        href: "/field",
+        icon: "field",
+        capability: "projects:read",
+      },
+    ],
+  },
+  {
+    id: "library",
+    label: "Library",
+    items: [
       {
         id: "library",
         label: "Media library",
@@ -165,19 +191,9 @@ export const WORKSPACE_NAVIGATION: WorkspaceNavigationSection[] = [
     ],
   },
   {
-    id: "workspace",
-    label: "Workspace",
+    id: "admin",
+    label: "Admin",
     items: [
-      {
-        id: "activity",
-        label: "Activity",
-        shortLabel: "Activity",
-        description: "Review workspace and delivery history",
-        href: "/activity",
-        icon: "activity",
-        capability: "activity:read",
-        primary: true,
-      },
       {
         id: "archive",
         label: "Archive",
@@ -196,12 +212,6 @@ export const WORKSPACE_NAVIGATION: WorkspaceNavigationSection[] = [
         icon: "trash",
         capability: "projects:read",
       },
-    ],
-  },
-  {
-    id: "administration",
-    label: "Administration",
-    items: [
       {
         id: "settings",
         label: "Workspace settings",

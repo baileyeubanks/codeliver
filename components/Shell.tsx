@@ -20,6 +20,7 @@ import {
 import CommandPalette, { type CommandPaletteItem } from "./navigation/CommandPalette";
 import CoProductionBrand from "./brand/CoProductionBrand";
 import WorkspaceNavigation from "./navigation/WorkspaceNavigation";
+import WorkspaceRail from "./navigation/WorkspaceRail";
 import { NAVIGATION_ICONS } from "./navigation/navigation-icons";
 import {
   roleCan,
@@ -352,14 +353,23 @@ export default function Shell({ children }: { children: React.ReactNode }) {
         </div>
       </header>
 
-      <main id="workspace-content" className={`workspace-main ${styles.main}`} tabIndex={-1}>
-        {!online ? (
-          <div className={styles.offlineNotice} role="status">
-            <WifiOff size={15} /> Offline. Changes that require the server are paused.
-          </div>
-        ) : null}
-        <div className={styles.content}>{children}</div>
-      </main>
+      <div className="workspace-body">
+        <WorkspaceRail
+          pathname={pathname}
+          querySuffix={demoSuffix}
+          role={workspaceRole}
+          projects={recentProjects}
+        />
+
+        <main id="workspace-content" className={`workspace-main ${styles.main}`} tabIndex={-1}>
+          {!online ? (
+            <div className={styles.offlineNotice} role="status">
+              <WifiOff size={15} /> Offline. Changes that require the server are paused.
+            </div>
+          ) : null}
+          <div className={styles.content}>{children}</div>
+        </main>
+      </div>
 
       {commandOpen ? (
         <CommandPalette

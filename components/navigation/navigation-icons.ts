@@ -1,6 +1,7 @@
 import {
   Activity,
   Archive,
+  Clapperboard,
   FolderKanban,
   House,
   LibraryBig,
@@ -16,6 +17,7 @@ import type { NavigationIconName } from "./navigation-model";
 export const NAVIGATION_ICONS: Record<NavigationIconName, LucideIcon> = {
   activity: Activity,
   archive: Archive,
+  field: Clapperboard,
   folder: FolderKanban,
   home: House,
   library: LibraryBig,

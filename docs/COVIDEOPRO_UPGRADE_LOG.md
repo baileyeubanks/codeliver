@@ -175,3 +175,11 @@ Baseline: `e068ee8` (checkpoint of the prior session's transformation state).
 - **`lib/covideopro/field.ts`**: deterministic day selection — nearest upcoming live day, most-recent-past fallback, cancelled never anchors; default project = nearest upcoming shoot across the slate.
 - Discoverability: "Open field view →" link in the cockpit Production days header.
 - Tests: 4 field-selection tests (suite **610/610**); e2e 12/12 incl. `t4-field.spec.ts` (anchor day, scout has no shot list, chip switch, cover verb moves the roll-up at 375px); tsc clean. Evidence `docs/design-evidence/e2e/t4-field-mobile.png`.
+
+## U23 — NEW SHELL law adopted + S1a: left rail navigation (mission slice 3)
+
+- **User-declared direction (2026-07-17):** two shell renders + `co-provideo-capability-architecture.md` are law. Preserved in-repo: `docs/COVIDEOPRO_CAPABILITY_ARCHITECTURE.md` + `docs/design-evidence/shell-law-20260717/`. Goal rewritten around the shell migration + four-layer rhythm (Signal → Preview → Doorway → Studio — no dead ends).
+- **S1a shipped:** left grouped rail replaces the desktop inline top nav. Groups: WORKSPACE (Overview, Projects, Opportunities, Reviews, Activity) · PRODUCTION (Field) · LIBRARY (Media library) · ADMIN (Archive, Trash, Settings) + RECENT PROJECTS (activity-ordered, N2 engine reused) + role footer. Only real surfaces — the dead-end law.
+- One navigation source: `WORKSPACE_NAVIGATION` restructured in place (drawer inherits the new groups); rail component `WorkspaceRail.tsx` at ≥901px; mobile bottom bar + drawer untouched. Header grid re-colummned (brand | search | actions).
+- Reconciled: navigation-model viewer pin now includes `field`; `primaryNavigation` retired from WorkspaceNavigation.
+- Suite **610/610**; e2e **14/14** incl. `s1-rail.spec.ts` (groups, active states, recents order, rail navigation, mobile preservation); tsc clean. Evidence `s1-rail-desktop.png` / `s1-rail-mobile.png`.

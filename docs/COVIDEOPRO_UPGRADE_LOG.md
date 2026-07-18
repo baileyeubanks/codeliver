@@ -168,3 +168,10 @@ Baseline: `e068ee8` (checkpoint of the prior session's transformation state).
 - **Exception kind `shots_unplanned`:** a principal day inside 14 days with no shot list fires (critical ≤2 days, repair verb "Build shot list"); reuses the readiness engine.
 - **ProductionBlock shot board:** per-day coverage header (covered + must counts), readiness chip, shot rows with size/priority chips and Mark covered / Drop / Reopen verbs, inline + Add shot form (scene/description/size/priority). Seed: 9 shots across El Paso's three principal days (musts carry clearance notes — "no control screens", "one approved frame").
 - Tests: 5 roll-up + 1 exception tests (suite **606/606**); e2e 11/11 incl. `t5-shots.spec.ts` (roll-up moves on cover, inline add grows the list); tsc clean. Evidence `docs/design-evidence/e2e/t5-shot-list.png`.
+
+## U22 — T4: mobile field workspace (mission-goal slice 2)
+
+- **`/field`** — the shoot day in your pocket (375px-first, cream editorial). Project select defaults to the project with the nearest shoot; day-chip scroller; the day card (date, type, call/wrap tabular, notes, status verb); shot list with 44px cover verbs on principal days; releases-on-this-day with chase verbs; locations & clearances; unit.
+- **`lib/covideopro/field.ts`**: deterministic day selection — nearest upcoming live day, most-recent-past fallback, cancelled never anchors; default project = nearest upcoming shoot across the slate.
+- Discoverability: "Open field view →" link in the cockpit Production days header.
+- Tests: 4 field-selection tests (suite **610/610**); e2e 12/12 incl. `t4-field.spec.ts` (anchor day, scout has no shot list, chip switch, cover verb moves the roll-up at 375px); tsc clean. Evidence `docs/design-evidence/e2e/t4-field-mobile.png`.

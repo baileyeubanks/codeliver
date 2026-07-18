@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useMemo, useRef, useState } from "react";
 import { Check, Clapperboard, FileText, Flag, Lightbulb, ListChecks, PackageCheck, Plus, Printer, X } from "lucide-react";
 import {
@@ -1076,7 +1077,15 @@ export function ProductionBlock({ projectId, demoMode, onNotice }: SectionProps)
 
   return (
     <section aria-label="Production" style={{ marginTop: 22 }}>
-      <h3 className="cockpit-record-group-title">Production days ({days.length})</h3>
+      <h3 className="cockpit-record-group-title">
+        Production days ({days.length})
+        {demoMode && days.length > 0 ? (
+          <>
+            {" · "}
+            <Link href={`/field?project=${projectId}&demo=1`} style={{ color: "var(--cockpit-accent)", textTransform: "none", letterSpacing: "normal" }}>Open field view →</Link>
+          </>
+        ) : null}
+      </h3>
       <div className="cockpit-table-list">
         {days.map((day) => {
           const daySheets = sheets.filter((sheet) => sheet.production_day_id === day.id).sort((a, b) => b.version - a.version);

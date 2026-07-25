@@ -83,8 +83,8 @@ curl -sS -X POST http://127.0.0.1:4103/api/upload/tus \
 
 ## Not blockers (do not re-litigate)
 
-- Port 4103 currently serving `next dev`: `scripts/rebuild-public-runtime.sh`
-  replaces it; F10 proof is pending execution, not blocked.
+- Port 4103 cutover: DONE 2026-07-25 — `next start` via
+  `scripts/rebuild-public-runtime.sh`; verifier PASS. No longer pending.
 - Missing optional email/AI provider keys (`RESEND_API_KEY`,
   `ANTHROPIC_API_KEY`): dependent routes fail closed by design.
 - Bodyless TUS `HEAD` responses: intentional HTTP/TUS protocol behavior.

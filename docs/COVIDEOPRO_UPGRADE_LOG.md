@@ -234,3 +234,9 @@ Baseline: `e068ee8` (checkpoint of the prior session's transformation state).
 - The duplicate demo-only “Finish review” control was removed from the public route. Approval decisions now enter through the existing recipient-scoped authority path that updates the approval steps, public-review state, and asset status together.
 - Verification: recipient-binding and single-path regression tests, scoped ESLint, typecheck, and the complete node suite.
 - **Learning:** an approval link is not active because it has approve permission alone; its recipient, active step, durable state, and visible controls must all resolve from the same authority record.
+
+## U32 — Wave 1.4: review chrome reduction (2026-07-25)
+
+- Removed the three-step “Review flow” instruction panel from the public review route.
+- The protected workspace receives a null intro and collapses the slot, preserving its existing player, annotation, comments, and approval structure without an empty rail gap.
+- **Learning:** when a protected shell already owns optional slot geometry, remove redundant guidance at the route boundary instead of restructuring the shell.

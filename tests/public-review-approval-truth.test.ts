@@ -15,3 +15,9 @@ test("public review exposes one approval mutation path", () => {
   assert.doesNotMatch(pageSource, /FinishReviewBar/);
   assert.doesNotMatch(pageSource, /finishDemoReview/);
 });
+
+test("public review omits the numbered instruction panel", () => {
+  assert.match(pageSource, /intro:\s*null/);
+  assert.doesNotMatch(pageSource, /stepThreeText/);
+  assert.doesNotMatch(pageSource, />1\.<\/span>|>2\.<\/span>|>3\.<\/span>/);
+});

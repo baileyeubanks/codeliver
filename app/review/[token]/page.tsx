@@ -542,12 +542,6 @@ export default function PublicReviewPage() {
         : canComment
           ? `${openThreads} open notes on this version.`
           : `${rootComments.length} notes on this version.`;
-  const stepThreeText =
-    shareIntent === "final_delivery"
-      ? "Download the approved file when you are ready to hand it off or use it."
-      : permissions === "approve"
-        ? "Record your approval when the cut is ready."
-        : "Use the thread list to track open feedback.";
   const commentsTitle = shareIntent === "final_delivery" ? "Review history" : "Comments";
   const commentsDescription =
     shareIntent === "final_delivery"
@@ -1045,26 +1039,7 @@ export default function PublicReviewPage() {
           `${resolvedThreads} resolved`,
           shareMeta.permissionsLabel,
         ],
-        intro: (
-          <div className="grid gap-2">
-            <div className="rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--bg)] px-3 py-2 text-sm text-[var(--muted)]">
-              <span className="mr-2 font-semibold text-[var(--ink)]">1.</span>
-              {shareIntent === "final_delivery"
-                ? "Review the approved asset and confirm the handoff details."
-                : "Watch the cut and pause where feedback is needed."}
-            </div>
-            <div className="rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--bg)] px-3 py-2 text-sm text-[var(--muted)]">
-              <span className="mr-2 font-semibold text-[var(--ink)]">2.</span>
-              {shareIntent === "final_delivery"
-                ? "Use the review history below if you need the context behind the final changes."
-                : "Leave a comment tied to the current timestamp or frame."}
-            </div>
-            <div className="rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--bg)] px-3 py-2 text-sm text-[var(--muted)]">
-              <span className="mr-2 font-semibold text-[var(--ink)]">3.</span>
-              {stepThreeText}
-            </div>
-          </div>
-        ),
+        intro: null,
         approval: permissions === "approve"
           ? {
               header: (

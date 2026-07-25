@@ -5,12 +5,14 @@ import Link from "next/link";
 import Image from "next/image";
 import {
   CheckCircle2,
+  CircleAlert,
   Clock3,
   FolderOpen,
   Image as ImageIcon,
   LibraryBig,
   Music,
   Play,
+  RefreshCw,
   Search,
   Upload,
   FileText,
@@ -56,6 +58,8 @@ export default function LibraryPage() {
   const [search, setSearch] = useState("");
   const [typeFilter, setTypeFilter] = useState<string>("all");
   const [remoteLoading, setRemoteLoading] = useState(true);
+  const [remoteLoadError, setRemoteLoadError] = useState(false);
+  const [remoteLoadAttempt, setRemoteLoadAttempt] = useState(0);
   const assets: Asset[] = demoMode
     ? demoWorkspace.assets.map((asset) => ({
         id: asset.id,
@@ -72,16 +76,45 @@ export default function LibraryPage() {
       }))
     : remoteAssets;
   const loading = demoMode ? false : remoteLoading;
+  const loadError = demoMode ? false : remoteLoadError;
 
   useEffect(() => {
     if (demoMode) return;
 
-    fetch("/api/assets")
-      .then((r) => r.json())
-      .then((d) => setRemoteAssets(d.items ?? []))
-      .catch(() => {})
-      .finally(() => setRemoteLoading(false));
-  }, [demoMode]);
+    const controller = new AbortController();
+
+    async function loadRemoteAssets() {
+      setRemoteLoading(true);
+      setRemoteLoadError(false);
+
+      try {
+        const response = await fetch("/api/assets", { signal: controller.signal });
+        if (!response.ok) {
+          throw new Error(`Asset library request failed with status ${response.status}`);
+        }
+
+        const data = (await response.json()) as { items?: Asset[] };
+        const items = Array.isArray(data.items) ? data.items : [];
+        setRemoteAssets(items);
+      } catch (error) {
+        if (error instanceof Error && error.name === "AbortError") return;
+        setRemoteLoadError(true);
+      } finally {
+        if (!controller.signal.aborted) {
+          setRemoteLoading(false);
+        }
+      }
+    }
+
+    void loadRemoteAssets();
+    return () => controller.abort();
+  }, [demoMode, remoteLoadAttempt]);
+
+  const retryRemoteAssets = () => {
+    setRemoteLoading(true);
+    setRemoteLoadError(false);
+    setRemoteLoadAttempt((attempt) => attempt + 1);
+  };
 
   const filtered = assets.filter((a) => {
     if (typeFilter !== "all" && a.file_type !== typeFilter) return false;
@@ -205,6 +238,31 @@ export default function LibraryPage() {
               </div>
             </div>
           ))}
+        </div>
+      ) : loadError ? (
+        <div
+          role="alert"
+          className="grid min-h-[260px] place-items-center rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface)] px-6 py-12 text-center"
+        >
+          <div className="max-w-sm">
+            <span className="mx-auto flex h-10 w-10 items-center justify-center rounded-[var(--radius-sm)] bg-[var(--surface-2)] text-[var(--red)]">
+              <CircleAlert size={20} aria-hidden="true" />
+            </span>
+            <h2 className="mt-4 text-sm font-bold text-[var(--ink)]">
+              Couldn&apos;t load the media library
+            </h2>
+            <p className="mt-2 text-xs leading-5 text-[var(--muted)]">
+              The asset service did not respond. Your library has not been reported as empty.
+            </p>
+            <button
+              type="button"
+              onClick={retryRemoteAssets}
+              className="mt-4 inline-flex min-h-9 items-center justify-center gap-2 rounded-[var(--radius-sm)] bg-[var(--accent)] px-3 text-xs font-bold text-white hover:bg-[var(--accent-hover)]"
+            >
+              Retry
+              <RefreshCw size={14} aria-hidden="true" />
+            </button>
+          </div>
         </div>
       ) : filtered.length === 0 ? (
         <div className="grid min-h-[260px] place-items-center rounded-[var(--radius)] border border-dashed border-[var(--border)] bg-[var(--surface)] px-6 py-12 text-center">

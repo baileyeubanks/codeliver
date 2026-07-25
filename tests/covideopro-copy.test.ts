@@ -47,7 +47,7 @@ test("legacy technical identifiers remain stable while the new login theme is av
   assert.match(loginTheme, /displayLabel: "Co‑ProVideo"/);
 });
 
-test("raw health links preserve machine ids while exposing product identity", () => {
+test("public health probes omit topology while internal checks preserve product identity", () => {
   const healthIdentity = readFileSync(
     resolve(repositoryRoot, "app/api/health/_lib/identity.ts"),
     "utf8",
@@ -61,11 +61,10 @@ test("raw health links preserve machine ids while exposing product identity", ()
   assert.match(healthIdentity, /HEALTH_PRODUCT_NAME = "Co‑ProVideo"/);
   assert.match(healthIdentity, /HEALTH_BRAND_NAME = "Content Co-op"/);
   assert.match(healthIdentity, /currentHealthPort/);
-  assert.match(healthRoute, /product: HEALTH_PRODUCT_NAME/);
-  assert.match(healthRoute, /brand: HEALTH_BRAND_NAME/);
-  assert.match(healthRoute, /port: currentHealthPort\(\)/);
-  assert.match(liveRoute, /product: HEALTH_PRODUCT_NAME/);
-  assert.match(liveRoute, /brand: HEALTH_BRAND_NAME/);
+  assert.match(healthRoute, /\{ status: "ok" \}/);
+  assert.doesNotMatch(healthRoute, /HEALTH_(?:SERVICE|PRODUCT|BRAND)|currentHealthPort/);
+  assert.match(liveRoute, /\{ status: "ok" \}/);
+  assert.doesNotMatch(liveRoute, /HEALTH_(?:SERVICE|PRODUCT|BRAND)|uptimeSeconds|release:/);
   assert.match(readyRoute, /product: snapshot\.product/);
   assert.match(readyRoute, /brand: snapshot\.brand/);
   assert.match(checks, /product: typeof HEALTH_PRODUCT_NAME/);

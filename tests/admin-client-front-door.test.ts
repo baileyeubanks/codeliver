@@ -292,23 +292,32 @@ test("internal cockpit and public review remain separate navigation and authorit
   const dashboardLayout = source("app/(dashboard)/layout.tsx");
   const rootLayout = source("app/layout.tsx");
   const internalProjectPage = source("app/(dashboard)/projects/[id]/page.tsx");
+  const internalProjectClient = source("components/projects/ProjectWorkspaceClient.tsx");
   const cockpit = source("components/projects/ProjectCockpit.tsx");
   const publicReviewPage = source("app/review/[token]/page.tsx");
+  const publicReviewClient = source("components/review/PublicReviewPage.tsx");
   const publicReviewWorkspace = source("components/review/PublicReviewWorkspace.tsx");
 
   assert.match(dashboardLayout, /<DemoSessionGuard>/);
   assert.match(dashboardLayout, /<Shell>\{children\}<\/Shell>/);
   assert.doesNotMatch(rootLayout, /<Shell|DemoSessionGuard/);
 
-  assert.match(internalProjectPage, /from "@\/components\/projects\/ProjectCockpit"/);
-  assert.match(internalProjectPage, /<ProjectCockpit\b/);
+  assert.match(internalProjectPage, /from "@\/components\/projects\/ProjectWorkspaceClient"/);
+  assert.match(internalProjectPage, /notFound\(\)/);
+  assert.match(internalProjectClient, /from "@\/components\/projects\/ProjectCockpit"/);
+  assert.match(internalProjectClient, /<ProjectCockpit\b/);
   assert.doesNotMatch(cockpit, /PublicReviewWorkspace/);
 
   assert.match(
     publicReviewPage,
+    /from "@\/components\/review\/PublicReviewPage"/,
+  );
+  assert.match(publicReviewPage, /notFound\(\)/);
+  assert.match(
+    publicReviewClient,
     /from "@\/components\/review\/PublicReviewWorkspace"/,
   );
-  assert.doesNotMatch(publicReviewPage, /ProjectCockpit|from "@\/components\/Shell"/);
+  assert.doesNotMatch(publicReviewClient, /ProjectCockpit|from "@\/components\/Shell"/);
   assert.doesNotMatch(publicReviewWorkspace, /ProjectCockpit|useRouter|useParams|useSearchParams/);
   assert.doesNotMatch(publicReviewWorkspace, /href=["'`]\/(?:projects|dashboard|reviews)/);
 

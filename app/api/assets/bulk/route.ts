@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { getProjectAccess } from "@/lib/access-control";
 import { requireAuth } from "@/lib/auth";
 import { getSupabase } from "@/lib/supabase";
+import { apiError, apiJson } from "@/lib/api/responses";
+import { withAssetRouteBoundary } from "../asset-route-boundary";
 
 const BULK_ACTIONS = new Set(["move", "tag", "delete", "restore"]);
 const MAX_BULK_ASSETS = 500;
@@ -20,7 +22,7 @@ type BulkAccessResult =
   | { ok: false; response: NextResponse };
 
 function errorResponse(error: string, status: number) {
-  return NextResponse.json({ error }, { status });
+  return apiError(error, status === 401 ? "UNAUTHORIZED" : status === 404 ? "NOT_FOUND" : status >= 500 ? "BACKEND_UNAVAILABLE" : "INVALID_REQUEST", status);
 }
 
 function accessFailureResponse(status: number) {
@@ -156,7 +158,7 @@ async function updateAssets(
   return !error && (data ?? []).length === assetIds.length;
 }
 
-export async function POST(request: NextRequest) {
+async function POSTHandler(request: NextRequest) {
   const user = await requireAuth();
   if (!user) {
     return errorResponse("Unauthorized", 401);
@@ -231,7 +233,7 @@ export async function POST(request: NextRequest) {
       if (!updated) {
         return errorResponse("Unable to update assets", 500);
       }
-      return NextResponse.json({
+      return apiJson({
         ok: true,
         message: `Moved ${access.assetIds.length} asset(s)`,
       });
@@ -249,7 +251,7 @@ export async function POST(request: NextRequest) {
       if (error) {
         return errorResponse("Unable to update assets", 500);
       }
-      return NextResponse.json({
+      return apiJson({
         ok: true,
         message: `Tagged ${access.assetIds.length} asset(s)`,
       });
@@ -265,7 +267,7 @@ export async function POST(request: NextRequest) {
       if (!updated) {
         return errorResponse("Unable to update assets", 500);
       }
-      return NextResponse.json({
+      return apiJson({
         ok: true,
         message: `Deleted ${access.assetIds.length} asset(s)`,
       });
@@ -281,10 +283,12 @@ export async function POST(request: NextRequest) {
       if (!updated) {
         return errorResponse("Unable to update assets", 500);
       }
-      return NextResponse.json({
+      return apiJson({
         ok: true,
         message: `Restored ${access.assetIds.length} asset(s)`,
       });
     }
   }
 }
+
+export const POST = withAssetRouteBoundary(POSTHandler);

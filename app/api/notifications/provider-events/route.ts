@@ -1,4 +1,3 @@
-import { NextResponse } from "next/server";
 import {
   parseProviderDeliveryEvent,
   providerEventSuppressesRecipient,
@@ -7,30 +6,37 @@ import {
 } from "@/lib/notifications/provider-events";
 import { hashNotificationRecipient } from "@/lib/notifications/server-delivery";
 import { getSupabase } from "@/lib/supabase";
+import { apiError, apiJson, backendUnavailable } from "@/lib/api/responses";
 
-export async function POST(req: Request) {
+const MAX_EVENT_BODY_BYTES = 64 * 1024;
+
+async function ingestProviderEvent(req: Request) {
   const secret = process.env.NOTIFICATION_WEBHOOK_SECRET;
   if (!secret) {
-    return NextResponse.json(
-      { error: "Provider event ingestion is not configured" },
-      { status: 503 },
-    );
+    return apiError("Provider event ingestion is not configured", "NOTIFICATION_PROVIDER_UNAVAILABLE", 503);
   }
 
-  const rawBody = await req.text();
+  const contentLength = Number(req.headers.get("content-length") ?? 0);
+  if (Number.isFinite(contentLength) && contentLength > MAX_EVENT_BODY_BYTES) {
+    return apiError("Provider event payload is too large", "NOTIFICATION_EVENT_TOO_LARGE", 413);
+  }
+  const rawBody = await req.text().catch(() => null);
+  if (rawBody === null || new TextEncoder().encode(rawBody).byteLength > MAX_EVENT_BODY_BYTES) {
+    return apiError("Provider event payload is too large", "NOTIFICATION_EVENT_TOO_LARGE", 413);
+  }
   const signature = req.headers.get("x-cco-notification-signature");
   if (!verifyProviderEventSignature(rawBody, signature, secret)) {
-    return NextResponse.json({ error: "Invalid provider event signature" }, { status: 401 });
+    return apiError("Invalid provider event signature", "NOTIFICATION_SIGNATURE_INVALID", 401);
   }
 
   let input: unknown;
   try {
     input = JSON.parse(rawBody);
   } catch {
-    return NextResponse.json({ error: "Provider event JSON is invalid" }, { status: 400 });
+    return apiError("Provider event JSON is invalid", "NOTIFICATION_EVENT_INVALID", 400);
   }
   const parsed = parseProviderDeliveryEvent(input);
-  if (!parsed.ok) return NextResponse.json({ error: parsed.error }, { status: 400 });
+  if (!parsed.ok) return apiError(parsed.error, "NOTIFICATION_EVENT_INVALID", 400);
 
   const event = parsed.value;
   const client = getSupabase();
@@ -43,10 +49,10 @@ export async function POST(req: Request) {
     .limit(1)
     .maybeSingle();
   if (existing.error) {
-    return NextResponse.json({ error: "Provider event deduplication is unavailable" }, { status: 503 });
+    return backendUnavailable();
   }
   if (existing.data) {
-    return NextResponse.json({ ok: true, deduplicated: true, receipt_id: existing.data.id });
+    return apiJson({ ok: true, deduplicated: true, receipt_id: existing.data.id });
   }
 
   const suppress = providerEventSuppressesRecipient(event.type);
@@ -69,28 +75,19 @@ export async function POST(req: Request) {
     .limit(1)
     .maybeSingle();
   if (delivery.error) {
-    return NextResponse.json({ error: "Provider delivery correlation is unavailable" }, { status: 503 });
+    return backendUnavailable();
   }
   if (!delivery.data || !providerReceiptMatchesEvent(delivery.data.details?.receipts, event)) {
-    return NextResponse.json(
-      { error: "Provider event does not match a recorded notification delivery" },
-      { status: 409 },
-    );
+    return apiError("Provider event does not match a recorded notification delivery", "NOTIFICATION_EVENT_CONFLICT", 409);
   }
 
   const deliveryTenantId = delivery.data.details?.tenant_id;
   if (typeof deliveryTenantId !== "string") {
-    return NextResponse.json(
-      { error: "Provider event delivery has no recoverable tenant authority" },
-      { status: 409 },
-    );
+    return apiError("Provider event delivery has no recoverable tenant authority", "NOTIFICATION_EVENT_CONFLICT", 409);
   }
   const authorityReceiptId = delivery.data.details?.authority_receipt_id;
   if (typeof authorityReceiptId !== "string") {
-    return NextResponse.json(
-      { error: "Provider event delivery has no recoverable authority receipt" },
-      { status: 409 },
-    );
+    return apiError("Provider event delivery has no recoverable authority receipt", "NOTIFICATION_EVENT_CONFLICT", 409);
   }
   const authority = await client
     .from("activity_log")
@@ -104,13 +101,10 @@ export async function POST(req: Request) {
     .limit(1)
     .maybeSingle();
   if (authority.error) {
-    return NextResponse.json({ error: "Provider recipient correlation is unavailable" }, { status: 503 });
+    return backendUnavailable();
   }
   if (!authority.data) {
-    return NextResponse.json(
-      { error: "Provider event recipient does not match the authorized delivery" },
-      { status: 409 },
-    );
+    return apiError("Provider event recipient does not match the authorized delivery", "NOTIFICATION_EVENT_CONFLICT", 409);
   }
 
   const retainUntil = new Date(Date.now() + 2_555 * 24 * 60 * 60 * 1000).toISOString();
@@ -141,13 +135,21 @@ export async function POST(req: Request) {
     .select("id, created_at")
     .single();
   if (receipt.error || !receipt.data) {
-    return NextResponse.json({ error: "Provider event receipt could not be recorded" }, { status: 503 });
+    return backendUnavailable();
   }
 
-  return NextResponse.json({
+  return apiJson({
     ok: true,
     deduplicated: false,
     suppressed: suppress,
     receipt_id: receipt.data.id,
   });
+}
+
+export async function POST(req: Request) {
+  try {
+    return await ingestProviderEvent(req);
+  } catch {
+    return backendUnavailable();
+  }
 }

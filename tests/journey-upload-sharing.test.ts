@@ -51,44 +51,74 @@ test("upload failures preserve actionable HTTP status and retry guidance", async
 
   assert.deepEqual(
     mapUploadError(new UploadOrchestrationError("UPLOAD_CHECKSUM", "Checksum mismatch")),
-    { status: 422, message: "Checksum mismatch" },
+    { status: 422, code: "UPLOAD_CHECKSUM", message: "Checksum mismatch" },
   );
   assert.deepEqual(
     mapUploadError(new UploadOrchestrationError("UPLOAD_BUSY", "Upload is locked", true)),
-    { status: 423, message: "Upload is locked", retryAfter: "2" },
+    { status: 423, code: "UPLOAD_BUSY", message: "Upload is locked", retryAfter: "2" },
   );
   assert.deepEqual(
     mapUploadError(new UploadOrchestrationError("UPLOAD_QUOTA", "Quota exceeded")),
-    { status: 429, message: "Quota exceeded", retryAfter: "60" },
+    { status: 429, code: "UPLOAD_QUOTA", message: "Quota exceeded", retryAfter: "60" },
   );
   assert.deepEqual(
     mapUploadError(new StorageError("STORAGE_CAPACITY", "Storage full", true)),
-    { status: 507, message: "Storage full", retryAfter: "60" },
+    { status: 507, code: "STORAGE_CAPACITY", message: "Storage full", retryAfter: "60" },
   );
   assert.deepEqual(mapUploadError(new Error("provider secret")), {
     status: 500,
+    code: "UPLOAD_FAILED",
     message: "Upload orchestration failed",
   });
 });
 
+test("missing canonical NAS authority is an honest retryable 503", async () => {
+  const [
+    { assertUploadStorageConfigured, mapUploadError },
+    { readStorageConfig },
+  ] = await Promise.all([
+    import(moduleUrl("app/api/upload/_shared.ts")),
+    import(moduleUrl("lib/storage/config.ts")),
+  ]);
+  const config = readStorageConfig({
+    CODELIVER_STORAGE_PROVIDER: "ccnas",
+    CODELIVER_STORAGE_WRITE_ENABLED: "1",
+  } as NodeJS.ProcessEnv);
+
+  let failure: unknown;
+  try {
+    assertUploadStorageConfigured(config);
+  } catch (error) {
+    failure = error;
+  }
+
+  assert.deepEqual(mapUploadError(failure), {
+    status: 503,
+    code: "STORAGE_UNAVAILABLE",
+    message: "Upload storage is unavailable",
+    retryAfter: "15",
+  });
+  assert.doesNotMatch(JSON.stringify(mapUploadError(failure)), /NAS_MEDIA_ROOT|\/Users\//);
+});
+
 test("the active production project upload is readiness-gated and uses authoritative resumable ingest", () => {
-  const projectPage = source("app/(dashboard)/projects/[id]/page.tsx");
+  const projectWorkspaceClient = source("components/projects/ProjectWorkspaceClient.tsx");
   const uploader = source("components/assets/AssetUpload.tsx");
 
-  assert.match(projectPage, /import AssetUpload/);
-  assert.match(projectPage, /<AssetUpload\b/);
+  assert.match(projectWorkspaceClient, /import AssetUpload/);
+  assert.match(projectWorkspaceClient, /<AssetUpload\b/);
   assert.match(uploader, /fetch\("\/api\/storage\/readiness"/);
   assert.match(uploader, /endpoint: "\/api\/upload\/tus"/);
-  assert.doesNotMatch(projectPage, /createSupabaseBrowser/);
-  assert.doesNotMatch(projectPage, /\.from\("deliverables"\)\s*\.upload/);
+  assert.doesNotMatch(projectWorkspaceClient, /createSupabaseBrowser/);
+  assert.doesNotMatch(projectWorkspaceClient, /\.from\("deliverables"\)\s*\.upload/);
 });
 
 test("the active production upload never publishes a raw storage URL before release readiness", () => {
-  const projectPage = source("app/(dashboard)/projects/[id]/page.tsx");
+  const projectWorkspaceClient = source("components/projects/ProjectWorkspaceClient.tsx");
   const uploader = source("components/assets/AssetUpload.tsx");
 
-  assert.doesNotMatch(projectPage, /\.getPublicUrl\(/);
-  assert.doesNotMatch(projectPage, /file_url:\s*urlData\.publicUrl/);
+  assert.doesNotMatch(projectWorkspaceClient, /\.getPublicUrl\(/);
+  assert.doesNotMatch(projectWorkspaceClient, /file_url:\s*urlData\.publicUrl/);
   assert.match(
     uploader,
     /response\.getHeader\("Upload-Original-Ready"\) === "true"/,
@@ -115,16 +145,17 @@ test("the resumable upload surface exposes readiness, progress, pause, retry, qu
 test("share create, batch, rotate, and revoke routes preserve tenant and idempotency authority", () => {
   const singleRoute = source("app/api/assets/[id]/share/route.ts");
   const batchRoute = source("app/api/assets/batch-share/route.ts");
-  const patchStart = singleRoute.indexOf("export async function PATCH");
-  const deleteStart = singleRoute.indexOf("export async function DELETE");
+  const shareApi = source("lib/sharing/share-api.ts");
+  const patchStart = singleRoute.indexOf("async function PATCHHandler");
+  const deleteStart = singleRoute.indexOf("async function DELETEHandler");
   const patchBlock = singleRoute.slice(patchStart, deleteStart);
   const deleteBlock = singleRoute.slice(deleteStart);
 
-  assert.ok(patchBlock.indexOf("getOwnedAsset") < patchBlock.indexOf("rotateShareLink"));
-  assert.ok(deleteBlock.indexOf("getOwnedAsset") < deleteBlock.indexOf("revokeShareLink"));
+  assert.ok(patchBlock.indexOf("getAssetAccess") < patchBlock.indexOf("rotateShareLink"));
+  assert.ok(deleteBlock.indexOf("getAssetAccess") < deleteBlock.indexOf("revokeShareLink"));
   assert.match(patchBlock, /ROTATION_REQUEST_PATTERN\.test\(requestId\)/);
   assert.match(batchRoute, /authenticatedTenantId: user\.id/);
-  assert.match(batchRoute, /mutation_performed: false/);
+  assert.match(shareApi, /mutation_performed: false/);
   assert.match(batchRoute, /executeShareManifest/);
 });
 

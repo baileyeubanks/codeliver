@@ -165,15 +165,18 @@ export function localMeteringActor(request: Request): MeteringActor {
 
 export function jsonError(error: unknown) {
   if (error instanceof MeteringError || error instanceof VaultError) {
-    return NextResponse.json({ error: error.message, code: error.code }, { status: error.status });
+    return noStoreJson(
+      { error: error.message, code: error.code },
+      { status: error.status },
+    );
   }
   if (error instanceof ControlPlaneUnavailableError) {
-    return NextResponse.json(
+    return noStoreJson(
       { error: error.message, code: "control_plane_unavailable" },
       { status: 503 },
     );
   }
-  return NextResponse.json(
+  return noStoreJson(
     { error: "Control plane request failed", code: "control_plane_error" },
     { status: 500 },
   );

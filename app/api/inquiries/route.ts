@@ -1,7 +1,7 @@
-import { NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth";
 import { INQUIRY_STATUSES } from "@/lib/covideopro/record";
 import { getSupabase } from "@/lib/supabase";
+import { apiError, apiJson, backendUnavailable } from "@/lib/api/responses";
 
 const INQUIRY_COLUMNS =
   "id, owner_id, project_id, organization_id, contact_id, source, summary, received_at, status, created_at, updated_at";
@@ -12,7 +12,7 @@ type JsonObject = Record<string, unknown>;
 type Supabase = ReturnType<typeof getSupabase>;
 
 function errorResponse(error: string, status: number) {
-  return NextResponse.json({ error }, { status });
+  return apiError(error, status === 401 ? "UNAUTHORIZED" : status === 404 ? "NOT_FOUND" : status >= 500 ? "BACKEND_UNAVAILABLE" : "INVALID_REQUEST", status);
 }
 
 async function readJsonObject(request: Request): Promise<JsonObject | null> {
@@ -52,6 +52,7 @@ function optionalUuid(body: JsonObject, field: string): { ok: true; value: strin
 }
 
 export async function GET(request: Request) {
+  try {
   const user = await requireAuth();
   if (!user) return errorResponse("Unauthorized", 401);
 
@@ -73,7 +74,10 @@ export async function GET(request: Request) {
     console.error("Inquiries GET error:", error.message);
     return errorResponse("Unable to load inquiries", 500);
   }
-  return NextResponse.json({ items: data ?? [] });
+  return apiJson({ items: data ?? [] });
+  } catch {
+    return backendUnavailable();
+  }
 }
 
 /**
@@ -82,6 +86,7 @@ export async function GET(request: Request) {
  * names when no ids are given. Everything stays owner-scoped.
  */
 export async function POST(request: Request) {
+  try {
   const user = await requireAuth();
   if (!user) return errorResponse("Unauthorized", 401);
 
@@ -196,5 +201,8 @@ export async function POST(request: Request) {
     console.error("Inquiries POST error:", error.message);
     return errorResponse("The inquiry could not be created", 500);
   }
-  return NextResponse.json(data, { status: 201 });
+  return apiJson(data, { status: 201 });
+  } catch {
+    return backendUnavailable();
+  }
 }

@@ -2,6 +2,8 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { getSupabaseDataSchema } from "@/lib/data-authority";
 import { getSupabase } from "@/lib/supabase";
 
+// The service client deliberately supports either configured PostgREST schema.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 type DataClient = SupabaseClient<any, any, any>;
 
 type AccessFailure = {

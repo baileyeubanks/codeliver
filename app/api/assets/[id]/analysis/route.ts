@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { apiError } from "@/lib/api/responses";
 import { getAssetAccess } from "@/lib/access-control";
 import {
   analyzeTranscript,
@@ -8,6 +9,7 @@ import {
 } from "@/lib/audio-analysis/core";
 import { requireAuth } from "@/lib/auth";
 import { getSupabase } from "@/lib/supabase";
+import { withAssetRouteBoundary } from "../../asset-route-boundary";
 import {
   isSameTranscriptSource,
   parseTranscriptDocument,
@@ -51,7 +53,7 @@ function analysisBudget(value: unknown): AudioAnalysisBudget {
   return Object.freeze(budget);
 }
 
-export async function GET(req: Request, { params }: { params: Promise<{ id: string }> }) {
+async function GETHandler(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const user = await requireAuth();
   if (!user) return response({ error: "Unauthorized" }, { status: 401 });
 
@@ -76,7 +78,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
     .eq("version_id", versionId)
     .in("source", ["filler_scan", "silence_scan"])
     .order("start_seconds", { ascending: true });
-  if (error) return response({ error: error.message }, { status: 500 });
+  if (error) return apiError("Analysis data is unavailable", "BACKEND_UNAVAILABLE", 503);
 
   return response({
     items: data ?? [],
@@ -85,7 +87,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
   });
 }
 
-export async function POST(req: Request, { params }: { params: Promise<{ id: string }> }) {
+async function POSTHandler(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const user = await requireAuth();
   if (!user) return response({ error: "Unauthorized" }, { status: 401 });
 
@@ -177,8 +179,11 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     );
   } catch (error) {
     return response(
-      { error: error instanceof Error ? error.message : "Audio analysis failed" },
+      { error: "Audio analysis failed", code: "INVALID_REQUEST" },
       { status: 400 },
     );
   }
 }
+
+export const GET = withAssetRouteBoundary(GETHandler);
+export const POST = withAssetRouteBoundary(POSTHandler);

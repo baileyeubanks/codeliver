@@ -61,7 +61,15 @@ export async function getReviewInviteByToken(token: string) {
     .eq(lookup.column, lookup.value)
     .maybeSingle();
 
-  if (error || !data) {
+  if (error) {
+    return {
+      ok: false as const,
+      status: 503,
+      error: "Review service is unavailable",
+    };
+  }
+
+  if (!data) {
     return {
       ok: false as const,
       status: 404,

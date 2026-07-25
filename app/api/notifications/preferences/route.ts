@@ -1,22 +1,39 @@
-import { NextResponse } from "next/server";
-import { requireAuth } from "@/lib/auth";
+import { requireAuthWithClient } from "@/lib/auth-client";
+import { apiError, apiJson, backendUnavailable } from "@/lib/api/responses";
+import { isBackendUnavailableError } from "@/lib/api/backend";
 import { getExternalNotificationAdapters } from "@/lib/notifications/adapters";
 import {
   defaultNotificationPreference,
   NOTIFICATION_EVENT_TYPES,
   parseNotificationPreferences,
 } from "@/lib/notifications/preferences";
-import { getSupabase } from "@/lib/supabase";
+
+async function getSession() {
+  try {
+    const session = await requireAuthWithClient();
+    return session.user ? session : { response: apiError("Unauthorized", "UNAUTHORIZED", 401) };
+  } catch (error) {
+    return { response: isBackendUnavailableError(error) ? backendUnavailable() : apiError("Authentication service is unavailable", "AUTH_UNAVAILABLE", 503) };
+  }
+}
 
 export async function GET() {
-  const user = await requireAuth();
-  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const session = await getSession();
+  if ("response" in session) return session.response;
+  const { supabase } = session;
+  const user = session.user!;
 
-  const { data, error } = await getSupabase()
-    .from("notification_preferences")
-    .select("event_type, email_enabled, email_frequency, in_app_enabled")
-    .eq("user_id", user.id);
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  let data;
+  try {
+    const result = await supabase
+      .from("notification_preferences")
+      .select("event_type, email_enabled, email_frequency, in_app_enabled")
+      .eq("user_id", user.id);
+    if (result.error) return backendUnavailable();
+    data = result.data;
+  } catch {
+    return backendUnavailable();
+  }
 
   const stored = new Map((data ?? []).map((row) => [row.event_type, row]));
   const preferences = Object.fromEntries(
@@ -35,7 +52,7 @@ export async function GET() {
     }),
   );
 
-  return NextResponse.json({
+  return apiJson({
     preferences,
     channels: {
       in_app: { configured: true, consent_required: false },
@@ -52,8 +69,10 @@ export async function GET() {
 }
 
 export async function PUT(req: Request) {
-  const user = await requireAuth();
-  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const session = await getSession();
+  if ("response" in session) return session.response;
+  const { supabase } = session;
+  const user = session.user!;
 
   const body = await req.json().catch(() => null);
   const preferencesInput =
@@ -62,7 +81,7 @@ export async function PUT(req: Request) {
       : null;
   const parsed = parseNotificationPreferences(preferencesInput);
   if (!parsed.ok) {
-    return NextResponse.json({ error: parsed.error, field: parsed.field }, { status: 400 });
+    return apiError(parsed.error, "INVALID_REQUEST", 400);
   }
 
   const rows = Object.entries(parsed.value).map(([eventType, preference]) => ({
@@ -72,10 +91,13 @@ export async function PUT(req: Request) {
     email_frequency: preference.email_frequency,
     in_app_enabled: preference.in_app_enabled,
   }));
-  const { error } = await getSupabase()
-    .from("notification_preferences")
-    .upsert(rows, { onConflict: "user_id,event_type" });
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-
-  return NextResponse.json({ ok: true, updated: rows.length });
+  try {
+    const { error } = await supabase
+      .from("notification_preferences")
+      .upsert(rows, { onConflict: "user_id,event_type" });
+    if (error) return backendUnavailable();
+    return apiJson({ ok: true, updated: rows.length });
+  } catch {
+    return backendUnavailable();
+  }
 }

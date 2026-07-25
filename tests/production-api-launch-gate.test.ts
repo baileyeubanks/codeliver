@@ -395,15 +395,26 @@ test("production API launch gate fails closed before public, auth, and demo bypa
     await t.test("localhost demo requests retain the UI development path", async () => {
       runtimeState.__ccoLaunchGateGetUserCalls = 0;
       runtimeState.__ccoLaunchGateUser = null;
+      const previousNodeEnv = process.env.NODE_ENV;
+      const previousDemoMode = process.env.CODELIVER_DEMO_MODE;
+      process.env.NODE_ENV = "development";
+      process.env.CODELIVER_DEMO_MODE = "1";
 
-      for (const pathname of [
-        "/api/media/browse?demo=1",
-        "/api/usage/summary?demo=1",
-        "/api/transcode/worker?demo=1",
-      ]) {
-        const response = await proxy(request("localhost:4103", pathname, { method: "POST" }));
-        assert.equal(response.status, 200, pathname);
-        assert.equal(response.headers.get("x-middleware-next"), "1", pathname);
+      try {
+        for (const pathname of [
+          "/api/media/browse?demo=1",
+          "/api/usage/summary?demo=1",
+          "/api/transcode/worker?demo=1",
+        ]) {
+          const response = await proxy(request("localhost:4103", pathname, { method: "POST" }));
+          assert.equal(response.status, 200, pathname);
+          assert.equal(response.headers.get("x-middleware-next"), "1", pathname);
+        }
+      } finally {
+        if (previousNodeEnv === undefined) delete process.env.NODE_ENV;
+        else process.env.NODE_ENV = previousNodeEnv;
+        if (previousDemoMode === undefined) delete process.env.CODELIVER_DEMO_MODE;
+        else process.env.CODELIVER_DEMO_MODE = previousDemoMode;
       }
       assert.equal(runtimeState.__ccoLaunchGateGetUserCalls, 0);
     });

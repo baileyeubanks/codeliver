@@ -12,6 +12,7 @@ import {
   Trash2,
   ExternalLink,
 } from "lucide-react";
+import { useDemoMediaObjectUrl } from "@/lib/demo/media-blob-store";
 
 export interface MediaAsset {
   id: string;
@@ -19,6 +20,7 @@ export interface MediaAsset {
   title: string;
   file_url?: string | null;
   thumbnail_url?: string;
+  demo_thumbnail_id?: string;
   file_type: string;
   duration_seconds?: number;
   status: string;
@@ -97,6 +99,8 @@ export default function MediaCard({
   const statusInfo = STATUS_MAP[asset.status] ?? STATUS_MAP.draft;
   const versionLabel = `V${asset.version_count ?? 1}`;
   const assetHref = asset.href ?? `/projects/${asset.project_id}/assets/${asset.id}`;
+  const demoThumbnailUrl = useDemoMediaObjectUrl(asset.demo_thumbnail_id ?? null);
+  const thumbnailUrl = asset.thumbnail_url ?? demoThumbnailUrl;
 
   return (
     <div className="card-media group">
@@ -182,12 +186,12 @@ export default function MediaCard({
         <div
           className="card-media-thumb"
           style={{
-            background: asset.thumbnail_url
-              ? `url(${asset.thumbnail_url}) center/cover`
+            background: thumbnailUrl
+              ? `url(${thumbnailUrl}) center/cover`
               : "linear-gradient(135deg, var(--surface-2), var(--surface-3))",
           }}
         >
-          {!asset.thumbnail_url && (
+          {!thumbnailUrl && (
             <div className="absolute inset-0 flex items-center justify-center">
               <Play size={32} className="text-[var(--dim)]" />
             </div>

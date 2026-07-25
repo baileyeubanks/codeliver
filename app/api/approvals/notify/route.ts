@@ -1,4 +1,5 @@
-import { NextResponse } from "next/server";
+import { isBackendUnavailableError } from "@/lib/api/backend";
+import { apiError, apiJson, backendUnavailable } from "@/lib/api/responses";
 import { requireAuth } from "@/lib/auth";
 import { getAssetAccess } from "@/lib/access-control";
 import { getSupabase } from "@/lib/supabase";
@@ -6,26 +7,46 @@ import { sendEmail, emailTemplates, getBaseUrl } from "@/lib/email";
 import { createApprovalInvite } from "@/lib/review-invites";
 
 export async function POST(req: Request) {
-  const user = await requireAuth();
-  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  let user: Awaited<ReturnType<typeof requireAuth>>;
+  try {
+    user = await requireAuth();
+  } catch (error) {
+    return isBackendUnavailableError(error)
+      ? backendUnavailable()
+      : apiError("Authentication service is unavailable", "AUTH_UNAVAILABLE", 503);
+  }
+  if (!user) return apiError("Unauthorized", "UNAUTHORIZED", 401);
 
-  const body = await req.json();
+  let body: unknown;
+  try {
+    body = await req.json();
+  } catch {
+    return apiError("Invalid request body", "INVALID_REQUEST", 400);
+  }
+  if (!body || typeof body !== "object" || Array.isArray(body)) {
+    return apiError("Invalid request body", "INVALID_REQUEST", 400);
+  }
   const { approval_id, asset_id } = body as { approval_id: string; asset_id: string };
 
   if (!approval_id || !asset_id) {
-    return NextResponse.json({ error: "approval_id and asset_id are required" }, { status: 400 });
+    return apiError("approval_id and asset_id are required", "INVALID_REQUEST", 400);
   }
 
-  const supabase = getSupabase();
-  const assetAccess = await getAssetAccess(
-    asset_id,
-    user.id,
-    "producer",
-    supabase,
-  );
-  if (!assetAccess.ok) {
-    return NextResponse.json({ error: assetAccess.error }, { status: assetAccess.status });
-  }
+  try {
+    const supabase = getSupabase();
+    const assetAccess = await getAssetAccess(
+      asset_id,
+      user.id,
+      "producer",
+      supabase,
+    );
+    if (!assetAccess.ok) {
+      return apiError(
+        assetAccess.status >= 500 ? "Approval service is unavailable" : "Approval resource not found",
+        assetAccess.status >= 500 ? "BACKEND_UNAVAILABLE" : "APPROVAL_NOT_FOUND",
+        assetAccess.status >= 500 ? 503 : 404,
+      );
+    }
 
   const { data: step, error: stepErr } = await supabase
     .from("approvals")
@@ -34,8 +55,9 @@ export async function POST(req: Request) {
     .eq("asset_id", asset_id)
     .single();
 
-  if (stepErr || !step) return NextResponse.json({ error: "Approval step not found" }, { status: 404 });
-  if (!step.assignee_email) return NextResponse.json({ error: "No assignee email" }, { status: 400 });
+    if (stepErr) return backendUnavailable();
+    if (!step) return apiError("Approval step not found", "APPROVAL_NOT_FOUND", 404);
+    if (!step.assignee_email) return apiError("No assignee email", "INVALID_APPROVAL", 400);
 
   const { data: asset, error: assetErr } = await supabase
     .from("assets")
@@ -43,15 +65,18 @@ export async function POST(req: Request) {
     .eq("id", asset_id)
     .single();
 
-  if (assetErr || !asset) return NextResponse.json({ error: "Asset not found" }, { status: 404 });
+    if (assetErr) return backendUnavailable();
+    if (!asset) return apiError("Asset not found", "ASSET_NOT_FOUND", 404);
 
-  const { data: project } = await supabase
+    const { data: project, error: projectError } = await supabase
     .from("projects")
     .select("name")
     .eq("id", asset.project_id)
     .single();
 
-  const reviewInvite = await createApprovalInvite({
+    if (projectError) return backendUnavailable();
+    if (!project) return apiError("Project not found", "PROJECT_NOT_FOUND", 404);
+    const reviewInvite = await createApprovalInvite({
     assetId: asset_id,
     reviewerEmail: step.assignee_email,
     createdBy: user.id,
@@ -65,9 +90,9 @@ export async function POST(req: Request) {
     reviewUrl
   );
 
-  await sendEmail({ to: step.assignee_email, ...emailPayload });
+    await sendEmail({ to: step.assignee_email, ...emailPayload });
 
-  await supabase.from("activity_log").insert({
+    const { error: activityError } = await supabase.from("activity_log").insert({
     project_id: asset.project_id,
     asset_id,
     actor_id: user.id,
@@ -76,5 +101,9 @@ export async function POST(req: Request) {
     details: { assignee_email: step.assignee_email, role_label: step.role_label },
   });
 
-  return NextResponse.json({ ok: true, sent_to: step.assignee_email });
+    if (activityError) return backendUnavailable();
+    return apiJson({ ok: true, sent_to: step.assignee_email });
+  } catch {
+    return backendUnavailable();
+  }
 }

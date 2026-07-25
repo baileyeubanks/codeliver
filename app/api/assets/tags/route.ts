@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { getAssetAccess, getProjectAccess } from "@/lib/access-control";
 import { requireAuth } from "@/lib/auth";
 import { getSupabase } from "@/lib/supabase";
+import { apiError, apiJson } from "@/lib/api/responses";
+import { withAssetRouteBoundary } from "../asset-route-boundary";
 
 const DEFAULT_TAG_COLOR = "#3b82f6";
 const TAG_COLOR_PATTERN = /^#[0-9a-f]{6}$/i;
@@ -16,7 +18,7 @@ type TagRow = {
 };
 
 function errorResponse(error: string, status: number) {
-  return NextResponse.json({ error }, { status });
+  return apiError(error, status === 401 ? "UNAUTHORIZED" : status === 404 ? "NOT_FOUND" : status >= 500 ? "BACKEND_UNAVAILABLE" : "INVALID_REQUEST", status);
 }
 
 function accessFailureResponse(status: number) {
@@ -97,7 +99,7 @@ async function authorizeAssignment(
   return { ok: true, projectId };
 }
 
-export async function GET(request: NextRequest) {
+async function GETHandler(request: NextRequest) {
   const user = await requireAuth();
   if (!user) {
     return errorResponse("Unauthorized", 401);
@@ -129,10 +131,10 @@ export async function GET(request: NextRequest) {
     return errorResponse("Unable to load tags", 500);
   }
 
-  return NextResponse.json(data ?? []);
+  return apiJson((data ?? []) as unknown as Record<string, unknown>);
 }
 
-export async function POST(request: NextRequest) {
+async function POSTHandler(request: NextRequest) {
   const user = await requireAuth();
   if (!user) {
     return errorResponse("Unauthorized", 401);
@@ -166,7 +168,7 @@ export async function POST(request: NextRequest) {
     if (error) {
       return errorResponse("Unable to update tag assignment", 500);
     }
-    return NextResponse.json({ ok: true });
+    return apiJson({ ok: true });
   }
 
   const projectId = body.project_id;
@@ -207,10 +209,10 @@ export async function POST(request: NextRequest) {
     return errorResponse("Unable to create tag", 500);
   }
 
-  return NextResponse.json(data, { status: 201 });
+  return apiJson(data, { status: 201 });
 }
 
-export async function DELETE(request: NextRequest) {
+async function DELETEHandler(request: NextRequest) {
   const user = await requireAuth();
   if (!user) {
     return errorResponse("Unauthorized", 401);
@@ -243,7 +245,7 @@ export async function DELETE(request: NextRequest) {
     if (error) {
       return errorResponse("Unable to update tag assignment", 500);
     }
-    return NextResponse.json({ ok: true });
+    return apiJson({ ok: true });
   }
 
   if (!isIdentifier(body.id)) {
@@ -277,5 +279,9 @@ export async function DELETE(request: NextRequest) {
     return errorResponse("Unable to delete tag", 500);
   }
 
-  return NextResponse.json({ ok: true });
+  return apiJson({ ok: true });
 }
+
+export const GET = withAssetRouteBoundary(GETHandler);
+export const POST = withAssetRouteBoundary(POSTHandler);
+export const DELETE = withAssetRouteBoundary(DELETEHandler);

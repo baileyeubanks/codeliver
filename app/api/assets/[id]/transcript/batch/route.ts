@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getAssetAccess } from "@/lib/access-control";
 import { requireAuth } from "@/lib/auth";
+import { withAssetRouteBoundary } from "../../../asset-route-boundary";
 import {
   createSafeDemoTranscriptProvider,
   planTranscriptBatch,
@@ -19,7 +20,7 @@ function response(body: unknown, init?: ResponseInit) {
   return result;
 }
 
-export async function POST(req: Request, { params }: { params: Promise<{ id: string }> }) {
+async function POSTHandler(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const user = await requireAuth();
   if (!user) return response({ error: "Unauthorized" }, { status: 401 });
 
@@ -91,6 +92,8 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
       externalProviderCall: false,
     });
   } catch (error) {
-    return response({ error: error instanceof Error ? error.message : "Batch plan failed" }, { status: 400 });
+    return response({ error: "Batch plan failed", code: "INVALID_REQUEST" }, { status: 400 });
   }
 }
+
+export const POST = withAssetRouteBoundary(POSTHandler);

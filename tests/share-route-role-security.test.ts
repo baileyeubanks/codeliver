@@ -137,6 +137,15 @@ registerHooks({
     }
     if (specifier === "@/lib/supabase") return nextResolve(supabaseStubUrl, context);
     if (specifier === "@/lib/versions") return nextResolve(versionsStubUrl, context);
+    if (specifier === "@/lib/api/responses") {
+      return nextResolve(
+        pathToFileURL(resolve(repositoryRoot, "lib/api/responses.ts")).href,
+        context,
+      );
+    }
+    if (specifier.endsWith("asset-route-boundary")) {
+      return nextResolve(`${specifier}.ts`, context);
+    }
     return nextResolve(specifier, context);
   },
 });

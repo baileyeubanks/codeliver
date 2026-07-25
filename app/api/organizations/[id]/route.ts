@@ -1,6 +1,6 @@
-import { NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth";
 import { getSupabase } from "@/lib/supabase";
+import { apiError, apiJson, backendUnavailable } from "@/lib/api/responses";
 
 const ORGANIZATION_COLUMNS =
   "id, owner_id, name, industry, website, notes, created_at, updated_at";
@@ -10,7 +10,7 @@ const UUID_PATTERN =
 type JsonObject = Record<string, unknown>;
 
 function errorResponse(error: string, status: number) {
-  return NextResponse.json({ error }, { status });
+  return apiError(error, status === 401 ? "UNAUTHORIZED" : status === 404 ? "NOT_FOUND" : status >= 500 ? "BACKEND_UNAVAILABLE" : "INVALID_REQUEST", status);
 }
 
 async function readJsonObject(request: Request): Promise<JsonObject | null> {
@@ -25,6 +25,7 @@ async function readJsonObject(request: Request): Promise<JsonObject | null> {
 }
 
 export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
+  try {
   const user = await requireAuth();
   if (!user) return errorResponse("Unauthorized", 401);
 
@@ -45,10 +46,14 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
     return errorResponse("Unable to load the organization", 500);
   }
   if (!data) return errorResponse("Organization not found", 404);
-  return NextResponse.json(data);
+  return apiJson(data);
+  } catch {
+    return backendUnavailable();
+  }
 }
 
 export async function PATCH(req: Request, { params }: { params: Promise<{ id: string }> }) {
+  try {
   const user = await requireAuth();
   if (!user) return errorResponse("Unauthorized", 401);
 
@@ -109,5 +114,8 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
   }
   const row = Array.isArray(data) ? data[0] : null;
   if (!row) return errorResponse("Organization not found", 404);
-  return NextResponse.json(row);
+  return apiJson(row);
+  } catch {
+    return backendUnavailable();
+  }
 }

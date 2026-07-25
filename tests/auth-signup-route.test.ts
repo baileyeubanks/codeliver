@@ -1,6 +1,10 @@
 import assert from "node:assert/strict";
 import { registerHooks } from "node:module";
+import { dirname, resolve } from "node:path";
 import test from "node:test";
+import { fileURLToPath, pathToFileURL } from "node:url";
+
+const repositoryRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 
 const hostSurfaceStubUrl = `data:text/javascript,${encodeURIComponent(`
   export const ADMIN_SURFACE_HOST = "admin.example.test";
@@ -25,6 +29,9 @@ registerHooks({
     if (specifier === "next/server") return nextResolve("next/server.js", context);
     if (specifier === "@/lib/supabase-auth") return nextResolve(authStubUrl, context);
     if (specifier === "@/lib/auth/host-surface") return nextResolve(hostSurfaceStubUrl, context);
+    if (specifier === "@/lib/api/responses") {
+      return nextResolve(pathToFileURL(resolve(repositoryRoot, "lib/api/responses.ts")).href, context);
+    }
     return nextResolve(specifier, context);
   },
 });
@@ -55,7 +62,11 @@ test("signup backend failure reports 503, not a misleading user error", async ()
   const { POST } = await signupRoute();
   const response = await POST(jsonRequest({ email: "bailey@example.com", password: "secret1" }) as never);
   assert.equal(response.status, 503);
-  assert.deepEqual(await response.json(), { error: "Account service is unavailable." });
+  assert.equal(response.headers.get("cache-control"), "no-store");
+  assert.deepEqual(await response.json(), {
+    error: "Account service is unavailable.",
+    code: "AUTH_UNAVAILABLE",
+  });
 });
 
 test("signup auth rejection stays a generic 400 (no account enumeration)", async () => {
@@ -63,7 +74,10 @@ test("signup auth rejection stays a generic 400 (no account enumeration)", async
   const { POST } = await signupRoute();
   const response = await POST(jsonRequest({ email: "bailey@example.com", password: "secret1" }) as never);
   assert.equal(response.status, 400);
-  assert.deepEqual(await response.json(), { error: "Account creation could not be completed." });
+  assert.deepEqual(await response.json(), {
+    error: "Account creation could not be completed.",
+    code: "AUTH_SIGNUP_REJECTED",
+  });
 });
 
 test("signup success returns pending access", async () => {

@@ -1,12 +1,16 @@
-import { NextResponse } from "next/server";
+import { apiError, apiJson } from "@/lib/api/responses";
 import { requireAuth } from "@/lib/auth";
 import { getAssetAccess, PROJECT_ROLE_RANK } from "@/lib/access-control";
 import { recordApprovalDecision } from "@/lib/approval-decisions";
 import { createApprovalInvite, normalizeReviewerEmail } from "@/lib/review-invites";
 import { getSupabase } from "@/lib/supabase";
 import { sendEmail, emailTemplates, getBaseUrl } from "@/lib/email";
+import { withAssetRouteBoundary } from "../../asset-route-boundary";
 
-export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
+const NextResponse = { json: (body: Record<string, unknown>, init: ResponseInit = {}) =>
+  "error" in body && !body.code ? apiError(String(body.error), init.status === 401 ? "UNAUTHORIZED" : init.status === 404 ? "NOT_FOUND" : init.status && init.status >= 500 ? "BACKEND_UNAVAILABLE" : "INVALID_REQUEST", init.status ?? 400, init.headers) : apiJson(body, init) };
+
+async function GETHandler(_req: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const user = await requireAuth();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -32,11 +36,11 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
   ]);
 
   if (approvalsResult.error) {
-    return NextResponse.json({ error: approvalsResult.error.message }, { status: 500 });
+    return apiError("Approval data is unavailable", "BACKEND_UNAVAILABLE", 503);
   }
 
   if (workflowResult.error) {
-    return NextResponse.json({ error: workflowResult.error.message }, { status: 500 });
+    return apiError("Approval data is unavailable", "BACKEND_UNAVAILABLE", 503);
   }
 
   const actorEmail = normalizeReviewerEmail(user.email);
@@ -62,7 +66,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
   });
 }
 
-export async function POST(req: Request, { params }: { params: Promise<{ id: string }> }) {
+async function POSTHandler(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const user = await requireAuth();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
@@ -170,7 +174,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
   return NextResponse.json(data, { status: 201 });
 }
 
-export async function PATCH(req: Request, { params }: { params: Promise<{ id: string }> }) {
+async function PATCHHandler(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const user = await requireAuth();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
@@ -210,7 +214,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
     .maybeSingle();
 
   if (approvalError) {
-    return NextResponse.json({ error: approvalError.message }, { status: 500 });
+    return apiError("Approval step could not be loaded", "BACKEND_UNAVAILABLE", 503);
   }
   if (!approval) {
     return NextResponse.json({ error: "Approval step not found" }, { status: 404 });
@@ -249,3 +253,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
     asset_status: decision.assetStatus,
   });
 }
+
+export const GET = withAssetRouteBoundary(GETHandler);
+export const POST = withAssetRouteBoundary(POSTHandler);
+export const PATCH = withAssetRouteBoundary(PATCHHandler);

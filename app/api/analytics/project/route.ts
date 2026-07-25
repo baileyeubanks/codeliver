@@ -1,7 +1,7 @@
-import { NextResponse } from "next/server";
 import { getProjectAccess } from "@/lib/access-control";
 import { requireAuth } from "@/lib/auth";
 import { getSupabase } from "@/lib/supabase";
+import { apiError, apiJson, backendUnavailable } from "@/lib/api/responses";
 
 interface DayCount {
   date: string;
@@ -24,9 +24,10 @@ interface ReviewerStat {
 }
 
 export async function GET(req: Request) {
+  try {
   const user = await requireAuth();
   if (!user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    return apiError("Unauthorized", "UNAUTHORIZED", 401);
   }
 
   const { searchParams } = new URL(req.url);
@@ -34,7 +35,7 @@ export async function GET(req: Request) {
   const type = searchParams.get("type");
 
   if (!projectId) {
-    return NextResponse.json({ error: "project_id required" }, { status: 400 });
+    return apiError("project_id required", "INVALID_REQUEST", 400);
   }
 
   const supabase = getSupabase();
@@ -46,10 +47,7 @@ export async function GET(req: Request) {
     supabase,
   );
   if (!projectAccess.ok) {
-    return NextResponse.json(
-      { error: projectAccess.error },
-      { status: projectAccess.status },
-    );
+    return apiError(projectAccess.error, "PROJECT_ACCESS_DENIED", projectAccess.status);
   }
 
   const { data: assetRows, error: assetError } = await supabase
@@ -57,7 +55,7 @@ export async function GET(req: Request) {
     .select("id")
     .eq("project_id", projectId);
   if (assetError) {
-    return NextResponse.json({ error: assetError.message }, { status: 500 });
+    return apiError("Analytics data is unavailable", "BACKEND_UNAVAILABLE", 503);
   }
   const assetIds = (assetRows ?? []).map((asset: { id: string }) => asset.id);
 
@@ -68,6 +66,9 @@ export async function GET(req: Request) {
 
   // Default: aggregate analytics
   return getAggregateAnalytics(supabase, projectId, assetIds);
+  } catch {
+    return backendUnavailable();
+  }
 }
 
 async function getAggregateAnalytics(
@@ -143,7 +144,7 @@ async function getAggregateAnalytics(
     stepsResult.error ??
     recentCommentsResult.error;
   if (queryError) {
-    return NextResponse.json({ error: queryError.message }, { status: 500 });
+    return apiError("Analytics data is unavailable", "BACKEND_UNAVAILABLE", 503);
   }
 
   const commentsPerDay: DayCount[] = [];
@@ -162,7 +163,7 @@ async function getAggregateAnalytics(
     commentsPerDay.push({ date: key, count: dayMap.get(key) || 0 });
   }
 
-  return NextResponse.json({
+  return apiJson({
     total_assets: assetIds.length,
     active_reviews: activeReviews ?? 0,
     comments_this_week: commentsThisWeekResult.count ?? 0,
@@ -177,7 +178,7 @@ async function getReviewerStats(
   ids: string[],
 ) {
   if (ids.length === 0) {
-    return NextResponse.json({ reviewers: [] });
+    return apiJson({ reviewers: [] });
   }
 
   // Get all approval steps for this project
@@ -193,7 +194,7 @@ async function getReviewerStats(
     .in("asset_id", ids);
   const queryError = stepsError ?? commentsError;
   if (queryError) {
-    return NextResponse.json({ error: queryError.message }, { status: 500 });
+    return apiError("Analytics data is unavailable", "BACKEND_UNAVAILABLE", 503);
   }
 
   const reviewerMap = new Map<string, {
@@ -267,5 +268,5 @@ async function getReviewerStats(
     });
   }
 
-  return NextResponse.json({ reviewers });
+  return apiJson({ reviewers });
 }

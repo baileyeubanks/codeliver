@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { apiJson } from "@/lib/api/responses";
 import { getAssetAccess } from "@/lib/access-control";
 import {
   buildReviewSummaryPrompt,
@@ -15,13 +15,12 @@ const MAX_REQUEST_BYTES = 4_096;
 const PROVIDER_TIMEOUT_MS = 30_000;
 
 function noStoreJson(value: unknown, init?: ResponseInit) {
-  const headers = new Headers(init?.headers);
-  headers.set("Cache-Control", "no-store");
-  return NextResponse.json(value, { ...init, headers });
+  return apiJson(value as Record<string, unknown>, init);
 }
 
 export async function POST(request: Request) {
-  const user = await requireAuth();
+  let user;
+  try { user = await requireAuth(); } catch { return noStoreJson({ error: "AI service is unavailable", code: "BACKEND_UNAVAILABLE" }, { status: 503 }); }
   if (!user) return noStoreJson({ error: "Unauthorized" }, { status: 401 });
 
   const contentLength = Number(request.headers.get("content-length") ?? "0");
@@ -33,8 +32,10 @@ export async function POST(request: Request) {
   if (!input.ok) return noStoreJson({ error: input.error }, { status: 400 });
 
   const { assetId, versionId, mode } = input.value;
-  const supabase = getSupabase();
-  const access = await getAssetAccess(assetId, user.id, "member", supabase);
+  let supabase;
+  try { supabase = getSupabase(); } catch { return noStoreJson({ error: "AI service is unavailable", code: "BACKEND_UNAVAILABLE" }, { status: 503 }); }
+  let access;
+  try { access = await getAssetAccess(assetId, user.id, "member", supabase); } catch { return noStoreJson({ error: "AI service is unavailable", code: "BACKEND_UNAVAILABLE" }, { status: 503 }); }
   if (!access.ok) {
     return noStoreJson({ error: access.error }, { status: access.status });
   }

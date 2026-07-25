@@ -432,10 +432,10 @@ test("provider failures are generic and never expose provider details", async ()
   const response = await POST(
     attachmentRequest(new File(["safe"], "safe.png", { type: "image/png" })),
   );
-  assert.equal(response.status, 500);
+  assert.equal(response.status, 503);
   const body = await response.text();
   assert.doesNotMatch(body, /AccessDenied|provider-detail|S3/);
-  assert.match(body, /Unable to store attachment/);
+  assert.match(body, /Backend service is unavailable/);
   assert.equal(state.publicUrlCalls, 0);
 });
 

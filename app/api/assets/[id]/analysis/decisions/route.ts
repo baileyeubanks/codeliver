@@ -3,6 +3,7 @@ import { getAssetAccess } from "@/lib/access-control";
 import { hasRecordedAnalysisProvenance } from "@/lib/audio-analysis/core";
 import { requireAuth } from "@/lib/auth";
 import { getSupabase } from "@/lib/supabase";
+import { withAssetRouteBoundary } from "../../../asset-route-boundary";
 import {
   durableMediaIntelligenceUnavailable,
   transcriptSourceFromVersion,
@@ -15,7 +16,7 @@ function response(body: unknown, init?: ResponseInit) {
   return result;
 }
 
-export async function PATCH(req: Request, { params }: { params: Promise<{ id: string }> }) {
+async function PATCHHandler(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const user = await requireAuth();
   if (!user) return response({ error: "Unauthorized" }, { status: 401 });
 
@@ -45,7 +46,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
     .eq("version_id", versionId)
     .in("source", ["filler_scan", "silence_scan"])
     .maybeSingle();
-  if (current.error) return response({ error: current.error.message }, { status: 500 });
+  if (current.error) return response({ error: "Analysis decision data is unavailable", code: "BACKEND_UNAVAILABLE" }, { status: 503 });
   if (!current.data) return response({ error: "Analysis decision not found" }, { status: 404 });
   try {
     const source = transcriptSourceFromVersion(versionLookup.version);
@@ -54,7 +55,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
     }
   } catch (error) {
     return response(
-      { error: error instanceof Error ? error.message : "Invalid media version provenance" },
+      { error: "Invalid media version provenance", code: "INVALID_MEDIA_VERSION" },
       { status: 409 },
     );
   }
@@ -82,3 +83,5 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
     { status: 503 },
   );
 }
+
+export const PATCH = withAssetRouteBoundary(PATCHHandler);

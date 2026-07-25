@@ -1,17 +1,16 @@
-import { NextResponse } from "next/server";
+import { apiJson } from "@/lib/api/responses";
 import { getAssetAccess } from "@/lib/access-control";
 import { requireAuth } from "@/lib/auth";
 import { getSupabase } from "@/lib/supabase";
 import { resolveAssetVersion } from "@/lib/versions";
 
 function noStore(body: unknown, init?: ResponseInit) {
-  const response = NextResponse.json(body, init);
-  response.headers.set("Cache-Control", "private, no-store");
-  return response;
+  return apiJson(body as Record<string, unknown>, init);
 }
 
 export async function GET(request: Request) {
-  const user = await requireAuth();
+  let user;
+  try { user = await requireAuth(); } catch { return noStore({ error: "Transcription service is unavailable", code: "BACKEND_UNAVAILABLE" }, { status: 503 }); }
   if (!user) return noStore({ error: "Unauthorized" }, { status: 401 });
 
   const search = new URL(request.url).searchParams;
@@ -24,7 +23,8 @@ export async function GET(request: Request) {
     );
   }
 
-  const access = await getAssetAccess(assetId, user.id, "viewer");
+  let access;
+  try { access = await getAssetAccess(assetId, user.id, "viewer"); } catch { return noStore({ error: "Transcription service is unavailable", code: "BACKEND_UNAVAILABLE" }, { status: 503 }); }
   if (!access.ok) {
     return noStore({ error: access.error }, { status: access.status });
   }
@@ -33,14 +33,16 @@ export async function GET(request: Request) {
     return noStore({ error: version.error }, { status: version.status });
   }
 
-  const { data, error } = await getSupabase()
+  let result;
+  try { result = await getSupabase()
     .from("transcriptions")
     .select("id, asset_id, version_id, language, status, segments, created_at")
     .eq("asset_id", assetId)
     .eq("version_id", versionId)
     .order("created_at", { ascending: false })
     .limit(1)
-    .maybeSingle();
+    .maybeSingle(); } catch { return noStore({ error: "Transcription data is temporarily unavailable", code: "BACKEND_UNAVAILABLE" }, { status: 503 }); }
+  const { data, error } = result;
 
   if (error) {
     return noStore(
@@ -52,7 +54,8 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
-  const user = await requireAuth();
+  let user;
+  try { user = await requireAuth(); } catch { return noStore({ error: "Transcription service is unavailable", code: "BACKEND_UNAVAILABLE" }, { status: 503 }); }
   if (!user) return noStore({ error: "Unauthorized" }, { status: 401 });
 
   const body = await request.json().catch(() => null);
@@ -64,7 +67,8 @@ export async function POST(request: Request) {
   if (!assetId) {
     return noStore({ error: "asset_id is required" }, { status: 400 });
   }
-  const access = await getAssetAccess(assetId, user.id, "editor");
+  let access;
+  try { access = await getAssetAccess(assetId, user.id, "editor"); } catch { return noStore({ error: "Transcription service is unavailable", code: "BACKEND_UNAVAILABLE" }, { status: 503 }); }
   if (!access.ok) {
     return noStore({ error: access.error }, { status: access.status });
   }

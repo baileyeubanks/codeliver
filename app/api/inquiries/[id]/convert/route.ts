@@ -1,8 +1,8 @@
 import { randomUUID } from "node:crypto";
-import { NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth";
 import { transitionInquiry } from "@/lib/covideopro/transitions";
 import { getSupabase } from "@/lib/supabase";
+import { apiError, apiJson, backendUnavailable } from "@/lib/api/responses";
 
 const INQUIRY_COLUMNS =
   "id, owner_id, project_id, organization_id, contact_id, source, summary, received_at, status, created_at, updated_at";
@@ -14,7 +14,7 @@ const UUID_PATTERN =
 type JsonObject = Record<string, unknown>;
 
 function errorResponse(error: string, status: number) {
-  return NextResponse.json({ error }, { status });
+  return apiError(error, status === 401 ? "UNAUTHORIZED" : status === 404 ? "NOT_FOUND" : status >= 500 ? "BACKEND_UNAVAILABLE" : "INVALID_REQUEST", status);
 }
 
 async function readJsonObject(request: Request): Promise<JsonObject | null> {
@@ -36,6 +36,7 @@ async function readJsonObject(request: Request): Promise<JsonObject | null> {
  * is a 422 with zero writes — repeat calls are idempotent.
  */
 export async function POST(req: Request, { params }: { params: Promise<{ id: string }> }) {
+  try {
   const user = await requireAuth();
   if (!user) return errorResponse("Unauthorized", 401);
 
@@ -111,5 +112,8 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
   const converted = Array.isArray(updated) ? updated[0] : null;
   if (!converted) return errorResponse("Inquiry not found", 404);
 
-  return NextResponse.json({ project, inquiry: converted }, { status: 201 });
+  return apiJson({ project, inquiry: converted }, { status: 201 });
+  } catch {
+    return backendUnavailable();
+  }
 }

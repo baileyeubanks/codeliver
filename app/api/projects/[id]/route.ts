@@ -1,57 +1,64 @@
-import { NextResponse } from "next/server";
 import { getProjectAccess } from "@/lib/access-control";
+import { apiError, apiJson, backendUnavailable } from "@/lib/api/responses";
 import { requireAuth } from "@/lib/auth";
 import { getSupabaseDataSchema } from "@/lib/data-authority";
 import { normalizeMediaReference } from "@/lib/security/media-reference";
 import { getSupabase } from "@/lib/supabase";
 
+async function authenticatedUser() {
+  try {
+    const user = await requireAuth();
+    return user ? { user } : { response: apiError("Unauthorized", "UNAUTHORIZED", 401) };
+  } catch {
+    return { response: backendUnavailable() };
+  }
+}
+
+function accessFailure(access: { status: number; error: string }) {
+  if (access.status >= 500) return backendUnavailable();
+  return apiError(access.error, "PROJECT_NOT_FOUND", access.status);
+}
+
 export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
-  const user = await requireAuth();
-  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const auth = await authenticatedUser();
+  if ("response" in auth) return auth.response;
+  const { user } = auth;
 
-  const { id } = await params;
-  const projectAccess = await getProjectAccess(id, user.id, "viewer");
-  if (!projectAccess.ok) {
-    return NextResponse.json(
-      { error: projectAccess.error },
-      { status: projectAccess.status },
-    );
-  }
-  const { data, error } = await getSupabase()
-    .from("projects")
-    .select(
-      getSupabaseDataSchema() === "co_production"
-        ? "id, team_id, owner_id, name, description, status, stage, organization_id, primary_contact_id, thumbnail_url, created_at, updated_at"
-        : "id, team_id, owner_id, name, description, status, thumbnail_url, created_at, updated_at",
-    )
-    .eq("id", id)
-    .maybeSingle();
+  try {
+    const { id } = await params;
+    const projectAccess = await getProjectAccess(id, user.id, "viewer");
+    if (!projectAccess.ok) return accessFailure(projectAccess);
+    const { data, error } = await getSupabase()
+      .from("projects")
+      .select(
+        getSupabaseDataSchema() === "co_production"
+          ? "id, team_id, owner_id, name, description, status, stage, organization_id, primary_contact_id, thumbnail_url, created_at, updated_at"
+          : "id, team_id, owner_id, name, description, status, thumbnail_url, created_at, updated_at",
+      )
+      .eq("id", id)
+      .maybeSingle();
 
-  if (error || !data) {
-    return NextResponse.json({ error: "Project not found" }, { status: 404 });
+    if (error) return backendUnavailable();
+    if (!data) return apiError("Project not found", "PROJECT_NOT_FOUND", 404);
+    return apiJson(data as unknown as Record<string, unknown>);
+  } catch {
+    return backendUnavailable();
   }
-  return NextResponse.json(data);
 }
 
 export async function PATCH(req: Request, { params }: { params: Promise<{ id: string }> }) {
-  const user = await requireAuth();
-  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const auth = await authenticatedUser();
+  if ("response" in auth) return auth.response;
+  const { user } = auth;
 
-  const { id } = await params;
-  const projectAccess = await getProjectAccess(id, user.id, "producer");
-  if (!projectAccess.ok) {
-    return NextResponse.json(
-      { error: projectAccess.error },
-      { status: projectAccess.status },
-    );
-  }
-  const body = await req.json().catch(() => null);
-  if (!body || typeof body !== "object" || Array.isArray(body)) {
-    return NextResponse.json(
-      { error: "Project body must be an object" },
-      { status: 400 },
-    );
-  }
+  try {
+    const { id } = await params;
+    const projectAccess = await getProjectAccess(id, user.id, "producer");
+    if (!projectAccess.ok) return accessFailure(projectAccess);
+    const body = await req.json().catch(() => null);
+    if (!body || typeof body !== "object" || Array.isArray(body)) {
+      return apiError("Project body must be an object", "INVALID_REQUEST", 400);
+    }
   const updates: Record<string, unknown> = {};
   if (body.name !== undefined) {
     if (
@@ -59,7 +66,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
       !body.name.trim() ||
       body.name.trim().length > 240
     ) {
-      return NextResponse.json({ error: "name is invalid" }, { status: 400 });
+      return apiError("name is invalid", "INVALID_REQUEST", 400);
     }
     updates.name = body.name.trim();
   }
@@ -68,7 +75,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
       body.description !== null &&
       (typeof body.description !== "string" || body.description.length > 10_000)
     ) {
-      return NextResponse.json({ error: "description is invalid" }, { status: 400 });
+      return apiError("description is invalid", "INVALID_REQUEST", 400);
     }
     updates.description =
       typeof body.description === "string"
@@ -77,7 +84,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
   }
   if (body.status !== undefined) {
     if (!["active", "archived", "completed"].includes(body.status as string)) {
-      return NextResponse.json({ error: "status is invalid" }, { status: 400 });
+      return apiError("status is invalid", "INVALID_REQUEST", 400);
     }
     updates.status = body.status;
   }
@@ -87,20 +94,12 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
         body.thumbnail_url === null
           ? null
           : normalizeMediaReference(body.thumbnail_url, "thumbnail_url");
-    } catch (thumbnailError) {
-      return NextResponse.json(
-        {
-          error:
-            thumbnailError instanceof Error
-              ? thumbnailError.message
-              : "thumbnail_url is invalid",
-        },
-        { status: 400 },
-      );
+    } catch {
+      return apiError("thumbnail_url is invalid", "INVALID_REQUEST", 400);
     }
   }
   if (Object.keys(updates).length === 0) {
-    return NextResponse.json({ error: "No supported fields to update" }, { status: 400 });
+    return apiError("No supported fields to update", "INVALID_REQUEST", 400);
   }
   updates.updated_at = new Date().toISOString();
   const { data, error } = await getSupabase()
@@ -110,37 +109,31 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
     .select()
     .maybeSingle();
 
-  if (error || !data) {
-    return NextResponse.json(
-      { error: "The project could not be updated" },
-      { status: 503 },
-    );
+    if (error) return backendUnavailable();
+    if (!data) return apiError("Project not found", "PROJECT_NOT_FOUND", 404);
+    return apiJson(data as Record<string, unknown>);
+  } catch {
+    return backendUnavailable();
   }
-  return NextResponse.json(data);
 }
 
 export async function DELETE(_req: Request, { params }: { params: Promise<{ id: string }> }) {
-  const user = await requireAuth();
-  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const auth = await authenticatedUser();
+  if ("response" in auth) return auth.response;
+  const { user } = auth;
 
-  const { id } = await params;
-  const projectAccess = await getProjectAccess(id, user.id, "owner");
-  if (!projectAccess.ok) {
-    return NextResponse.json(
-      { error: projectAccess.error },
-      { status: projectAccess.status },
-    );
-  }
-  const { error } = await getSupabase()
-    .from("projects")
-    .update({ status: "archived", updated_at: new Date().toISOString() })
-    .eq("id", id);
+  try {
+    const { id } = await params;
+    const projectAccess = await getProjectAccess(id, user.id, "owner");
+    if (!projectAccess.ok) return accessFailure(projectAccess);
+    const { error } = await getSupabase()
+      .from("projects")
+      .update({ status: "archived", updated_at: new Date().toISOString() })
+      .eq("id", id);
 
-  if (error) {
-    return NextResponse.json(
-      { error: "The project could not be archived" },
-      { status: 503 },
-    );
+    if (error) return backendUnavailable();
+    return apiJson({ ok: true, status: "archived" });
+  } catch {
+    return backendUnavailable();
   }
-  return NextResponse.json({ ok: true, status: "archived" });
 }

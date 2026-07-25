@@ -1,5 +1,5 @@
-import { NextResponse } from "next/server";
 import { createSupabaseAuth } from "@/lib/supabase-auth";
+import { apiJson } from "@/lib/api/responses";
 
 const INVALID_CREDENTIALS = {
   error: "Email or password was not accepted.",
@@ -28,7 +28,7 @@ export async function POST(req: Request) {
   } catch {
     // Fallback to form data for non-JSON requests
     const form = await req.formData().catch(() => null);
-    if (!form) return NextResponse.json(INVALID_REQUEST, { status: 400 });
+    if (!form) return apiJson(INVALID_REQUEST, { status: 400 });
     body = {
       email: String(form.get("email") || ""),
       password: String(form.get("password") || ""),
@@ -36,13 +36,13 @@ export async function POST(req: Request) {
   }
 
   if (!body || typeof body !== "object" || Array.isArray(body)) {
-    return NextResponse.json(INVALID_REQUEST, { status: 400 });
+    return apiJson(INVALID_REQUEST, { status: 400 });
   }
 
   const email = typeof body.email === "string" ? body.email : "";
   const password = typeof body.password === "string" ? body.password : "";
   if (!email || !password) {
-    return NextResponse.json(CREDENTIALS_REQUIRED, { status: 400 });
+    return apiJson(CREDENTIALS_REQUIRED, { status: 400 });
   }
 
   try {
@@ -53,11 +53,11 @@ export async function POST(req: Request) {
     });
 
     if (error) {
-      return NextResponse.json(INVALID_CREDENTIALS, { status: 401 });
+      return apiJson(INVALID_CREDENTIALS, { status: 401 });
     }
   } catch {
-    return NextResponse.json(AUTH_UNAVAILABLE, { status: 503 });
+    return apiJson(AUTH_UNAVAILABLE, { status: 503 });
   }
 
-  return NextResponse.json({ success: true });
+  return apiJson({ success: true });
 }

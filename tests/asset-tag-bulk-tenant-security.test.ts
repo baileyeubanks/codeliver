@@ -44,6 +44,15 @@ registerHooks({
     if (specifier === "@/lib/supabase") {
       return nextResolve(supabaseStubUrl, context);
     }
+    if (specifier === "@/lib/api/responses") {
+      return nextResolve(
+        pathToFileURL(resolve(repositoryRoot, "lib/api/responses.ts")).href,
+        context,
+      );
+    }
+    if (specifier.endsWith("asset-route-boundary")) {
+      return nextResolve(`${specifier}.ts`, context);
+    }
     return nextResolve(specifier, context);
   },
 });
@@ -363,7 +372,10 @@ test("tag reads hide inaccessible projects and perform no tag query", async () =
   );
 
   assert.equal(response.status, 404, JSON.stringify(await response.clone().json()));
-  assert.deepEqual(await response.json(), { error: "Resource not found" });
+  assert.deepEqual(await response.json(), {
+    error: "Resource not found",
+    code: "NOT_FOUND",
+  });
   assert.equal(supabase.reads.length, 0);
   assert.equal(supabase.writes.length, 0);
 });
@@ -522,7 +534,10 @@ test("bulk operations reject mixed projects before authorization or mutation", a
   );
 
   assert.equal(response.status, 404);
-  assert.deepEqual(await response.json(), { error: "Assets not found" });
+  assert.deepEqual(await response.json(), {
+    error: "Assets not found",
+    code: "NOT_FOUND",
+  });
   assert.equal(state.__ccoTenantProjectAccessCalls.length, 0);
   assert.equal(supabase.writes.length, 0);
 });

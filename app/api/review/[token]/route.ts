@@ -1,19 +1,17 @@
-import { NextResponse } from "next/server";
+import { apiError, apiJson, backendUnavailable } from "@/lib/api/responses";
 import { getExternalApprovalState, getReviewInviteByToken } from "@/lib/review-invites";
 import { deriveShareIntent } from "@/lib/sharing/share-intent";
 import { getSupabase } from "@/lib/supabase";
 import type { ApprovalStep, SharePermission } from "@/lib/types/codeliver";
 import { resolveAssetVersion } from "@/lib/versions";
 
-export async function GET(_req: Request, { params }: { params: Promise<{ token: string }> }) {
+async function getReview(_req: Request, { params }: { params: Promise<{ token: string }> }) {
   const { token } = await params;
   const inviteLookup = await getReviewInviteByToken(token);
 
   if (!inviteLookup.ok) {
-    return NextResponse.json(
-      { error: inviteLookup.error },
-      { status: inviteLookup.status }
-    );
+    if (inviteLookup.status >= 500) return backendUnavailable();
+    return apiError(inviteLookup.error, "REVIEW_INVITE_UNAVAILABLE", inviteLookup.status);
   }
 
   const { invite } = inviteLookup;
@@ -24,10 +22,8 @@ export async function GET(_req: Request, { params }: { params: Promise<{ token: 
   });
 
   if (!versionLookup.ok) {
-    return NextResponse.json(
-      { error: versionLookup.error },
-      { status: versionLookup.status },
-    );
+    if (versionLookup.status >= 500) return backendUnavailable();
+    return apiError(versionLookup.error, "REVIEW_VERSION_UNAVAILABLE", versionLookup.status);
   }
 
   const [commentsResult, approvalsResult, workflowResult, editDecisionsResult] = await Promise.all([
@@ -61,19 +57,19 @@ export async function GET(_req: Request, { params }: { params: Promise<{ token: 
   ]);
 
   if (commentsResult.error) {
-    return NextResponse.json({ error: commentsResult.error.message }, { status: 500 });
+    return backendUnavailable();
   }
 
   if (approvalsResult.error) {
-    return NextResponse.json({ error: approvalsResult.error.message }, { status: 500 });
+    return backendUnavailable();
   }
 
   if (workflowResult.error) {
-    return NextResponse.json({ error: workflowResult.error.message }, { status: 500 });
+    return backendUnavailable();
   }
 
   if (editDecisionsResult.error) {
-    return NextResponse.json({ error: editDecisionsResult.error.message }, { status: 500 });
+    return backendUnavailable();
   }
 
   const nextViewCount = (invite.view_count ?? 0) + 1;
@@ -91,7 +87,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ token: 
     workflowMode: workflowResult.data?.mode ?? null,
   });
 
-  return NextResponse.json({
+  return apiJson({
     asset: invite.assets
       ? {
           ...invite.assets,
@@ -128,4 +124,12 @@ export async function GET(_req: Request, { params }: { params: Promise<{ token: 
       max_views: invite.max_views,
     },
   });
+}
+
+export async function GET(req: Request, context: { params: Promise<{ token: string }> }) {
+  try {
+    return await getReview(req, context);
+  } catch {
+    return backendUnavailable();
+  }
 }

@@ -1,9 +1,17 @@
-import { NextResponse } from "next/server";
+import { apiError, apiJson, backendUnavailable } from "@/lib/api/responses";
 import { requireAuthWithClient } from "@/lib/auth-client";
 
 export async function GET() {
-  const { user, supabase } = await requireAuthWithClient();
-  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  let auth: Awaited<ReturnType<typeof requireAuthWithClient>>;
+  try {
+    auth = await requireAuthWithClient();
+  } catch {
+    return backendUnavailable();
+  }
+  const { user, supabase } = auth;
+  if (!user) {
+    return apiError("Authentication required", "AUTH_REQUIRED", 401);
+  }
 
   try {
     const { data, error } = await supabase
@@ -13,11 +21,10 @@ export async function GET() {
       .order("updated_at", { ascending: false });
 
     if (error) {
-      console.error("Assets API error:", error.message);
-      return NextResponse.json({ items: [] });
+      return backendUnavailable();
     }
-    return NextResponse.json({ items: data ?? [] });
-  } catch (e) {
-    return NextResponse.json({ items: [] });
+    return apiJson({ items: data ?? [] });
+  } catch {
+    return backendUnavailable();
   }
 }

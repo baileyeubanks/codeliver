@@ -1,10 +1,13 @@
 import { createSupabaseAuth } from "./supabase-auth";
+import { BackendUnavailableError } from "./api/backend";
 
 export async function requireAuth() {
-  const supabase = await createSupabaseAuth();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return null;
-  return user;
+  try {
+    const supabase = await createSupabaseAuth();
+    const { data, error } = await supabase.auth.getUser();
+    if (error) throw new Error("Authentication provider rejected the request");
+    return data.user ?? null;
+  } catch {
+    throw new BackendUnavailableError("Authentication backend");
+  }
 }

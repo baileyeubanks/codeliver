@@ -1,9 +1,10 @@
 import { mkdirSync } from "node:fs";
 import { join, resolve, sep } from "node:path";
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest } from "next/server";
 
 import { renderConcatPlan } from "@/lib/covideopro/render.ts";
 import type { ConcatPlanEntry } from "@/lib/covideopro/render-plan.ts";
+import { apiError, apiJson } from "@/lib/api/responses";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -35,19 +36,19 @@ export async function POST(req: NextRequest) {
   try {
     body = await req.json();
   } catch {
-    return NextResponse.json({ error: "Invalid request" }, { status: 400 });
+    return apiError("Invalid request", "RENDER_REQUEST_INVALID", 400);
   }
 
   const entries = Array.isArray(body.plan) ? body.plan : [];
   if (entries.length === 0 || entries.length > 200) {
-    return NextResponse.json({ error: "A render needs 1–200 plan entries." }, { status: 400 });
+    return apiError("A render needs 1–200 plan entries.", "RENDER_PLAN_INVALID", 400);
   }
 
   const plan: ConcatPlanEntry[] = [];
   for (const entry of entries) {
     const file = guardDemoFile(entry?.file ?? "");
     if (!file) {
-      return NextResponse.json({ error: "Render sources must live under the demo media root." }, { status: 403 });
+      return apiError("Render sources must live under the demo media root.", "RENDER_SOURCE_FORBIDDEN", 403);
     }
     if (
       typeof entry.inSeconds !== "number" ||
@@ -55,7 +56,7 @@ export async function POST(req: NextRequest) {
       !(entry.outSeconds > entry.inSeconds) ||
       entry.inSeconds < 0
     ) {
-      return NextResponse.json({ error: "Plan entries need valid in/out seconds." }, { status: 400 });
+      return apiError("Plan entries need valid in/out seconds.", "RENDER_PLAN_INVALID", 400);
     }
     plan.push({
       clip: {
@@ -81,11 +82,11 @@ export async function POST(req: NextRequest) {
 
   try {
     const result = await renderConcatPlan(plan, outPath);
-    return NextResponse.json({
+    return apiJson({
       url: `/demo/renders/${outName}.mp4`,
       durationSeconds: result.durationSeconds,
     });
   } catch {
-    return NextResponse.json({ error: "Render failed in this environment." }, { status: 500 });
+    return apiError("Render failed in this environment.", "RENDER_UNAVAILABLE", 503);
   }
 }

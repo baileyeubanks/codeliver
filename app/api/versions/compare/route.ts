@@ -1,24 +1,27 @@
-import { NextResponse } from "next/server";
+import { apiError, apiJson, backendUnavailable } from "@/lib/api/responses";
 import { getAssetAccess } from "@/lib/access-control";
 import { requireAuth } from "@/lib/auth";
 import { getSupabase } from "@/lib/supabase";
 
 export async function GET(req: Request) {
-  const user = await requireAuth();
-  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  let user;
+  try { user = await requireAuth(); } catch { return backendUnavailable(); }
+  if (!user) return apiError("Unauthorized", "UNAUTHORIZED", 401);
 
   const { searchParams } = new URL(req.url);
   const versionAId = searchParams.get("a");
   const versionBId = searchParams.get("b");
 
   if (!versionAId || !versionBId) {
-    return NextResponse.json({ error: "Both version IDs (a, b) required" }, { status: 400 });
+    return apiError("Both version IDs (a, b) required", "INVALID_REQUEST", 400);
   }
 
-  const sb = getSupabase();
+  let sb;
+  try { sb = getSupabase(); } catch { return backendUnavailable(); }
 
   // Fetch both versions
-  const [resA, resB] = await Promise.all([
+  let resA; let resB;
+  try { [resA, resB] = await Promise.all([
     sb
       .from("versions")
       .select(
@@ -33,10 +36,10 @@ export async function GET(req: Request) {
       )
       .eq("id", versionBId)
       .maybeSingle(),
-  ]);
+  ]); } catch { return backendUnavailable(); }
 
   if (resA.error || resB.error || !resA.data || !resB.data) {
-    return NextResponse.json({ error: "Version not found" }, { status: 404 });
+    return (resA.error || resB.error) ? backendUnavailable() : apiError("Version not found", "VERSION_NOT_FOUND", 404);
   }
 
   const [accessA, accessB] = await Promise.all([
@@ -44,7 +47,7 @@ export async function GET(req: Request) {
     getAssetAccess(resB.data.asset_id, user.id, "viewer", sb),
   ]);
   if (!accessA.ok || !accessB.ok) {
-    return NextResponse.json({ error: "Version not found" }, { status: 404 });
+    return (!accessA.ok && accessA.status >= 500) || (!accessB.ok && accessB.status >= 500) ? backendUnavailable() : apiError("Version not found", "VERSION_NOT_FOUND", 404);
   }
 
   // Fetch annotations for both versions
@@ -64,13 +67,10 @@ export async function GET(req: Request) {
   ]);
 
   if (annotA.error || annotB.error) {
-    return NextResponse.json(
-      { error: "Version annotations are temporarily unavailable" },
-      { status: 503 },
-    );
+    return backendUnavailable();
   }
 
-  return NextResponse.json({
+  return apiJson({
     versionA: { ...resA.data, annotations: annotA.data ?? [] },
     versionB: { ...resB.data, annotations: annotB.data ?? [] },
   });

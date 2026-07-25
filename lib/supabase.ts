@@ -5,6 +5,8 @@ import {
   getSupabaseServiceUrl,
 } from "./server-env.ts";
 
+// Supabase's generated client requires open generics for a runtime-selected schema.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export type DataSupabaseClient = SupabaseClient<any, any, any>;
 
 let _client: DataSupabaseClient | null = null;
@@ -29,7 +31,8 @@ export function getSupabase(): DataSupabaseClient {
 
 export const supabase = new Proxy({} as DataSupabaseClient, {
   get(_target, prop) {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    return (getSupabase() as any)[prop];
+    const client = getSupabase();
+    const value = Reflect.get(client, prop, client);
+    return typeof value === "function" ? value.bind(client) : value;
   },
 });

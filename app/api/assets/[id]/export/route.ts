@@ -15,6 +15,8 @@ import { getSupabase } from "@/lib/supabase";
 import { assertSafeRegularFile, resolveExistingRoot, resolvePathInsideRoot } from "@/lib/storage/path-safety";
 import { createStorageRuntime } from "@/lib/storage/runtime";
 import { resolveAssetVersion } from "@/lib/versions";
+import { apiError, apiJson, backendUnavailable } from "@/lib/api/responses";
+import { withAssetRouteBoundary } from "../../asset-route-boundary";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -62,55 +64,54 @@ async function resolvePublishedFile(objectKey: string): Promise<{ path: string; 
   return { path, size: file.size };
 }
 
-export async function GET(
+async function GETHandler(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const user = await requireAuth();
-  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  let user;
+  try { user = await requireAuth(); } catch { return backendUnavailable(); }
+  if (!user) return apiError("Unauthorized", "UNAUTHORIZED", 401);
 
   const { id } = await params;
   const ownership = await getAssetAccess(id, user.id, "member");
   if (!ownership.ok) {
-    return NextResponse.json({ error: ownership.error }, { status: ownership.status });
+    if (ownership.status >= 500) return backendUnavailable();
+    return apiError("Asset not found", "ASSET_ACCESS_DENIED", ownership.status);
   }
 
   const artifact = parseArtifact(req.nextUrl.searchParams.get("artifact"));
   if (!artifact) {
-    return NextResponse.json({ error: "Unsupported export artifact" }, { status: 400 });
+    return apiError("Unsupported export artifact", "INVALID_REQUEST", 400);
   }
   const versionLookup = await resolveAssetVersion({
     assetId: id,
     versionId: req.nextUrl.searchParams.get("version_id"),
   });
   if (!versionLookup.ok) {
-    return NextResponse.json({ error: versionLookup.error }, { status: versionLookup.status });
+    return apiError(versionLookup.error, "VERSION_NOT_FOUND", versionLookup.status);
   }
 
-  const { data: asset, error } = await getSupabase()
+  let assetResult;
+  try { assetResult = await getSupabase()
     .from("assets")
     .select("id, title, file_type, status, metadata")
     .eq("id", id)
-    .maybeSingle();
-  if (error || !asset) {
-    return NextResponse.json({ error: "Asset not found" }, { status: 404 });
+    .maybeSingle(); } catch { return backendUnavailable(); }
+  const { data: asset, error } = assetResult;
+  if (error) return backendUnavailable();
+  if (!asset) {
+    return apiError("Asset not found", "ASSET_NOT_FOUND", 404);
   }
   const selection = selectPublishedExport(asset.metadata, versionLookup.version.id, artifact);
   if (!selection.ok) {
-    return NextResponse.json(
-      { error: selection.message, code: selection.code },
-      { status: 409 }
-    );
+    return apiError("The requested export is unavailable", selection.code, 409);
   }
 
   let file: { path: string; size: number };
   try {
     file = await resolvePublishedFile(selection.artifact.objectKey);
   } catch {
-    return NextResponse.json(
-      { error: "Published export object is unavailable", code: "PUBLISHED_OBJECT_UNAVAILABLE" },
-      { status: 404 }
-    );
+    return apiError("Published export object is unavailable", "PUBLISHED_OBJECT_UNAVAILABLE", 404);
   }
 
   const download = req.nextUrl.searchParams.get("download") === "1";
@@ -124,7 +125,7 @@ export async function GET(
     "&download=1";
 
   if (!download) {
-    return NextResponse.json({
+    return apiJson({
       assetId: id,
       title: asset.title,
       fileType: asset.file_type,
@@ -162,3 +163,5 @@ export async function GET(
     },
   });
 }
+
+export const GET = withAssetRouteBoundary(GETHandler);

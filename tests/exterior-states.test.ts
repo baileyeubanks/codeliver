@@ -65,7 +65,7 @@ test("not-found and loading states stay inside the Co‑ProVideo exterior shell"
 });
 
 test("project route loading and empty states resemble the review cockpit structure", () => {
-  const projectPage = source("app/(dashboard)/projects/[id]/page.tsx");
+  const projectPage = source("components/projects/ProjectWorkspaceClient.tsx");
 
   assert.match(projectPage, /project-state__layout/);
   assert.match(projectPage, /project-state__video/);

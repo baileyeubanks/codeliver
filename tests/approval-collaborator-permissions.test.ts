@@ -73,6 +73,9 @@ registerHooks({
         if (existsSync(path)) return nextResolve(pathToFileURL(path).href, context);
       }
     }
+    if (specifier.endsWith("asset-route-boundary")) {
+      return nextResolve(`${specifier}.ts`, context);
+    }
     return nextResolve(specifier, context);
   },
 });

@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { apiError, apiJson, backendUnavailable } from "@/lib/api/responses";
 import { requireAuthWithClient } from "@/lib/auth-client";
 import { getSupabaseDataSchema } from "@/lib/data-authority";
 import { requireTeamRole } from "@/lib/middleware/rbac";
@@ -10,10 +10,42 @@ const PROJECT_LIST_COLUMNS =
   "id, team_id, owner_id, name, description, status, thumbnail_url, created_at, updated_at, assets(id, status)";
 const PROJECT_LIST_COLUMNS_WITH_RECORD =
   "id, team_id, owner_id, name, description, status, stage, organization_id, primary_contact_id, thumbnail_url, created_at, updated_at, assets(id, status)";
+const MAX_PROJECT_BODY_BYTES = 100_000;
+
+async function readProjectBody(request: Request): Promise<
+  | { body: Record<string, unknown> }
+  | { response: ReturnType<typeof apiError> }
+> {
+  const contentLength = request.headers.get("content-length");
+  if (
+    contentLength &&
+    (!/^\d+$/.test(contentLength) || Number(contentLength) > MAX_PROJECT_BODY_BYTES)
+  ) {
+    return {
+      response: apiError("Project body is too large", "INVALID_REQUEST", 400),
+    };
+  }
+
+  const body = await request.json().catch(() => null);
+  if (!body || typeof body !== "object" || Array.isArray(body)) {
+    return {
+      response: apiError("Project body must be an object", "INVALID_REQUEST", 400),
+    };
+  }
+  return { body };
+}
 
 export async function GET() {
-  const { user, supabase } = await requireAuthWithClient();
-  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  let auth: Awaited<ReturnType<typeof requireAuthWithClient>>;
+  try {
+    auth = await requireAuthWithClient();
+  } catch {
+    return backendUnavailable();
+  }
+  const { user, supabase } = auth;
+  if (!user) {
+    return apiError("Authentication required", "AUTH_REQUIRED", 401);
+  }
 
   try {
     const isolated = getSupabaseDataSchema() === "co_production";
@@ -27,48 +59,55 @@ export async function GET() {
       .order("updated_at", { ascending: false });
 
     if (error) {
-      console.error("Projects GET error:", error.message);
-      return NextResponse.json(
-        { error: "Projects are temporarily unavailable" },
-        { status: 503 },
-      );
+      console.error("Projects GET failed");
+      return backendUnavailable();
     }
-    return NextResponse.json({ items: data ?? [] });
-  } catch (e) {
-    console.error("Projects GET exception:", e);
-    return NextResponse.json(
-      { error: "Projects are temporarily unavailable" },
-      { status: 503 },
-    );
+    return apiJson({ items: data ?? [] });
+  } catch {
+    console.error("Projects GET failed");
+    return backendUnavailable();
   }
 }
 
 export async function POST(req: Request) {
-  const { user, supabase } = await requireAuthWithClient();
-  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  let auth: Awaited<ReturnType<typeof requireAuthWithClient>>;
+  try {
+    auth = await requireAuthWithClient();
+  } catch {
+    return backendUnavailable();
+  }
+  const { user, supabase } = auth;
+  if (!user) {
+    return apiError("Authentication required", "AUTH_REQUIRED", 401);
+  }
 
   try {
-    const body = await req.json();
+    const parsed = await readProjectBody(req);
+    if ("response" in parsed) return parsed.response;
+    const { body } = parsed;
 
     if (typeof body.name !== "string" || !body.name.trim() || body.name.trim().length > 240) {
-      return NextResponse.json({ error: "Project name is required" }, { status: 400 });
+      return apiError("Project name is required", "INVALID_REQUEST", 400);
     }
     if (
       body.description !== undefined &&
       body.description !== null &&
       (typeof body.description !== "string" || body.description.length > 10_000)
     ) {
-      return NextResponse.json({ error: "Project description is invalid" }, { status: 400 });
+      return apiError("Project description is invalid", "INVALID_REQUEST", 400);
     }
     const isolated = getSupabaseDataSchema() === "co_production";
     const teamId = isolated && typeof body.team_id === "string" ? body.team_id : null;
     if (isolated && body.team_id !== undefined && !teamId) {
-      return NextResponse.json({ error: "team_id is invalid" }, { status: 400 });
+      return apiError("team_id is invalid", "INVALID_REQUEST", 400);
     }
     if (teamId) {
       const teamAccess = await requireTeamRole(teamId, user.id, "admin");
+      if (teamAccess.status === 503) {
+        return backendUnavailable();
+      }
       if (!teamAccess.allowed) {
-        return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+        return apiError("Forbidden", "FORBIDDEN", 403);
       }
     }
 
@@ -82,13 +121,13 @@ export async function POST(req: Request) {
     if (isolated) {
       if (body.organization_id !== undefined && body.organization_id !== null) {
         if (typeof body.organization_id !== "string" || !UUID_PATTERN.test(body.organization_id)) {
-          return NextResponse.json({ error: "organization_id is invalid" }, { status: 400 });
+          return apiError("organization_id is invalid", "INVALID_REQUEST", 400);
         }
         organizationId = body.organization_id;
       }
       if (body.primary_contact_id !== undefined && body.primary_contact_id !== null) {
         if (typeof body.primary_contact_id !== "string" || !UUID_PATTERN.test(body.primary_contact_id)) {
-          return NextResponse.json({ error: "primary_contact_id is invalid" }, { status: 400 });
+          return apiError("primary_contact_id is invalid", "INVALID_REQUEST", 400);
         }
         primaryContactId = body.primary_contact_id;
       }
@@ -100,14 +139,11 @@ export async function POST(req: Request) {
           .eq("owner_id", user.id)
           .maybeSingle();
         if (organizationError) {
-          console.error("Projects POST organization check error:", organizationError.message);
-          return NextResponse.json(
-            { error: "The project could not be created" },
-            { status: 503 },
-          );
+          console.error("Projects POST organization lookup failed");
+          return backendUnavailable();
         }
         if (!organization) {
-          return NextResponse.json({ error: "Organization not found" }, { status: 404 });
+          return apiError("Organization not found", "ORGANIZATION_NOT_FOUND", 404);
         }
       }
       if (primaryContactId) {
@@ -118,14 +154,11 @@ export async function POST(req: Request) {
           .eq("owner_id", user.id)
           .maybeSingle();
         if (contactError) {
-          console.error("Projects POST contact check error:", contactError.message);
-          return NextResponse.json(
-            { error: "The project could not be created" },
-            { status: 503 },
-          );
+          console.error("Projects POST contact lookup failed");
+          return backendUnavailable();
         }
         if (!contact) {
-          return NextResponse.json({ error: "Contact not found" }, { status: 404 });
+          return apiError("Contact not found", "CONTACT_NOT_FOUND", 404);
         }
       }
     }
@@ -147,15 +180,13 @@ export async function POST(req: Request) {
       .single();
 
     if (error) {
-      console.error("Projects POST error:", error.message, error.details, error.hint);
-      return NextResponse.json(
-        { error: "The project could not be created" },
-        { status: 503 }
-      );
+      console.error("Projects POST failed");
+      return backendUnavailable();
     }
-    return NextResponse.json(data, { status: 201 });
-  } catch (e: unknown) {
-    console.error("Projects POST exception:", e instanceof Error ? e.message : e);
-    return NextResponse.json({ error: "Failed to create project" }, { status: 500 });
+    if (!data) return backendUnavailable();
+    return apiJson(data as Record<string, unknown>, { status: 201 });
+  } catch {
+    console.error("Projects POST failed");
+    return backendUnavailable();
   }
 }

@@ -102,7 +102,7 @@ export default function EstimateLineEditor({
 
   function nextLineId() {
     idCounter.current += 1;
-    return `el-${Date.now()}-${idCounter.current}`;
+    return `el-${proposal.id}-${proposal.version + 1}-${idCounter.current}`;
   }
 
   function updateLine(lineId: string, patch: Partial<EstimateLine>) {

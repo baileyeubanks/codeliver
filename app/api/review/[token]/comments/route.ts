@@ -1,5 +1,5 @@
 import crypto from "crypto";
-import { NextResponse } from "next/server";
+import { apiError, apiJson, backendUnavailable } from "@/lib/api/responses";
 import { getAssetComment } from "@/lib/access-control";
 import { sendEmail, emailTemplates, getBaseUrl } from "@/lib/email";
 import { demoReviewPayload } from "@/lib/review/demoReview";
@@ -7,9 +7,17 @@ import { inviteCanComment, getReviewInviteByToken } from "@/lib/review-invites";
 import { getSupabase } from "@/lib/supabase";
 import { resolveAssetVersion } from "@/lib/versions";
 
-export async function POST(req: Request, { params }: { params: Promise<{ token: string }> }) {
+function reviewError(error: string, status: number, code = "REVIEW_REQUEST_INVALID") {
+  if (status >= 500) return backendUnavailable();
+  return apiError(error, code, status);
+}
+
+async function postComment(req: Request, { params }: { params: Promise<{ token: string }> }) {
   const { token } = await params;
-  const body = await req.json();
+  const body = await req.json().catch(() => null);
+  if (!body || typeof body !== "object" || Array.isArray(body)) {
+    return reviewError("Comment request must be JSON.", 400);
+  }
   const timecode = body.timecode_seconds == null ? null : body.timecode_seconds;
   const pinX = body.pin_x == null ? null : body.pin_x;
   const pinY = body.pin_y == null ? null : body.pin_y;
@@ -27,18 +35,15 @@ export async function POST(req: Request, { params }: { params: Promise<{ token: 
       pinY <= 100);
 
   if (!hasValidTimecode || !hasValidPinPair) {
-    return NextResponse.json(
-      { error: "Comment timing or point coordinates are invalid" },
-      { status: 400 },
-    );
+    return reviewError("Comment timing or point coordinates are invalid", 400);
   }
 
   if (process.env.NODE_ENV !== "production" && token === "demo") {
     if (!body.body?.trim()) {
-      return NextResponse.json({ error: "Comment body is required" }, { status: 400 });
+      return reviewError("Comment body is required", 400);
     }
 
-    return NextResponse.json(
+    return apiJson(
       {
         id: `demo-comment-${crypto.randomUUID()}`,
         review_id: null,
@@ -74,19 +79,16 @@ export async function POST(req: Request, { params }: { params: Promise<{ token: 
   const inviteLookup = await getReviewInviteByToken(token);
 
   if (!inviteLookup.ok) {
-    return NextResponse.json(
-      { error: inviteLookup.error },
-      { status: inviteLookup.status }
-    );
+    return reviewError(inviteLookup.error, inviteLookup.status, "REVIEW_INVITE_UNAVAILABLE");
   }
 
   const { invite } = inviteLookup;
   if (!inviteCanComment(invite)) {
-    return NextResponse.json({ error: "This review link cannot add comments" }, { status: 403 });
+    return reviewError("This review link cannot add comments", 403, "REVIEW_COMMENT_FORBIDDEN");
   }
 
   if (!body.body?.trim()) {
-    return NextResponse.json({ error: "Comment body is required" }, { status: 400 });
+    return reviewError("Comment body is required", 400);
   }
 
   const versionLookup = await resolveAssetVersion({
@@ -94,27 +96,21 @@ export async function POST(req: Request, { params }: { params: Promise<{ token: 
     versionId: invite.version_id,
   });
   if (!versionLookup.ok) {
-    return NextResponse.json({ error: versionLookup.error }, { status: versionLookup.status });
+    return reviewError(versionLookup.error, versionLookup.status, "REVIEW_VERSION_UNAVAILABLE");
   }
 
   if (body.parent_id) {
     const parent = await getAssetComment(body.parent_id, invite.asset_id);
     if (!parent.ok) {
-      return NextResponse.json({ error: parent.error }, { status: parent.status });
+      return reviewError(parent.error, parent.status, "REVIEW_COMMENT_UNAVAILABLE");
     }
 
     if (parent.data.visibility !== "external") {
-      return NextResponse.json(
-        { error: "Replies must stay within the external review thread" },
-        { status: 400 },
-      );
+      return reviewError("Replies must stay within the external review thread", 400);
     }
 
     if (parent.data.version_id !== versionLookup.version.id) {
-      return NextResponse.json(
-        { error: "Replies must stay on the same media version" },
-        { status: 400 },
-      );
+      return reviewError("Replies must stay on the same media version", 400);
     }
   }
 
@@ -152,7 +148,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ token: 
     .single();
 
   if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return backendUnavailable();
   }
 
   const asset = await getSupabase()
@@ -198,5 +194,13 @@ export async function POST(req: Request, { params }: { params: Promise<{ token: 
     }
   }
 
-  return NextResponse.json(data, { status: 201 });
+  return apiJson(data ?? {}, { status: 201 });
+}
+
+export async function POST(req: Request, context: { params: Promise<{ token: string }> }) {
+  try {
+    return await postComment(req, context);
+  } catch {
+    return backendUnavailable();
+  }
 }

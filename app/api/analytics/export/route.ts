@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getProjectAccess } from "@/lib/access-control";
 import { requireAuth } from "@/lib/auth";
 import { getSupabase } from "@/lib/supabase";
+import { API_NO_STORE_HEADERS, apiError, backendUnavailable } from "@/lib/api/responses";
 
 interface AssetRow {
   id: string;
@@ -32,9 +33,10 @@ interface StepRow {
 }
 
 export async function GET(req: Request) {
+  try {
   const user = await requireAuth();
   if (!user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    return apiError("Unauthorized", "UNAUTHORIZED", 401);
   }
 
   const { searchParams } = new URL(req.url);
@@ -42,7 +44,7 @@ export async function GET(req: Request) {
   const format = searchParams.get("format") || "csv";
 
   if (!projectId) {
-    return NextResponse.json({ error: "project_id required" }, { status: 400 });
+    return apiError("project_id required", "INVALID_REQUEST", 400);
   }
 
   const supabase = getSupabase();
@@ -54,10 +56,7 @@ export async function GET(req: Request) {
     supabase,
   );
   if (!projectAccess.ok) {
-    return NextResponse.json(
-      { error: projectAccess.error },
-      { status: projectAccess.status },
-    );
+    return apiError(projectAccess.error, "PROJECT_ACCESS_DENIED", projectAccess.status);
   }
 
   // Fetch all project data
@@ -87,7 +86,7 @@ export async function GET(req: Request) {
 
   const queryError = assetsError ?? commentsError ?? approvalsError;
   if (queryError) {
-    return NextResponse.json({ error: queryError.message }, { status: 500 });
+    return apiError("Analytics export is unavailable", "BACKEND_UNAVAILABLE", 503);
   }
 
   const projectName = projectAccess.data.name;
@@ -104,6 +103,7 @@ export async function GET(req: Request) {
 
     return new NextResponse(JSON.stringify(jsonData, null, 2), {
       headers: {
+        ...API_NO_STORE_HEADERS,
         "Content-Type": "application/json",
         "Content-Disposition": `attachment; filename="${fileName}_report.json"`,
       },
@@ -160,10 +160,14 @@ export async function GET(req: Request) {
 
   return new NextResponse(csv, {
     headers: {
+      ...API_NO_STORE_HEADERS,
       "Content-Type": "text/csv",
       "Content-Disposition": `attachment; filename="${fileName}_report.csv"`,
     },
   });
+  } catch {
+    return backendUnavailable();
+  }
 }
 
 function csvEscape(value: string): string {

@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest } from "next/server";
 
 import { getAssetAccess } from "@/lib/access-control";
 import { requireAuth } from "@/lib/auth";
@@ -11,6 +11,7 @@ import {
 import { toPublicMediaPipelineJob } from "@/lib/media-pipeline/types";
 import { getSupabase } from "@/lib/supabase";
 import { resolveAssetVersion } from "@/lib/versions";
+import { apiError, apiJson, backendUnavailable } from "@/lib/api/responses";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -33,7 +34,7 @@ function sourceFilename(nasPath: string, fallback: string | null): string {
 
 function pipelineErrorResponse(error: unknown) {
   if (!isMediaPipelineError(error)) {
-    return NextResponse.json({ error: "Media pipeline is unavailable" }, { status: 503 });
+    return apiError("Media pipeline is unavailable", "PIPELINE_UNAVAILABLE", 503);
   }
   const status =
     error.code === "PIPELINE_NOT_CONFIGURED" ||
@@ -45,62 +46,63 @@ function pipelineErrorResponse(error: unknown) {
           error.code === "PIPELINE_SOURCE_RECEIPT_REQUIRED"
         ? 409
         : 400;
-  return NextResponse.json({ error: error.message, code: error.code }, { status });
+  return apiError("Media pipeline request could not be completed", error.code, status);
 }
 
 export async function POST(req: NextRequest) {
-  const user = await requireAuth();
-  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  let user;
+  try { user = await requireAuth(); } catch { return backendUnavailable(); }
+  if (!user) return apiError("Unauthorized", "UNAUTHORIZED", 401);
 
   let body: { asset_id?: unknown; version_id?: unknown };
   try {
     body = (await req.json()) as { asset_id?: unknown; version_id?: unknown };
   } catch {
-    return NextResponse.json({ error: "Expected a JSON request body" }, { status: 400 });
+    return apiError("Expected a JSON request body", "INVALID_REQUEST", 400);
   }
   if (typeof body.asset_id !== "string" || !body.asset_id) {
-    return NextResponse.json({ error: "asset_id is required" }, { status: 400 });
+    return apiError("asset_id is required", "INVALID_REQUEST", 400);
   }
   if (body.version_id !== undefined && typeof body.version_id !== "string") {
-    return NextResponse.json({ error: "version_id must be a string" }, { status: 400 });
+    return apiError("version_id must be a string", "INVALID_REQUEST", 400);
   }
 
   const ownership = await getAssetAccess(body.asset_id, user.id, "editor");
   if (!ownership.ok) {
-    return NextResponse.json({ error: ownership.error }, { status: ownership.status });
+    if (ownership.status >= 500) return backendUnavailable();
+    return apiError("Asset not found", "ASSET_ACCESS_DENIED", ownership.status);
   }
   const versionLookup = await resolveAssetVersion({
     assetId: ownership.data.id,
     versionId: typeof body.version_id === "string" ? body.version_id : undefined,
   });
   if (!versionLookup.ok) {
-    return NextResponse.json({ error: versionLookup.error }, { status: versionLookup.status });
+    return apiError(versionLookup.error, "VERSION_NOT_FOUND", versionLookup.status);
   }
 
-  const { data: asset, error } = await getSupabase()
+  let assetResult;
+  try { assetResult = await getSupabase()
     .from("assets")
     .select("id, project_id, nas_path, file_url, file_size, title")
     .eq("id", ownership.data.id)
-    .maybeSingle();
-  if (error || !asset) {
-    return NextResponse.json({ error: "Asset source could not be resolved" }, { status: 404 });
+    .maybeSingle(); } catch { return backendUnavailable(); }
+  const { data: asset, error } = assetResult;
+  if (error) return apiError("Asset source could not be resolved", "BACKEND_UNAVAILABLE", 503);
+  if (!asset) {
+    return apiError("Asset source could not be resolved", "ASSET_NOT_FOUND", 404);
   }
   if (typeof asset.nas_path !== "string" || !asset.nas_path.trim()) {
-    return NextResponse.json(
-      {
-        error: "This version is not backed by a storage-adapter object key.",
-        code: "VERSION_SOURCE_NOT_READY",
-      },
-      { status: 409 }
+    return apiError(
+      "This version is not backed by a storage-adapter object key.",
+      "VERSION_SOURCE_NOT_READY",
+      409,
     );
   }
   if (versionLookup.version.file_url !== asset.file_url) {
-    return NextResponse.json(
-      {
-        error: "The selected version is not the asset's current immutable source.",
-        code: "VERSION_SOURCE_MISMATCH",
-      },
-      { status: 409 }
+    return apiError(
+      "The selected version is not the asset's current immutable source.",
+      "VERSION_SOURCE_MISMATCH",
+      409,
     );
   }
 
@@ -118,7 +120,7 @@ export async function POST(req: NextRequest) {
         expectedSha256: null,
       },
     });
-    return NextResponse.json(
+    return apiJson(
       {
         job: toPublicMediaPipelineJob(job),
         worker_url: "/api/transcode/worker",
@@ -131,19 +133,21 @@ export async function POST(req: NextRequest) {
 }
 
 export async function GET(req: NextRequest) {
-  const user = await requireAuth();
-  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  let user;
+  try { user = await requireAuth(); } catch { return backendUnavailable(); }
+  if (!user) return apiError("Unauthorized", "UNAUTHORIZED", 401);
   const jobId = req.nextUrl.searchParams.get("job_id");
-  if (!jobId) return NextResponse.json({ error: "job_id is required" }, { status: 400 });
+  if (!jobId) return apiError("job_id is required", "INVALID_REQUEST", 400);
 
   try {
     const job = await createMediaPipelineService().get(jobId);
-    if (!job) return NextResponse.json({ error: "Pipeline job not found" }, { status: 404 });
+    if (!job) return apiError("Pipeline job not found", "JOB_NOT_FOUND", 404);
     const ownership = await getAssetAccess(job.assetId, user.id, "viewer");
     if (!ownership.ok) {
-      return NextResponse.json({ error: ownership.error }, { status: ownership.status });
+      if (ownership.status >= 500) return backendUnavailable();
+      return apiError("Asset not found", "ASSET_ACCESS_DENIED", ownership.status);
     }
-    return NextResponse.json({ job: toPublicMediaPipelineJob(job) });
+    return apiJson({ job: toPublicMediaPipelineJob(job) });
   } catch (pipelineError) {
     return pipelineErrorResponse(pipelineError);
   }

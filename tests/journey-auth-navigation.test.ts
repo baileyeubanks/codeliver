@@ -121,7 +121,7 @@ test("managed authentication redirects preserve the protected route after sign-i
 });
 
 test("external recipient review never links into the authenticated workspace shell", () => {
-  const publicReview = source("app/review/[token]/page.tsx");
+  const publicReview = source("components/review/PublicReviewPage.tsx");
   const publicLayout = source("app/layout.tsx");
 
   assert.doesNotMatch(publicLayout, /<Shell|DemoSessionGuard/);

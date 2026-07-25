@@ -1,10 +1,23 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest } from "next/server";
+import { apiJson } from "@/lib/api/responses";
 
 import { createMediaPipelineService } from "@/lib/media-pipeline/service";
 import { toPublicMediaPipelineJob } from "@/lib/media-pipeline/types";
 import { parseMediaWorkerRequest } from "@/lib/media-pipeline/worker-request";
 
 import { authorizedMediaWorker } from "../_lib/worker-auth";
+
+const NextResponse = {
+  json(body: Record<string, unknown>, init: ResponseInit = {}) {
+    const status = init.status ?? 200;
+    return apiJson(
+      "error" in body && typeof body.error === "string" && !("code" in body)
+        ? { ...body, code: status >= 500 ? "BACKEND_UNAVAILABLE" : status === 401 ? "UNAUTHORIZED" : "INVALID_REQUEST" }
+        : body,
+      init,
+    );
+  },
+};
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -38,7 +51,9 @@ export async function POST(req: NextRequest) {
   if (!authorizedMediaWorker(req)) {
     return NextResponse.json({ error: "Worker authorization required" }, { status: 401 });
   }
-  const body = parseMediaWorkerRequest(await req.text());
+  let raw: string;
+  try { raw = await req.text(); } catch { return NextResponse.json({ error: "Worker request is unavailable" }, { status: 503 }); }
+  const body = parseMediaWorkerRequest(raw);
   if (!body.ok) {
     return NextResponse.json({ error: body.error }, { status: 400 });
   }

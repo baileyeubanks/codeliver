@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { apiError, apiJson } from "@/lib/api/responses";
 import { requireAuth } from "@/lib/auth";
 import {
   getAssetAccess,
@@ -9,6 +9,10 @@ import {
   parseEditDecisionInput,
 } from "@/lib/edit-decisions";
 import { getSupabase } from "@/lib/supabase";
+import { withAssetRouteBoundary } from "../../asset-route-boundary";
+
+const NextResponse = { json: (body: Record<string, unknown>, init: ResponseInit = {}) =>
+  "error" in body && !body.code ? apiError(String(body.error), init.status === 401 ? "UNAUTHORIZED" : init.status === 404 ? "NOT_FOUND" : init.status && init.status >= 500 ? "BACKEND_UNAVAILABLE" : "INVALID_REQUEST", init.status ?? 400, init.headers) : apiJson(body, init) };
 import type { EditDecisionStatus } from "@/lib/types/codeliver";
 import { resolveAssetVersion } from "@/lib/versions";
 
@@ -16,7 +20,7 @@ function requestedVersion(req: Request) {
   return new URL(req.url).searchParams.get("version_id");
 }
 
-export async function GET(req: Request, { params }: { params: Promise<{ id: string }> }) {
+async function GETHandler(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const user = await requireAuth();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
@@ -41,11 +45,11 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
     .eq("version_id", versionLookup.version.id)
     .order("start_seconds", { ascending: true });
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) return apiError("Edit decisions are unavailable", "BACKEND_UNAVAILABLE", 503);
   return NextResponse.json({ items: data ?? [], version: versionLookup.version });
 }
 
-export async function POST(req: Request, { params }: { params: Promise<{ id: string }> }) {
+async function POSTHandler(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const user = await requireAuth();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
@@ -90,7 +94,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     .eq("client_request_id", parsed.value.client_request_id)
     .maybeSingle();
 
-  if (existing.error) return NextResponse.json({ error: existing.error.message }, { status: 500 });
+  if (existing.error) return apiError("Edit decisions are unavailable", "BACKEND_UNAVAILABLE", 503);
   if (existing.data) return NextResponse.json(existing.data);
 
   const { data, error } = await supabase
@@ -122,7 +126,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
       if (duplicate.data) return NextResponse.json(duplicate.data);
     }
 
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return apiError("Edit decision could not be created", "BACKEND_UNAVAILABLE", 503);
   }
 
   await supabase.from("activity_log").insert({
@@ -142,7 +146,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
   return NextResponse.json(data, { status: 201 });
 }
 
-export async function PATCH(req: Request, { params }: { params: Promise<{ id: string }> }) {
+async function PATCHHandler(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const user = await requireAuth();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
@@ -178,8 +182,12 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
     .select("*")
     .maybeSingle();
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) return apiError("Edit decision could not be updated", "BACKEND_UNAVAILABLE", 503);
   if (!data) return NextResponse.json({ error: "Edit decision not found" }, { status: 404 });
 
   return NextResponse.json(data);
 }
+
+export const GET = withAssetRouteBoundary(GETHandler);
+export const POST = withAssetRouteBoundary(POSTHandler);
+export const PATCH = withAssetRouteBoundary(PATCHHandler);

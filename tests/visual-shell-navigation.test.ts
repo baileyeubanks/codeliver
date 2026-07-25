@@ -70,11 +70,11 @@ test("internal demo asset hrefs stay inside the project cockpit shell", () => {
 
 test("demo uploads bind their new asset href to the internal route builder", () => {
   const projectPageSource = readFileSync(
-    resolve(repositoryRoot, "app/(dashboard)/projects/[id]/page.tsx"),
+    resolve(repositoryRoot, "components/projects/ProjectWorkspaceClient.tsx"),
     "utf8",
   );
   const uploadAssetFactory = projectPageSource.match(
-    /const added = selectedFiles\.map\(\(file, index\) => \{[\s\S]*?\n\s*\}\);/,
+    /const uploadAssets: MediaAsset\[\] = selectedFiles\.map\(\(file, index\) => \{[\s\S]*?\n\s*\}\);/,
   );
 
   assert.ok(uploadAssetFactory, "could not locate the demo upload asset constructor");

@@ -6,6 +6,7 @@ import {
   type AudioAnalysisBudget,
 } from "@/lib/audio-analysis/core";
 import { requireAuth } from "@/lib/auth";
+import { withAssetRouteBoundary } from "../../../asset-route-boundary";
 import {
   isSameTranscriptSource,
   parseTranscriptDocument,
@@ -22,7 +23,7 @@ function response(body: unknown, init?: ResponseInit) {
   return result;
 }
 
-export async function POST(req: Request, { params }: { params: Promise<{ id: string }> }) {
+async function POSTHandler(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const user = await requireAuth();
   if (!user) return response({ error: "Unauthorized" }, { status: 401 });
 
@@ -87,6 +88,8 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
       sourceMediaMutation: false,
     });
   } catch (error) {
-    return response({ error: error instanceof Error ? error.message : "Analysis batch plan failed" }, { status: 400 });
+    return response({ error: "Analysis batch plan failed", code: "INVALID_REQUEST" }, { status: 400 });
   }
 }
+
+export const POST = withAssetRouteBoundary(POSTHandler);

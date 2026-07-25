@@ -63,6 +63,15 @@ registerHooks({
     if (specifier === "@/lib/email") return nextResolve(emailStubUrl, context);
     if (specifier === "@/lib/supabase") return nextResolve(supabaseStubUrl, context);
     if (specifier === "@/lib/versions") return nextResolve(versionsStubUrl, context);
+    if (specifier === "@/lib/api/responses") {
+      return nextResolve(
+        pathToFileURL(resolve(repositoryRoot, "lib/api/responses.ts")).href,
+        context,
+      );
+    }
+    if (specifier.endsWith("asset-route-boundary")) {
+      return nextResolve(`${specifier}.ts`, context);
+    }
     return nextResolve(specifier, context);
   },
 });
@@ -426,7 +435,10 @@ test("one reviewer cannot edit or resolve another reviewer's comment", async () 
   );
 
   assert.equal(response.status, 403);
-  assert.deepEqual(await response.json(), { error: "You cannot edit this comment" });
+  assert.deepEqual(await response.json(), {
+    error: "You cannot edit this comment",
+    code: "FORBIDDEN",
+  });
   assert.equal(state.__ccoCommentSupabase?.updates.length, 0);
 });
 

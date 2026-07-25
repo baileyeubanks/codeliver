@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { apiJson } from "@/lib/api/responses";
 import { requireAuth } from "@/lib/auth";
 import { getReviewInviteAccess } from "@/lib/access-control";
 import { getSupabaseDataSchema } from "@/lib/data-authority";
@@ -11,15 +11,25 @@ import {
 } from "@/lib/sharing/share-analytics";
 import { getSupabase } from "@/lib/supabase";
 
+const NextResponse = {
+  json(body: Record<string, unknown>, init: ResponseInit = {}) {
+    const status = init.status ?? 200;
+    return apiJson(
+      "error" in body && typeof body.error === "string" && !("code" in body)
+        ? { ...body, code: status >= 500 ? "BACKEND_UNAVAILABLE" : status === 401 ? "UNAUTHORIZED" : "INVALID_REQUEST" }
+        : body,
+      init,
+    );
+  },
+};
+
 function invalidJson() {
-  return NextResponse.json(
-    { error: "Request body must be valid JSON" },
-    { status: 400 },
-  );
+  return NextResponse.json({ error: "Request body must be valid JSON" }, { status: 400 });
 }
 
 export async function GET(request: Request) {
-  const user = await requireAuth();
+  let user;
+  try { user = await requireAuth(); } catch { return NextResponse.json({ error: "Analytics service is unavailable", code: "BACKEND_UNAVAILABLE" }, { status: 503 }); }
   if (!user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
@@ -30,11 +40,12 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: "invite_id is required" }, { status: 400 });
   }
 
-  const inviteAccess = await getReviewInviteAccess(
+  let inviteAccess;
+  try { inviteAccess = await getReviewInviteAccess(
     inviteId,
     user.id,
     "member",
-  );
+  ); } catch { return NextResponse.json({ error: "Analytics service is unavailable", code: "BACKEND_UNAVAILABLE" }, { status: 503 }); }
   if (!inviteAccess.ok) {
     return NextResponse.json(
       { error: inviteAccess.error },
@@ -42,12 +53,14 @@ export async function GET(request: Request) {
     );
   }
 
-  const { data, error } = await getSupabase()
+  let result;
+  try { result = await getSupabase()
     .from("share_analytics")
     .select("id, invite_id, viewed_at, duration_seconds, actions")
     .eq("invite_id", inviteId)
     .order("viewed_at", { ascending: false })
-    .limit(1_000);
+    .limit(1_000); } catch { return NextResponse.json({ error: "Share analytics are temporarily unavailable", code: "BACKEND_UNAVAILABLE" }, { status: 503 }); }
+  const { data, error } = result;
 
   if (error) {
     return NextResponse.json(
@@ -82,7 +95,8 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: inputResult.error }, { status: 400 });
   }
 
-  const inviteResult = await getReviewInviteByToken(tokenResult.token);
+  let inviteResult;
+  try { inviteResult = await getReviewInviteByToken(tokenResult.token); } catch { return NextResponse.json({ error: "Analytics service is unavailable", code: "BACKEND_UNAVAILABLE" }, { status: 503 }); }
   if (
     !inviteResult.ok ||
     inviteResult.invite.id !== inputResult.value.inviteId
@@ -107,7 +121,8 @@ export async function POST(request: Request) {
   }
 
   const isolated = getSupabaseDataSchema() === "co_production";
-  const { error } = await getSupabase()
+  let write;
+  try { write = await getSupabase()
     .from("share_analytics")
     .insert({
       invite_id: inputResult.value.inviteId,
@@ -117,7 +132,8 @@ export async function POST(request: Request) {
       ...(isolated
         ? { client_request_id: inputResult.value.clientRequestId }
         : {}),
-    });
+    }); } catch { return NextResponse.json({ error: "Share analytics could not be recorded", code: "BACKEND_UNAVAILABLE" }, { status: 503 }); }
+  const { error } = write;
 
   if (error?.code === "23505") {
     return NextResponse.json({ ok: true, duplicate: true });

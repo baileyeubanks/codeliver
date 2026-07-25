@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { apiError, apiJson } from "@/lib/api/responses";
 import { getAssetAccess, PROJECT_ROLE_RANK } from "@/lib/access-control";
 import { requireAuth } from "@/lib/auth";
 import { getBaseUrl } from "@/lib/email";
@@ -9,6 +9,9 @@ import {
 } from "@/lib/security/opaque-token";
 import { executeShareManifest, singleShareResponseBody } from "@/lib/sharing/share-api";
 import { parseSingleShareRequest } from "@/lib/sharing/share-manifest";
+
+const NextResponse = { json: (body: Record<string, unknown>, init: ResponseInit = {}) =>
+  "error" in body && !body.code ? apiError(String(body.error), init.status === 401 ? "UNAUTHORIZED" : init.status === 404 ? "NOT_FOUND" : init.status && init.status >= 500 ? "BACKEND_UNAVAILABLE" : "INVALID_REQUEST", init.status ?? 400, init.headers) : apiJson(body, init) };
 import {
   deriveShareIntentFromRow,
   revokeShareLink,
@@ -16,6 +19,7 @@ import {
 } from "@/lib/sharing/share-service";
 import { getSupabase } from "@/lib/supabase";
 import { resolveAssetVersion } from "@/lib/versions";
+import { withAssetRouteBoundary } from "../../asset-route-boundary";
 
 const ROTATION_REQUEST_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._:-]{15,127}$/;
 
@@ -28,7 +32,7 @@ function responseInit(status: number, body: Record<string, unknown>) {
   return { status, headers };
 }
 
-export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
+async function GETHandler(_req: Request, { params }: { params: Promise<{ id: string }> }) {
   const user = await requireAuth();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
@@ -46,7 +50,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
     .select("*")
     .eq("asset_id", id)
     .order("created_at", { ascending: false });
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) return apiError("Share links are unavailable", "BACKEND_UNAVAILABLE", 503);
 
   const now = Date.now();
   let items: Record<string, unknown>[];
@@ -108,7 +112,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
   return NextResponse.json({ items });
 }
 
-export async function POST(req: Request, { params }: { params: Promise<{ id: string }> }) {
+async function POSTHandler(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const user = await requireAuth();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
@@ -136,7 +140,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
   return NextResponse.json(responseBody, responseInit(execution.status, responseBody));
 }
 
-export async function PATCH(req: Request, { params }: { params: Promise<{ id: string }> }) {
+async function PATCHHandler(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const user = await requireAuth();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
@@ -175,7 +179,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
   return NextResponse.json(result);
 }
 
-export async function DELETE(req: Request, { params }: { params: Promise<{ id: string }> }) {
+async function DELETEHandler(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const user = await requireAuth();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
@@ -203,3 +207,8 @@ export async function DELETE(req: Request, { params }: { params: Promise<{ id: s
   if (!result.ok) return NextResponse.json(result, { status: result.status });
   return NextResponse.json(result);
 }
+
+export const GET = withAssetRouteBoundary(GETHandler);
+export const POST = withAssetRouteBoundary(POSTHandler);
+export const PATCH = withAssetRouteBoundary(PATCHHandler);
+export const DELETE = withAssetRouteBoundary(DELETEHandler);

@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { apiError, apiJson } from "@/lib/api/responses";
 import { requireAuth } from "@/lib/auth";
 import {
   getAssetAccess,
@@ -7,7 +7,11 @@ import {
 } from "@/lib/access-control";
 import { sendEmail, emailTemplates, getBaseUrl } from "@/lib/email";
 import { getSupabase } from "@/lib/supabase";
+import { withAssetRouteBoundary } from "../../asset-route-boundary";
 import { resolveAssetVersion } from "@/lib/versions";
+
+const NextResponse = { json: (body: Record<string, unknown>, init: ResponseInit = {}) =>
+  "error" in body && !body.code ? apiError(String(body.error), init.status === 401 ? "UNAUTHORIZED" : init.status === 403 ? "FORBIDDEN" : init.status === 404 ? "NOT_FOUND" : init.status && init.status >= 500 ? "BACKEND_UNAVAILABLE" : "INVALID_REQUEST", init.status ?? 400, init.headers) : apiJson(body, init) };
 
 function authenticatedAuthorName(user: {
   email?: string | null;
@@ -21,7 +25,7 @@ function authenticatedAuthorName(user: {
   return (user.email || "Team reviewer").slice(0, 120);
 }
 
-export async function GET(req: Request, { params }: { params: Promise<{ id: string }> }) {
+async function GETHandler(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const user = await requireAuth();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -46,11 +50,11 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
     .eq("version_id", versionLookup.version.id)
     .order("created_at", { ascending: true });
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) return apiError("Comments are unavailable", "BACKEND_UNAVAILABLE", 503);
   return NextResponse.json({ items: data });
 }
 
-export async function POST(req: Request, { params }: { params: Promise<{ id: string }> }) {
+async function POSTHandler(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const user = await requireAuth();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -145,7 +149,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     .select()
     .single();
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) return apiError("Comment could not be created", "BACKEND_UNAVAILABLE", 503);
 
   const asset = await getSupabase().from("assets").select("project_id, title").eq("id", id).single();
   if (asset.data) {
@@ -182,7 +186,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
   return NextResponse.json(data, { status: 201 });
 }
 
-export async function PATCH(req: Request, { params }: { params: Promise<{ id: string }> }) {
+async function PATCHHandler(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id: assetId } = await params;
   const user = await requireAuth();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -218,7 +222,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
     .maybeSingle();
 
   if (commentError) {
-    return NextResponse.json({ error: commentError.message }, { status: 500 });
+    return apiError("Comment could not be loaded", "BACKEND_UNAVAILABLE", 503);
   }
   if (!comment) {
     return NextResponse.json({ error: "Comment not found" }, { status: 404 });
@@ -276,7 +280,11 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
 
   const { data, error } = await updateQuery.select().maybeSingle();
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) return apiError("Comment could not be updated", "BACKEND_UNAVAILABLE", 503);
   if (!data) return NextResponse.json({ error: "Comment not found" }, { status: 404 });
   return NextResponse.json(data);
 }
+
+export const GET = withAssetRouteBoundary(GETHandler);
+export const POST = withAssetRouteBoundary(POSTHandler);
+export const PATCH = withAssetRouteBoundary(PATCHHandler);

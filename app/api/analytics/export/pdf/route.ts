@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth";
 import { getSupabase } from "@/lib/supabase";
+import { API_NO_STORE_HEADERS, apiError, backendUnavailable } from "@/lib/api/responses";
 
 /**
  * PDF-ready HTML Comment Report
@@ -29,16 +30,17 @@ function escapeHtml(str: string): string {
 }
 
 export async function GET(req: Request) {
+  try {
   const user = await requireAuth();
   if (!user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    return apiError("Unauthorized", "UNAUTHORIZED", 401);
   }
 
   const { searchParams } = new URL(req.url);
   const projectId = searchParams.get("project_id");
 
   if (!projectId) {
-    return NextResponse.json({ error: "project_id required" }, { status: 400 });
+    return apiError("project_id required", "INVALID_REQUEST", 400);
   }
 
   const supabase = getSupabase();
@@ -50,25 +52,26 @@ export async function GET(req: Request) {
     .eq("owner_id", user.id)
     .single();
 
-  if (projErr || !project) {
-    return NextResponse.json({ error: "Project not found" }, { status: 404 });
-  }
+  if (projErr) return apiError("Analytics export is unavailable", "BACKEND_UNAVAILABLE", 503);
+  if (!project) return apiError("Project not found", "PROJECT_NOT_FOUND", 404);
 
-  const { data: assets } = await supabase
+  const { data: assets, error: assetsError } = await supabase
     .from("assets")
     .select("id, title, status, file_type, created_at, duration_seconds")
     .eq("project_id", projectId)
     .order("created_at", { ascending: true });
+  if (assetsError) return apiError("Analytics export is unavailable", "BACKEND_UNAVAILABLE", 503);
 
   const assetIds = (assets ?? []).map((a: { id: string }) => a.id);
 
-  const { data: comments } = assetIds.length > 0
+  const { data: comments, error: commentsError } = assetIds.length > 0
     ? await supabase
         .from("comments")
         .select("id, asset_id, author_name, author_email, body, status, timecode_seconds, pin_x, pin_y, created_at")
         .in("asset_id", assetIds)
         .order("timecode_seconds", { ascending: true, nullsFirst: false })
-    : { data: [] };
+    : { data: [], error: null };
+  if (commentsError) return apiError("Analytics export is unavailable", "BACKEND_UNAVAILABLE", 503);
 
   const commentsByAsset = new Map<string, typeof comments>();
   for (const c of comments ?? []) {
@@ -348,7 +351,11 @@ export async function GET(req: Request) {
 
   return new NextResponse(html, {
     headers: {
+      ...API_NO_STORE_HEADERS,
       "Content-Type": "text/html; charset=utf-8",
     },
   });
+  } catch {
+    return backendUnavailable();
+  }
 }

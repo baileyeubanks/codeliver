@@ -1,7 +1,9 @@
 import { NextResponse } from "next/server";
+import { apiError } from "@/lib/api/responses";
 import { getAssetAccess } from "@/lib/access-control";
 import { requireAuth } from "@/lib/auth";
 import { getSupabase } from "@/lib/supabase";
+import { withAssetRouteBoundary } from "../../asset-route-boundary";
 import {
   createSafeDemoTranscriptProvider,
   invokeTranscriptProvider,
@@ -39,7 +41,7 @@ function parseBudget(body: Record<string, unknown>): TranscriptBudget | undefine
   };
 }
 
-export async function GET(req: Request, { params }: { params: Promise<{ id: string }> }) {
+async function GETHandler(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const user = await requireAuth();
   if (!user) return noStoreJson({ error: "Unauthorized" }, { status: 401 });
 
@@ -66,7 +68,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
     source = transcriptSourceFromVersion(versionLookup.version);
   } catch (error) {
     return noStoreJson(
-      { error: error instanceof Error ? error.message : "Invalid media version" },
+      { error: "Invalid media version", code: "INVALID_REQUEST" },
       { status: 409 },
     );
   }
@@ -81,7 +83,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
     .limit(1)
     .maybeSingle();
 
-  if (error) return noStoreJson({ error: error.message }, { status: 500 });
+  if (error) return apiError("Transcript data is unavailable", "BACKEND_UNAVAILABLE", 503);
   if (!data) {
     return noStoreJson({ transcript: null, source, version: versionLookup.version });
   }
@@ -97,7 +99,8 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
   } catch (conversionError) {
     return noStoreJson(
       {
-        error: conversionError instanceof Error ? conversionError.message : "Stored transcript is invalid",
+        error: "Stored transcript is invalid",
+        code: "INVALID_TRANSCRIPT",
         transcriptId: data.id,
       },
       { status: 422 },
@@ -105,7 +108,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
   }
 }
 
-export async function POST(req: Request, { params }: { params: Promise<{ id: string }> }) {
+async function POSTHandler(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const user = await requireAuth();
   if (!user) return noStoreJson({ error: "Unauthorized" }, { status: 401 });
 
@@ -184,8 +187,11 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     });
   } catch (error) {
     return noStoreJson(
-      { error: error instanceof Error ? error.message : "Transcript preview failed" },
+      { error: "Transcript preview failed", code: "INVALID_REQUEST" },
       { status: 400 },
     );
   }
 }
+
+export const GET = withAssetRouteBoundary(GETHandler);
+export const POST = withAssetRouteBoundary(POSTHandler);

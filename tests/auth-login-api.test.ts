@@ -23,6 +23,9 @@ registerHooks({
   resolve(specifier, context, nextResolve) {
     if (specifier === "next/server") return nextResolve("next/server.js", context);
     if (specifier === "@/lib/supabase-auth") return nextResolve(authStubUrl, context);
+    if (specifier === "@/lib/api/responses") {
+      return nextResolve(pathToFileURL(resolve(repositoryRoot, "lib/api/responses.ts")).href, context);
+    }
     return nextResolve(specifier, context);
   },
 });
@@ -78,6 +81,7 @@ test("login API converts thrown provider failures into a stable unavailable resp
   });
 
   assert.equal(response.status, 503);
+  assert.equal(response.headers.get("cache-control"), "no-store");
   assert.deepEqual(await response.json(), {
     error: "Authentication is temporarily unavailable.",
     code: "AUTH_UNAVAILABLE",

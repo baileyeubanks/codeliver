@@ -1,9 +1,18 @@
-import { NextResponse } from "next/server";
 import { requireAuthWithClient } from "@/lib/auth-client";
+import { apiError, apiJson, backendUnavailable } from "@/lib/api/responses";
+import { isBackendUnavailableError } from "@/lib/api/backend";
 
 export async function GET() {
-  const { user, supabase } = await requireAuthWithClient();
-  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  let user: Awaited<ReturnType<typeof requireAuthWithClient>>["user"];
+  let supabase: Awaited<ReturnType<typeof requireAuthWithClient>>["supabase"];
+  try {
+    ({ user, supabase } = await requireAuthWithClient());
+  } catch (error) {
+    return isBackendUnavailableError(error)
+      ? backendUnavailable()
+      : apiError("Authentication service is unavailable", "AUTH_UNAVAILABLE", 503);
+  }
+  if (!user) return apiError("Unauthorized", "UNAUTHORIZED", 401);
 
   try {
     const { data, error } = await supabase
@@ -14,11 +23,10 @@ export async function GET() {
       .limit(50);
 
     if (error) {
-      console.error("Activity API error:", error.message);
-      return NextResponse.json({ items: [] });
+      return backendUnavailable();
     }
-    return NextResponse.json({ items: data ?? [] });
+    return apiJson({ items: data ?? [] });
   } catch {
-    return NextResponse.json({ items: [] });
+    return backendUnavailable();
   }
 }

@@ -1,8 +1,20 @@
-import { NextResponse } from "next/server";
+import { apiJson } from "@/lib/api/responses";
 import { getAssetAccess } from "@/lib/access-control";
 import { requireAuth } from "@/lib/auth";
 import { getSupabaseDataSchema } from "@/lib/data-authority";
 import { getSupabase } from "@/lib/supabase";
+
+const NextResponse = {
+  json(body: Record<string, unknown>, init: ResponseInit = {}) {
+    const status = init.status ?? 200;
+    return apiJson(
+      "error" in body && typeof body.error === "string" && !("code" in body)
+        ? { ...body, code: status >= 500 ? "BACKEND_UNAVAILABLE" : status === 401 ? "UNAUTHORIZED" : "INVALID_REQUEST" }
+        : body,
+      init,
+    );
+  },
+};
 
 interface BrandCheckResult {
   overall_score: number;
@@ -62,7 +74,8 @@ function parseBrandCheckResult(value: unknown): BrandCheckResult | null {
 }
 
 export async function POST(req: Request) {
-  const user = await requireAuth();
+  let user;
+  try { user = await requireAuth(); } catch { return NextResponse.json({ error: "AI service is unavailable", code: "BACKEND_UNAVAILABLE" }, { status: 503 }); }
   if (!user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
@@ -77,9 +90,11 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "asset_id required" }, { status: 400 });
   }
 
-  const supabase = getSupabase();
+  let supabase;
+  try { supabase = getSupabase(); } catch { return NextResponse.json({ error: "AI service is unavailable", code: "BACKEND_UNAVAILABLE" }, { status: 503 }); }
 
-  const assetAccess = await getAssetAccess(asset_id, user.id, "editor", supabase);
+  let assetAccess;
+  try { assetAccess = await getAssetAccess(asset_id, user.id, "editor", supabase); } catch { return NextResponse.json({ error: "AI service is unavailable", code: "BACKEND_UNAVAILABLE" }, { status: 503 }); }
   if (!assetAccess.ok) {
     return NextResponse.json(
       { error: assetAccess.error },
@@ -102,7 +117,7 @@ export async function POST(req: Request) {
     .order("created_at", { ascending: false })
     .limit(20);
   if (commentsError) {
-    return NextResponse.json({ error: commentsError.message }, { status: 500 });
+    return NextResponse.json({ error: "Review comments could not be loaded" }, { status: 503 });
   }
 
   const feedbackData = (comments ?? []).map(
@@ -205,7 +220,7 @@ Respond ONLY with valid JSON matching this structure:
       .single();
 
     if (insertErr) {
-      return NextResponse.json({ error: insertErr.message }, { status: 500 });
+      return NextResponse.json({ error: "Brand check could not be saved" }, { status: 503 });
     }
 
     return NextResponse.json({

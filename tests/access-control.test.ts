@@ -342,10 +342,10 @@ test("team owners and expanded enterprise roles use the canonical rank order", a
     "asset.upload",
   );
 
-  assert.deepEqual(owner, { allowed: true, role: "owner" });
-  assert.deepEqual(producer, { allowed: true, role: "producer" });
-  assert.deepEqual(producerAdmin, { allowed: false, role: "producer" });
-  assert.deepEqual(reviewerMember, { allowed: false, role: "reviewer" });
+  assert.deepEqual(owner, { allowed: true, role: "owner", status: 200 });
+  assert.deepEqual(producer, { allowed: true, role: "producer", status: 200 });
+  assert.deepEqual(producerAdmin, { allowed: false, role: "producer", status: 403 });
+  assert.deepEqual(reviewerMember, { allowed: false, role: "reviewer", status: 403 });
   assert.equal(producerCanUpload, true);
 });
 
@@ -356,5 +356,5 @@ test("membership lookup errors fail closed", async () => {
   const { requireTeamRole } = await rbacModule();
 
   const result = await requireTeamRole("team-a", "team-owner", "viewer");
-  assert.deepEqual(result, { allowed: false, role: null });
+  assert.deepEqual(result, { allowed: false, role: null, status: 503 });
 });

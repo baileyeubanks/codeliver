@@ -1,10 +1,14 @@
-import { NextResponse } from "next/server";
+import { apiError, apiJson } from "@/lib/api/responses";
 import { requireAuth } from "@/lib/auth";
 import { getAssetAccess } from "@/lib/access-control";
 import { normalizeMediaReference } from "@/lib/security/media-reference";
 import { getSupabase } from "@/lib/supabase";
+import { withAssetRouteBoundary } from "../../asset-route-boundary";
 
-export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
+const NextResponse = { json: (body: Record<string, unknown>, init: ResponseInit = {}) =>
+  "error" in body && !body.code ? apiError(String(body.error), init.status === 401 ? "UNAUTHORIZED" : init.status === 404 ? "NOT_FOUND" : init.status && init.status >= 500 ? "BACKEND_UNAVAILABLE" : "INVALID_REQUEST", init.status ?? 400, init.headers) : apiJson(body, init) };
+
+async function GETHandler(_req: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const user = await requireAuth();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -22,11 +26,11 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
     .eq("asset_id", id)
     .order("version_number", { ascending: false });
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) return apiError("Asset versions are unavailable", "BACKEND_UNAVAILABLE", 503);
   return NextResponse.json({ items: data });
 }
 
-export async function POST(req: Request, { params }: { params: Promise<{ id: string }> }) {
+async function POSTHandler(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const user = await requireAuth();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
@@ -57,7 +61,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     }
   } catch (error) {
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : "Media URL is invalid" },
+      { error: "Media URL is invalid", code: "INVALID_REQUEST" },
       { status: 400 },
     );
   }
@@ -251,3 +255,6 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
 
   return NextResponse.json({ ...data, is_current: true }, { status: 201 });
 }
+
+export const GET = withAssetRouteBoundary(GETHandler);
+export const POST = withAssetRouteBoundary(POSTHandler);

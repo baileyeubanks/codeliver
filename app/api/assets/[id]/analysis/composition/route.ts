@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { apiError } from "@/lib/api/responses";
 import { getAssetAccess } from "@/lib/access-control";
 import {
   composeAcceptedEditDecisions,
@@ -7,6 +8,7 @@ import {
 } from "@/lib/audio-analysis/core";
 import { requireAuth } from "@/lib/auth";
 import { getSupabase } from "@/lib/supabase";
+import { withAssetRouteBoundary } from "../../../asset-route-boundary";
 import { transcriptSourceFromVersion } from "@/lib/transcript/server";
 import { resolveAssetVersion } from "@/lib/versions";
 
@@ -16,7 +18,7 @@ function response(body: unknown, init?: ResponseInit) {
   return result;
 }
 
-export async function POST(req: Request, { params }: { params: Promise<{ id: string }> }) {
+async function POSTHandler(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const user = await requireAuth();
   if (!user) return response({ error: "Unauthorized" }, { status: 401 });
 
@@ -44,7 +46,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     .eq("status", "accepted")
     .in("source", ["filler_scan", "silence_scan"])
     .order("start_seconds", { ascending: true });
-  if (error) return response({ error: error.message }, { status: 500 });
+  if (error) return apiError("Analysis composition is unavailable", "BACKEND_UNAVAILABLE", 503);
 
   try {
     const source = transcriptSourceFromVersion(versionLookup.version);
@@ -69,8 +71,10 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     });
   } catch (compositionError) {
     return response(
-      { error: compositionError instanceof Error ? compositionError.message : "Composition preview failed" },
+      { error: "Composition preview failed", code: "INVALID_REQUEST" },
       { status: 409 },
     );
   }
 }
+
+export const POST = withAssetRouteBoundary(POSTHandler);

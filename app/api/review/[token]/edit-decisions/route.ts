@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { apiError, apiJson, backendUnavailable } from "@/lib/api/responses";
 import { parseExternalReviewEditDecision } from "@/lib/edit-decisions";
 import { getReviewInviteByToken, inviteCanComment } from "@/lib/review-invites";
 import { getSupabase } from "@/lib/supabase";
@@ -12,12 +12,17 @@ function externalReviewerName(input: unknown, fallback: string | null) {
   return (requested || fallback || "Client reviewer").slice(0, 120);
 }
 
-export async function GET(_req: Request, { params }: { params: Promise<{ token: string }> }) {
+function reviewError(error: string, status: number, code = "REVIEW_REQUEST_INVALID") {
+  if (status >= 500) return backendUnavailable();
+  return apiError(error, code, status);
+}
+
+async function getEditDecisions(_req: Request, { params }: { params: Promise<{ token: string }> }) {
   const { token } = await params;
   const inviteLookup = await getReviewInviteByToken(token);
 
   if (!inviteLookup.ok) {
-    return NextResponse.json({ error: inviteLookup.error }, { status: inviteLookup.status });
+    return reviewError(inviteLookup.error, inviteLookup.status, "REVIEW_INVITE_UNAVAILABLE");
   }
 
   const { invite } = inviteLookup;
@@ -27,7 +32,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ token: 
   });
 
   if (!versionLookup.ok) {
-    return NextResponse.json({ error: versionLookup.error }, { status: versionLookup.status });
+    return reviewError(versionLookup.error, versionLookup.status, "REVIEW_VERSION_UNAVAILABLE");
   }
 
   const { data, error } = await getSupabase()
@@ -38,28 +43,28 @@ export async function GET(_req: Request, { params }: { params: Promise<{ token: 
     .or(`review_invite_id.eq.${invite.id},status.in.(accepted,applied)`)
     .order("start_seconds", { ascending: true });
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) return backendUnavailable();
 
-  return NextResponse.json({ items: data ?? [], version: versionLookup.version });
+  return apiJson({ items: data ?? [], version: versionLookup.version });
 }
 
-export async function POST(req: Request, { params }: { params: Promise<{ token: string }> }) {
+async function postEditDecision(req: Request, { params }: { params: Promise<{ token: string }> }) {
   const { token } = await params;
   const body = await req.json().catch(() => null);
   const parsed = parseExternalReviewEditDecision(body);
 
   if (!parsed.ok) {
-    return NextResponse.json({ error: parsed.error }, { status: parsed.status ?? 400 });
+    return reviewError(parsed.error, parsed.status ?? 400);
   }
 
   const inviteLookup = await getReviewInviteByToken(token);
   if (!inviteLookup.ok) {
-    return NextResponse.json({ error: inviteLookup.error }, { status: inviteLookup.status });
+    return reviewError(inviteLookup.error, inviteLookup.status, "REVIEW_INVITE_UNAVAILABLE");
   }
 
   const { invite } = inviteLookup;
   if (!inviteCanComment(invite)) {
-    return NextResponse.json({ error: "This review link cannot add edit decisions" }, { status: 403 });
+    return reviewError("This review link cannot add edit decisions", 403, "REVIEW_EDIT_DECISION_FORBIDDEN");
   }
 
   const versionLookup = await resolveAssetVersion({
@@ -68,7 +73,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ token: 
   });
 
   if (!versionLookup.ok) {
-    return NextResponse.json({ error: versionLookup.error }, { status: versionLookup.status });
+    return reviewError(versionLookup.error, versionLookup.status, "REVIEW_VERSION_UNAVAILABLE");
   }
 
   const supabase = getSupabase();
@@ -81,11 +86,11 @@ export async function POST(req: Request, { params }: { params: Promise<{ token: 
     .maybeSingle();
 
   if (existing.error) {
-    return NextResponse.json({ error: existing.error.message }, { status: 500 });
+    return backendUnavailable();
   }
 
   if (existing.data) {
-    return NextResponse.json(existing.data);
+    return apiJson(existing.data);
   }
 
   const reviewerName = externalReviewerName(
@@ -120,15 +125,12 @@ export async function POST(req: Request, { params }: { params: Promise<{ token: 
         .eq("client_request_id", parsed.value.client_request_id)
         .single();
 
-      if (duplicate.data) return NextResponse.json(duplicate.data);
+      if (duplicate.data) return apiJson(duplicate.data);
 
-      return NextResponse.json(
-        { error: "This edit-decision request ID is already in use" },
-        { status: 409 },
-      );
+      return reviewError("This edit-decision request ID is already in use", 409, "REVIEW_EDIT_DECISION_CONFLICT");
     }
 
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return backendUnavailable();
   }
 
   const projectId = invite.assets?.projects?.id ?? null;
@@ -147,5 +149,21 @@ export async function POST(req: Request, { params }: { params: Promise<{ token: 
     },
   });
 
-  return NextResponse.json(data, { status: 201 });
+  return apiJson(data ?? {}, { status: 201 });
+}
+
+export async function GET(req: Request, context: { params: Promise<{ token: string }> }) {
+  try {
+    return await getEditDecisions(req, context);
+  } catch {
+    return backendUnavailable();
+  }
+}
+
+export async function POST(req: Request, context: { params: Promise<{ token: string }> }) {
+  try {
+    return await postEditDecision(req, context);
+  } catch {
+    return backendUnavailable();
+  }
 }

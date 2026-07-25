@@ -1,4 +1,3 @@
-import { NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth";
 import { getBaseUrl } from "@/lib/email";
 import { getExternalNotificationAdapters } from "@/lib/notifications/adapters";
@@ -9,12 +8,15 @@ import {
   SHARE_POLICY_TEMPLATES,
 } from "@/lib/sharing/share-manifest";
 import { getSupabase } from "@/lib/supabase";
+import { apiError, apiJson, backendUnavailable } from "@/lib/api/responses";
+import { withAssetRouteBoundary } from "../asset-route-boundary";
 
-export async function GET() {
-  const user = await requireAuth();
-  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+async function GETHandler() {
+  let user;
+  try { user = await requireAuth(); } catch { return backendUnavailable(); }
+  if (!user) return apiError("Unauthorized", "UNAUTHORIZED", 401);
 
-  return NextResponse.json({
+  return apiJson({
     tenant_id: user.id,
     max_items: SHARE_MANIFEST_MAX_ITEMS,
     policy_templates: Object.values(SHARE_POLICY_TEMPLATES).map((policy) => ({
@@ -29,17 +31,15 @@ export async function GET() {
   });
 }
 
-export async function POST(req: Request) {
-  const user = await requireAuth();
-  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+async function POSTHandler(req: Request) {
+  let user;
+  try { user = await requireAuth(); } catch { return backendUnavailable(); }
+  if (!user) return apiError("Unauthorized", "UNAUTHORIZED", 401);
 
   const body = await req.json().catch(() => null);
   const parsed = parseBatchShareManifest(body, { authenticatedTenantId: user.id });
   if (!parsed.ok) {
-    return NextResponse.json(
-      { error: parsed.error, field: parsed.field, mutation_performed: false },
-      { status: 400 },
-    );
+    return apiError(parsed.error, "INVALID_REQUEST", 400);
   }
 
   const result = await executeShareManifest({
@@ -56,5 +56,8 @@ export async function POST(req: Request) {
   if (typeof metrics?.duration_ms === "number") {
     headers.set("Server-Timing", `cco-batch-sharing;dur=${metrics.duration_ms}`);
   }
-  return NextResponse.json(result.body, { status: result.status, headers });
+  return apiJson(result.body as Record<string, unknown>, { status: result.status, headers });
 }
+
+export const GET = withAssetRouteBoundary(GETHandler);
+export const POST = withAssetRouteBoundary(POSTHandler);

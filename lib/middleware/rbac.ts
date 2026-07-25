@@ -117,16 +117,36 @@ export async function requireTeamRole(
   teamId: string,
   userId: string,
   minimumRole: TeamAuthorityRole
-): Promise<{ allowed: boolean; role: TeamAuthorityRole | null }> {
-  const role = await getTeamRole(teamId, userId);
+): Promise<{ allowed: boolean; role: TeamAuthorityRole | null; status: 200 | 403 | 503 }> {
+  let supabase;
+  try {
+    supabase = getSupabase();
+  } catch {
+    return { allowed: false, role: null, status: 503 };
+  }
+  let team;
+  let membership;
+  try {
+    [team, membership] = await Promise.all([
+      supabase.from("teams").select("owner_id").eq("id", teamId).maybeSingle(),
+      supabase.from("team_members").select("role").eq("team_id", teamId).eq("user_id", userId).maybeSingle(),
+    ]);
+  } catch {
+    return { allowed: false, role: null, status: 503 };
+  }
+  if (team.error || membership.error) return { allowed: false, role: null, status: 503 };
+  const role = team.data?.owner_id === userId
+    ? "owner"
+    : isTeamAuthorityRole(membership.data?.role) ? membership.data.role : null;
 
   if (!role) {
-    return { allowed: false, role: null };
+    return { allowed: false, role: null, status: 403 };
   }
 
   return {
     allowed:
       TEAM_AUTHORITY_RANK[role] >= TEAM_AUTHORITY_RANK[minimumRole],
     role,
+    status: TEAM_AUTHORITY_RANK[role] >= TEAM_AUTHORITY_RANK[minimumRole] ? 200 : 403,
   };
 }

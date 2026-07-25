@@ -1,5 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { NextResponse } from "next/server";
+import { apiError, apiJson, backendUnavailable } from "@/lib/api/responses";
 import { requireAuth } from "@/lib/auth";
 import { getSupabase } from "@/lib/supabase";
 
@@ -58,7 +58,9 @@ type AccessResult =
   | { ok: false; status: number; error: string };
 
 function errorResponse(error: string, status: number) {
-  return NextResponse.json({ error }, { status });
+  return status >= 500
+    ? backendUnavailable()
+    : apiError(error, status === 401 ? "UNAUTHORIZED" : status === 404 ? "COMMENT_NOT_FOUND" : "INVALID_REQUEST", status);
 }
 
 function internalErrorResponse() {
@@ -318,7 +320,7 @@ export async function GET(req: Request) {
       attachments.push(signed.attachment);
     }
 
-    return NextResponse.json({ attachments });
+    return apiJson({ attachments });
   } catch {
     return internalErrorResponse();
   }
@@ -427,7 +429,7 @@ export async function POST(req: Request) {
       return internalErrorResponse();
     }
 
-    return NextResponse.json({ attachment: signed.attachment }, { status: 201 });
+    return apiJson({ attachment: signed.attachment }, { status: 201 });
   } catch {
     return internalErrorResponse();
   }

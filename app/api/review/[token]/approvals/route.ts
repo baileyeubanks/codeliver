@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { apiError, apiJson, backendUnavailable } from "@/lib/api/responses";
 import { recordApprovalDecision } from "@/lib/approval-decisions";
 import { demoReviewPayload } from "@/lib/review/demoReview";
 import {
@@ -22,13 +22,21 @@ const BLOCKING_DECISIONS = new Set<ApprovalDecision>([
   "rejected",
 ]);
 
-export async function PATCH(req: Request, { params }: { params: Promise<{ token: string }> }) {
+function reviewError(error: string, status: number, code = "REVIEW_REQUEST_INVALID") {
+  if (status >= 500) return backendUnavailable();
+  return apiError(error, code, status);
+}
+
+async function patchApproval(req: Request, { params }: { params: Promise<{ token: string }> }) {
   const { token } = await params;
-  const body = await req.json();
+  const body = await req.json().catch(() => null);
+  if (!body || typeof body !== "object" || Array.isArray(body)) {
+    return reviewError("Approval request must be JSON.", 400);
+  }
 
   if (process.env.NODE_ENV !== "production" && token === "demo") {
     if (!body.id || !ALLOWED_DECISIONS.has(body.status)) {
-      return NextResponse.json({ error: "Invalid approval decision" }, { status: 400 });
+      return reviewError("Invalid approval decision", 400);
     }
 
     const demoInvite = {
@@ -56,10 +64,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ token:
     });
 
     if (!approvalAccess.ok) {
-      return NextResponse.json(
-        { error: approvalAccess.error },
-        { status: approvalAccess.statusCode },
-      );
+      return reviewError(approvalAccess.error, approvalAccess.statusCode, "REVIEW_APPROVAL_FORBIDDEN");
     }
 
     const approval = approvalAccess.approval;
@@ -89,7 +94,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ token:
           ? "needs_changes"
           : demoReviewPayload.asset.status;
 
-    return NextResponse.json({
+    return apiJson({
       approval: {
         ...approval,
         status: body.status,
@@ -105,19 +110,16 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ token:
   const inviteLookup = await getReviewInviteByToken(token);
 
   if (!inviteLookup.ok) {
-    return NextResponse.json(
-      { error: inviteLookup.error },
-      { status: inviteLookup.status }
-    );
+    return reviewError(inviteLookup.error, inviteLookup.status, "REVIEW_INVITE_UNAVAILABLE");
   }
 
   const { invite } = inviteLookup;
   if (!inviteCanApprove(invite)) {
-    return NextResponse.json({ error: "This review link cannot approve" }, { status: 403 });
+    return reviewError("This review link cannot approve", 403, "REVIEW_APPROVAL_FORBIDDEN");
   }
 
   if (!body.id || !ALLOWED_DECISIONS.has(body.status)) {
-    return NextResponse.json({ error: "Invalid approval decision" }, { status: 400 });
+    return reviewError("Invalid approval decision", 400);
   }
 
   const supabase = getSupabase();
@@ -136,11 +138,11 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ token:
   ]);
 
   if (approvalsResult.error) {
-    return NextResponse.json({ error: approvalsResult.error.message }, { status: 500 });
+    return backendUnavailable();
   }
 
   if (workflowResult.error) {
-    return NextResponse.json({ error: workflowResult.error.message }, { status: 500 });
+    return backendUnavailable();
   }
 
   const approvalAccess = canInviteDecideApproval({
@@ -151,7 +153,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ token:
   });
 
   if (!approvalAccess.ok) {
-    return NextResponse.json({ error: approvalAccess.error }, { status: approvalAccess.statusCode });
+    return reviewError(approvalAccess.error, approvalAccess.statusCode, "REVIEW_APPROVAL_FORBIDDEN");
   }
 
   const reviewerName =
@@ -179,7 +181,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ token:
   });
 
   if (!decision.ok) {
-    return NextResponse.json({ error: decision.error }, { status: decision.statusCode });
+    return reviewError(decision.error, decision.statusCode, "REVIEW_APPROVAL_UNAVAILABLE");
   }
 
   const { data: updatedApprovals, error: updatedApprovalsError } = await supabase
@@ -189,7 +191,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ token:
     .order("step_order", { ascending: true });
 
   if (updatedApprovalsError) {
-    return NextResponse.json({ error: updatedApprovalsError.message }, { status: 500 });
+    return backendUnavailable();
   }
 
   const approvalState = getExternalApprovalState({
@@ -201,10 +203,18 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ token:
     workflowMode: workflowResult.data?.mode ?? null,
   });
 
-  return NextResponse.json({
+  return apiJson({
     approval: decision.data,
     asset_status: decision.assetStatus,
     active_approval_ids: approvalState.activeApprovalIds,
     approval_access_message: approvalState.approvalAccessMessage,
   });
+}
+
+export async function PATCH(req: Request, context: { params: Promise<{ token: string }> }) {
+  try {
+    return await patchApproval(req, context);
+  } catch {
+    return backendUnavailable();
+  }
 }

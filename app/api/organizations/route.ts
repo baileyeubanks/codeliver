@@ -1,6 +1,6 @@
-import { NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth";
 import { getSupabase } from "@/lib/supabase";
+import { apiError, apiJson, backendUnavailable } from "@/lib/api/responses";
 
 const ORGANIZATION_COLUMNS =
   "id, owner_id, name, industry, website, notes, created_at, updated_at";
@@ -8,7 +8,7 @@ const ORGANIZATION_COLUMNS =
 type JsonObject = Record<string, unknown>;
 
 function errorResponse(error: string, status: number) {
-  return NextResponse.json({ error }, { status });
+  return apiError(error, status === 401 ? "UNAUTHORIZED" : status === 404 ? "NOT_FOUND" : status >= 500 ? "BACKEND_UNAVAILABLE" : "INVALID_REQUEST", status);
 }
 
 async function readJsonObject(request: Request): Promise<JsonObject | null> {
@@ -36,6 +36,7 @@ function optionalText(
 }
 
 export async function GET() {
+  try {
   const user = await requireAuth();
   if (!user) return errorResponse("Unauthorized", 401);
 
@@ -49,10 +50,14 @@ export async function GET() {
     console.error("Organizations GET error:", error.message);
     return errorResponse("Unable to load organizations", 500);
   }
-  return NextResponse.json({ items: data ?? [] });
+  return apiJson({ items: data ?? [] });
+  } catch {
+    return backendUnavailable();
+  }
 }
 
 export async function POST(request: Request) {
+  try {
   const user = await requireAuth();
   if (!user) return errorResponse("Unauthorized", 401);
 
@@ -92,5 +97,8 @@ export async function POST(request: Request) {
     console.error("Organizations POST error:", error.message);
     return errorResponse("The organization could not be created", 500);
   }
-  return NextResponse.json(data, { status: 201 });
+  return apiJson(data, { status: 201 });
+  } catch {
+    return backendUnavailable();
+  }
 }

@@ -421,6 +421,11 @@ unsaved-changes amber bar (needs real dirty-tracking, a feature not polish)
 and a component gallery page. Arc III closed: tokens (P11), reskin (P12),
 component states (P13), Copilot (P14), monogram (P15).
 
+Note (2026-07-25): `stash@{0}` ("p13-wip", settings-frame/pillar styling) is
+stranded WIP from one of the three stalled P13 agent attempts — superseded by
+this closure. Left untouched per guardrails (no stash pop/drop); nothing in
+it is needed.
+
 ## P16 — Frame-accurate review player (2026-07-25)
 
 Regression-guarded in `~/covideopro-visual-audit/regressions/p16/` (5 scripts,
@@ -472,3 +477,61 @@ WebCodecs (out of scope, no new deps). The 23.976fps asset renders
 non-drop-frame timecode (drift ≈ 3.6s/hour, irrelevant on the 5s preview;
 drop-frame would matter for broadcast-length assets). J cannot play
 backwards — it slows to 0.25x at most.
+
+## P17 — Annotation mode (2026-07-25, swarm wave 1)
+
+Draw on the paused frame (arrow / rectangle / freehand) on a pointer canvas
+inside the existing `data-review-overlay`; entering draw mode pauses video and
+is mutually exclusive with pin mode. Pure normalized stroke math in
+`lib/review/annotation.ts` (12 node:tests); strokes stored as normalized 0-1
+vectors (the existing `AnnotationData` model) plus a WebP data-URI raster via
+`canvas.toDataURL("image/webp", 0.8)`; both ride the extended
+`submitReviewComment` payload. Saved drawings replay as vector overlays while
+|playhead − timecode| ≤ 0.5s; the selected-comment chip shows an SVG vector
+thumbnail. Escape cancels; strokes clear after submit. Image assets share the
+same canvas path (typechecked; not live-run — demo surface is video-only).
+Regression-guarded in `~/covideopro-visual-audit/regressions/p17/` (5
+scripts). Honest limits: demo drawing persistence is session-local (in-lane
+`drawingsByCommentId` map; demo-store annotation column is a follow-up);
+chip thumbnail is the vector replay, the WebP rides as an attachment.
+
+## P18 — Comments 2.0 (2026-07-25, swarm wave 1)
+
+`CommentThread` rewritten: parent/child indent, collapse/expand with reply
+counts, inline ReplyComposer (Enter sends / Shift+Enter newline). @mentions
+via pure parser `lib/comments/mentions.ts` (emails, @@, punctuation
+boundaries unit-tested) with roster listbox and `MentionText` highlighting.
+Reactions rebuilt on `lib/comments/reactions.ts` (👍 ❤️ ✅ 👀, truthful
+toggle with aria-pressed). Attachment chips with image popover
+(`role="dialog"`, Escape). 3-line clamp with Show more/less. Hover actions
+(resolve/edit/delete) with an honest "Demo only — changes are not saved"
+note where no backend exists; resolved threads collapse by default; All /
+Open / Resolved filter chips in new `CommentList.tsx` over
+`lib/comments/threads.ts`. 30 new node:tests; regressions in
+`~/covideopro-visual-audit/regressions/p18/` (2 scripts, 16 checks, live).
+Honest limits: page wiring (roster prop, onReplySubmit, CommentList) is a
+coordinator integration; demo reaction clicks fire the legacy API which may
+401 (swallowed; local state stays truthful).
+
+## P20 — Approval state machine (2026-07-25, swarm wave 1)
+
+Pure machine in `lib/approvals/approval-machine.ts`: needs_review →
+feedback_submitted → changes_in_progress → approved → locked with guarded
+transitions (locked only from approved; never derived — it is an explicit
+gate). 22 machine tests + 7 panel + 6 audit API (35 new). `ApprovalPanel`
+(new in `components/approvals/`, props-driven for coordinator mounting):
+one-click approve with optional name + note; request-changes/reject require
+a note; every decision yields a Documenso-style audit entry (actor, note,
+decided_at; userAgent only when genuinely supplied). `FinishReviewBar`
+gained matching locked/assetState props. New `app/api/approvals/audit`
+route: auth-gated, chronological entries from persisted approval_history,
+fail-closed 503 without backend. Demo flow verified live (step advance +
+reload persistence via the existing publicReviewStates store). Regressions
+in `~/covideopro-visual-audit/regressions/p20/` (3 scripts). Honest limits:
+ApprovalPanel not yet mounted (coordinator); demo lock state is
+session-scoped (one-line store addition is the follow-up).
+
+Coordinator verification (wave 1, commits 857f864 / 1f06526 / ad0fc69 on
+abb716a): typecheck 0 errors · `npm test` 836/836 (759 + 77 new) · p17 5/5,
+p18 2/2, p20 3/3 regression scripts re-run green independently · lint
+0 errors (40 pre-existing warnings) per agent harnesses.

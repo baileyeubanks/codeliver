@@ -36,7 +36,9 @@ import {
   resolveShareIntentDefaults,
   type ShareIntent,
 } from "@/lib/sharing/share-intent";
-import { formatTimeLong, usePlayerStore } from "@/lib/stores/playerStore";
+import { usePlayerStore } from "@/lib/stores/playerStore";
+import { resolveReviewFrameRate } from "@/lib/review/frame-review";
+import { formatSmpteTimecode } from "@/components/player/timecode";
 import type {
   ApprovalDecision,
   ApprovalStep,
@@ -55,6 +57,8 @@ interface Asset {
   file_type: string;
   file_url: string | null;
   status: string;
+  /** Per-asset frame rate override; absent → player default (24fps). */
+  frame_rate?: number | null;
   projects: { name: string } | null;
 }
 
@@ -148,6 +152,8 @@ export default function PublicReviewPage() {
 
   const currentTime = usePlayerStore((state) => state.currentTime);
   const duration = usePlayerStore((state) => state.duration);
+  const frameRate = usePlayerStore((state) => state.frameRate);
+  const setFrameRate = usePlayerStore((state) => state.setFrameRate);
   const resetPlayer = usePlayerStore((state) => state.reset);
 
   const [asset, setAsset] = useState<Asset | null>(null);
@@ -189,6 +195,12 @@ export default function PublicReviewPage() {
     resetPlayer();
     return () => resetPlayer();
   }, [resetPlayer]);
+
+  // P16: frame-accurate stepping/timecode follows the asset's real frame
+  // rate when the payload carries one; otherwise the 24fps default stands.
+  useEffect(() => {
+    setFrameRate(resolveReviewFrameRate(asset?.frame_rate));
+  }, [asset?.frame_rate, setFrameRate]);
 
   useEffect(() => {
     if (!demoMode || !asset?.id) return;
@@ -943,7 +955,7 @@ export default function PublicReviewPage() {
               </span>
               {selectedComment.timecode_seconds != null ? (
                 <span className="rounded-full bg-[var(--surface-2)] px-2.5 py-0.5 font-mono text-xs text-[var(--ink)]">
-                  {formatTimeLong(selectedComment.timecode_seconds)}
+                  {formatSmpteTimecode(selectedComment.timecode_seconds, frameRate)}
                 </span>
               ) : null}
               {selectedComment.pin_x != null && selectedComment.pin_y != null ? (
@@ -999,7 +1011,13 @@ export default function PublicReviewPage() {
               countLabel: `${timedThreads} notes · ${cutMarkers.length} cuts`,
               content: (
                 <div className="grid gap-2">
-                  <PlayerTimeline comments={rootComments} cutMarkers={cutMarkers} onSeek={seekTo} />
+                  <PlayerTimeline
+                    comments={rootComments}
+                    cutMarkers={cutMarkers}
+                    onSeek={seekTo}
+                    onCommentSelect={(comment) => handleCommentSelect(comment as ReviewComment)}
+                    selectedCommentId={selectedCommentId}
+                  />
                   <p
                     className={`min-h-5 text-xs ${
                       cutMarkerError ? "text-[var(--red)]" : "text-[var(--dim)]"

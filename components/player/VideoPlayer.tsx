@@ -3,6 +3,7 @@
 import { useCallback, useRef, useEffect, type ReactNode, type RefObject } from "react";
 import Hls from "hls.js";
 import { normalizeReviewShortcutKey, projectPointIntoMedia, shouldIgnoreReviewShortcut } from "@/lib/review/player-policy";
+import { nextShuttleRate, stepFrames } from "@/lib/review/frame-review";
 import { usePlayerStore } from "@/lib/stores/playerStore";
 
 interface VideoPlayerProps {
@@ -42,6 +43,7 @@ export default function VideoPlayer({
     setMuted,
     toggleMute,
     setPlaybackRate,
+    setBufferedEnd,
   } = usePlayerStore();
 
   const playWithMutedFallback = useCallback((video: HTMLVideoElement) => {
@@ -116,11 +118,23 @@ export default function VideoPlayer({
     if (!video) return;
 
     const handleTimeUpdate = () => {
+      // A/B loop: wrap back to the in point once the playhead passes the
+      // out point. Read the store snapshot so this listener stays stable.
+      const { loopIn, loopOut } = usePlayerStore.getState();
+      if (loopIn != null && loopOut != null && loopOut > loopIn && video.currentTime >= loopOut) {
+        video.currentTime = loopIn;
+        return;
+      }
       setCurrentTime(video.currentTime);
       onTimeUpdate?.(video.currentTime);
     };
     const handleLoadedMetadata = () => {
       setDuration(video.duration);
+    };
+    const handleProgress = () => {
+      if (video.buffered.length > 0) {
+        setBufferedEnd(video.buffered.end(video.buffered.length - 1));
+      }
     };
     const handlePlay = () => setPlaying(true);
     const handlePause = () => setPlaying(false);
@@ -128,6 +142,7 @@ export default function VideoPlayer({
 
     video.addEventListener("timeupdate", handleTimeUpdate);
     video.addEventListener("loadedmetadata", handleLoadedMetadata);
+    video.addEventListener("progress", handleProgress);
     video.addEventListener("play", handlePlay);
     video.addEventListener("pause", handlePause);
     video.addEventListener("ended", handleEnded);
@@ -135,11 +150,12 @@ export default function VideoPlayer({
     return () => {
       video.removeEventListener("timeupdate", handleTimeUpdate);
       video.removeEventListener("loadedmetadata", handleLoadedMetadata);
+    video.removeEventListener("progress", handleProgress);
       video.removeEventListener("play", handlePlay);
       video.removeEventListener("pause", handlePause);
       video.removeEventListener("ended", handleEnded);
     };
-  }, [videoRef, setCurrentTime, setDuration, setPlaying, onTimeUpdate]);
+  }, [videoRef, setCurrentTime, setDuration, setBufferedEnd, setPlaying, onTimeUpdate]);
 
   function handleVideoClick() {
     const video = videoRef.current;
@@ -196,8 +212,6 @@ export default function VideoPlayer({
       const video = videoRef.current;
       if (!video) return;
 
-      const frameDuration = 1 / frameRate;
-
       switch (key) {
         case " ":
         case "k":
@@ -210,11 +224,13 @@ export default function VideoPlayer({
           break;
         case "j":
           e.preventDefault();
-          video.currentTime = Math.max(0, video.currentTime - 10);
+          // J/L shuttle: HTML5 media cannot play in reverse, so J steps
+          // the rate down the preset ladder instead of faking reverse.
+          setPlaybackRate(nextShuttleRate(playbackRate, -1));
           break;
         case "l":
           e.preventDefault();
-          video.currentTime = Math.min(video.duration, video.currentTime + 10);
+          setPlaybackRate(nextShuttleRate(playbackRate, 1));
           break;
         case "ArrowLeft":
           e.preventDefault();
@@ -243,28 +259,30 @@ export default function VideoPlayer({
           break;
         case "[": {
           e.preventDefault();
-          const rates = [0.25, 0.5, 0.75, 1, 1.25, 1.5, 2];
-          const idx = rates.indexOf(playbackRate);
-          if (idx > 0) setPlaybackRate(rates[idx - 1]);
+          setPlaybackRate(nextShuttleRate(playbackRate, -1));
           break;
         }
         case "]": {
           e.preventDefault();
-          const rates = [0.25, 0.5, 0.75, 1, 1.25, 1.5, 2];
-          const idx = rates.indexOf(playbackRate);
-          if (idx < rates.length - 1) setPlaybackRate(rates[idx + 1]);
+          setPlaybackRate(nextShuttleRate(playbackRate, 1));
           break;
         }
         case ",":
+        case "<": {
           e.preventDefault();
           video.pause();
-          video.currentTime = Math.max(0, video.currentTime - frameDuration);
+          const framesBack = e.shiftKey || key === "<" ? 10 : 1;
+          video.currentTime = stepFrames(video.currentTime, -framesBack, frameRate, video.duration);
           break;
+        }
         case ".":
+        case ">": {
           e.preventDefault();
           video.pause();
-          video.currentTime = Math.min(video.duration, video.currentTime + frameDuration);
+          const framesForward = e.shiftKey || key === ">" ? 10 : 1;
+          video.currentTime = stepFrames(video.currentTime, framesForward, frameRate, video.duration);
           break;
+        }
       }
     };
 

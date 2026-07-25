@@ -420,3 +420,55 @@ the token radius/border/elevation throughout. Deferred honestly: the
 unsaved-changes amber bar (needs real dirty-tracking, a feature not polish)
 and a component gallery page. Arc III closed: tokens (P11), reskin (P12),
 component states (P13), Copilot (P14), monogram (P15).
+
+## P16 — Frame-accurate review player (2026-07-25)
+
+Regression-guarded in `~/covideopro-visual-audit/regressions/p16/` (5 scripts,
+36 checks, shots in `shots/`). Pure logic lives in
+`lib/review/frame-review.ts` (7 node:tests in `tests/frame-review.test.ts`);
+the browser halves stay in `components/player/*`.
+
+- Frame stepping: `,`/`.` step ±1 frame (pause-first), Shift steps ±10
+  (Shift yields `<`/`>`, both keys handled). Steps use `stepFrames` with the
+  asset frame rate — default 24fps (store default changed 30 → 24), with a
+  per-asset `frame_rate` override: the demo payload carries the honest
+  ffprobe-measured 24000/1001 (23.976), which passes through unrounded
+  (rounding 23.976 → 24 is the classic drift bug; the Vidstack gotcha).
+- Speed + shuttle: the P6 overlay menu offers 0.25–2x (superset of the P16
+  0.5–2 preset set); J/K/L shuttle is the honest HTML5 version — true
+  reverse playback is impossible on a media element, so J steps the rate
+  down the preset ladder, L steps up, K keeps its existing play/pause
+  toggle. `[`/`]` keep their P7 rate-stepping behavior (the P16 brief's
+  `[`/`]` mention conflicted with both P7 and the loop keys; resolved in
+  favor of preserving P7 — loop is button-driven instead).
+- Comment pins: `PlayerTimeline` now renders pins from a Vidstack-style
+  chapters model (`buildCommentChapters` — sorted cue ranges, 0-based
+  integer frames per the Frame.io model). Pin click seeks AND selects/opens
+  the thread (`aria-current` on the active pin, Note chip in the stage
+  context). Tooltip follows the chapters array.
+- A/B loop: Repeat button in the transport cycles in → out → clear
+  (inverted presses auto-sort); the wrap is enforced in the player's
+  timeupdate path via `loopWrapTarget` semantics; the region is highlighted
+  on both the transport progress bar and the review timeline
+  (`data-loop-region`).
+- Buffered range: the video element's furthest buffered end lands in the
+  player store (`bufferedEnd`, updated on `progress`) and renders as a
+  `data-buffered-range` layer on the review timeline track.
+- Timecode consistency: the transport readout is now the same floor-based
+  SMPTE HH:MM:SS:FF as the stage chip (`data-transport-timecode`);
+  `TimecodeLink` and the selected-comment chip also render SMPTE at the
+  asset frame rate. No MM:SS readouts remain in the review surface.
+
+Proof: d29–d33 failed pre-change (frame step was 1/30s, no Shift-step, no
+shuttle, no selection-on-pin-click, no loop control, MM:SS readout, no
+buffered layer); 5/5 PASS post-change (36/36 checks). P7 player regressions
+re-run 5/5 PASS, P14 copilot 4/4 PASS. Harness: `git diff --check` pass ·
+typecheck 0 errors · lint 0 errors (40 pre-existing warnings) · `npm test`
+759/759 (752 + 7 new) · `npm run build` pass.
+
+Honest limits: frame stepping seeks the HTML5 element by 1/fps, so landing
+is keyframe-coarse on long-GOP media — exact frame decode would need
+WebCodecs (out of scope, no new deps). The 23.976fps asset renders
+non-drop-frame timecode (drift ≈ 3.6s/hour, irrelevant on the 5s preview;
+drop-frame would matter for broadcast-length assets). J cannot play
+backwards — it slows to 0.25x at most.

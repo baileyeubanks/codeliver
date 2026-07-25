@@ -11,6 +11,8 @@ interface DemoReviewAsset {
   file_type: string;
   file_url: string | null;
   status: string;
+  /** Honest per-asset frame rate override (24000/1001 for the demo preview). */
+  frame_rate?: number;
   projects: { name: string } | null;
 }
 
@@ -75,6 +77,8 @@ export const demoReviewPayload: DemoReviewPayload = {
     file_type: "video",
     file_url: "/demo/ica-ceo-preview.mp4",
     status: "in_review",
+    // Measured with ffprobe: 24000/1001 (23.976), 120 frames over 5.005s.
+    frame_rate: 24000 / 1001,
     projects: { name: "ICA / Nashville Roadshow" },
   },
   approvals: [

@@ -5,13 +5,16 @@ import { useOverlay } from "@/components/overlay/useOverlay";
 import {
   Play,
   Pause,
+  Repeat,
   SkipBack,
   SkipForward,
   Volume2,
   VolumeX,
   Maximize,
 } from "lucide-react";
-import { usePlayerStore, formatTime } from "@/lib/stores/playerStore";
+import { usePlayerStore } from "@/lib/stores/playerStore";
+import { nextLoopRegion } from "@/lib/review/frame-review";
+import { formatSmpteTimecode } from "@/components/player/timecode";
 
 interface PlayerControlsProps {
   videoRef: RefObject<HTMLVideoElement | null>;
@@ -29,12 +32,16 @@ export default function PlayerControls({ videoRef }: PlayerControlsProps) {
     muted,
     volume,
     playbackRate,
+    frameRate,
     seekStepSeconds,
+    loopIn,
+    loopOut,
     toggleMute,
     setMuted,
     setVolume,
     setPlaybackRate,
     setSeekStepSeconds,
+    setLoopRegion,
   } = usePlayerStore();
 
   const [showRateMenu, setShowRateMenu] = useState(false);
@@ -52,6 +59,17 @@ export default function PlayerControls({ videoRef }: PlayerControlsProps) {
   const volumeRef = useRef<HTMLDivElement>(null);
 
   const progress = duration > 0 ? (currentTime / duration) * 100 : 0;
+  const loopClosed = loopIn != null && loopOut != null && loopOut > loopIn && duration > 0;
+  const loopLabel = loopClosed
+    ? "Loop A-B set — press again to clear"
+    : loopIn != null
+      ? "Loop in point set — press at the out point"
+      : "Loop — set in point at the playhead";
+
+  const handleLoopCycle = useCallback(() => {
+    const next = nextLoopRegion({ inPoint: loopIn, outPoint: loopOut }, currentTime);
+    setLoopRegion(next.inPoint, next.outPoint);
+  }, [loopIn, loopOut, currentTime, setLoopRegion]);
   const handleTogglePlayback = useCallback(() => {
     const video = videoRef.current;
     if (!video) return;
@@ -149,6 +167,17 @@ export default function PlayerControls({ videoRef }: PlayerControlsProps) {
           className="absolute left-0 top-0 h-full rounded-full bg-[var(--dim)] opacity-40"
           style={{ width: `${bufferedPct}%` }}
         />
+        {/* A/B loop region */}
+        {loopClosed ? (
+          <div
+            data-loop-region
+            className="absolute top-0 h-full rounded-full bg-[var(--accent)]/25"
+            style={{
+              left: `${((loopIn as number) / duration) * 100}%`,
+              width: `${(((loopOut as number) - (loopIn as number)) / duration) * 100}%`,
+            }}
+          />
+        ) : null}
         {/* Progress */}
         <div
           className="absolute left-0 top-0 h-full rounded-full bg-[var(--accent)]"
@@ -196,8 +225,11 @@ export default function PlayerControls({ videoRef }: PlayerControlsProps) {
         </div>
 
         {/* Time display */}
-        <span className="order-last w-full text-xs tabular-nums text-[var(--muted)] sm:order-none sm:w-auto sm:min-w-[80px]">
-          {formatTime(currentTime)} / {formatTime(duration)}
+        <span
+          data-transport-timecode
+          className="order-last w-full font-mono text-xs tabular-nums text-[var(--muted)] sm:order-none sm:w-auto sm:min-w-[80px]"
+        >
+          {formatSmpteTimecode(currentTime, frameRate)} / {formatSmpteTimecode(duration, frameRate)}
         </span>
 
         <div className="hidden flex-1 sm:block" />
@@ -278,6 +310,19 @@ export default function PlayerControls({ videoRef }: PlayerControlsProps) {
             </div>
           )}
         </div>
+
+        {/* A/B loop */}
+        <button
+          type="button"
+          onClick={handleLoopCycle}
+          aria-label={loopLabel}
+          title={loopLabel}
+          className={`grid h-11 w-11 place-items-center rounded-[var(--radius-sm)] transition-colors hover:bg-[var(--surface-2)] sm:h-8 sm:w-8 ${
+            loopIn != null ? "text-[var(--accent)]" : "text-[var(--muted)] hover:text-[var(--ink)]"
+          }`}
+        >
+          <Repeat size={18} />
+        </button>
 
         {/* Fullscreen */}
         <button

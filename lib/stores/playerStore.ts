@@ -11,6 +11,11 @@ interface PlayerStore {
   playbackRate: number;
   frameRate: number;
   seekStepSeconds: number;
+  /** End of the furthest buffered range, in seconds (0 = nothing buffered). */
+  bufferedEnd: number;
+  /** A/B loop region; null = not set. Third press clears both. */
+  loopIn: number | null;
+  loopOut: number | null;
 
   // Actions
   setCurrentTime: (t: number) => void;
@@ -23,6 +28,8 @@ interface PlayerStore {
   setPlaybackRate: (r: number) => void;
   setFrameRate: (fps: number) => void;
   setSeekStepSeconds: (seconds: number) => void;
+  setBufferedEnd: (seconds: number) => void;
+  setLoopRegion: (inPoint: number | null, outPoint: number | null) => void;
   reset: () => void;
 
   // Derived helpers
@@ -69,8 +76,12 @@ export const usePlayerStore = create<PlayerStore>((set, get) => ({
   muted: false,
   volume: 1,
   playbackRate: 1,
-  frameRate: 30,
+  // P16: default 24fps (was 30); per-asset overrides land via setFrameRate.
+  frameRate: 24,
   seekStepSeconds: 1,
+  bufferedEnd: 0,
+  loopIn: null,
+  loopOut: null,
 
   setCurrentTime: (t) => set({ currentTime: t }),
   setDuration: (d) => set({ duration: d }),
@@ -82,6 +93,9 @@ export const usePlayerStore = create<PlayerStore>((set, get) => ({
   setPlaybackRate: (r) => set({ playbackRate: r }),
   setFrameRate: (fps) => set({ frameRate: fps }),
   setSeekStepSeconds: (seconds) => set({ seekStepSeconds: normalizeReviewSeekStep(seconds) }),
+  setBufferedEnd: (seconds) =>
+    set({ bufferedEnd: Number.isFinite(seconds) && seconds > 0 ? seconds : 0 }),
+  setLoopRegion: (inPoint, outPoint) => set({ loopIn: inPoint, loopOut: outPoint }),
   reset: () =>
     set({
       currentTime: 0,
@@ -90,8 +104,11 @@ export const usePlayerStore = create<PlayerStore>((set, get) => ({
       muted: false,
       volume: 1,
       playbackRate: 1,
-      frameRate: 30,
+      frameRate: 24,
       seekStepSeconds: 1,
+      bufferedEnd: 0,
+      loopIn: null,
+      loopOut: null,
     }),
 
   currentFrame: () => Math.floor(get().currentTime * get().frameRate),

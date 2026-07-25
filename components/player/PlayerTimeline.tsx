@@ -3,8 +3,10 @@
 import { useRef, useState, useCallback } from "react";
 import { Scissors } from "lucide-react";
 import { usePlayerStore } from "@/lib/stores/playerStore";
+import { buildCommentChapters } from "@/lib/review/frame-review";
 
 interface TimelineComment {
+  id?: string;
   timecode_seconds: number | null;
   status: string;
   body: string;
@@ -19,6 +21,8 @@ interface PlayerTimelineProps {
     pending?: boolean;
   }>;
   onSeek?: (time: number) => void;
+  onCommentSelect?: (comment: TimelineComment) => void;
+  selectedCommentId?: string | null;
 }
 
 function getCommentMarkerAriaLabel(comment: TimelineComment, timeSeconds: number) {
@@ -33,13 +37,23 @@ function getCommentMarkerAriaLabel(comment: TimelineComment, timeSeconds: number
     : `Comment at ${timeLabel}, ${statusLabel}`;
 }
 
-export default function PlayerTimeline({ comments = [], cutMarkers = [], onSeek }: PlayerTimelineProps) {
-  const { currentTime, duration } = usePlayerStore();
+export default function PlayerTimeline({
+  comments = [],
+  cutMarkers = [],
+  onSeek,
+  onCommentSelect,
+  selectedCommentId = null,
+}: PlayerTimelineProps) {
+  const { currentTime, duration, frameRate, bufferedEnd, loopIn, loopOut } = usePlayerStore();
   const barRef = useRef<HTMLDivElement>(null);
   const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
   const [tooltipX, setTooltipX] = useState(0);
 
   const progress = duration > 0 ? (currentTime / duration) * 100 : 0;
+  const bufferedPct = duration > 0 && bufferedEnd
+    ? Math.min(100, (bufferedEnd / duration) * 100)
+    : 0;
+  const loopClosed = loopIn != null && loopOut != null && loopOut > loopIn && duration > 0;
 
   const handleBarClick = useCallback(
     (e: React.MouseEvent<HTMLDivElement>) => {
@@ -52,9 +66,8 @@ export default function PlayerTimeline({ comments = [], cutMarkers = [], onSeek 
     [duration, onSeek],
   );
 
-  const timedComments = comments.filter(
-    (c) => c.timecode_seconds !== null && c.timecode_seconds !== undefined,
-  );
+  // Vidstack-style chapters: timed comments become ordered cue ranges.
+  const chapters = buildCommentChapters(comments, duration, frameRate);
 
   return (
     <div className="relative px-4 py-2">
@@ -64,6 +77,27 @@ export default function PlayerTimeline({ comments = [], cutMarkers = [], onSeek 
         className="relative h-3 cursor-pointer rounded-full bg-[var(--surface-2)]"
         onClick={handleBarClick}
       >
+        {/* Buffered range */}
+        {bufferedPct > 0 ? (
+          <div
+            data-buffered-range
+            className="absolute left-0 top-0 h-full rounded-full bg-[var(--dim)] opacity-40"
+            style={{ width: `${bufferedPct}%` }}
+          />
+        ) : null}
+
+        {/* A/B loop region */}
+        {loopClosed ? (
+          <div
+            data-loop-region
+            className="absolute top-0 h-full rounded-full bg-[var(--accent)]/25"
+            style={{
+              left: `${((loopIn as number) / duration) * 100}%`,
+              width: `${(((loopOut as number) - (loopIn as number)) / duration) * 100}%`,
+            }}
+          />
+        ) : null}
+
         {/* Progress fill */}
         <div
           className="absolute left-0 top-0 h-full rounded-full bg-[var(--accent)]"
@@ -77,14 +111,21 @@ export default function PlayerTimeline({ comments = [], cutMarkers = [], onSeek 
         />
 
         {/* Comment markers */}
-        {timedComments.map((comment, idx) => {
-          const tc = comment.timecode_seconds as number;
+        {chapters.map((chapter, idx) => {
+          const comment = chapter.comment;
+          const tc = chapter.startSeconds;
           const pos = duration > 0 ? (tc / duration) * 100 : 0;
+          const selected = comment.id != null && comment.id === selectedCommentId;
           return (
             <button
-              key={idx}
+              key={comment.id ?? idx}
               type="button"
-              className={`absolute top-1/2 h-2.5 w-2.5 -translate-x-1/2 -translate-y-1/2 appearance-none cursor-pointer rounded-full border border-[var(--surface)] p-0 transition-transform hover:scale-125 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)] ${
+              data-comment-pin
+              data-comment-id={comment.id}
+              aria-current={selected ? "true" : undefined}
+              className={`absolute top-1/2 h-2.5 w-2.5 -translate-x-1/2 -translate-y-1/2 appearance-none cursor-pointer rounded-full border p-0 transition-transform hover:scale-125 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)] ${
+                selected ? "scale-125 border-[var(--accent)] " : "border-[var(--surface)] "
+              }${
                 comment.status === "resolved"
                   ? "bg-[var(--green)]"
                   : "bg-[var(--orange)]"
@@ -102,6 +143,7 @@ export default function PlayerTimeline({ comments = [], cutMarkers = [], onSeek 
               onClick={(e) => {
                 e.stopPropagation();
                 onSeek?.(tc);
+                onCommentSelect?.(comment);
               }}
               aria-label={getCommentMarkerAriaLabel(comment, tc)}
             />
@@ -139,14 +181,14 @@ export default function PlayerTimeline({ comments = [], cutMarkers = [], onSeek 
       </div>
 
       {/* Tooltip */}
-      {hoveredIndex !== null && timedComments[hoveredIndex] && (
+      {hoveredIndex !== null && chapters[hoveredIndex] && (
         <div
           className="absolute bottom-full mb-2 max-w-[240px] rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-xs text-[var(--ink)] shadow-lg"
           style={{ left: `${tooltipX}px`, transform: "translateX(-50%)" }}
         >
           <p className="line-clamp-2">
-            {timedComments[hoveredIndex].body.slice(0, 60)}
-            {timedComments[hoveredIndex].body.length > 60 ? "..." : ""}
+            {chapters[hoveredIndex].label.slice(0, 60)}
+            {chapters[hoveredIndex].label.length > 60 ? "..." : ""}
           </p>
         </div>
       )}

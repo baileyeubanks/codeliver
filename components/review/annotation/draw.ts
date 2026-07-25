@@ -2,8 +2,8 @@ import { arrowHeadPoints } from "@/lib/review/annotation";
 import type { AnnotationData } from "@/lib/types/codeliver";
 
 /** Draft strokes use the lime accent; saved replays use the review blue. */
-export const DRAFT_STROKE_COLOR = "#b9ff77";
-export const REPLAY_STROKE_COLOR = "#145bb8";
+export const DRAFT_STROKE_COLOR = "#156bff";
+export const REPLAY_STROKE_COLOR = "#156bff";
 
 /**
  * Shared canvas painter for the live overlay and the WebP rasterizer.

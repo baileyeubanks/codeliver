@@ -1,35 +1,36 @@
 /**
  * Co-ProVideo brand tokens — Arc III (P11) foundation.
  * Sources (in priority order):
- *  1. LIVE BRAND from co-videopro.com production CSS (extracted 2026-07-25)
- *  2. Bailey's inspiration set (CVP logo, dashboard/settings mocks, logo MP4)
+ *  1. BRAND CANON (Bailey, 2026-07-25): three CVP Enterprise brand guides —
+ *     Primary Blue #156BFF, Deep Blue #0A1D3D, Cool Gray #E6E9EF,
+ *     Charcoal #0D0F14, White; Inter / Inter Display. NO lime, NO tan.
+ *  2. LIVE BRAND from co-videopro.com production CSS (extracted 2026-07-25)
  *
- * NOT YET WIRED IN. P11 imports this into app/globals.css and migrates
- * components. Keep values in sync with ROADMAP_40.md when editing.
+ * Keep values in sync with ROADMAP_40.md when editing.
  */
 
 :root {
-  /* ── Live brand core (co-videopro.com) ── */
-  --cvp-blue: #145bb8;            /* dominant brand blue (99 uses in prod CSS) */
-  --cvp-blue-soft: #7ca8d8;       /* secondary blue */
-  --cvp-blue-tint: #edf4ff;       /* blue tint surface */
-  --cvp-accent: #b9ff77;          /* signature lime accent */
-  --cvp-accent-hover: #9fe65f;
-  --cvp-accent-dim: #b9ff771c;
-  --cvp-accent-glow: #b9ff772e;
+  /* ── Canon brand core (CVP Enterprise guides) ── */
+  --cvp-blue: #156bff;            /* canon Primary Blue */
+  --cvp-blue-soft: #5b93ff;       /* canon-derived lighter step */
+  --cvp-blue-tint: #e9f1ff;       /* blue tint surface */
+  --cvp-accent: #156bff;          /* signature action = canon Primary Blue (lime removed) */
+  --cvp-accent-hover: #0052cc;    /* canon VP Blue (guide 3) */
+  --cvp-accent-dim: #156bff1f;
+  --cvp-accent-glow: #156bff2e;
 
-  /* Ink — navy family */
-  --cvp-ink: #18223e;
-  --cvp-ink-deep: #12233e;
-  --cvp-ink-soft: #3f4962;
-  --cvp-ink-faint: #707b91;
+  /* Ink — canon navy family */
+  --cvp-ink: #0a1d3d;             /* canon Deep Blue */
+  --cvp-ink-deep: #07132b;
+  --cvp-ink-soft: #3d4a68;
+  --cvp-ink-faint: #6d7a94;
 
-  /* Canvas + surfaces */
-  --cvp-canvas: #f7f9fc;
-  --cvp-surface: #ffffff;
-  --cvp-surface-alt: #f4f7fb;
-  --cvp-surface-sunken: #edf0f4;
-  --cvp-border: #dfe4ec;
+  /* Canvas + surfaces (canon grays) */
+  --cvp-canvas: #f2f4f7;          /* canon Light Gray */
+  --cvp-surface: #ffffff;         /* canon White */
+  --cvp-surface-alt: #eaeef4;
+  --cvp-surface-sunken: #e6e9ef;  /* canon Cool Gray */
+  --cvp-border: #d6dce6;
 
   /* Status */
   --cvp-success: #267553;
@@ -58,13 +59,13 @@
     var(--cvp-green) 66%,
     var(--cvp-blue) 100%
   );
-  --cvp-copilot-bg: #141a2e;      /* dark-navy floating AI Copilot panel */
+  --cvp-copilot-bg: #0a1d3d;      /* canon Deep Blue floating AI Copilot panel */
   --cvp-copilot-ink: #e5e9f2;
   --cvp-copilot-border: #ffffff1a;
   --cvp-unsaved-bar: var(--cvp-amber-tint); /* "N unsaved changes" strip */
 
-  /* Typography (live brand) */
-  --cvp-font-display: "Manrope", "Inter", -apple-system, sans-serif;
+  /* Typography (canon: Inter family) */
+  --cvp-font-display: "Inter Display", "Inter", -apple-system, sans-serif;
   --cvp-font-body: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
 
   /* Shape (live brand radii) + elevation */
@@ -72,10 +73,10 @@
   --cvp-radius-md: 8px;
   --cvp-radius-lg: 12px;
   --cvp-radius-pill: 999px;
-  --cvp-shadow-card: 0 1px 2px rgb(24 34 62 / 0.05),
-    0 8px 24px rgb(24 34 62 / 0.07);
-  --cvp-shadow-popover: 0 4px 12px rgb(24 34 62 / 0.09),
-    0 16px 48px rgb(24 34 62 / 0.13);
+  --cvp-shadow-card: 0 1px 2px rgb(10 29 61 / 0.05),
+    0 8px 24px rgb(10 29 61 / 0.07);
+  --cvp-shadow-popover: 0 4px 12px rgb(10 29 61 / 0.09),
+    0 16px 48px rgb(10 29 61 / 0.13);
 
   /* Focus — WCAG 2.4.7: one ring token for the whole system.
      Component CSS must never zero this out on :focus-visible. */

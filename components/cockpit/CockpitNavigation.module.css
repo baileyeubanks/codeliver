@@ -43,12 +43,12 @@
 .collapse:hover,
 .collapse:focus-visible {
   background: var(--cockpit-accent-soft, #edf4ff);
-  color: var(--cockpit-accent, #145bb8);
+  color: var(--cockpit-accent, #156bff);
 }
 
 .primary button[data-active="true"] {
   background: var(--cockpit-accent-soft, #edf4ff);
-  color: var(--cockpit-accent, #145bb8);
+  color: var(--cockpit-accent, #156bff);
   font-weight: 680;
 }
 
@@ -69,7 +69,7 @@
   padding: 0 5px;
   border-radius: 8px;
   background: #e4edfb;
-  color: var(--cockpit-accent, #145bb8);
+  color: var(--cockpit-accent, #156bff);
   font-size: 0.58rem;
   font-weight: 700;
 }
@@ -154,7 +154,7 @@
 .drawerHead button:hover,
 .drawerHead button:focus-visible {
   background: var(--cockpit-accent-soft, #edf4ff);
-  color: var(--cockpit-accent, #145bb8);
+  color: var(--cockpit-accent, #156bff);
 }
 
 .drawerBody {
@@ -202,7 +202,7 @@
   .mobileBar button:focus-visible,
   .mobileBar button[aria-expanded="true"] {
     background: var(--cockpit-accent-soft, #edf4ff);
-    color: var(--cockpit-accent, #145bb8);
+    color: var(--cockpit-accent, #156bff);
   }
 }
 

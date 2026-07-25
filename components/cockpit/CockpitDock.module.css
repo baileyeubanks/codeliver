@@ -61,7 +61,7 @@
 
 .tab[aria-selected="true"] {
   background: var(--cockpit-accent-soft, #edf4ff);
-  color: var(--cockpit-accent, #145bb8);
+  color: var(--cockpit-accent, #156bff);
 }
 
 .count {
@@ -73,7 +73,7 @@
   padding: 0 4px;
   border-radius: 8px;
   background: #e4edfb;
-  color: var(--cockpit-accent, #145bb8);
+  color: var(--cockpit-accent, #156bff);
   font-size: 0.53rem;
 }
 

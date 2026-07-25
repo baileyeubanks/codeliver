@@ -23,7 +23,7 @@
     position: absolute;
     inset: 0 0 auto;
     height: 3px;
-    background: var(--cvp-gradient-ribbon, linear-gradient(90deg, #e8442e, #f59e0b, #16a34a, #145bb8));
+    background: var(--cvp-gradient-ribbon, linear-gradient(90deg, #e8442e, #f59e0b, #16a34a, #156bff));
   }
 
   .brandLink {
@@ -36,7 +36,7 @@
   }
 
   .brandLink:focus-visible {
-    outline: 2px solid var(--accent, #145bb8);
+    outline: 2px solid var(--accent, #156bff);
     outline-offset: -2px;
   }
 
@@ -123,7 +123,7 @@
 
   .item[data-active="true"] {
     background: var(--cvp-blue-tint, #edf4ff);
-    color: var(--accent, #145bb8);
+    color: var(--accent, #156bff);
     font-weight: 680;
   }
 
@@ -135,7 +135,7 @@
     bottom: 8px;
     width: 3px;
     border-radius: 2px;
-    background: var(--accent, #145bb8);
+    background: var(--accent, #156bff);
   }
 
   .footer {

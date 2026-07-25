@@ -94,11 +94,11 @@
 .item:hover,
 .item[data-active="true"] {
   background: var(--accent-dim, rgba(20, 91, 184, 0.1));
-  color: var(--accent, #145bb8);
+  color: var(--accent, #156bff);
 }
 
 .item:focus-visible {
-  outline: 2px solid var(--accent, #145bb8);
+  outline: 2px solid var(--accent, #156bff);
   outline-offset: -2px;
 }
 
@@ -121,8 +121,8 @@
 
 .item[data-active="true"] .icon,
 .item:hover .icon {
-  border-color: color-mix(in srgb, var(--accent, #145bb8) 26%, var(--border, #dfe4ec));
-  color: var(--accent, #145bb8);
+  border-color: color-mix(in srgb, var(--accent, #156bff) 26%, var(--border, #dfe4ec));
+  color: var(--accent, #156bff);
 }
 
 .copy {

@@ -46,7 +46,7 @@
 }
 
 .field select:focus-visible {
-  border-color: var(--cockpit-accent, #145bb8);
+  border-color: var(--cockpit-accent, #156bff);
   box-shadow: 0 0 0 3px rgba(20, 91, 184, 0.1);
 }
 
@@ -83,7 +83,7 @@
 
 .modeControl button[aria-pressed="true"] {
   background: #fff;
-  color: var(--cockpit-accent, #145bb8);
+  color: var(--cockpit-accent, #156bff);
   box-shadow: 0 1px 4px rgba(18, 35, 62, 0.12);
 }
 
@@ -160,7 +160,7 @@
 
 .slider input {
   width: 100%;
-  accent-color: var(--cockpit-accent, #145bb8);
+  accent-color: var(--cockpit-accent, #156bff);
 }
 
 .notice {
@@ -181,7 +181,7 @@
   border: 1px solid var(--cockpit-border, #dfe4ec);
   border-radius: 6px;
   background: #fff;
-  color: var(--cockpit-accent, #145bb8);
+  color: var(--cockpit-accent, #156bff);
   font: inherit;
   font-size: 0.63rem;
   font-weight: 650;

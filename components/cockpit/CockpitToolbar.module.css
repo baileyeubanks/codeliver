@@ -47,13 +47,13 @@
 
 .modes button:focus-visible {
   color: var(--cockpit-ink, #18223e);
-  outline: 2px solid var(--cockpit-accent, #145bb8);
+  outline: 2px solid var(--cockpit-accent, #156bff);
   outline-offset: 1px;
 }
 
 .modes button[aria-pressed="true"] {
   background: #fff;
-  color: var(--cockpit-accent, #145bb8);
+  color: var(--cockpit-accent, #156bff);
   box-shadow: 0 1px 4px rgba(18, 35, 62, 0.12);
 }
 
@@ -107,14 +107,14 @@
 .iconButton[aria-pressed="true"],
 .commandButton:hover {
   background: var(--cockpit-accent-soft, #edf4ff);
-  color: var(--cockpit-accent, #145bb8);
+  color: var(--cockpit-accent, #156bff);
 }
 
 .iconButton:focus-visible,
 .commandButton:focus-visible {
   background: var(--cockpit-accent-soft, #edf4ff);
-  color: var(--cockpit-accent, #145bb8);
-  outline: 2px solid var(--cockpit-accent, #145bb8);
+  color: var(--cockpit-accent, #156bff);
+  outline: 2px solid var(--cockpit-accent, #156bff);
   outline-offset: 1px;
 }
 
@@ -140,13 +140,13 @@
 .overflowButton:hover,
 .overflowButton[aria-expanded="true"] {
   background: var(--cockpit-accent-soft, #edf4ff);
-  color: var(--cockpit-accent, #145bb8);
+  color: var(--cockpit-accent, #156bff);
 }
 
 .overflowButton:focus-visible {
   background: var(--cockpit-accent-soft, #edf4ff);
-  color: var(--cockpit-accent, #145bb8);
-  outline: 2px solid var(--cockpit-accent, #145bb8);
+  color: var(--cockpit-accent, #156bff);
+  outline: 2px solid var(--cockpit-accent, #156bff);
   outline-offset: 1px;
 }
 
@@ -193,7 +193,7 @@
 .menuItem:hover,
 .menuItem:focus-visible {
   background: var(--cockpit-accent-soft, #edf4ff);
-  color: var(--cockpit-accent, #145bb8);
+  color: var(--cockpit-accent, #156bff);
 }
 
 .menuItemCopy {
@@ -279,7 +279,7 @@
 
 .avatars span:first-child {
   margin-left: 0;
-  background: var(--cockpit-accent, #145bb8);
+  background: var(--cockpit-accent, #156bff);
   color: #fff;
 }
 

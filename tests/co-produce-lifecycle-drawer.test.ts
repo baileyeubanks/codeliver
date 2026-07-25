@@ -111,7 +111,7 @@ test("phase and checkpoint states use icon plus text instead of color alone", ()
 });
 
 test("the drawer extends cockpit tokens as a dense connected lifecycle", () => {
-  assert.match(drawerStyles, /var\(--cockpit-accent, #145bb8\)/);
+  assert.match(drawerStyles, /var\(--cockpit-accent, #156bff\)/);
   assert.match(drawerStyles, /var\(--cockpit-ink, #18223e\)/);
   assert.match(drawerStyles, /var\(--cockpit-border, #dfe4ec\)/);
   assert.match(drawerStyles, /\.phaseItem:not\(:last-child\)::after/);

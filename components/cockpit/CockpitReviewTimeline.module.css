@@ -35,7 +35,7 @@
 
 .heading svg {
   flex: 0 0 auto;
-  color: var(--cockpit-accent, #145bb8);
+  color: var(--cockpit-accent, #156bff);
 }
 
 .heading h2 {
@@ -101,7 +101,7 @@
 
 .laneLabel svg {
   flex: 0 0 auto;
-  color: var(--cockpit-accent, #145bb8);
+  color: var(--cockpit-accent, #156bff);
 }
 
 .viewport {
@@ -128,7 +128,7 @@
 }
 
 .viewport:focus-visible {
-  outline: 2px solid var(--cockpit-accent, #145bb8);
+  outline: 2px solid var(--cockpit-accent, #156bff);
   outline-offset: -2px;
 }
 
@@ -251,7 +251,7 @@
 
 .analysisStatus svg {
   flex: 0 0 auto;
-  color: var(--cockpit-accent, #145bb8);
+  color: var(--cockpit-accent, #156bff);
 }
 
 .marker {
@@ -303,7 +303,7 @@
 .iconButton:focus-visible,
 .fitButton:focus-visible,
 .zoomSlider:focus-visible {
-  outline: 2px solid var(--cockpit-accent, #145bb8);
+  outline: 2px solid var(--cockpit-accent, #156bff);
   outline-offset: 2px;
 }
 
@@ -328,7 +328,7 @@
 }
 
 .cutMarker[data-status="applied"] {
-  background: var(--cockpit-accent, #145bb8);
+  background: var(--cockpit-accent, #156bff);
 }
 
 .playhead {
@@ -337,7 +337,7 @@
   bottom: 0;
   z-index: 2;
   width: 1px;
-  background: var(--cockpit-accent, #145bb8);
+  background: var(--cockpit-accent, #156bff);
   pointer-events: none;
 }
 
@@ -348,7 +348,7 @@
   width: 9px;
   height: 7px;
   border-radius: 2px;
-  background: var(--cockpit-accent, #145bb8);
+  background: var(--cockpit-accent, #156bff);
 }
 
 .desktopEmpty {
@@ -390,7 +390,7 @@
 .fitButton:hover:not(:disabled) {
   border-color: #b9c9dd;
   background: var(--cockpit-accent-soft, #edf4ff);
-  color: var(--cockpit-accent, #145bb8);
+  color: var(--cockpit-accent, #156bff);
 }
 
 .iconButton:disabled,
@@ -402,7 +402,7 @@
 
 .zoomSlider {
   width: 92px;
-  accent-color: var(--cockpit-accent, #145bb8);
+  accent-color: var(--cockpit-accent, #156bff);
   cursor: pointer;
 }
 
@@ -425,7 +425,7 @@
 .fitButton[aria-pressed="true"] {
   border-color: #b8cdee;
   background: var(--cockpit-accent-soft, #edf4ff);
-  color: var(--cockpit-accent, #145bb8);
+  color: var(--cockpit-accent, #156bff);
 }
 
 .mobileSummary {
@@ -467,7 +467,7 @@
     display: flex;
     align-items: center;
     gap: 7px;
-    color: var(--cockpit-accent, #145bb8);
+    color: var(--cockpit-accent, #156bff);
   }
 
   .mobileTime > span {

@@ -15,10 +15,10 @@
   display: flex;
   align-items: center;
   padding: 0 12px;
-  border: 2px solid var(--accent, #145bb8);
+  border: 2px solid var(--accent, #156bff);
   border-radius: 6px;
   background: var(--surface, #fff);
-  color: var(--accent, #145bb8);
+  color: var(--accent, #156bff);
   font-size: 0.75rem;
   font-weight: 700;
   transform: translateY(-160%);
@@ -90,7 +90,7 @@
 }
 
 .shell :where(button, a, input, select):focus-visible {
-  outline: 2px solid var(--accent, #145bb8);
+  outline: 2px solid var(--accent, #156bff);
   outline-offset: 2px;
 }
 

@@ -45,7 +45,7 @@ export default function SharePasswordGate({
       data-testid="share-password-gate"
       className="flex min-h-[60vh] items-center justify-center bg-white px-6 py-16"
     >
-      <div className="w-full max-w-sm rounded-[var(--radius-lg)] border border-[var(--line,#e3e7ee)] border-t-4 border-t-[var(--cvp-accent,#b9ff77)] bg-white p-8 shadow-sm">
+      <div className="w-full max-w-sm rounded-[var(--radius-lg)] border border-[var(--line,#e3e7ee)] border-t-4 border-t-[var(--cvp-accent,#156bff)] bg-white p-8 shadow-sm">
         <div className="flex items-center gap-2 text-[var(--ink,#18223e)]">
           <Lock size={16} aria-hidden="true" />
           <p className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--muted)]">

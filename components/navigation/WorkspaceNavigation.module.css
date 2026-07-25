@@ -27,7 +27,7 @@
 
 .desktopNav a[data-active="true"] {
   background: var(--accent-dim, rgba(20, 91, 184, 0.1));
-  color: var(--accent, #145bb8);
+  color: var(--accent, #156bff);
 }
 
 .mobileBar {
@@ -174,7 +174,7 @@
 .groupLinks a:focus-visible,
 .groupLinks a[data-active="true"] {
   background: var(--accent-dim, rgba(20, 91, 184, 0.1));
-  color: var(--accent, #145bb8);
+  color: var(--accent, #156bff);
 }
 
 .linkIcon {
@@ -237,7 +237,7 @@
 .recentProjects a:focus-visible,
 .recentProjects a[data-active="true"] {
   background: var(--surface-hover, #f1f5fa);
-  color: var(--accent, #145bb8);
+  color: var(--accent, #156bff);
   outline: 0;
 }
 
@@ -322,7 +322,7 @@
   .mobileBar button[aria-expanded="true"],
   .mobileBar button:focus-visible {
     background: var(--accent-dim, rgba(20, 91, 184, 0.1));
-    color: var(--accent, #145bb8);
+    color: var(--accent, #156bff);
     outline: 0;
   }
 }

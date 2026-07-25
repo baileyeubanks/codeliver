@@ -233,7 +233,7 @@ test("markers and zoom controls use native keyboard-operable controls", () => {
 test("the bright cockpit surface stays bounded and collapses to a mobile summary", () => {
   assert.match(stylesheetSource, /min-height:\s*156px/);
   assert.match(stylesheetSource, /max-height:\s*280px/);
-  assert.match(stylesheetSource, /var\(--cockpit-accent, #145bb8\)/);
+  assert.match(stylesheetSource, /var\(--cockpit-accent, #156bff\)/);
   assert.match(stylesheetSource, /var\(--cockpit-border, #dfe4ec\)/);
   assert.match(stylesheetSource, /@media \(max-width: 640px\)/);
   assert.match(

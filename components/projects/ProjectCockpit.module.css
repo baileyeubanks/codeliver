@@ -13,10 +13,10 @@
   display: flex;
   align-items: center;
   padding: 0 12px;
-  border: 2px solid var(--cockpit-accent, #145bb8);
+  border: 2px solid var(--cockpit-accent, #156bff);
   border-radius: 6px;
   background: #fff;
-  color: var(--cockpit-accent, #145bb8);
+  color: var(--cockpit-accent, #156bff);
   font-size: 0.72rem;
   font-weight: 700;
   transform: translateY(-160%);
@@ -159,7 +159,7 @@
 .dockSection header > button {
   border: 0;
   background: transparent;
-  color: var(--cockpit-accent, #145bb8);
+  color: var(--cockpit-accent, #156bff);
   font: inherit;
   font-size: 0.6rem;
   cursor: pointer;
@@ -245,7 +245,7 @@
 }
 
 .shell :where(button, a, input, select):focus-visible {
-  outline: 2px solid var(--cockpit-accent, #145bb8);
+  outline: 2px solid var(--cockpit-accent, #156bff);
   outline-offset: 2px;
 }
 
@@ -514,7 +514,7 @@
 }
 
 .replayOverlay:hover {
-  background: var(--cockpit-accent, #145bb8);
+  background: var(--cockpit-accent, #156bff);
 }
 
 .replayOverlay:focus-visible {

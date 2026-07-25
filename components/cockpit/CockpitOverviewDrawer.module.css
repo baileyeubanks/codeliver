@@ -61,7 +61,7 @@
 .header button:hover,
 .header button:focus-visible {
   background: var(--cockpit-accent-soft, #edf4ff);
-  color: var(--cockpit-accent, #145bb8);
+  color: var(--cockpit-accent, #156bff);
 }
 
 .metrics {

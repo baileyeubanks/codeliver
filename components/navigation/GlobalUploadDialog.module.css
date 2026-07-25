@@ -140,7 +140,7 @@
   overflow: hidden;
   border: 0;
   border-radius: 4px;
-  accent-color: var(--accent, #145bb8);
+  accent-color: var(--accent, #156bff);
 }
 
 .progressBar::-webkit-progress-bar {
@@ -148,11 +148,11 @@
 }
 
 .progressBar::-webkit-progress-value {
-  background: var(--accent, #145bb8);
+  background: var(--accent, #156bff);
 }
 
 .progressBar::-moz-progress-bar {
-  background: var(--accent, #145bb8);
+  background: var(--accent, #156bff);
 }
 
 .uploadEntries {
@@ -238,7 +238,7 @@
   padding: 0 18px;
   border: 0;
   border-radius: 999px;
-  background: var(--accent, #145bb8);
+  background: var(--accent, #156bff);
   color: #fff;
   font-size: 0.86rem;
   font-weight: 620;

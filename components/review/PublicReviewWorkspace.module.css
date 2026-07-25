@@ -403,7 +403,7 @@
   margin-top: 2px;
   overflow-wrap: anywhere;
   color: var(--ink);
-  font-family: var(--font-display, "Manrope", "Inter", sans-serif);
+  font-family: var(--font-display, "Inter Display", "Inter", sans-serif);
   font-size: 0.98rem;
   font-weight: 700;
   letter-spacing: 0;

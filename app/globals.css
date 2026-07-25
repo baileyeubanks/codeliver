@@ -1,9 +1,10 @@
 @import "tailwindcss";
 @import "./brand-tokens.css";
 
-/* Co‑ProVideo design system — live co-videopro.com brand law (P12).
-   Default: cool white canvas, white cards, navy ink, brand blue signal,
-   signature lime accent. Dark is opt-in (stage surfaces only), never the shell. */
+/* Co‑ProVideo design system — CVP Enterprise brand canon (P12, re-canonized).
+   Default: cool white canvas, white cards, canon navy ink, canon Primary Blue
+   signal (#156BFF). No lime, no tan. Dark is opt-in (stage surfaces only),
+   never the shell. */
 
 :root {
   --bg: var(--cvp-canvas);
@@ -19,14 +20,14 @@
   --dim: #98a2b5;
   --border: var(--cvp-border);
   --border-light: #c9d2e0;
-  --border-active: rgba(20, 91, 184, 0.45);
+  --border-active: rgba(21, 107, 255, 0.45);
   --accent: var(--cvp-blue);
-  --accent-hover: #0f4da0;
-  --accent-dim: rgba(20, 91, 184, 0.10);
-  --accent-glow: rgba(20, 91, 184, 0.16);
+  --accent-hover: #0052cc;
+  --accent-dim: rgba(21, 107, 255, 0.10);
+  --accent-glow: rgba(21, 107, 255, 0.16);
   --blue: var(--cvp-blue);
-  --blue-dim: rgba(20, 91, 184, 0.12);
-  --blue-hover: #3d78c8;
+  --blue-dim: rgba(21, 107, 255, 0.12);
+  --blue-hover: #0a56e0;
   --orange: #b45309;
   --orange-dim: rgba(245, 158, 11, 0.14);
   --red: #b23a2c;
@@ -52,7 +53,7 @@
 
 /* Brand selection + focus ring */
 ::selection {
-  background: rgba(20, 91, 184, 0.18);
+  background: rgba(21, 107, 255, 0.18);
   color: var(--cvp-ink-deep);
 }
 
@@ -105,7 +106,7 @@ html[data-theme="dark"] {
   --transition-fast: 150ms cubic-bezier(0.4,0,0.2,1);
   --transition: 200ms cubic-bezier(0.4,0,0.2,1);
   --transition-slow: 300ms cubic-bezier(0.4,0,0.2,1);
-  --font-display: "Manrope", "Inter", -apple-system, sans-serif;
+  --font-display: "Inter Display", "Inter", -apple-system, sans-serif;
   --font-body: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   --topnav-h: 44px;}
 html[data-reduced-motion="true"] *,
@@ -4274,7 +4275,7 @@ a { color: inherit; text-decoration: none; }
 
 .auth-form input:not([type="checkbox"]):focus {
   border-color: var(--auth-accent);
-  box-shadow: 0 0 0 3px rgba(20, 91, 184, 0.09);
+  box-shadow: 0 0 0 3px rgba(21, 107, 255, 0.09);
 }
 
 .auth-password-field { position: relative; }

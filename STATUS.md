@@ -199,6 +199,46 @@ wiring (`lib/demo/DemoThemeSync.tsx`, `IdentitySettings.tsx` copy change), not
 from P12; P12 files alone leave every test they touch green · `npm run build`
 pass.
 
+## P14 — AI Copilot floating panel (2026-07-25)
+
+The signature dark-navy copilot from the inspiration mock, mounted globally
+from `app/layout.tsx` via `components/copilot/CopilotMount.tsx` — demo-mode
+only (server-derived capability, never a URL flag) and route-gated off
+`/login`, `/signup`, and public `/review/*` surfaces so clients never see
+internal tooling.
+
+- Panel (`components/copilot/CopilotPanel.tsx`, styles appended to
+  `app/globals.css`): `--cvp-copilot-*` tokens, 16px radius, lime status dot,
+  suggestion chips, lime focus ring + send button. Collapsed state is a pill
+  bottom-right; close/"Hide Copilot" return to it. Header drag repositions
+  (pointer capture, clamped to viewport via `clampPanelPosition`); a header
+  toggle resizes compact (360×440) ↔ expanded (540×620) with position
+  re-clamp on resize and viewport changes.
+- Right-click context menu (role=menu): Summarize project status / List
+  pending approvals / Draft client update / Hide Copilot — arrow-key
+  navigable, Enter activates, Escape/outside-click dismisses.
+- Honesty contract: answers are canned mocks only, derived from the live demo
+  workspace (project names/stages, open approval stages + waiting reviewers,
+  unfinished tasks, open comments) via `components/copilot/copilot-logic.ts`;
+  every reply carries the italic footnote "Local preview — Copilot answers
+  are illustrative", and the empty state says plainly it is not a real AI.
+- A11y: role=dialog panel with focus trap while open, Escape closes (menu
+  first, then panel), focus returns to the composer, lime `:focus-visible`
+  rings inside the dark panel, motion on `--cvp-motion-*` (zero under
+  prefers-reduced-motion).
+
+Proof: `~/covideopro-visual-audit/regressions/p14/` — d25 open/answer/Escape
+11/11, d26 drag+clamp+resize 5/5, d27 context menu 10/10, d28 absence on
+login/signup/review 4/4 (d25–d27 confirmed failing before the build);
+screenshots in `p14/shots/` (collapsed, open, answer, dragged, menu). One
+real bug caught by d26: header pointer capture swallowed clicks on the
+header's own buttons (SVG targets aren't `HTMLElement`) — fixed in
+`onDragStart`. Harness: `git diff --check` pass · typecheck 0 errors ·
+lint 0 errors (40 pre-existing warnings) · `npm test` 752/752 (7 new
+`tests/copilot-logic.test.ts` tests: clamp geometry, default position,
+intent classification, footnote-on-every-reply, workspace-derived content,
+empty-workspace degradation, menu-prompt honesty) · `npm run build` pass.
+
 ## P10 — Responsive + accessibility pass (2026-07-25)
 
 Re-verified every responsive/a11y finding against the post-P12 UI before

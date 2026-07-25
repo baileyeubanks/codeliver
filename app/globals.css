@@ -5900,3 +5900,230 @@ body {
 .estimate-editor-catalog-item strong { color: var(--cockpit-copy); font-size: 10px; font-weight: 650; }
 .estimate-editor-catalog-item small { color: var(--cockpit-muted); font-size: 9px; font-variant-numeric: tabular-nums; }
 .estimate-editor-catalog-empty { color: var(--cockpit-muted); font-size: 9.5px; line-height: 1.5; }
+
+/* ── P14 — AI Copilot floating panel ──
+   Dark-navy signature panel from the inspiration mock. Demo-mock answers
+   only; every reply carries the honesty footnote. Motion stays on
+   --cvp-motion-* tokens (zero under prefers-reduced-motion). */
+.cvp-copilot-pill {
+  position: fixed;
+  right: 16px;
+  bottom: 16px;
+  z-index: 600;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 34px;
+  padding: 0 14px;
+  border: 1px solid var(--cvp-copilot-border);
+  border-radius: var(--cvp-radius-pill);
+  background: var(--cvp-copilot-bg);
+  color: var(--cvp-copilot-ink);
+  font-size: 11px;
+  font-weight: 650;
+  box-shadow: var(--cvp-shadow-popover);
+  cursor: pointer;
+  transition: transform var(--cvp-motion-fast) var(--cvp-motion-ease),
+    border-color var(--cvp-motion-fast) var(--cvp-motion-ease);
+}
+.cvp-copilot-pill:hover {
+  transform: translateY(-1px);
+  border-color: var(--cvp-accent);
+}
+.cvp-copilot-pill svg { color: var(--cvp-accent); }
+
+.cvp-copilot {
+  position: fixed;
+  z-index: 600;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border: 1px solid var(--cvp-copilot-border);
+  border-radius: 16px;
+  background: var(--cvp-copilot-bg);
+  color: var(--cvp-copilot-ink);
+  box-shadow: 0 12px 40px rgb(10 14 26 / 0.45), 0 2px 8px rgb(10 14 26 / 0.35);
+  transition: width var(--cvp-motion-med) var(--cvp-motion-ease),
+    height var(--cvp-motion-med) var(--cvp-motion-ease);
+}
+.cvp-copilot__header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--cvp-copilot-border);
+  cursor: grab;
+  user-select: none;
+  touch-action: none;
+}
+.cvp-copilot__header:active { cursor: grabbing; }
+.cvp-copilot__header strong { font-size: 12px; font-weight: 700; letter-spacing: 0.01em; }
+.cvp-copilot__spark { color: var(--cvp-accent); }
+.cvp-copilot__status {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--cvp-accent);
+  box-shadow: 0 0 6px var(--cvp-accent-glow);
+}
+.cvp-copilot__header-spacer { flex: 1; }
+.cvp-copilot__icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--cvp-copilot-ink);
+  opacity: 0.75;
+  cursor: pointer;
+  transition: opacity var(--cvp-motion-fast) var(--cvp-motion-ease),
+    background var(--cvp-motion-fast) var(--cvp-motion-ease);
+}
+.cvp-copilot__icon-btn:hover { opacity: 1; background: #ffffff12; }
+
+.cvp-copilot__transcript {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px;
+  overflow-y: auto;
+  min-height: 0;
+}
+.cvp-copilot__empty {
+  margin: auto;
+  max-width: 260px;
+  color: #9aa3b8;
+  font-size: 10.5px;
+  line-height: 1.55;
+  text-align: center;
+}
+.cvp-copilot__msg {
+  max-width: 88%;
+  padding: 8px 10px;
+  border-radius: 10px;
+  font-size: 11px;
+  line-height: 1.5;
+}
+.cvp-copilot__msg--user {
+  align-self: flex-end;
+  background: #ffffff14;
+  border: 1px solid var(--cvp-copilot-border);
+}
+.cvp-copilot__msg--bot {
+  align-self: flex-start;
+  background: #1c2440;
+  border: 1px solid var(--cvp-copilot-border);
+}
+.cvp-copilot__msg--bot p { margin: 0; }
+.cvp-copilot__footnote {
+  display: block;
+  margin-top: 6px;
+  color: #8b93a8;
+  font-size: 8.5px;
+  font-style: italic;
+}
+
+.cvp-copilot__suggestions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 8px 12px 0;
+}
+.cvp-copilot__suggestions button {
+  padding: 4px 10px;
+  border: 1px solid var(--cvp-copilot-border);
+  border-radius: var(--cvp-radius-pill);
+  background: transparent;
+  color: var(--cvp-copilot-ink);
+  font-size: 9.5px;
+  cursor: pointer;
+  transition: border-color var(--cvp-motion-fast) var(--cvp-motion-ease),
+    background var(--cvp-motion-fast) var(--cvp-motion-ease);
+}
+.cvp-copilot__suggestions button:hover {
+  border-color: var(--cvp-accent);
+  background: var(--cvp-accent-dim);
+}
+
+.cvp-copilot__composer {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px 12px;
+}
+.cvp-copilot__composer input {
+  flex: 1;
+  min-width: 0;
+  padding: 8px 11px;
+  border: 1px solid var(--cvp-copilot-border);
+  border-radius: 9px;
+  background: #0e1322;
+  color: var(--cvp-copilot-ink);
+  font-size: 11px;
+  transition: border-color var(--cvp-motion-fast) var(--cvp-motion-ease),
+    box-shadow var(--cvp-motion-fast) var(--cvp-motion-ease);
+}
+.cvp-copilot__composer input::placeholder { color: #78829c; }
+.cvp-copilot__composer input:focus {
+  outline: none;
+  border-color: var(--cvp-accent);
+  box-shadow: 0 0 0 2px var(--cvp-accent-glow);
+}
+.cvp-copilot__send {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: var(--cvp-accent);
+  color: var(--cvp-ink);
+  cursor: pointer;
+  transition: background var(--cvp-motion-fast) var(--cvp-motion-ease);
+}
+.cvp-copilot__send:hover { background: var(--cvp-accent-hover); }
+
+.cvp-copilot__menu {
+  position: absolute;
+  z-index: 1;
+  display: grid;
+  gap: 2px;
+  min-width: 220px;
+  padding: 6px;
+  border: 1px solid var(--cvp-copilot-border);
+  border-radius: 10px;
+  background: #1a2138;
+  box-shadow: var(--cvp-shadow-popover);
+}
+.cvp-copilot__menu [role="menuitem"] {
+  padding: 7px 10px;
+  border: 1px solid transparent;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--cvp-copilot-ink);
+  font-size: 10.5px;
+  text-align: left;
+  cursor: pointer;
+}
+.cvp-copilot__menu [role="menuitem"]:hover,
+.cvp-copilot__menu [role="menuitem"]:focus-visible {
+  border-color: var(--cvp-copilot-border);
+  background: #ffffff10;
+  outline: none;
+}
+
+/* Focus visibility inside the dark panel uses the lime accent. */
+.cvp-copilot :focus-visible,
+.cvp-copilot-pill:focus-visible {
+  outline: 2px solid var(--cvp-accent);
+  outline-offset: 2px;
+}
+
+@media (max-width: 480px) {
+  .cvp-copilot { max-width: calc(100vw - 32px); }
+}

@@ -2,6 +2,7 @@ import "./globals.css";
 import type { Metadata } from "next";
 import { headers } from "next/headers";
 import { DemoCapabilityProvider } from "@/lib/demo/capability-context";
+import CopilotMount from "@/components/copilot/CopilotMount";
 
 export const metadata: Metadata = {
   title: "Co‑ProVideo | Content Co-op",
@@ -26,6 +27,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
       <body className="min-h-screen bg-[var(--bg)]">
         <DemoCapabilityProvider enabled={demoCapability}>
           {children}
+          <CopilotMount />
         </DemoCapabilityProvider>
       </body>
     </html>

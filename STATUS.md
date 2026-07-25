@@ -535,3 +535,41 @@ Coordinator verification (wave 1, commits 857f864 / 1f06526 / ad0fc69 on
 abb716a): typecheck 0 errors · `npm test` 836/836 (759 + 77 new) · p17 5/5,
 p18 2/2, p20 3/3 regression scripts re-run green independently · lint
 0 errors (40 pre-existing warnings) per agent harnesses.
+
+## P21 — Producer review summary (2026-07-25, swarm wave 1.5)
+
+Deterministic classification taxonomy (9 classes, ordered rule heuristics —
+no AI; `basis: rule|fallback` reported, fallback flagged low-confidence) in
+`lib/summary/classify.ts`; consolidation + Frame.io-style conflict surfacing
+(two authors, disagreeing stances, same timecode ±1s) in `consolidate.ts`.
+Triage board (`components/summary/TriageBoard.tsx`) with resolved /
+duplicate / out-of-scope / needs-clarification, completer + timestamp per the
+Frame.io completed/completer model, persisted to namespaced localStorage
+(`co-videopro.summary-triage.v1` — honest deviation: the workspace store had
+no extension point in-lane). Producer summary panel with truthful "Suggested:
+X" badges and a `@media print` one-pager ("Open print dialog to save as PDF"
+— no fake binary). `app/api/summary/route.ts` is demo-only (403 otherwise).
+8 triage-demo seed comments appended to demoReview.ts (+195/−0) including a
+designed two-stakeholder conflict at 0:02. Honest limits: board + panel not
+yet mounted (lands in P19b integration wave).
+
+## P22 — Share links 2.0 (2026-07-25, swarm wave 1.5)
+
+Typed settings model `{name, allow_approvals, current_version_only,
+enable_downloading, expires_at, has_password}` with pure validation (expiry
+strictly future, password required iff has_password, plaintext never stored —
+demo-grade FNV-1a fingerprint explicitly labeled NOT security).
+`ShareLinkAccessGate` is the single integration point (expiry → password →
+exactly-one receipt per admission; renders nothing until the local record
+resolves — no content flash). `ShareLinkExpired` (dead at the exact instant,
+no grace), `ShareSettingsDialog` (six settings, live countdown, receipts —
+localStorage `co-videopro.share-links.v1` with honest "this browser only"
+label), `ShareWatermark` (standalone tiled overlay, coordinator mounts).
+`current_version_only` stored with "Coming with P19" badge — wired for real
+in P19b. No new API surface (production columns don't exist — honest no-op).
+Demo password for tests: `cvp-review-2026`. Regressions in
+`~/covideopro-visual-audit/regressions/p22/` (2 scripts, 7 checks).
+
+Coordinator verification (wave 1.5, commits a84b5d7 / 3ddb2f5): typecheck
+0 errors · `npm test` 878/878 (836 + 42) · lint 0 errors (40 pre-existing
+warnings) · agent regression suites green (p21 2/2, p22 2/2).

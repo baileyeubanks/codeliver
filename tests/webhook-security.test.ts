@@ -161,11 +161,15 @@ test("webhook API and approval emissions use encrypted storage and the guarded t
   assert.match(webhookRoute, /deliverSignedWebhook\(/);
   assert.match(webhookRoute, /readJsonObject\(request\)/);
   assert.match(webhookRoute, /contentLength > 65_536/);
-  assert.ok(
-    webhookRoute.indexOf(
-      'const check = await requireTeamRole(team_id, user.id, "admin")',
-    ) < webhookRoute.indexOf("safeUrl = await assertSafeWebhookUrl(url)"),
-    "creation authorization must happen before the outbound DNS safety probe",
+  assert.match(
+    webhookRoute,
+    /const authorization = await authorizeWebhookManagement\(request\);[\s\S]*?return await handler\(authorization\.context\)/,
+    "every management handler must receive a preauthorized context",
+  );
+  assert.doesNotMatch(
+    webhookRoute,
+    /readJsonObject\(request\)[\s\S]{0,800}requireTeamRole/,
+    "body parsing must not precede team authorization",
   );
   assert.match(approvalDecisions, /recoverWebhookSecret\(/);
   assert.match(approvalDecisions, /deliverSignedWebhook\(/);

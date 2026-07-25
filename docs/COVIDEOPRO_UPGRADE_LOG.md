@@ -220,3 +220,10 @@ Baseline: `e068ee8` (checkpoint of the prior session's transformation state).
 
 - Adoption map §6: every registry row carries a verdict with evidence or a reason. Tally: **18 shipped · 7 absorbed · 6 deferred** (five of them the script-studio lane, waiting on the user's Paper Desk decision) **· 3 rejected** (ROOT shell, multi-product login, public brief funnel in the admin shell). No row unexamined.
 - Registry verdicts cross-checked against the build where uncertain (TranscriptWorkbench, PublicReviewWorkspace, rate cards, agreement templates).
+
+## U30 — Wave 1.1: reliable local image delivery (2026-07-25)
+
+- Valid local PNG/JPEG files and their raw routes returned `200`, while Next 16.2.10's internal optimizer lost the media type and returned `400`.
+- Local media now bypasses that failing optimizer path through the central Next image configuration. Existing `next/image` surfaces emit the source asset URL without per-component workarounds.
+- Verification: focused regression test, scoped ESLint, typecheck, `621/621` node tests, and the live M2 projects response contains zero `/_next/image` references.
+- **Learning:** a successful static-asset request does not prove the framework's internal image path; verify both the raw route and the URL actually emitted to the client.

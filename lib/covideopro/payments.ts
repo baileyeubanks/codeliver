@@ -2,11 +2,11 @@
  * Co‑ProVideo — payment milestones and checkout provider abstraction.
  *
  * Guidance source: stripe-best-practices skill (Checkout Sessions for one-time
- * payments; never pass payment_method_types; restricted `rk_` keys).
+ * payments; never pass payment_method_types).
  *
  * Safety: no live charges from this codebase without an explicit environment
- * key. The mock provider is the default everywhere except explicitly
- * configured production deployments.
+ * key. Live Stripe integration stays in payments.server.ts so this module can
+ * safely be imported by client code.
  */
 
 import {
@@ -87,47 +87,17 @@ export function createMockCheckoutProvider(): CheckoutProvider {
   };
 }
 
-export type StripeCheckoutEnv = Record<string, string | undefined>;
-
 /**
- * Stripe Checkout Sessions provider. Requires a restricted key (`rk_`); the
- * not-configured guard is the only path exercised in tests. Per the Stripe
- * guidance: Checkout Sessions, no payment_method_types (dynamic methods).
+ * Client-compatible guard for the historical provider export. The live Stripe
+ * provider is intentionally server-only; import it from payments.server.ts in
+ * a server execution context.
  */
-export function createStripeCheckoutProvider(env: StripeCheckoutEnv = process.env): CheckoutProvider {
+export function createStripeCheckoutProvider(_env: Record<string, string | undefined> = {}): CheckoutProvider {
+  void _env;
   return {
     name: "stripe",
-    async createSession(request) {
-      const key = env.STRIPE_RESTRICTED_KEY;
-      if (!key || !key.startsWith("rk_")) {
-        throw new PaymentsNotConfiguredError("Stripe");
-      }
-      const response = await fetch("https://api.stripe.com/v1/checkout/sessions", {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${key}`,
-          "Content-Type": "application/x-www-form-urlencoded",
-        },
-        body: new URLSearchParams({
-          mode: "payment",
-          success_url: request.successUrl,
-          cancel_url: request.cancelUrl,
-          "line_items[0][quantity]": "1",
-          "line_items[0][price_data][currency]": request.currency.toLowerCase(),
-          "line_items[0][price_data][unit_amount]": String(request.amountCents),
-          "line_items[0][price_data][product_data][name]": request.label,
-          ...(request.customerEmail ? { customer_email: request.customerEmail } : {}),
-          "metadata[milestone_id]": request.milestoneId,
-        }),
-      });
-      if (!response.ok) {
-        throw new Error(`Stripe checkout session failed (${response.status}).`);
-      }
-      const session = (await response.json()) as { id?: string; url?: string };
-      if (!session.id || !session.url) {
-        throw new Error("Stripe checkout session returned no URL.");
-      }
-      return { sessionId: session.id, url: session.url, provider: "stripe" };
+    async createSession() {
+      throw new PaymentsNotConfiguredError("Stripe");
     },
   };
 }

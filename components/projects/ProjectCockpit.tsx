@@ -92,7 +92,7 @@ import type {
   DemoShareLink,
 } from "@/lib/demo/workspace-store";
 import type { DemoProject } from "@/lib/demo/workspace";
-import { PROJECT_STAGE_META, type ProjectStage } from "@/lib/covideopro/record.ts";
+import { PROJECT_STAGE_META, PROJECT_STAGES, type ProjectStage } from "@/lib/covideopro/record.ts";
 import {
   CreativeSection,
   DecisionLedgerSection,
@@ -504,6 +504,20 @@ export default function ProjectCockpit({
     setActiveSection(isCockpitSection(requestedSection) ? requestedSection : "overview");
     setReviewViewActive(searchParams.get("view") === "review");
   }, [searchParams]);
+
+  // The stage follows the URL's asset param: deep links and the upload
+  // flow's "Review new version" both navigate, and the stage must hot-swap
+  // to the asset they name rather than keep playing the previous one.
+  const appliedUrlAssetRef = useRef(requestedAssetId);
+  useEffect(() => {
+    if (!requestedAssetId || appliedUrlAssetRef.current === requestedAssetId) return;
+    if (!assets.some((asset) => asset.id === requestedAssetId)) return;
+    appliedUrlAssetRef.current = requestedAssetId;
+    setActiveAssetId(requestedAssetId);
+    setCurrentTime(0);
+    setNativeDuration(0);
+    setHasEnded(false);
+  }, [requestedAssetId, assets]);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -989,15 +1003,23 @@ export default function ProjectCockpit({
   const currentStage: ProjectStage = (
     demoMode ? workspace.projects.find((candidate) => candidate.id === project.id)?.stage : undefined
   ) ?? "inquiry";
+  const currentStageIndex = PROJECT_STAGES.indexOf(currentStage);
+  const nextStage: ProjectStage | null = currentStageIndex >= 0 && currentStageIndex < PROJECT_STAGES.length - 1
+    ? PROJECT_STAGES[currentStageIndex + 1]
+    : null;
 
-  function handleAdvanceStage() {
+  function handleAdvanceStage(): { ok: boolean; reason?: string } {
     const result = advanceProjectStage(project.id);
     if (!result.ok) {
-      setToast(result.reason);
-      return;
+      setToast("");
+      return { ok: false, reason: result.reason };
     }
-    const nextStage = workspace.projects.find((candidate) => candidate.id === project.id)?.stage;
-    setToast(nextStage ? `Stage advanced to ${PROJECT_STAGE_META[nextStage].label}.` : "Stage advanced.");
+    // Report the stage we actually advanced to — the workspace snapshot in
+    // this closure still holds the pre-mutation stage.
+    setToast(nextStage
+      ? `Stage advanced to ${PROJECT_STAGE_META[nextStage].label}.`
+      : "Stage advanced.");
+    return { ok: true };
   }
 
   function selectSection(section: CockpitSection) {
@@ -1544,16 +1566,15 @@ export default function ProjectCockpit({
         </div>
 
         {demoMode ? (
-          <button
-            type="button"
+          <span
             className={styles.stageChip}
-            onClick={handleAdvanceStage}
-            title={`${PROJECT_STAGE_META[currentStage].summary} Select to advance the lifecycle stage.`}
-            aria-label={`Project stage: ${PROJECT_STAGE_META[currentStage].label}. Advance stage.`}
+            data-stage-pill
+            title={`${PROJECT_STAGE_META[currentStage].summary} Stage changes happen from the Lifecycle drawer.`}
+            aria-label={`Project stage: ${PROJECT_STAGE_META[currentStage].label}`}
           >
             <span className={styles.stageChipDot} aria-hidden="true" />
             {PROJECT_STAGE_META[currentStage].label}
-          </button>
+          </span>
         ) : null}
 
         <div className="cockpit-search-wrap">
@@ -1728,6 +1749,11 @@ export default function ProjectCockpit({
               open={lifecycleOpen}
               onOpenChange={handleLifecycleOpenChange}
               onNavigate={handleLifecycleNavigate}
+              advanceStage={demoMode ? {
+                currentLabel: PROJECT_STAGE_META[currentStage].label,
+                nextLabel: nextStage ? PROJECT_STAGE_META[nextStage].label : null,
+                onAdvance: handleAdvanceStage,
+              } : undefined}
             />
           )}
           onModeChange={changeMode}
@@ -2091,23 +2117,33 @@ export default function ProjectCockpit({
                               <div className="cockpit-progress">
                                 <span
                                   style={{
-                                    width: `${approvalStages[0].reviewer_names.length
-                                      ? (approvalStages[0].approved_reviewer_names.length / approvalStages[0].reviewer_names.length) * 100
+                                    width: `${reviewerSlotCount
+                                      ? (approvedReviewerCount / reviewerSlotCount) * 100
                                       : 0}%`,
                                   }}
                                 />
                               </div>
                               <div className="cockpit-progress-copy">
-                                <strong>Step 1 of {approvalStages.length}</strong>
-                                <span>{approvalStages[0].approved_reviewer_names.length}/{approvalStages[0].reviewer_names.length} approved</span>
+                                <strong>{approvedStageCount} of {approvalStages.length} steps approved</strong>
+                                <span>{approvedReviewerCount}/{reviewerSlotCount} reviewers</span>
                               </div>
-                              <button
-                                className="cockpit-rail-primary"
-                                type="button"
-                                onClick={openReviewCockpit}
-                              >
-                                View review
-                              </button>
+                              {approvedStageCount === approvalStages.length ? (
+                                <button
+                                  className="cockpit-rail-primary"
+                                  type="button"
+                                  onClick={() => handleLifecycleOpenChange(true)}
+                                >
+                                  Advance stage
+                                </button>
+                              ) : (
+                                <button
+                                  className="cockpit-rail-primary"
+                                  type="button"
+                                  onClick={openReviewCockpit}
+                                >
+                                  View review
+                                </button>
+                              )}
                             </>
                           ) : (
                             <>

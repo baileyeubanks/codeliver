@@ -141,6 +141,14 @@ function loadDialogModule({
       };
     }
     if (specifier === "@/lib/demo/media-blob-store") return { putDemoMediaBlob: onPutBlob };
+    if (specifier === "@/lib/demo/upload-validation") {
+      return {
+        validateDemoUpload: async (file: File) =>
+          file.name.endsWith(".txt")
+            ? { ok: false as const, reason: "Unsupported file type" }
+            : { ok: true as const, claim: "video" as const },
+      };
+    }
     if (specifier === "@/lib/demo/media-inspection") {
       return {
         inspectSelectedMedia: onInspect ?? (async (file: File) => ({
@@ -211,7 +219,8 @@ test("GlobalUploadDialog renders callback progress and waits for all registered 
   const closeDuringUpload = findElement(tree, (element) => element.type === "button" && element.props["aria-label"] === "Close upload dialog");
   assert.ok(closeDuringUpload, "upload dialog should have a close control");
   const uploadPromise = (upload.props.onClick as () => Promise<void>)();
-  await Promise.resolve();
+  // Validation runs before the first write — flush the async validation chain.
+  await new Promise<void>((resolve) => setImmediate(resolve));
 
   assert.equal(pendingWrites.length, 1);
   assert.equal(typeof pendingWrites[0].onProgress, "function", "putDemoMediaBlob must receive the onProgress callback");
@@ -278,7 +287,8 @@ test("GlobalUploadDialog keeps a failed file visible as a terminal error", async
   tree = render(dialog, { querySuffix: "", onClose: () => undefined });
 
   const uploadPromise = (uploadButton(tree).props.onClick as () => Promise<void>)();
-  await Promise.resolve();
+  // Validation runs before the first write — flush the async validation chain.
+  await new Promise<void>((resolve) => setImmediate(resolve));
   assert.equal(typeof pendingWrite?.onProgress, "function", "failed uploads still require callback-driven progress");
   pendingWrite?.onProgress?.({ bytesStored: 1024, bytesTotal: 4096, percent: 25, phase: "storing" });
   pendingWrite?.reject(new Error("Local media storage was aborted."));

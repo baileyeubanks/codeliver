@@ -6,6 +6,7 @@ import { ArrowRight, CheckCircle2, Upload, X } from "lucide-react";
 import { addDemoAssets, useDemoWorkspace } from "@/lib/demo/workspace-store";
 import { putDemoMediaBlob } from "@/lib/demo/media-blob-store";
 import { inspectSelectedMedia } from "@/lib/demo/media-inspection";
+import { validateDemoUpload } from "@/lib/demo/upload-validation";
 import { buildInternalDemoAssetHref } from "@/lib/demo/workspace";
 import type { MediaAsset } from "@/components/projects/MediaCard";
 import { useDialogFocus } from "./useDialogFocus";
@@ -116,17 +117,35 @@ export default function GlobalUploadDialog({ querySuffix, onClose }: GlobalUploa
           href: buildInternalDemoAssetHref(projectId, assetId),
         };
       });
-      setUploadEntries(assets.map((asset, index) => ({
-        assetId: asset.id,
-        fileName: files[index].name,
-        bytesStored: 0,
-        bytesTotal: files[index].size,
-        percent: 0,
-        phase: "queued",
-        storage: null,
-        state: "queued",
-      })));
-      for (const [index, file] of files.entries()) {
+
+      // Validate every selection before a byte is stored — the picker hint
+      // is bypassable, so unsupported files are rejected here truthfully.
+      const validations = await Promise.all(files.map((file) => validateDemoUpload(file)));
+      setUploadEntries(files.map((file, index) => {
+        const validation = validations[index];
+        return {
+          assetId: assets[index].id,
+          fileName: file.name,
+          bytesStored: 0,
+          bytesTotal: file.size,
+          percent: 0,
+          phase: validation.ok ? "queued" : "rejected",
+          storage: null,
+          state: validation.ok ? "queued" as const : "error" as const,
+          error: validation.ok ? undefined : validation.reason,
+        };
+      }));
+      const acceptedIndexes = files
+        .map((_, index) => index)
+        .filter((index) => validations[index].ok);
+      if (acceptedIndexes.length === 0) {
+        const first = validations.find((validation) => !validation.ok);
+        setError(first && !first.ok ? first.reason : "None of the selected files are supported media.");
+        return;
+      }
+
+      for (const index of acceptedIndexes) {
+        const file = files[index];
         const asset = assets[index];
         try {
           const inspectionPromise = inspectSelectedMedia(file);
@@ -183,8 +202,12 @@ export default function GlobalUploadDialog({ querySuffix, onClose }: GlobalUploa
           throw uploadError;
         }
       }
-      addDemoAssets(assets);
+      addDemoAssets(acceptedIndexes.map((index) => assets[index]));
       setRegistrationComplete(true);
+      if (acceptedIndexes.length < files.length) {
+        const rejected = files.length - acceptedIndexes.length;
+        setError(`${rejected} of ${files.length} file${files.length === 1 ? "" : "s"} rejected as unsupported — the rest were stored.`);
+      }
     } catch (uploadError) {
       setError(uploadErrorMessage(uploadError));
     } finally {

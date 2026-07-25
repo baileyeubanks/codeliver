@@ -1531,18 +1531,44 @@ export function toggleDemoTask(id: string) {
 }
 
 export function approveDemoStage(id: string) {
-  updateState((state) => ({
-    ...state,
-    approvalStages: state.approvalStages.map((stage) =>
+  updateState((state) => {
+    const approvalStages = state.approvalStages.map((stage) =>
       stage.id === id
         ? {
             ...stage,
             approved_reviewer_names: [...stage.reviewer_names],
-            status: "approved",
+            status: "approved" as const,
           }
         : stage,
-    ),
-  }));
+    );
+    const approvedStage = approvalStages.find((stage) => stage.id === id);
+    if (!approvedStage) return { ...state, approvalStages };
+
+    // Truthful effect: once every approval step for an asset is recorded, the
+    // asset itself is approved — every surface that reports its status
+    // (header, rail, recent assets) must agree.
+    const assetStages = approvalStages.filter((stage) => stage.asset_id === approvedStage.asset_id);
+    const workflowComplete = assetStages.length > 0
+      && assetStages.every((stage) => stage.status === "approved");
+    if (!workflowComplete) return { ...state, approvalStages };
+
+    const target = state.assets.find((asset) => asset.id === approvedStage.asset_id);
+    if (!target || target.status === "approved") return { ...state, approvalStages };
+    return {
+      ...state,
+      approvalStages,
+      assets: state.assets.map((asset) =>
+        asset.id === approvedStage.asset_id ? { ...asset, status: "approved" } : asset,
+      ),
+      activity: recordActivity(state, {
+        action: "approved_asset",
+        actor_name: RECORD_ACTOR,
+        project_id: approvedStage.project_id,
+        asset_id: approvedStage.asset_id,
+        details: { asset_title: target.title },
+      }),
+    };
+  });
 }
 
 export function updateDemoProfile(patch: Partial<DemoWorkspaceSettings["profile"]>) {

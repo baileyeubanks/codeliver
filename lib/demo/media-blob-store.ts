@@ -56,30 +56,40 @@ function reportProgress(
   });
 }
 
+const PROGRESS_CHUNK_BYTES = 512 * 1024;
+
+function nextPaint(): Promise<void> {
+  return new Promise((resolve) => {
+    if (typeof requestAnimationFrame === "function") requestAnimationFrame(() => resolve());
+    else setTimeout(resolve, 16);
+  });
+}
+
 function streamWithProgress(
   blob: Blob,
   phase: DemoMediaBlobProgressPhase,
   options: PutDemoMediaBlobOptions | undefined,
 ): ReadableStream<Uint8Array> {
-  const reader = blob.stream().getReader();
   let bytesStored = 0;
 
   reportProgress(options, bytesStored, blob.size, phase);
 
   return new ReadableStream({
     async pull(controller) {
-      const { done, value } = await reader.read();
-      if (done) {
+      if (bytesStored >= blob.size) {
         controller.close();
         return;
       }
 
-      bytesStored += value.byteLength;
+      // Bounded chunks make the byte count genuinely incremental; yielding a
+      // frame between chunks lets the UI paint each real byte count instead
+      // of collapsing the whole local write into a 0→100 jump.
+      const end = Math.min(bytesStored + PROGRESS_CHUNK_BYTES, blob.size);
+      const chunk = await blob.slice(bytesStored, end).arrayBuffer();
+      bytesStored += chunk.byteLength;
       reportProgress(options, bytesStored, blob.size, phase);
-      controller.enqueue(value);
-    },
-    async cancel(reason) {
-      await reader.cancel(reason);
+      controller.enqueue(new Uint8Array(chunk));
+      await nextPaint();
     },
   });
 }

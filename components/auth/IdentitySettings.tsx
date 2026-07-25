@@ -738,16 +738,13 @@ export function PreferenceSettings({
             <span className={styles.controlIcon}><Moon size={15} aria-hidden="true" /></span>
             <div className={styles.controlCopy}>
               <strong>Dark interface</strong>
-              <span>Use a dark treatment on supporting pages; the review cockpit stays bright.</span>
+              <span>Dark theme is being redesigned — available soon.</span>
             </div>
             <SettingsToggle
-              checked={appearance.darkMode}
-              disabled={!demoMode}
-              label="Toggle dark interface"
-              onChange={(darkMode) => {
-                updateDemoAppearance({ darkMode });
-                onNotice("Appearance saved");
-              }}
+              checked={false}
+              disabled
+              label="Dark interface unavailable — being redesigned"
+              onChange={() => undefined}
             />
           </div>
           <div className={styles.controlRow}>

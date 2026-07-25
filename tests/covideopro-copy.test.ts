@@ -82,5 +82,8 @@ test("the seeded workspace opens in the canonical bright shell", () => {
   );
 
   assert.match(workspaceStore, /appearance: \{\s*darkMode: false,/);
-  assert.match(settingsSource, /review cockpit stays bright/);
+  // D14: dark mode is honestly unavailable (disabled toggle, no fake save)
+  // rather than a no-op control claiming success.
+  assert.match(settingsSource, /being redesigned/);
+  assert.match(settingsSource, /disabled/);
 });

@@ -16,6 +16,7 @@ import CoProductionBrand from "@/components/brand/CoProductionBrand";
 import type { MediaAsset } from "@/components/projects/MediaCard";
 import { putDemoMediaBlob } from "@/lib/demo/media-blob-store";
 import { inspectSelectedMedia } from "@/lib/demo/media-inspection";
+import { validateDemoUpload } from "@/lib/demo/upload-validation";
 import { formatFileSize } from "@/lib/utils/media";
 
 interface Project {
@@ -187,8 +188,13 @@ export default function ProjectWorkspaceClient() {
             completed: index,
             total: selectedFiles.length,
             mode: "demo",
-            message: `Reading ${formatFileSize(file.size)} from the selected media.`,
+            message: `Checking ${formatFileSize(file.size)} against the accepted media types.`,
           });
+
+          const validation = await validateDemoUpload(file, { allowDocuments: true });
+          if (!validation.ok) {
+            throw new Error(validation.reason);
+          }
 
           const inspectionPromise = inspectSelectedMedia(file);
           const storageResult = await putDemoMediaBlob(uploadAssets[index].id, file, {

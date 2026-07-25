@@ -68,6 +68,22 @@ export interface CoProduceLifecycleDestination {
   kind: "phase" | "surface";
 }
 
+export interface CoProduceLifecycleAdvanceResult {
+  ok: boolean;
+  reason?: string;
+}
+
+/**
+ * The only place a project stage change can be triggered from: an explicit,
+ * two-step confirmed action inside the drawer. `nextLabel` is null when the
+ * project is already at its final stage.
+ */
+export interface CoProduceLifecycleAdvance {
+  currentLabel: string;
+  nextLabel: string | null;
+  onAdvance: () => CoProduceLifecycleAdvanceResult;
+}
+
 export interface CoProduceLifecycleDrawerProps {
   phases: CoProduceLifecycleData;
   className?: string;
@@ -79,6 +95,7 @@ export interface CoProduceLifecycleDrawerProps {
   defaultOpen?: boolean;
   onOpenChange?: (open: boolean) => void;
   onNavigate?: (destination: CoProduceLifecycleDestination) => void;
+  advanceStage?: CoProduceLifecycleAdvance;
 }
 
 interface PhaseDefinition {
@@ -162,6 +179,7 @@ export default function CoProduceLifecycleDrawer({
   defaultOpen = false,
   onOpenChange,
   onNavigate,
+  advanceStage,
 }: CoProduceLifecycleDrawerProps) {
   const generatedId = useId().replaceAll(":", "");
   const panelId = id ?? `co-produce-lifecycle-${generatedId}`;
@@ -178,6 +196,30 @@ export default function CoProduceLifecycleDrawer({
   const drawerRef = useRef<HTMLElement>(null);
   const closeRef = useRef<HTMLButtonElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
+  const [advanceConfirming, setAdvanceConfirming] = useState(false);
+  const [advanceFeedback, setAdvanceFeedback] = useState<string | null>(null);
+
+  // Stage changes require a fresh confirmation each time the drawer opens or
+  // the underlying stage descriptor changes.
+  const advanceKey = advanceStage ? `${advanceStage.currentLabel}→${advanceStage.nextLabel ?? ""}` : "";
+  const [advanceKeySeen, setAdvanceKeySeen] = useState(advanceKey);
+  if (advanceKeySeen !== advanceKey || !dialogOpen) {
+    if (advanceConfirming) setAdvanceConfirming(false);
+    if (advanceFeedback) setAdvanceFeedback(null);
+    if (advanceKeySeen !== advanceKey) setAdvanceKeySeen(advanceKey);
+  }
+
+  const handleAdvanceClick = useCallback(() => {
+    if (!advanceStage) return;
+    if (!advanceConfirming) {
+      setAdvanceConfirming(true);
+      setAdvanceFeedback(null);
+      return;
+    }
+    const result = advanceStage.onAdvance();
+    setAdvanceConfirming(false);
+    setAdvanceFeedback(result.ok ? null : (result.reason ?? "The stage could not be advanced."));
+  }, [advanceConfirming, advanceStage]);
 
   const setOpen = useCallback(
     (nextOpen: boolean) => {
@@ -384,6 +426,44 @@ export default function CoProduceLifecycleDrawer({
                   );
                 })}
               </ol>
+
+              {advanceStage ? (
+                <div aria-label="Project stage">
+                  <p>
+                    Current stage: <strong>{advanceStage.currentLabel}</strong>
+                  </p>
+                  {advanceStage.nextLabel ? (
+                    <>
+                      <button
+                        type="button"
+                        className={styles.trigger}
+                        aria-label={
+                          advanceConfirming
+                            ? `Confirm advance to ${advanceStage.nextLabel}`
+                            : `Advance stage to ${advanceStage.nextLabel}`
+                        }
+                        onClick={handleAdvanceClick}
+                      >
+                        <ChevronRight size={15} aria-hidden="true" />
+                        <span className={styles.triggerText}>
+                          {advanceConfirming
+                            ? `Confirm advance to ${advanceStage.nextLabel}`
+                            : `Advance stage to ${advanceStage.nextLabel}`}
+                        </span>
+                      </button>
+                      {advanceConfirming ? (
+                        <p role="status">
+                          This moves the project from {advanceStage.currentLabel} to{" "}
+                          {advanceStage.nextLabel}. Select again to confirm.
+                        </p>
+                      ) : null}
+                      {advanceFeedback ? <p role="alert">{advanceFeedback}</p> : null}
+                    </>
+                  ) : (
+                    <p>The project is at its final lifecycle stage.</p>
+                  )}
+                </div>
+              ) : null}
             </div>
           </aside>
           </div>,

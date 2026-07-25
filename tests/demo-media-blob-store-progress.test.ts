@@ -36,6 +36,14 @@ function createChunkedFile(payload: Uint8Array): File {
     name: "progress-proof.mp4",
     size: payload.byteLength,
     type: "video/mp4",
+    slice(start = 0, end = payload.byteLength) {
+      const part = payload.slice(start, end);
+      return {
+        size: part.byteLength,
+        type: "video/mp4",
+        arrayBuffer: async () => part.buffer.slice(part.byteOffset, part.byteOffset + part.byteLength),
+      };
+    },
     stream() {
       let offset = 0;
       return new ReadableStream<Uint8Array>({
@@ -64,7 +72,7 @@ test("streams demo media into persistent cache with byte-derived progress", asyn
 
   try {
     const store = await import("../lib/demo/media-blob-store.ts?progress-test=first-import");
-    const payload = new Uint8Array(192 * 1024).map((_, index) => index % 251);
+    const payload = new Uint8Array(1200 * 1024).map((_, index) => index % 251);
     const file = createChunkedFile(payload);
     const progress: Array<{ bytesStored: number; bytesTotal: number; percent: number; phase: string }> = [];
 

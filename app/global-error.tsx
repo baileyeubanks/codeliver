@@ -1,6 +1,7 @@
 "use client";
 
 import { AlertTriangle, ArrowRight, RefreshCw } from "lucide-react";
+import Link from "next/link";
 import CoProductionBrand from "@/components/brand/CoProductionBrand";
 
 export default function GlobalError({
@@ -37,10 +38,10 @@ export default function GlobalError({
                 <RefreshCw size={15} aria-hidden="true" />
                 Try again
               </button>
-              <a className="exterior-state__secondary" href="/projects">
+              <Link className="exterior-state__secondary" href="/projects">
                 Projects
                 <ArrowRight size={15} aria-hidden="true" />
-              </a>
+              </Link>
             </div>
           </div>
         </div>

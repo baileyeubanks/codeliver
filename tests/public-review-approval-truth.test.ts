@@ -6,7 +6,7 @@ import { fileURLToPath } from "node:url";
 
 const repositoryRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const pageSource = readFileSync(
-  resolve(repositoryRoot, "app/review/[token]/page.tsx"),
+  resolve(repositoryRoot, "components/review/PublicReviewPage.tsx"),
   "utf8",
 );
 

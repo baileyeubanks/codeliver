@@ -340,7 +340,7 @@ test(
 );
 
 test("public review comments persist through the demo workspace authority", () => {
-  const publicReview = source("app/review/[token]/page.tsx");
+  const publicReview = source("components/review/PublicReviewPage.tsx");
   const submitComment = source("lib/review/submit-review-comment.ts");
 
   assert.equal(
@@ -351,7 +351,7 @@ test("public review comments persist through the demo workspace authority", () =
 });
 
 test("public review approvals persist through the demo workspace authority", () => {
-  const publicReview = source("app/review/[token]/page.tsx");
+  const publicReview = source("components/review/PublicReviewPage.tsx");
   const handlerStart = publicReview.indexOf("async function handleApprovalDecision");
   const handlerEnd = publicReview.indexOf("\n  function renderPins", handlerStart);
   assert.notEqual(handlerStart, -1);

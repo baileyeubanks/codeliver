@@ -1,12 +1,17 @@
 import "./globals.css";
 import type { Metadata } from "next";
+import { headers } from "next/headers";
+import { DemoCapabilityProvider } from "@/lib/demo/capability-context";
 
 export const metadata: Metadata = {
   title: "Co‑ProVideo | Content Co-op",
   description: "All-in-one video production workspace for planning, review, approval, editing, and delivery.",
 };
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+export default async function RootLayout({ children }: { children: React.ReactNode }) {
+  const requestHeaders = await headers();
+  const demoCapability = requestHeaders.get("x-codeliver-demo-preview") === "1";
+
   return (
     <html lang="en">
       <head>
@@ -19,7 +24,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         />
       </head>
       <body className="min-h-screen bg-[var(--bg)]">
-        {children}
+        <DemoCapabilityProvider enabled={demoCapability}>
+          {children}
+        </DemoCapabilityProvider>
       </body>
     </html>
   );

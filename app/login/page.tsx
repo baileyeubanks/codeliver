@@ -15,8 +15,8 @@ import {
   withDemoMode,
 } from "@/components/auth/auth-policy";
 import useAuthReturnTarget from "@/components/auth/useAuthReturnTarget";
-import { useDemoMode } from "@/lib/demo/mode";
-import { signInDemoSession, useDemoWorkspace } from "@/lib/demo/workspace-store";
+import { isDemoSessionAllowed, useDemoMode } from "@/lib/demo/mode";
+import { signInDemoSession } from "@/lib/demo/workspace-store";
 
 export default function LoginPage() {
   const [error, setError] = useState("");
@@ -26,7 +26,6 @@ export default function LoginPage() {
   const alertRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
   const demoMode = useDemoMode();
-  const demoWorkspace = useDemoWorkspace();
   const returnTarget = useAuthReturnTarget();
   const requestedPath = resolveSafeReturnPath(returnTarget, "/projects");
   const loginHref = buildAuthPageHref("/login", returnTarget, demoMode);
@@ -57,7 +56,7 @@ export default function LoginPage() {
     const formData = new FormData(event.currentTarget);
     const normalizedEmail = normalizeAuthEmail(String(formData.get("email") ?? ""));
 
-    if (demoMode) {
+    if (isDemoSessionAllowed(demoMode)) {
       signInDemoSession(normalizedEmail);
       router.replace(withDemoMode(requestedPath, true));
       return;
@@ -135,8 +134,6 @@ export default function LoginPage() {
               inputMode="email"
               autoCapitalize="none"
               spellCheck={false}
-              key={demoMode ? demoWorkspace.session.email : "managed-email"}
-              defaultValue={demoMode ? demoWorkspace.session.email : undefined}
               onChange={() => {
                 if (error) setError("");
               }}
@@ -153,7 +150,6 @@ export default function LoginPage() {
                 type={showPassword ? "text" : "password"}
                 required
                 autoComplete="current-password"
-                defaultValue={demoMode ? "demo" : undefined}
                 onChange={() => {
                   if (error) setError("");
                 }}

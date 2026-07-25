@@ -49,6 +49,7 @@ const ADMIN_API_ROUTE_PATTERNS = [
   /^\/api\/approvals\/(?:notify|workflow)$/,
   /^\/api\/assets$/,
   /^\/api\/assets\/(?:batch-share|bulk)$/,
+  /^\/api\/billing\/checkout$/,
   new RegExp(`^/api/assets/${UUID_PATH_SEGMENT}$`),
   new RegExp(
     `^/api/assets/${UUID_PATH_SEGMENT}/(?:approvals|comments|edit-decisions|export|share|versions)$`,
@@ -128,6 +129,19 @@ function apiLaunchGateDenied() {
   );
 }
 
+function backendUnavailableResponse() {
+  return NextResponse.json(
+    {
+      error: "Backend service is unavailable",
+      code: "BACKEND_UNAVAILABLE",
+    },
+    {
+      status: 503,
+      headers: { "Cache-Control": "no-store" },
+    },
+  );
+}
+
 function isApiLikePath(pathname: string): boolean {
   let decoded = pathname;
 
@@ -169,7 +183,7 @@ function productionApiLaunchGate(
     }
 
     // The route handler remains responsible for validating the HMAC or token value.
-    return NextResponse.next();
+    return nextResponse(req);
   }
 
   if (UNSAFE_LEGACY_API_ROUTE_PATTERNS.some((pattern) => pattern.test(pathname))) {
@@ -196,6 +210,24 @@ function isLocalDevelopmentHost(hostHeader: string | null | undefined): boolean 
   return port === undefined || Number(port) <= 65_535;
 }
 
+function isLocalDemoPreviewEnabled(): boolean {
+  return (
+    process.env.NODE_ENV !== "production" &&
+    process.env.CODELIVER_DEMO_MODE === "1"
+  );
+}
+
+const DEMO_CAPABILITY_HEADER = "x-codeliver-demo-preview";
+
+function nextResponse(req: NextRequest, demoCapability = false): NextResponse {
+  const requestHeaders = new Headers(req.headers);
+  // Remove a client-forged value, then add this internal capability only after
+  // the local server preview gate has passed.
+  requestHeaders.delete(DEMO_CAPABILITY_HEADER);
+  if (demoCapability) requestHeaders.set(DEMO_CAPABILITY_HEADER, "1");
+  return NextResponse.next({ request: { headers: requestHeaders } });
+}
+
 function buildLoginUrl(
   req: NextRequest,
   hostSurface: ReturnType<typeof resolveHostSurface>,
@@ -210,7 +242,7 @@ function surfaceAccessDenied(pathname: string) {
   if (isApiLikePath(pathname)) {
     return NextResponse.json(
       { error: "This account is not authorized for this surface", code: "SURFACE_FORBIDDEN" },
-      { status: 403 },
+      { status: 403, headers: { "Cache-Control": "no-store" } },
     );
   }
 
@@ -233,7 +265,7 @@ function hostAccessDenied(pathname: string) {
         error: "This hostname is not an approved Content Co-op surface",
         code: "HOST_FORBIDDEN",
       },
-      { status: 403 },
+      { status: 403, headers: { "Cache-Control": "no-store" } },
     );
   }
 
@@ -252,8 +284,9 @@ export async function proxy(req: NextRequest) {
   const hostSurface = resolveHostSurface(host);
   const localDevelopment = isLocalDevelopmentHost(host);
   const localDemo =
-    req.nextUrl.searchParams.get("demo") === "1" &&
-    localDevelopment;
+    localDevelopment &&
+    isLocalDemoPreviewEnabled() &&
+    req.nextUrl.searchParams.get("demo") === "1";
 
   if (!hostSurface && !localDevelopment) {
     return hostAccessDenied(pathname);
@@ -270,15 +303,15 @@ export async function proxy(req: NextRequest) {
     isPathAtOrBelow(pathname, "/demo") ||
     isPathAtOrBelow(pathname, "/brand")
   ) {
-    return NextResponse.next();
+    return nextResponse(req);
   }
 
   if (isPublicRoute(pathname)) {
-    return NextResponse.next();
+    return nextResponse(req, localDemo);
   }
 
   if (localDemo) {
-    return NextResponse.next();
+    return nextResponse(req, true);
   }
 
   const pathnameWithSanitizedQuery = buildProtectedReturnPath(pathname, req.nextUrl.search);
@@ -287,45 +320,57 @@ export async function proxy(req: NextRequest) {
     if (pathname.startsWith("/api/")) {
       return NextResponse.json(
         {
-          error: "Authentication is not configured for this environment",
-          code: "AUTH_NOT_CONFIGURED",
+          error: "Backend service is unavailable",
+          code: "BACKEND_UNAVAILABLE",
         },
-        { status: 503 },
+        {
+          status: 503,
+          headers: { "Cache-Control": "no-store" },
+        },
       );
     }
 
     const loginUrl = buildLoginUrl(req, hostSurface);
     loginUrl.searchParams.set("next", pathnameWithSanitizedQuery);
-    if (localDevelopment) {
-      loginUrl.searchParams.set("demo", "1");
-    }
     return NextResponse.redirect(loginUrl);
   }
 
-  const res = NextResponse.next();
-
-  const supabase = createServerClient(getSupabasePublicUrl(), getSupabaseAnonKey(), {
-    cookies: {
-      getAll() {
-        return req.cookies.getAll();
+  const res = nextResponse(req);
+  let user: Awaited<
+    ReturnType<ReturnType<typeof createServerClient>["auth"]["getUser"]>
+  >["data"]["user"];
+  try {
+    const supabase = createServerClient(
+      getSupabasePublicUrl(),
+      getSupabaseAnonKey(),
+      {
+        cookies: {
+          getAll() {
+            return req.cookies.getAll();
+          },
+          setAll(cookiesToSet) {
+            cookiesToSet.forEach(({ name, value, options }) => {
+              res.cookies.set(name, value, options);
+            });
+          },
+        },
       },
-      setAll(cookiesToSet) {
-        cookiesToSet.forEach(({ name, value, options }) => {
-          res.cookies.set(name, value, options);
-        });
-      },
-    },
-  });
-
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+    );
+    const identity = await supabase.auth.getUser();
+    if (identity.error) return backendUnavailableResponse();
+    user = identity.data.user;
+  } catch {
+    return backendUnavailableResponse();
+  }
 
   if (!user) {
     if (pathname.startsWith("/api/")) {
       return NextResponse.json(
         { error: "Authentication required", code: "AUTH_REQUIRED" },
-        { status: 401 },
+        {
+          status: 401,
+          headers: { "Cache-Control": "no-store" },
+        },
       );
     }
 
@@ -347,5 +392,7 @@ export async function proxy(req: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/:path*"],
+  matcher: [
+    "/((?!robots\\.txt|sitemap\\.xml|manifest\\.webmanifest|favicon\\.ico|icon\\.svg).*)",
+  ],
 };

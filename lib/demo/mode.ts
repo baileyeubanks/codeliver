@@ -1,29 +1,33 @@
 "use client";
 
-import { useSyncExternalStore } from "react";
+import { useDemoCapability } from "@/lib/demo/capability-context";
 
-const LOCAL_DEMO_DEFAULT =
-  process.env.NODE_ENV === "development" &&
-  (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY);
+type DemoEnvironment = {
+  NODE_ENV?: string;
+  CODELIVER_DEMO_MODE?: string;
+};
 
-function subscribeToLocation(onChange: () => void) {
-  window.addEventListener("popstate", onChange);
-  return () => window.removeEventListener("popstate", onChange);
+export function isLocalDemoPreviewEnabled(environment: DemoEnvironment = process.env): boolean {
+  return (
+    environment.NODE_ENV !== "production" &&
+    environment.CODELIVER_DEMO_MODE === "1"
+  );
 }
 
-function getDemoModeSnapshot() {
-  return (
-    LOCAL_DEMO_DEFAULT ||
-    new URLSearchParams(window.location.search).get("demo") === "1"
-  );
+/**
+ * The only browser input accepted for demo state: a boolean supplied by the
+ * server layout after proxy.ts has authenticated the local preview request.
+ */
+export function demoModeFromCapability(capability: boolean): boolean {
+  return capability === true;
+}
+
+export function isDemoSessionAllowed(capability: boolean): boolean {
+  return demoModeFromCapability(capability);
 }
 
 export function useDemoMode() {
-  return useSyncExternalStore(
-    subscribeToLocation,
-    getDemoModeSnapshot,
-    () => LOCAL_DEMO_DEFAULT,
-  );
+  return demoModeFromCapability(useDemoCapability());
 }
 
 export function useDemoSuffix() {

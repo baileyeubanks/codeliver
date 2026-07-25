@@ -51,3 +51,21 @@ Append-only. Newest last. Each entry: decision, context, consequence.
 **Decision:** Global nav and project tabs render only destinations whose behavior exists at merge time. Schedule/Resources/Finance/Insights/Hermes-surface entries land only with their slices.
 **Context:** Mission's "sidebar sprawl" and "fake NLE/review behavior" failure modes.
 **Consequence:** The tab set grows per slice; nothing decorative ships.
+
+## D9 — Orphan sweep: delete superseded, stage intentional (2026-07-25)
+
+**Decision:** Deleted all built-but-unimported components superseded by live surfaces (SearchModal, UploadMonitor, NotificationBell/List/Item, the Wipster-style ReviewWorkspace + its 7 panels, versions/ VersionList·VersionCompare·VersionUpload, MentionSuggestions, QRCodeGenerator). Two orphan sets are intentionally KEPT as staged components: `components/annotations/*` (Konva drawing toolset) and `components/sharing/WatermarkConfig.tsx`, because frame-drawing mode and watermark controls are named flagship capabilities in the owner's product direction; they are to be wired in the review-annotation and share-watermark slices, not rediscovered.
+**Context:** Mega build prompt §7-A; every deletion verified zero importers across app/components/lib/tests before removal.
+**Consequence:** Dead-code claims in older docs (e.g. "drawn annotations exist") are void until the annotation slice lands. Git history retains all deleted code.
+
+## D10 — Placeholder controls removed, absence pinned by tests (2026-07-25)
+
+**Decision:** Removed decorative controls that rendered but did nothing: Projects toolbar "Batch actions" and the disabled "Cloud import not connected" split menu; cockpit live-session "Start screen share" (disabled button). Regression tests now assert absence instead of pinning the placeholder.
+**Context:** Nav honesty rule D8 extended to control level (mega prompt §7-B): a control exists only when its behavior is real.
+**Consequence:** Bulk actions, cloud import, and screenshare return only with real implementations.
+
+## D11 — Remote shell truth: session-derived identity and fail-closed role (2026-07-25)
+
+**Decision:** `/api/auth/session` returns `display_name` + `workspace_role` mapped fail-closed from the provisioned auth role (`staff→owner`, `client→viewer`, unprovisioned→`viewer`). The shell consumes it in remote mode: no hard-coded identity, role fails closed to viewer until the session resolves, and the notifications popover reads `/api/notifications` instead of demo seed activity.
+**Context:** Remote mode previously hard-coded role=owner and identity="Bailey Eubanks", and leaked demo notifications into production chrome (mega prompt §7-C-3/4).
+**Consequence:** Capability gating is now real in production: clients see the viewer nav. A finer per-workspace role model (producer/editor/reviewer) still requires durable membership records — future slice.

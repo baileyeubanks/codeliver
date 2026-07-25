@@ -92,6 +92,12 @@ test("dashboard, review, account, notification, signout, and offline shells reta
   assert.match(shell, /buildSettingsHref\("account", Boolean\(demoSuffix\)\)/);
   assert.match(shell, /buildSettingsHref\("preferences", Boolean\(demoSuffix\)\)/);
   assert.match(shell, /withWorkspaceQuery\("\/activity", demoSuffix\)/);
+  assert.match(shell, /<Bell size=\{19\} \/>/);
+  assert.doesNotMatch(
+    shell,
+    /demoWorkspace\.activity\.length > 0 \? <i \/> : null/,
+    "historical activity is not unread-notification authority",
+  );
   assert.match(shell, /signOutDemoSession\(\)/);
   assert.match(shell, /window\.location\.href = "\/login\?demo=1"/);
   assert.match(shell, /await supabase\.auth\.signOut\(\)/);

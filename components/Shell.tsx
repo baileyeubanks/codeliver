@@ -138,7 +138,7 @@ export default function Shell({ children }: { children: React.ReactNode }) {
       : [];
 
     return [...createCommand, ...navigationCommands, ...projectCommands, ...assetCommands];
-  }, [demoSuffix, demoWorkspace.assets, demoWorkspace.projects]);
+  }, [demoSuffix, demoWorkspace.assets, demoWorkspace.projects, workspaceRole]);
 
   useEffect(() => {
     // The workspace wears the contentco-op.com cream editorial law; dark is
@@ -290,7 +290,6 @@ export default function Shell({ children }: { children: React.ReactNode }) {
               }}
             >
               <Bell size={19} />
-              {demoWorkspace.activity.length > 0 ? <i /> : null}
             </button>
             {notificationsOpen ? (
               <div id="workspace-notifications" className="workspace-popover workspace-notifications" role="region" aria-label="Notifications">

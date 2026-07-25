@@ -247,3 +247,11 @@ Baseline: `e068ee8` (checkpoint of the prior session's transformation state).
 - All nine review fields retain visible labels at mobile widths. Long messages wrap, authority and download settings stay grouped, and link/active controls receive stable non-overlapping areas.
 - Verification: regression test written red first, focused test pass, typecheck, and scoped ESLint with no errors.
 - **Learning:** a generic responsive table transform is unsafe when record types have different field counts; each operational record needs explicit mobile hierarchy and labels.
+
+## U34 — Wave 1.6: honest notification indicator (2026-07-25)
+
+- Removed the workspace bell's permanent activity dot. Historical audit activity has no unread state and can no longer masquerade as an unread notification.
+- The bell and activity popover remain available; the separate notification store continues to show a count only from records whose `read` field is false.
+- Repaired the shell command memo dependency while validating the touched component, so role changes also rebuild role-filtered commands.
+- Verification: regression test written red first, focused shell tests, typecheck, and scoped ESLint with no warnings or errors.
+- **Learning:** activity history and unread notification state are different authorities; when unread truth is unavailable, show no badge.

@@ -6,11 +6,13 @@ import {
   ArrowLeft,
   CheckCircle2,
   Download,
+  GitCompare,
   MapPin,
+  Settings2,
   X,
 } from "lucide-react";
-import ApprovalStepCard from "@/components/approvals/ApprovalStep";
-import CommentThread from "@/components/comments/CommentThread";
+import ApprovalPanel from "@/components/approvals/ApprovalPanel";
+import CommentList from "@/components/comments/CommentList";
 import FrameIndicator from "@/components/player/FrameIndicator";
 import ReviewMediaSurface from "@/components/review/ReviewMediaSurface";
 import ReviewWorkspace from "@/components/review/PublicReviewWorkspace";
@@ -19,6 +21,18 @@ import InlineReviewComment from "@/components/review/InlineReviewComment";
 import AnnotationCanvas from "@/components/review/annotation/AnnotationCanvas";
 import AnnotationThumbnail from "@/components/review/annotation/AnnotationThumbnail";
 import AnnotationToolbar from "@/components/review/annotation/AnnotationToolbar";
+import VersionCompare from "@/components/review/VersionCompare";
+import VersionSwitcher from "@/components/review/VersionSwitcher";
+import ShareLinkAccessGate from "@/components/sharing/ShareLinkAccessGate";
+import ShareSettingsDialog from "@/components/sharing/ShareSettingsDialog";
+import ShareWatermark from "@/components/sharing/ShareWatermark";
+import ProducerSummaryPanel from "@/components/summary/ProducerSummaryPanel";
+import { readShareLinkRecord } from "@/lib/sharing/share-link-store";
+import {
+  currentVersion,
+  resolveVersionParam,
+  sortVersions,
+} from "@/lib/versions/versions";
 import {
   isNearTimecode,
   type AnnotationTool,
@@ -105,8 +119,6 @@ interface ReviewPayload {
   };
 }
 
-type CommentFilter = "open" | "all" | "resolved";
-
 interface CutMarker {
   id: string;
   time: number;
@@ -120,16 +132,6 @@ function formatShortDate(value?: string | null): string | null {
     month: "short",
     day: "numeric",
   });
-}
-
-function threadSort(a: ReviewComment, b: ReviewComment, fileType: string): number {
-  if (fileType === "video") {
-    const aTime = a.timecode_seconds ?? Number.MAX_SAFE_INTEGER;
-    const bTime = b.timecode_seconds ?? Number.MAX_SAFE_INTEGER;
-    if (aTime !== bTime) return aTime - bTime;
-  }
-
-  return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
 }
 
 function defaultActiveApprovalIds(
@@ -186,8 +188,20 @@ export default function PublicReviewPage() {
   const [shareIntent, setShareIntent] = useState<ShareIntent>("client_review");
   const [workflowMode, setWorkflowMode] = useState<WorkflowMode | null>(null);
   const [reviewerName, setReviewerName] = useState("");
+  const [reviewerEmail, setReviewerEmail] = useState<string | null>(null);
   const [selectedCommentId, setSelectedCommentId] = useState<string | null>(null);
-  const [filter, setFilter] = useState<CommentFilter>("open");
+  // P19b: version system state. `versions` is the review's version list (one
+  // entry until the payload seeds more); activeVersionId tracks the chip the
+  // viewer picked. compareMode swaps the single player for the A/B surface.
+  const [versions, setVersions] = useState<Version[]>([]);
+  const [activeVersionId, setActiveVersionId] = useState<string | null>(null);
+  const [compareMode, setCompareMode] = useState(false);
+  const [railTab, setRailTab] = useState<"comments" | "summary">("comments");
+  const [replyError, setReplyError] = useState("");
+  const [shareSettingsOpen, setShareSettingsOpen] = useState(false);
+  const [shareSettingsRevision, setShareSettingsRevision] = useState(0);
+  const [currentVersionOnly, setCurrentVersionOnly] = useState(false);
+  const [watermarkTimestamp] = useState(() => new Date());
   const [pinMode, setPinMode] = useState(false);
   const [drawMode, setDrawMode] = useState(false);
   const [drawTool, setDrawTool] = useState<AnnotationTool>("arrow");
@@ -212,6 +226,23 @@ export default function PublicReviewPage() {
     ? searchParams.get("asset") ?? requestedDemoShare?.asset_ids[0] ?? null
     : null;
   const demoMediaUrl = useDemoMediaObjectUrl(requestedDemoAssetId);
+
+  // P19b/P22: the demo review surface resolves against the browser-local
+  // share-link store (the same one ShareSettingsDialog writes). The plain
+  // demo link without ?share= reads/writes the "demo" token. Real review
+  // tokens are deliberately NOT gated on it — the store is demo-only
+  // localStorage, and a stray local record must never lock a production
+  // reviewer out of a real link.
+  const demoShareGateToken = requestedDemoShareToken ?? "demo";
+
+  // current_version_only (P22 setting, P19b effect): re-read whenever the
+  // settings dialog closes or a save lands.
+  useEffect(() => {
+    if (!demoMode) return;
+    setCurrentVersionOnly(
+      readShareLinkRecord(demoShareGateToken)?.settings.current_version_only ?? false,
+    );
+  }, [demoMode, demoShareGateToken, shareSettingsOpen, shareSettingsRevision]);
 
   useEffect(() => {
     resetPlayer();
@@ -399,8 +430,34 @@ export default function PublicReviewPage() {
             rootComments[0]?.id ??
             null;
 
+          // P19: the demo payload carries the V1–V3 seed list (P19a); a
+          // payload without one falls back to the single version the loader
+          // has always built — the switcher then shows one chip.
+          const seededVersions = (demoReviewPayload as { versions?: Version[] }).versions;
+          const versionList = seededVersions?.length
+            ? sortVersions(
+                seededVersions.map((candidate) => ({
+                  ...candidate,
+                  asset_id: publicAssetId,
+                  file_url:
+                    candidate.is_current && demoMediaUrl
+                      ? demoMediaUrl
+                      : candidate.file_url,
+                })),
+              )
+            : [demoVersion];
+          // ?v= is the canonical deep-link; ?version= is honored as an alias.
+          const requestedVersion = resolveVersionParam(
+            versionList,
+            searchParams.get("v") ?? searchParams.get("version"),
+          );
+          const initialVersion = requestedVersion ?? currentVersion(versionList) ?? demoVersion;
+
           setAsset(restoredAsset);
           setVersion(demoVersion);
+          setVersions(versionList);
+          setActiveVersionId(initialVersion.id);
+          setReviewerEmail(review.reviewer_email ?? null);
           setInvite({
             id: review.invite.id,
             reviewer_name: persistedApprovalState?.reviewer_name ?? review.reviewer_name,
@@ -450,6 +507,26 @@ export default function PublicReviewPage() {
 
         setAsset(review.asset);
         setVersion(review.version ?? null);
+        // The production payload carries one version today; if it grows a
+        // versions array the switcher picks it up without further changes.
+        const payloadVersions = (review as ReviewPayload & { versions?: Version[] }).versions;
+        const remoteVersions = payloadVersions?.length
+          ? sortVersions(payloadVersions)
+          : review.version
+            ? [review.version]
+            : [];
+        setVersions(remoteVersions);
+        setActiveVersionId(
+          resolveVersionParam(
+            remoteVersions,
+            searchParams.get("v") ?? searchParams.get("version"),
+          )?.id ??
+            currentVersion(remoteVersions)?.id ??
+            null,
+        );
+        setReviewerEmail(
+          (review as ReviewPayload & { reviewer_email?: string | null }).reviewer_email ?? null,
+        );
         setInvite({
           id: review.invite.id,
           reviewer_name: review.reviewer_name,
@@ -531,13 +608,72 @@ export default function PublicReviewPage() {
 
   const timedThreads = rootComments.filter((comment) => comment.timecode_seconds != null).length;
 
-  const filteredComments = rootComments
-    .filter((comment) => {
-      if (filter === "open") return comment.status === "open";
-      if (filter === "resolved") return comment.status === "resolved";
-      return true;
-    })
-    .sort((a, b) => threadSort(a, b, asset?.file_type ?? "other"));
+  // P19b derived version state. linkVersions applies the share record's
+  // current_version_only scope; the switcher and compare both consume it.
+  const orderedVersions = sortVersions(versions);
+  const linkVersions = currentVersionOnly
+    ? orderedVersions.filter((candidate) => candidate.is_current)
+    : orderedVersions;
+  const activeVersion =
+    versions.find((candidate) => candidate.id === activeVersionId) ??
+    currentVersion(versions) ??
+    version;
+  const viewingOlderVersion = Boolean(
+    activeVersion && !activeVersion.is_current && versions.length > 1,
+  );
+  const currentVersionNumber = currentVersion(versions)?.version_number ?? null;
+  // P19a/P20: locked assets live on the persisted public-review state, keyed
+  // by asset. A locked approval is terminal — the panel renders it read-only.
+  const approvalLocked = Boolean(
+    asset &&
+      demoWorkspace.publicReviewStates.some(
+        (state) => state.asset_id === asset.id && state.locked_asset_ids?.includes(asset.id),
+      ),
+  );
+
+  // P18 roster: the people already on this review — honest, no fake handles.
+  const mentionRoster = Array.from(
+    new Map(
+      comments
+        .filter((comment) => comment.author_name?.trim())
+        .map((comment) => {
+          const name = comment.author_name.trim();
+          const handle =
+            name.toLowerCase().replace(/[^a-z0-9]+/g, ".").replace(/^\.|\.$/g, "") ||
+            "reviewer";
+          return [name, { id: `roster-${handle}`, handle, name }];
+        }),
+    ).values(),
+  );
+
+  // P21 summary inputs.
+  const summaryComments = comments.map((comment) => ({
+    id: comment.id,
+    author_name: comment.author_name,
+    body: comment.body,
+    timecode_seconds: comment.timecode_seconds,
+    status: comment.status,
+    parent_id: comment.parent_id,
+  }));
+  const reviewWindowLabel = (() => {
+    const timestamps = comments
+      .map((comment) => new Date(comment.created_at).getTime())
+      .filter((value) => Number.isFinite(value));
+    if (timestamps.length === 0) return "No review activity yet";
+    const start = new Date(Math.min(...timestamps));
+    const formatDay = (date: Date, withYear: boolean) =>
+      date.toLocaleDateString(undefined, {
+        month: "short",
+        day: "numeric",
+        ...(withYear ? { year: "numeric" as const } : {}),
+      });
+    return `${formatDay(start, false)} – ${formatDay(new Date(), true)}`;
+  })();
+  const approvedStepCount = approvals.filter((approval) => approval.status === "approved").length;
+  const approvalStatusLabel =
+    approvals.length > 0
+      ? `${approvedStepCount} of ${approvals.length} steps approved`
+      : "No approval steps configured";
 
   const selectedComment = selectedCommentId
     ? rootComments.find((comment) => comment.id === selectedCommentId) ?? null
@@ -569,7 +705,9 @@ export default function PublicReviewPage() {
           ? "Internal review is active for this version."
           : "Client review is active for this version.";
   const stageTitle = shareIntent === "final_delivery" ? "Delivery player" : "Review player";
-  const stageDescription = drawMode
+  const stageDescription = compareMode
+    ? "A/B compare — linked playback, no pins or drawings"
+    : drawMode
     ? "Draw mode active — Esc to cancel"
     : pinMode
     ? "Pin mode active"
@@ -577,7 +715,7 @@ export default function PublicReviewPage() {
       ? `${cutMarkers.length} cut ${cutMarkers.length === 1 ? "decision" : "decisions"} marked`
     : shareIntent === "final_delivery"
       ? "Approved version and delivery history"
-      : `Version ${version?.version_number ?? 1} · Client review`;
+      : `Version ${activeVersion?.version_number ?? version?.version_number ?? 1} · Client review`;
   const railTitle =
     shareIntent === "final_delivery" ? "Delivery" : "Review";
   const railHeading =
@@ -615,6 +753,111 @@ export default function PublicReviewPage() {
     setSelectedCommentId(comment.id);
     if (asset?.file_type === "video" && comment.timecode_seconds != null) {
       seekTo(comment.timecode_seconds);
+    }
+  }
+
+  // P19b: switching versions swaps the media, scopes the player back to a
+  // clean state, and mirrors the pick into ?v= so the URL stays shareable.
+  function handleVersionSelect(next: Version) {
+    if (next.id === activeVersionId) return;
+    setActiveVersionId(next.id);
+    resetPlayer();
+    setFrameRate(resolveReviewFrameRate(asset?.frame_rate));
+    setSelectedCommentId(null);
+    setCommentPin(null);
+    setPinMode(false);
+    setDrawMode(false);
+    setDraftStrokes([]);
+    if (typeof window !== "undefined") {
+      const url = new URL(window.location.href);
+      url.searchParams.set("v", String(next.version_number));
+      window.history.replaceState(null, "", `${url.pathname}${url.search}`);
+    }
+  }
+
+  function handleCompareToggle() {
+    // Entering compare restarts the shared transport — the single view's
+    // playhead belongs to a different surface.
+    if (!compareMode) resetPlayer();
+    setCompareMode(!compareMode);
+  }
+
+  function closeShareSettings() {
+    setShareSettingsOpen(false);
+    setShareSettingsRevision((revision) => revision + 1);
+  }
+
+  // P18: threaded replies. The demo workspace store has no parent_id column
+  // (same gap as P17 annotations), so demo replies ride in memory for the
+  // session — honest local preview. The remote path posts parent_id to the
+  // real comments API.
+  async function handleReplySubmit(parentId: string, body: string) {
+    const replyBody = body.trim();
+    if (!asset || !replyBody) return;
+    const authorName =
+      reviewerName.trim() || invite?.reviewer_name?.trim() || "Client Reviewer";
+
+    if (demoMode) {
+      const now = new Date().toISOString();
+      const reply: ReviewComment = {
+        id: `reply-${crypto.randomUUID()}`,
+        review_id: null,
+        review_invite_id: invite?.id ?? "invite-demo",
+        asset_id: asset.id,
+        version_id: version?.id ?? null,
+        parent_id: parentId,
+        author_name: authorName,
+        author_email: reviewerEmail,
+        author_id: null,
+        body: replyBody,
+        rich_body: null,
+        timecode_seconds: null,
+        frame_number: null,
+        pin_x: null,
+        pin_y: null,
+        mentions: [],
+        status: "open",
+        visibility: "external",
+        resolved_by: null,
+        resolved_at: null,
+        created_at: now,
+        updated_at: now,
+      };
+      setComments((current) => [...current, reply]);
+      setReplyError("");
+      return;
+    }
+
+    try {
+      const response = await fetch(`/api/review/${token}/comments`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          body: replyBody,
+          author_name: authorName,
+          parent_id: parentId,
+          timecode_seconds: null,
+          pin_x: null,
+          pin_y: null,
+        }),
+      });
+      const payload = await response.json().catch(() => null);
+      if (!response.ok) {
+        throw new Error(payload?.error || "Could not post your reply.");
+      }
+      const reply = (payload?.comment ?? payload) as ReviewComment | null;
+      if (reply?.id) {
+        setComments((current) =>
+          current.some((comment) => comment.id === reply.id) ? current : [...current, reply],
+        );
+      }
+      setReplyError("");
+    } catch (replySubmitError) {
+      setReplyError(
+        replySubmitError instanceof Error
+          ? replySubmitError.message
+          : "Could not post your reply.",
+      );
     }
   }
 
@@ -794,9 +1037,13 @@ export default function PublicReviewPage() {
     approvalId: string,
     decision: ApprovalDecision,
     note?: string,
+    actorNameOverride?: string,
   ) {
     if (approvalSubmitting) return;
-    if (!reviewerName.trim()) {
+    // The P20 panel collects the reviewer name itself and hands it over;
+    // the legacy composer path relies on the shared reviewerName state.
+    const actorName = (actorNameOverride ?? reviewerName).trim();
+    if (!actorName) {
       setApprovalError("Enter your reviewer name before recording an approval.");
       return;
     }
@@ -818,7 +1065,7 @@ export default function PublicReviewPage() {
           assetId: asset.id,
           versionId: version.id,
           reviewInviteId: invite.id,
-          reviewerName: reviewerName.trim(),
+          reviewerName: actorName,
           reviewerEmail:
             requestedDemoShare?.reviewer_email ??
             (permissions === "approve" ? demoReviewPayload.reviewer_email : null),
@@ -851,7 +1098,7 @@ export default function PublicReviewPage() {
           id: approvalId,
           status: decision,
           decision_note: note,
-          reviewer_name: reviewerName.trim(),
+          reviewer_name: actorName,
         }),
       });
 
@@ -922,6 +1169,15 @@ export default function PublicReviewPage() {
 
     return (
       <div className="relative h-full w-full">
+        {invite?.watermark_enabled ? (
+          <ShareWatermark
+            reviewerLabel={
+              invite.watermark_text ?? reviewerName ?? invite.reviewer_name ?? "Reviewer"
+            }
+            timestamp={watermarkTimestamp}
+          />
+        ) : null}
+
         {asset?.file_type === "video" ? <FrameIndicator /> : null}
 
         {pinMode ? (
@@ -1011,7 +1267,7 @@ export default function PublicReviewPage() {
 
   const workspaceError = error || (!loading && !asset ? "Asset not found." : "");
 
-  return (
+  const workspace = (
     <ReviewWorkspace
       loading={loading}
       error={workspaceError}
@@ -1064,15 +1320,26 @@ export default function PublicReviewPage() {
               <span>{invite?.view_count ?? 0} views</span>
               {expiresLabel ? <span>Expires {expiresLabel}</span> : null}
             </div>
-            {invite?.download_enabled && asset?.file_url ? (
+            {invite?.download_enabled && (activeVersion?.file_url || asset?.file_url) ? (
               <a
-                href={asset.file_url}
+                href={activeVersion?.file_url ?? asset?.file_url ?? undefined}
                 download
                 className="client-review-download"
               >
                 <Download size={13} />
                 Download
               </a>
+            ) : null}
+            {demoMode ? (
+              <button
+                type="button"
+                onClick={() => setShareSettingsOpen(true)}
+                title="Review link settings (local preview — this browser only)"
+                className="client-review-download"
+              >
+                <Settings2 size={13} />
+                Share settings
+              </button>
             ) : null}
           </div>
         </>
@@ -1137,59 +1404,116 @@ export default function PublicReviewPage() {
           </>
         ),
         media: (
-          <ReviewMediaSurface
-            assetType={asset?.file_type ?? "other"}
-            assetTitle={asset?.title ?? "Review"}
-            assetUrl={asset?.file_url ?? null}
-            poster={demoMode ? "/demo/ceraweek-speaker.jpg" : undefined}
-            videoRef={videoRef}
-            imageRef={imageRef}
-            pinMode={canComment && pinMode}
-            annotationEnabled={canComment && asset?.file_type === "video"}
-            overlay={renderPins()}
-            onFramePin={handleFramePin}
-            onCutMarker={canComment ? handleCutMarker : undefined}
-            onImagePin={handleImagePin}
-            timeline={{
-              label: "Timeline feedback",
-              countLabel: `${timedThreads} notes · ${cutMarkers.length} cuts`,
-              content: (
-                <div className="grid gap-2">
-                  <PlayerTimeline
-                    comments={rootComments}
-                    cutMarkers={cutMarkers}
-                    onSeek={seekTo}
-                    onCommentSelect={(comment) => handleCommentSelect(comment as ReviewComment)}
-                    selectedCommentId={selectedCommentId}
-                  />
-                  <p
-                    className={`min-h-5 text-xs ${
-                      cutMarkerError ? "text-[var(--red)]" : "text-[var(--dim)]"
+          <div>
+            {orderedVersions.length > 0 ? (
+              <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2 border-b border-white/10 bg-black px-3 py-2">
+                <VersionSwitcher
+                  versions={linkVersions}
+                  activeVersionId={activeVersion?.id ?? null}
+                  onSelect={handleVersionSelect}
+                  currentVersionOnly={currentVersionOnly}
+                />
+                {viewingOlderVersion ? (
+                  <span className="text-[11px] text-amber-300/90">
+                    Viewing an older version — notes and approvals belong to
+                    V{currentVersionNumber ?? "?"} (Current).
+                  </span>
+                ) : null}
+                {linkVersions.length >= 2 ? (
+                  <button
+                    type="button"
+                    onClick={handleCompareToggle}
+                    aria-pressed={compareMode}
+                    className={`flex min-h-8 items-center gap-1.5 rounded-full border px-3 text-xs font-medium transition-colors ${
+                      compareMode
+                        ? "border-[var(--accent)] bg-[var(--accent)] text-[#18223e]"
+                        : "border-white/25 bg-white/5 text-white/85 hover:border-white/50 hover:text-white"
                     }`}
-                    role={cutMarkerError ? "alert" : "status"}
-                    aria-live="polite"
                   >
-                    {cutMarkerError ||
-                      (canComment
-                        ? "Press Down to propose a version-bound cut at the playhead."
-                        : "Cut decisions are read-only for this link.")}
-                  </p>
-                </div>
-              ),
-            }}
-            fallbackAction={
-              invite?.download_enabled && asset?.file_url ? (
-                <a
-                  href={asset.file_url}
-                  download
-                  className="inline-flex items-center gap-2 rounded-[var(--radius-sm)] bg-[var(--accent)] px-3 py-2 text-sm font-medium text-white transition-colors hover:bg-[var(--accent-hover)]"
-                >
-                  <Download size={14} />
-                  Download file
-                </a>
-              ) : null
-            }
-          />
+                    <GitCompare size={13} aria-hidden="true" />
+                    {compareMode ? "Single view" : "Compare A/B"}
+                  </button>
+                ) : null}
+              </div>
+            ) : null}
+
+            {compareMode && linkVersions.length >= 2 ? (
+              <div className="relative">
+                {invite?.watermark_enabled ? (
+                  <ShareWatermark
+                    reviewerLabel={
+                      invite.watermark_text ??
+                      reviewerName ??
+                      invite.reviewer_name ??
+                      "Reviewer"
+                    }
+                    timestamp={watermarkTimestamp}
+                  />
+                ) : null}
+                <VersionCompare
+                  versions={linkVersions}
+                  onExit={() => setCompareMode(false)}
+                />
+              </div>
+            ) : (
+              <ReviewMediaSurface
+                assetType={asset?.file_type ?? "other"}
+                assetTitle={asset?.title ?? "Review"}
+                assetUrl={activeVersion?.file_url || asset?.file_url || null}
+                poster={
+                  activeVersion?.thumbnail_url ??
+                  (demoMode ? "/demo/ceraweek-speaker.jpg" : undefined)
+                }
+                videoRef={videoRef}
+                imageRef={imageRef}
+                pinMode={canComment && pinMode}
+                annotationEnabled={canComment && asset?.file_type === "video"}
+                overlay={renderPins()}
+                onFramePin={handleFramePin}
+                onCutMarker={canComment ? handleCutMarker : undefined}
+                onImagePin={handleImagePin}
+                timeline={{
+                  label: "Timeline feedback",
+                  countLabel: `${timedThreads} notes · ${cutMarkers.length} cuts`,
+                  content: (
+                    <div className="grid gap-2">
+                      <PlayerTimeline
+                        comments={rootComments}
+                        cutMarkers={cutMarkers}
+                        onSeek={seekTo}
+                        onCommentSelect={(comment) => handleCommentSelect(comment as ReviewComment)}
+                        selectedCommentId={selectedCommentId}
+                      />
+                      <p
+                        className={`min-h-5 text-xs ${
+                          cutMarkerError ? "text-[var(--red)]" : "text-[var(--dim)]"
+                        }`}
+                        role={cutMarkerError ? "alert" : "status"}
+                        aria-live="polite"
+                      >
+                        {cutMarkerError ||
+                          (canComment
+                            ? "Press Down to propose a version-bound cut at the playhead."
+                            : "Cut decisions are read-only for this link.")}
+                      </p>
+                    </div>
+                  ),
+                }}
+                fallbackAction={
+                  invite?.download_enabled && (activeVersion?.file_url || asset?.file_url) ? (
+                    <a
+                      href={activeVersion?.file_url ?? asset?.file_url ?? undefined}
+                      download
+                      className="inline-flex items-center gap-2 rounded-[var(--radius-sm)] bg-[var(--accent)] px-3 py-2 text-sm font-medium text-white transition-colors hover:bg-[var(--accent-hover)]"
+                    >
+                      <Download size={14} />
+                      Download file
+                    </a>
+                  ) : null
+                }
+              />
+            )}
+          </div>
         ),
       }}
       rail={{
@@ -1242,19 +1566,32 @@ export default function PublicReviewPage() {
                   </p>
                 </div>
               ),
-              error: approvalError,
-              content: orderedApprovals.map((approval) => (
-                <ApprovalStepCard
-                  key={approval.id}
-                  step={approval}
-                  isActive={activeApprovalIdSet.has(approval.id)}
-                  onDecide={
-                    activeApprovalIdSet.has(approval.id)
-                      ? (decision, note) => handleApprovalDecision(approval.id, decision, note)
-                      : undefined
-                  }
+              error: "",
+              content: (
+                <ApprovalPanel
+                  steps={orderedApprovals}
+                  comments={comments}
+                  workflowMode={workflowMode}
+                  activeStepIds={activeApprovalIds}
+                  locked={approvalLocked}
+                  identityName={reviewerName || invite?.reviewer_name || null}
+                  identityEmail={reviewerEmail}
+                  canDecide={permissions === "approve"}
+                  submitting={approvalSubmitting}
+                  error={approvalError || null}
+                  onDecide={(decision) => {
+                    if (decision.actorName && !reviewerName.trim()) {
+                      setReviewerName(decision.actorName);
+                    }
+                    void handleApprovalDecision(
+                      decision.stepId,
+                      decision.decision,
+                      decision.note ?? undefined,
+                      decision.actorName,
+                    );
+                  }}
                 />
-              )),
+              ),
               footer:
                 orderedApprovals.length > 0 && approvalAccessMessage ? (
                   <div className="rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--bg)] px-3 py-3 text-sm text-[var(--muted)]">
@@ -1264,41 +1601,71 @@ export default function PublicReviewPage() {
             }
           : null,
         comments: {
-          title: commentsTitle,
-          description: commentsDescription,
+          title: railTab === "summary" ? "Producer summary" : commentsTitle,
+          description:
+            railTab === "summary"
+              ? "One-page brief of this review — classifications are rule-based suggestions."
+              : commentsDescription,
           countLabel: `${rootComments.length} total`,
-          filters: [
-            { id: "open", label: `Open (${openThreads})`, active: filter === "open", onClick: () => setFilter("open") },
-            { id: "all", label: `All (${rootComments.length})`, active: filter === "all", onClick: () => setFilter("all") },
-            {
-              id: "resolved",
-              label: `Resolved (${resolvedThreads})`,
-              active: filter === "resolved",
-              onClick: () => setFilter("resolved"),
-            },
-          ],
-          hasResults: filteredComments.length > 0,
+          // P18: CommentList owns status filtering now (its chips carry the
+          // same Open/All/Resolved labels and live counts).
+          filters: [],
+          hasResults: true,
           emptyTitle: "No threads in this view",
           emptyDescription: emptyCommentsDescription,
           content: (
             <div className="space-y-3">
-              {filteredComments.map((comment) => (
-                <CommentThread
-                  key={comment.id}
-                  comment={comment}
-                  replies={repliesByParent.get(comment.id) ?? []}
-                  onSeek={comment.timecode_seconds != null ? () => handleCommentSelect(comment) : undefined}
-                  index={threadNumberById.get(comment.id) ?? 0}
-                  canReply={false}
-                  canResolve={false}
-                  selected={comment.id === selectedComment?.id}
-                  onSelect={() => handleCommentSelect(comment)}
+              <div role="group" aria-label="Rail view" className="flex items-center gap-1.5">
+                {(["comments", "summary"] as const).map((tab) => (
+                  <button
+                    key={tab}
+                    type="button"
+                    aria-pressed={railTab === tab}
+                    onClick={() => setRailTab(tab)}
+                    className={`flex min-h-8 items-center rounded-full border px-3 text-xs transition-colors ${
+                      railTab === tab
+                        ? "border-[var(--accent)]/50 bg-[var(--accent)]/10 font-medium text-[var(--ink)]"
+                        : "border-[var(--border)] bg-[var(--surface)] text-[var(--muted)] hover:border-[var(--accent)]/30"
+                    }`}
+                  >
+                    {tab === "comments" ? "Comments" : "Summary"}
+                  </button>
+                ))}
+              </div>
+
+              {railTab === "summary" ? (
+                <ProducerSummaryPanel
+                  projectName={asset?.projects?.name ?? "Project"}
+                  assetTitle={asset?.title ?? "Review"}
+                  versionLabel={`V${activeVersion?.version_number ?? version?.version_number ?? 1}`}
+                  reviewWindow={reviewWindowLabel}
+                  approvalStatus={approvalStatusLabel}
+                  comments={summaryComments}
+                  completerName={reviewerName || invite?.reviewer_name || "Reviewer"}
+                  onSeek={seekTo}
                 />
-              ))}
+              ) : (
+                <>
+                  {replyError ? (
+                    <p role="alert" className="text-xs text-[var(--red)]">
+                      {replyError}
+                    </p>
+                  ) : null}
+                  <CommentList
+                    comments={comments}
+                    roster={mentionRoster}
+                    demoMode={demoMode}
+                    selectedId={selectedCommentId}
+                    onSelect={(comment) => handleCommentSelect(comment as ReviewComment)}
+                    onSeek={(time) => seekTo(time)}
+                    onReplySubmit={(parentId, body) => void handleReplySubmit(parentId, body)}
+                  />
+                </>
+              )}
             </div>
           ),
         },
-        composer: asset ? (
+        composer: railTab === "comments" && asset ? (
           <PublicReviewComposer
             token={token}
             demoMode={demoMode}
@@ -1318,5 +1685,42 @@ export default function PublicReviewPage() {
         ) : <div />,
       }}
     />
+  );
+
+  return (
+    <>
+      {/*
+        P22 gate on the demo review surface: expiry/password/receipts resolve
+        from the browser-local share-link store before any content renders.
+        Production tokens skip the gate — the store is demo-only (see the
+        demoShareGateToken note above).
+      */}
+      {demoMode ? (
+        <ShareLinkAccessGate
+          shareToken={demoShareGateToken}
+          viewerLabel={reviewerName || invite?.reviewer_name || "Anonymous viewer"}
+        >
+          {workspace}
+        </ShareLinkAccessGate>
+      ) : (
+        workspace
+      )}
+
+      {demoMode && shareSettingsOpen ? (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+          role="presentation"
+          onClick={(event) => {
+            if (event.target === event.currentTarget) closeShareSettings();
+          }}
+        >
+          <ShareSettingsDialog
+            shareToken={demoShareGateToken}
+            shareName={requestedDemoShare ? "Client review link" : "Demo review link"}
+            onClose={closeShareSettings}
+          />
+        </div>
+      ) : null}
+    </>
   );
 }

@@ -146,6 +146,50 @@ full suite is green and the curl matrix is:
 | /projects/does-not-exist?demo=1 | — | — | 200 | 404 |
 | /review/demo?…&share=demo-ica-final (long form) | — | — | 200 | 308 → short |
 
+## P12 — Live-brand visual reskin (2026-07-25)
+
+The app sheds the cream-editorial/sapphire theme for the live co-videopro.com
+brand law: cool white canvas `#f7f9fc`, white cards, navy ink `#18223e`,
+brand blue `#145bb8` signal, signature lime `#b9ff77` for primary CTAs,
+Manrope display + Inter body. `app/brand-tokens.css` (P11 token layer) is now
+imported by `app/globals.css` and the root palette maps onto it; the cockpit
+`--cockpit-*` set retunes to the same brand.
+
+- Shell (`app/globals.css`, `components/navigation/WorkspaceRail.module.css`):
+  thin 4-color gradient-ribbon hairline across the top bar; lime Upload CTA
+  (navy-ink text, `#9fe65f` hover, accent-glow shadow — lime never carries
+  small text on white); rail active items get a blue tint pill + 3px blue
+  indicator bar; selection and `:focus-visible` rings in brand blue.
+- Login/signup (`components/auth/AuthShell.module.css`): `--auth-*` tokens
+  retuned to the brand; white 12px-radius panel with brand popover shadow and
+  gradient-ribbon cap; ribbon hairline on the auth header; lime Demo chip;
+  brand-blue input focus rings; alert/success states on red/green tints.
+- Dashboard `/projects` (`app/(dashboard)/projects/page.tsx`): lifecycle
+  cards gain `data-phase` hooks (structure-only) so Intake/Ingest/Review/
+  Delivery icons take the red/amber/blue/green phase coding; status chips are
+  soft-tint pills (`badge-in-review` blue tint, `badge-requires-changes` amber
+  tint, `badge-approved` green tint — the old dark-theme `#4ade80` text on
+  light bg failed contrast).
+- Cockpit chrome: `--cockpit-*` tokens retuned; gradient-ribbon hairline on
+  the top bar; `.cockpit-action-primary` (Upload only) goes lime. Canonical
+  layout (one bar, one stage, one rail), P6 overlay positioning, and P7 player
+  fixes untouched — no behavior changes.
+- Pipeline strip (`components/projects/PipelineStrip.tsx`): `data-phase` hook
+  colors progress bars + state labels with the 4-color phase coding.
+- Typography: Manrope added to the Google Fonts link in `app/layout.tsx`;
+  `--font-display`/`--font-body` resolve to the brand stacks. Motion stays on
+  `var(--cvp-motion-*)` (120–200ms) with `prefers-reduced-motion` zeroing.
+
+Proof: before/after captures at 1440×900 in
+`~/covideopro-visual-audit/regressions/p12/{before,after}/` (login, projects,
+projects-ica cockpit; signup after). Harness: `git diff --check` pass ·
+typecheck 0 errors · lint 0 errors (41 pre-existing warnings) · `npm test`
+740/741 — the one failure (`covideopro-copy.test.ts` "canonical bright shell"
+copy assertion) comes from a concurrent P8 session's uncommitted dark-mode
+wiring (`lib/demo/DemoThemeSync.tsx`, `IdentitySettings.tsx` copy change), not
+from P12; P12 files alone leave every test they touch green · `npm run build`
+pass.
+
 ## Audit Finding Dispositions (handoff section 11)
 
 | ID | Item | Disposition |

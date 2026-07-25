@@ -489,9 +489,10 @@ export default function ProjectsPage() {
             return (
               <div
                 key={item.label}
+                data-phase={item.label.toLowerCase()}
                 className="grid grid-cols-[32px_minmax(0,1fr)] gap-3 rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3 py-3"
               >
-                <span className="flex h-8 w-8 items-center justify-center rounded-md bg-[var(--accent-dim)] text-[var(--accent)]">
+                <span className="flex h-8 w-8 items-center justify-center rounded-md bg-[var(--phase-tint,var(--accent-dim))] text-[var(--phase-color,var(--accent))]">
                   <Icon size={16} />
                 </span>
                 <span className="min-w-0">

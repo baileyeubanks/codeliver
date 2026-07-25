@@ -30,7 +30,7 @@ export default function PipelineStrip({
   return (
     <section aria-label="Production pipeline" className="cv-pipeline">
       {stages.map((stage) => (
-        <article key={stage.id} className="cv-pipeline-card" data-state={stage.state}>
+        <article key={stage.id} className="cv-pipeline-card" data-state={stage.state} data-phase={stage.surface}>
           <header>
             <strong>{stage.label}</strong>
             <span className="cv-pipeline-state">{STATE_LABEL[stage.state]}</span>

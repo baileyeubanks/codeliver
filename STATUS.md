@@ -89,3 +89,22 @@ commands that would prove the blocked items are in `BLOCKERS.md`.
 - `npm test`
 - `scripts/verify-runtime.sh`
 - Browser proof for upload, reload, playback, login, and protected-route behavior
+
+## Runtime proof — 2026-07-25 (post-cutover)
+
+- Port 4103: `next start` (next-server v16.2.10, parent `npm run start`) — dev runtime replaced.
+- `scripts/verify-runtime.sh` ALL PASS (authenticated 404 SKIP — AUTH_COOKIE unset, see BLOCKERS.md):
+  demo query blocked, structured session JSON, security headers, minimal health,
+  no launch-editor behavior, no malformed-RSC stack/path leak, no Stripe server
+  strings in client chunks, source maps unavailable (15 scripts).
+- API down-backend matrix (backends absent): /api/auth/session, /api/projects,
+  /api/assets, /api/webhooks, /api/folders, /api/teams, /api/notifications,
+  /api/analytics/project, /api/storage/readiness, /api/upload/tus,
+  /api/assets/[uuid], /api/assets/[uuid]/comments, /api/review/[token],
+  /api/projects/[uuid] + POST /api/projects → ALL return structured
+  503 {"error","code":"BACKEND_UNAVAILABLE"}, no-store, nosniff, JSON.
+  Zero empty-body 500s, zero provider detail, zero framework HTML errors.
+- TRACE /projects → 500 generic "Internal Server Error" text/plain (21 bytes,
+  Next.js framework method handling; no header reflection, no env/stack leak).
+  Accepted: framework-level, leaks nothing; 405 would be nicer but is Next's default.
+- Commit 2d57b7b fixed a verifier false positive (login return-path echo).

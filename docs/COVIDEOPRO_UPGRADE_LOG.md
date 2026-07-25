@@ -240,3 +240,10 @@ Baseline: `e068ee8` (checkpoint of the prior session's transformation state).
 - Removed the three-step “Review flow” instruction panel from the public review route.
 - The protected workspace receives a null intro and collapses the slot, preserving its existing player, annotation, comments, and approval structure without an empty rail gap.
 - **Learning:** when a protected shell already owns optional slot geometry, remove redundant guidance at the route boundary instead of restructuring the shell.
+
+## U33 — Wave 1.5: responsive review-link records (2026-07-25)
+
+- The review-links table now owns a dedicated mobile layout instead of inheriting the media library's four-slot row grid.
+- All nine review fields retain visible labels at mobile widths. Long messages wrap, authority and download settings stay grouped, and link/active controls receive stable non-overlapping areas.
+- Verification: regression test written red first, focused test pass, typecheck, and scoped ESLint with no errors.
+- **Learning:** a generic responsive table transform is unsafe when record types have different field counts; each operational record needs explicit mobile hierarchy and labels.

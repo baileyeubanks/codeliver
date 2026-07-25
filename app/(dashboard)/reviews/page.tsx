@@ -202,7 +202,6 @@ export default function ReviewsPage() {
           type="button"
           role="tab"
           aria-selected={tab === "all"}
-          aria-pressed={tab === "all"}
           className={`h-8 rounded-md px-3 text-xs font-semibold transition ${
             tab === "all"
               ? "bg-[var(--accent-dim)] text-[var(--accent)]"
@@ -216,7 +215,6 @@ export default function ReviewsPage() {
           type="button"
           role="tab"
           aria-selected={tab === "mine"}
-          aria-pressed={tab === "mine"}
           className={`h-8 rounded-md px-3 text-xs font-semibold transition ${
             tab === "mine"
               ? "bg-[var(--accent-dim)] text-[var(--accent)]"
@@ -261,7 +259,7 @@ export default function ReviewsPage() {
           </div>
         ) : (
           <div className="table-container">
-            <table className="table">
+            <table className="table reviews-table">
               <thead>
                 <tr>
                   <th>Type</th>
@@ -284,18 +282,33 @@ export default function ReviewsPage() {
                   return (
                     <tr
                       key={link.id}
-                      className="cursor-pointer"
+                      className="reviews-row cursor-pointer"
                       onClick={() => setDetail(link)}
                     >
-                    <td>
-                      <Link2 size={15} className="text-[var(--accent)]" />
+                    <td data-label="Type" className="reviews-type-cell">
+                      <span className="reviews-type-value">
+                        <Link2 size={15} className="text-[var(--accent)]" />
+                        <span className="reviews-type-label">
+                          {permissionLabel(link.permission)} link
+                        </span>
+                      </span>
                     </td>
-                    <td className="text-xs">{timeAgo(link.created_at)}</td>
-                    <td className="text-xs">{link.created_by_name || "—"}</td>
-                    <td className="text-xs max-w-[200px] truncate">{link.message || "—"}</td>
-                    <td className="text-xs">{link.media_count ?? 0}</td>
-                    <td className="text-xs">{link.invited_count ?? 0}</td>
-                    <td>
+                    <td data-label="Created" className="reviews-created-cell text-xs">
+                      {timeAgo(link.created_at)}
+                    </td>
+                    <td data-label="Created by" className="reviews-creator-cell text-xs">
+                      {link.created_by_name || "—"}
+                    </td>
+                    <td data-label="Message" className="reviews-message-cell max-w-[200px] truncate text-xs">
+                      {link.message || "—"}
+                    </td>
+                    <td data-label="Media" className="reviews-media-cell text-xs">
+                      {link.media_count ?? 0}
+                    </td>
+                    <td data-label="Invited" className="reviews-invited-cell text-xs">
+                      {link.invited_count ?? 0}
+                    </td>
+                    <td data-label="Settings" className="reviews-settings-cell">
                       <div className="flex items-center gap-2">
                         {link.permission === "approve" ? (
                           <span className="badge badge-approved">
@@ -317,7 +330,7 @@ export default function ReviewsPage() {
                         )}
                       </div>
                     </td>
-                    <td>
+                    <td data-label="Link" className="reviews-link-cell">
                       {publicUrl && (
                         <div className="flex items-center gap-1">
                           <button
@@ -343,7 +356,7 @@ export default function ReviewsPage() {
                         </div>
                       )}
                     </td>
-                    <td>
+                    <td data-label="Active" className="reviews-active-cell">
                       <button
                         className={`toggle ${link.is_active !== false ? "on" : ""}`}
                         aria-pressed={link.is_active !== false}

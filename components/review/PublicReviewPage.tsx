@@ -16,6 +16,13 @@ import ReviewMediaSurface from "@/components/review/ReviewMediaSurface";
 import ReviewWorkspace from "@/components/review/PublicReviewWorkspace";
 import PublicReviewComposer from "@/components/review/PublicReviewComposer";
 import InlineReviewComment from "@/components/review/InlineReviewComment";
+import AnnotationCanvas from "@/components/review/annotation/AnnotationCanvas";
+import AnnotationThumbnail from "@/components/review/annotation/AnnotationThumbnail";
+import AnnotationToolbar from "@/components/review/annotation/AnnotationToolbar";
+import {
+  isNearTimecode,
+  type AnnotationTool,
+} from "@/lib/review/annotation";
 import {
   addDemoReviewCutMarker,
   recordDemoPublicReviewApproval,
@@ -40,6 +47,7 @@ import { usePlayerStore } from "@/lib/stores/playerStore";
 import { resolveReviewFrameRate } from "@/lib/review/frame-review";
 import { formatSmpteTimecode } from "@/components/player/timecode";
 import type {
+  AnnotationData,
   ApprovalDecision,
   ApprovalStep,
   Comment as ReviewComment,
@@ -148,6 +156,7 @@ export default function PublicReviewPage() {
   const { token } = useParams<{ token: string }>();
   const searchParams = useSearchParams();
   const videoRef = useRef<HTMLVideoElement>(null);
+  const imageRef = useRef<HTMLImageElement>(null);
   const demoWorkspace = useDemoWorkspace();
 
   const currentTime = usePlayerStore((state) => state.currentTime);
@@ -162,7 +171,17 @@ export default function PublicReviewPage() {
   const [approvals, setApprovals] = useState<ApprovalStep[]>([]);
   const [activeApprovalIds, setActiveApprovalIds] = useState<string[]>([]);
   const [approvalAccessMessage, setApprovalAccessMessage] = useState("");
-  const [comments, setComments] = useState<ReviewComment[]>([]);
+  const [storedComments, setComments] = useState<ReviewComment[]>([]);
+  // P17: the demo workspace store has no annotation column, so drawings ride
+  // on the in-memory comment after submit. The demo loader rebuilds comments
+  // from persisted state whenever the store changes; this map re-applies each
+  // drawing to its comment for the rest of the session (local preview).
+  const [drawingsByCommentId, setDrawingsByCommentId] = useState<
+    Record<string, Pick<ReviewComment, "annotations" | "attachments">>
+  >({});
+  const comments = storedComments.map((comment) =>
+    drawingsByCommentId[comment.id] ? { ...comment, ...drawingsByCommentId[comment.id] } : comment,
+  );
   const [permissions, setPermissions] = useState<SharePermission>("view");
   const [shareIntent, setShareIntent] = useState<ShareIntent>("client_review");
   const [workflowMode, setWorkflowMode] = useState<WorkflowMode | null>(null);
@@ -170,6 +189,9 @@ export default function PublicReviewPage() {
   const [selectedCommentId, setSelectedCommentId] = useState<string | null>(null);
   const [filter, setFilter] = useState<CommentFilter>("open");
   const [pinMode, setPinMode] = useState(false);
+  const [drawMode, setDrawMode] = useState(false);
+  const [drawTool, setDrawTool] = useState<AnnotationTool>("arrow");
+  const [draftStrokes, setDraftStrokes] = useState<AnnotationData[]>([]);
   const [commentPin, setCommentPin] = useState<{
     x: number;
     y: number;
@@ -201,6 +223,22 @@ export default function PublicReviewPage() {
   useEffect(() => {
     setFrameRate(resolveReviewFrameRate(asset?.frame_rate));
   }, [asset?.frame_rate, setFrameRate]);
+
+  // P17: Escape cancels draw mode and drops unsent strokes. While the inline
+  // comment dialog is open it owns Escape (cancel returns to the drawing).
+  useEffect(() => {
+    if (!drawMode) return;
+
+    function handleEscape(event: KeyboardEvent) {
+      if (event.key !== "Escape" || commentPin) return;
+      event.preventDefault();
+      setDrawMode(false);
+      setDraftStrokes([]);
+    }
+
+    window.addEventListener("keydown", handleEscape);
+    return () => window.removeEventListener("keydown", handleEscape);
+  }, [drawMode, commentPin]);
 
   useEffect(() => {
     if (!demoMode || !asset?.id) return;
@@ -531,7 +569,9 @@ export default function PublicReviewPage() {
           ? "Internal review is active for this version."
           : "Client review is active for this version.";
   const stageTitle = shareIntent === "final_delivery" ? "Delivery player" : "Review player";
-  const stageDescription = pinMode
+  const stageDescription = drawMode
+    ? "Draw mode active — Esc to cancel"
+    : pinMode
     ? "Pin mode active"
     : cutMarkers.length > 0
       ? `${cutMarkers.length} cut ${cutMarkers.length === 1 ? "decision" : "decisions"} marked`
@@ -584,6 +624,46 @@ export default function PublicReviewPage() {
     setPinMode(false);
   }
 
+  function toggleDrawMode() {
+    if (drawMode) {
+      setDrawMode(false);
+      setDraftStrokes([]);
+      return;
+    }
+
+    // Entering draw mode freezes the frame so strokes land on a still image.
+    videoRef.current?.pause();
+    setPinMode(false);
+    setCommentPin(null);
+    setDrawMode(true);
+  }
+
+  function handleStrokeComplete(annotation: AnnotationData) {
+    setDraftStrokes((current) => [...current, annotation]);
+  }
+
+  function strokeAnchorPoint(strokes: AnnotationData[]): { x: number; y: number } {
+    const first = strokes[0];
+    if (!first) return { x: 50, y: 50 };
+    if (first.kind === "arrow" || first.kind === "freehand") {
+      return { x: first.points[0] * 100, y: first.points[1] * 100 };
+    }
+    if (first.kind === "rectangle") {
+      return { x: (first.x + first.width / 2) * 100, y: (first.y + first.height / 2) * 100 };
+    }
+    return { x: 50, y: 50 };
+  }
+
+  function handleDrawAddComment() {
+    if (!canComment || draftStrokes.length === 0) return;
+    const anchor = strokeAnchorPoint(draftStrokes);
+    setCommentPin({
+      x: anchor.x,
+      y: anchor.y,
+      timeSeconds: asset?.file_type === "video" ? currentTime : null,
+    });
+  }
+
   function handleImagePin(event: React.MouseEvent<HTMLDivElement>) {
     if (!canComment || !pinMode) return;
 
@@ -596,6 +676,10 @@ export default function PublicReviewPage() {
   }
 
   function togglePinMode() {
+    // Pin mode and draw mode are mutually exclusive ways to start a note.
+    setDrawMode(false);
+    setDraftStrokes([]);
+
     if (commentPin) {
       setCommentPin(null);
       setPinMode(true);
@@ -611,12 +695,20 @@ export default function PublicReviewPage() {
   }
 
   function handleCommentCreated(comment: ReviewComment) {
+    if (comment.annotations?.length || comment.attachments?.length) {
+      setDrawingsByCommentId((current) => ({
+        ...current,
+        [comment.id]: { annotations: comment.annotations, attachments: comment.attachments },
+      }));
+    }
     setComments((current) =>
       current.some((candidate) => candidate.id === comment.id) ? current : [...current, comment],
     );
     setSelectedCommentId(comment.id);
     setCommentPin(null);
     setPinMode(false);
+    setDrawMode(false);
+    setDraftStrokes([]);
 
     if (asset?.file_type === "video" && videoRef.current) {
       const video = videoRef.current;
@@ -795,6 +887,30 @@ export default function PublicReviewPage() {
     }
   }
 
+  // Saved drawings replay as vector overlays: for video while the playhead is
+  // within ±0.5s of the note's timecode, for images on the selected note.
+  const replayAnnotations = comments.flatMap((comment) => {
+    const data = (comment.annotations ?? []).map((annotation) => annotation.data);
+    if (data.length === 0) return [];
+    if (asset?.file_type === "video") {
+      return isNearTimecode(comment.timecode_seconds, currentTime) ? data : [];
+    }
+    return comment.id === selectedCommentId ? data : [];
+  });
+
+  const drawingRasterSize =
+    asset?.file_type === "video"
+      ? {
+          width: videoRef.current?.videoWidth || 1280,
+          height: videoRef.current?.videoHeight || 720,
+        }
+      : {
+          width: imageRef.current?.naturalWidth || 1280,
+          height: imageRef.current?.naturalHeight || 720,
+        };
+
+  const drawableSurface = canComment && (asset?.file_type === "video" || asset?.file_type === "image");
+
   function renderPins() {
     const pins = rootComments.filter((comment) => {
       if (comment.pin_x == null || comment.pin_y == null) return false;
@@ -852,18 +968,42 @@ export default function PublicReviewPage() {
           />
         ) : null}
 
-        {commentPin && asset?.file_type === "video" && canComment ? (
+        {asset && commentPin && canComment && (asset.file_type === "video" || drawMode) ? (
           <InlineReviewComment
             token={token}
             demoMode={demoMode}
             assetId={asset.id}
+            assetType={asset.file_type}
             reviewerName={reviewerName}
             onReviewerNameChange={setReviewerName}
             timecode={commentPin.timeSeconds ?? currentTime}
             pin={commentPin}
+            annotations={draftStrokes.length > 0 ? draftStrokes : undefined}
+            rasterSize={drawingRasterSize}
             onCancel={clearPin}
             onCommentCreated={handleCommentCreated}
           />
+        ) : null}
+
+        {drawableSurface ? (
+          <>
+            <AnnotationCanvas
+              active={drawMode && !commentPin}
+              tool={drawTool}
+              strokes={draftStrokes}
+              replay={replayAnnotations}
+              onStroke={handleStrokeComplete}
+            />
+            <AnnotationToolbar
+              drawMode={drawMode}
+              tool={drawTool}
+              strokeCount={draftStrokes.length}
+              onToggleDrawMode={toggleDrawMode}
+              onToolChange={setDrawTool}
+              onClear={() => setDraftStrokes([])}
+              onAddComment={handleDrawAddComment}
+            />
+          </>
         ) : null}
       </div>
     );
@@ -970,6 +1110,9 @@ export default function PublicReviewPage() {
                   Resolved
                 </span>
               ) : null}
+              {selectedComment.annotations?.length ? (
+                <AnnotationThumbnail annotations={selectedComment.annotations.map((a) => a.data)} />
+              ) : null}
             </div>
             <p className="mt-3 line-clamp-3 text-sm leading-6 text-[var(--muted)]">
               {selectedComment.body}
@@ -1000,6 +1143,7 @@ export default function PublicReviewPage() {
             assetUrl={asset?.file_url ?? null}
             poster={demoMode ? "/demo/ceraweek-speaker.jpg" : undefined}
             videoRef={videoRef}
+            imageRef={imageRef}
             pinMode={canComment && pinMode}
             annotationEnabled={canComment && asset?.file_type === "video"}
             overlay={renderPins()}

@@ -11,6 +11,7 @@ interface ReviewMediaSurfaceProps {
   assetUrl: string | null;
   poster?: string;
   videoRef: RefObject<HTMLVideoElement | null>;
+  imageRef?: RefObject<HTMLImageElement | null>;
   pinMode: boolean;
   annotationEnabled?: boolean;
   overlay: ReactNode;
@@ -31,6 +32,7 @@ export default function ReviewMediaSurface({
   assetUrl,
   poster,
   videoRef,
+  imageRef,
   pinMode,
   annotationEnabled = false,
   overlay,
@@ -80,6 +82,7 @@ export default function ReviewMediaSurface({
           onClick={onImagePin}
         >
           <img
+            ref={imageRef}
             src={assetUrl}
             alt={assetTitle}
             className="max-h-[78vh] w-auto max-w-full object-contain"

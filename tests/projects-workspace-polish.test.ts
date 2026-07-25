@@ -38,13 +38,14 @@ test("projects page keeps upload, share, and empty states route-backed and hones
   assert.doesNotMatch(projectsPage, /notification sent/i);
 });
 
-test("project toolbar does not expose unsupported folder or cloud-import actions as complete", () => {
+test("project toolbar exposes only real actions — no placeholder or disabled controls", () => {
   const toolbar = source("components/projects/ProjectToolbar.tsx");
 
   assert.match(toolbar, /New production workspace/);
   assert.match(toolbar, /New workspace/);
-  assert.match(toolbar, /Cloud import not connected/);
-  assert.match(toolbar, /aria-disabled="true"/);
+  assert.doesNotMatch(toolbar, /Cloud import/);
+  assert.doesNotMatch(toolbar, /Batch actions/);
+  assert.doesNotMatch(toolbar, /aria-disabled="true"/);
   assert.doesNotMatch(toolbar, />\s*New Folder\s*</);
   assert.doesNotMatch(toolbar, />\s*Import from cloud\s*</);
 });

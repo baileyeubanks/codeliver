@@ -23,8 +23,8 @@ const cockpitProjectStyles = readFileSync(
 );
 const globalStyles = readFileSync(resolve(repositoryRoot, "app/globals.css"), "utf8");
 const shellSource = readFileSync(resolve(repositoryRoot, "components/Shell.tsx"), "utf8");
-const projectPageSource = readFileSync(
-  resolve(repositoryRoot, "app/(dashboard)/projects/[id]/page.tsx"),
+const projectWorkspaceClientSource = readFileSync(
+  resolve(repositoryRoot, "components/projects/ProjectWorkspaceClient.tsx"),
   "utf8",
 );
 const projectAssetsRouteSource = readFileSync(
@@ -127,16 +127,14 @@ test("review dock exposes live session readiness without fake screenshare", () =
   assert.match(cockpitSource, /<header><h2>Live session<\/h2><button type="button" onClick=\{\(\) => router\.push\(systemsHref\)\}>Systems<\/button><\/header>/);
   assert.match(cockpitSource, /aria-label="Live collaboration readiness"/);
   assert.match(cockpitSource, /aria-label="Live session controls"/);
-  assert.match(cockpitSource, /<button type="button" disabled aria-disabled="true">\s*Start screen share\s*<\/button>/);
+  assert.doesNotMatch(cockpitSource, /Start screen share/);
   assert.match(globalStyles, /\.cockpit-live-session \{/);
-  assert.match(globalStyles, /\.cockpit-live-actions \{[\s\S]*?grid-template-columns: repeat\(2, minmax\(0, 1fr\)\);/);
+  assert.match(globalStyles, /\.cockpit-live-actions \{[\s\S]*?grid-template-columns: minmax\(0, 1fr\);/);
   const controlsStart = cockpitSource.indexOf('aria-label="Live session controls"');
   assert.notEqual(controlsStart, -1, "live controls are missing");
   const controlsEnd = cockpitSource.indexOf("</div>\n                        </section>", controlsStart);
   const liveControls = cockpitSource.slice(controlsStart, controlsEnd);
   assert.match(liveControls, /Pin comment/);
-  assert.match(liveControls, /Start screen share/);
-  assert.doesNotMatch(liveControls, /Start screen share[\s\S]*?onClick=/);
 });
 
 test("operator dock tabs stay compact instead of exposing crowded labels by viewport", () => {
@@ -190,11 +188,11 @@ test("production project routes render exactly one application shell", () => {
 });
 
 test("project transitions clear stale data and cancel superseded requests", () => {
-  assert.match(projectPageSource, /const controller = new AbortController\(\)/);
-  assert.match(projectPageSource, /setRemoteProject\(null\)/);
-  assert.match(projectPageSource, /setRemoteAssets\(\[\]\)/);
-  assert.match(projectPageSource, /projectPayload\.id !== id/);
-  assert.match(projectPageSource, /controller\.abort\(\)/);
+  assert.match(projectWorkspaceClientSource, /const controller = new AbortController\(\)/);
+  assert.match(projectWorkspaceClientSource, /setRemoteProject\(null\)/);
+  assert.match(projectWorkspaceClientSource, /setRemoteAssets\(\[\]\)/);
+  assert.match(projectWorkspaceClientSource, /projectPayload\.id !== id/);
+  assert.match(projectWorkspaceClientSource, /controller\.abort\(\)/);
 });
 
 test("production asset detail is committed only to its matching selected asset", () => {
@@ -248,10 +246,10 @@ test("demo upload terminal states stay readable and dismissible", () => {
   assert.match(cockpitSource, /A new version is now available in Project Browser and Version history/);
   assert.match(cockpitSource, /No version was added\. Retry from Upload when the issue is fixed/);
   assert.match(cockpitSource, /Review new version/);
-  assert.match(projectPageSource, /let keepTerminalStatus = false/);
-  assert.match(projectPageSource, /keepTerminalStatus = true/);
-  assert.match(projectPageSource, /function dismissUploadStatus\(\)/);
-  assert.match(projectPageSource, /onUploadDismiss=\{dismissUploadStatus\}/);
+  assert.match(projectWorkspaceClientSource, /let keepTerminalStatus = false/);
+  assert.match(projectWorkspaceClientSource, /keepTerminalStatus = true/);
+  assert.match(projectWorkspaceClientSource, /function dismissUploadStatus\(\)/);
+  assert.match(projectWorkspaceClientSource, /onUploadDismiss=\{dismissUploadStatus\}/);
   assert.match(globalStyles, /\.cockpit-upload-close \{/);
   assert.match(globalStyles, /section\[data-state="complete"\] footer > button/);
 });

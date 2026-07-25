@@ -129,6 +129,7 @@ interface ProjectCockpitProps {
 type CockpitApprovalStage = Omit<DemoApprovalStage, "status"> & { status: string };
 
 export interface CockpitUploadStatus {
+  assetId?: string;
   fileName: string;
   progress: number;
   phase: "validating" | "transferring" | "proxy" | "indexing" | "complete" | "error";
@@ -250,6 +251,43 @@ function EmptyState({ title, body }: { title: string; body: string }) {
       <span>{body}</span>
     </div>
   );
+}
+
+function isLocalUploadAsset(asset: MediaAsset | undefined): boolean {
+  return Boolean(asset?.id.startsWith("local-upload-"));
+}
+
+function ProjectAssetThumbnail({
+  asset,
+  demoMode,
+  alt = "",
+  width = 56,
+  height = 32,
+  fill = false,
+  showFallback = true,
+}: {
+  asset: MediaAsset;
+  demoMode: boolean;
+  alt?: string;
+  width?: number;
+  height?: number;
+  fill?: boolean;
+  showFallback?: boolean;
+}) {
+  const storedThumbnailUrl = useDemoMediaObjectUrl(asset.demo_thumbnail_id ?? null);
+  const source = asset.thumbnail_url
+    ?? storedThumbnailUrl
+    ?? (demoMode && !isLocalUploadAsset(asset) ? "/demo/ceraweek-speaker.jpg" : null);
+
+  if (!source) {
+    return showFallback ? <span aria-hidden="true"><Play size={16} /></span> : null;
+  }
+
+  if (fill) {
+    return <Image src={source} alt={alt} fill sizes="320px" unoptimized />;
+  }
+
+  return <Image src={source} alt={alt} width={width} height={height} unoptimized />;
 }
 
 function recordString(record: Record<string, unknown>, key: string, fallback = "") {
@@ -486,10 +524,14 @@ export default function ProjectCockpit({
   const [liveShareLinks, setLiveShareLinks] = useState<DemoShareLink[]>([]);
   const activeAsset = assets.find((asset) => asset.id === activeAssetId) ?? assets[0];
   const demoMediaUrl = useDemoMediaObjectUrl(activeAsset?.id ?? null);
+  const demoPosterUrl = useDemoMediaObjectUrl(activeAsset?.demo_thumbnail_id ?? null);
+  const localUploadActive = isLocalUploadAsset(activeAsset);
   const activeMediaUrl = demoMode
-    ? demoMediaUrl ?? "/demo/ica-ceo-preview.mp4"
+    ? demoMediaUrl ?? (localUploadActive ? null : "/demo/ica-ceo-preview.mp4")
     : activeAsset?.file_url ?? null;
-  const activePosterUrl = activeAsset?.thumbnail_url ?? (demoMode ? "/demo/ceraweek-speaker.jpg" : null);
+  const activePosterUrl = activeAsset?.thumbnail_url
+    ?? demoPosterUrl
+    ?? (demoMode && !localUploadActive ? "/demo/ceraweek-speaker.jpg" : null);
   const duration = Math.max(1, nativeDuration || activeAsset?.duration_seconds || (demoMode ? 5 : 1));
   const previewDuration = demoMode
     ? activeAsset?.id === "denie-mcdonald-v4"
@@ -1475,6 +1517,19 @@ export default function ProjectCockpit({
 
   const uploadTerminal =
     uploadStatus?.phase === "complete" || uploadStatus?.phase === "error";
+  const uploadSteps: Array<[CockpitUploadStatus["phase"], string]> =
+    uploadStatus?.mode === "demo"
+      ? [
+          ["validating", "Read selected media"],
+          ["transferring", "Store local source"],
+          ["indexing", "Register project record"],
+        ]
+      : [
+          ["validating", "Validate media"],
+          ["transferring", "Transfer to media storage"],
+          ["proxy", "Prepare review proxy"],
+          ["indexing", "Index project metadata"],
+        ];
 
   return (
     <div
@@ -1547,16 +1602,12 @@ export default function ProjectCockpit({
             <div className="cockpit-search-results">
               {filteredAssets.map((asset) => (
                 <button key={asset.id} type="button" onClick={() => selectAsset(asset)}>
-                  {asset.thumbnail_url || demoMode ? (
-                    <Image
-                      src={asset.thumbnail_url ?? "/demo/ceraweek-speaker.jpg"}
-                      alt=""
-                      width={46}
-                      height={30}
-                    />
-                  ) : (
-                    <span aria-hidden="true"><Play size={16} /></span>
-                  )}
+                  <ProjectAssetThumbnail
+                    asset={asset}
+                    demoMode={demoMode}
+                    width={46}
+                    height={30}
+                  />
                   <span>{asset.title}</span>
                 </button>
               ))}
@@ -2125,9 +2176,6 @@ export default function ProjectCockpit({
                             >
                               Pin comment
                             </button>
-                            <button type="button" disabled aria-disabled="true">
-                              Start screen share
-                            </button>
                           </div>
                         </section>
 
@@ -2161,11 +2209,7 @@ export default function ProjectCockpit({
                                 onClick={() => selectAsset(asset)}
                                 title={`${asset.title} — ${formatAssetStatus(asset.status)}`}
                               >
-                                {asset.thumbnail_url || demoMode ? (
-                                  <Image src={asset.thumbnail_url ?? "/demo/ceraweek-speaker.jpg"} alt="" width={56} height={32} unoptimized />
-                                ) : (
-                                  <span aria-hidden="true"><Play size={14} /></span>
-                                )}
+                                <ProjectAssetThumbnail asset={asset} demoMode={demoMode} />
                                 <span>
                                   <strong>{asset.title}</strong>
                                   <small>{formatAssetStatus(asset.status)}</small>
@@ -2281,7 +2325,13 @@ export default function ProjectCockpit({
                   {assets.map((asset) => (
                     <article key={asset.id}>
                       <button type="button" className="cockpit-media-thumb" onClick={() => { selectAsset(asset); selectSection("overview"); }}>
-                        {asset.thumbnail_url || demoMode ? <Image src={asset.thumbnail_url ?? "/demo/ceraweek-speaker.jpg"} alt={asset.title} fill sizes="320px" unoptimized /> : null}
+                        <ProjectAssetThumbnail
+                          asset={asset}
+                          demoMode={demoMode}
+                          alt={asset.title}
+                          fill
+                          showFallback={false}
+                        />
                         <Play size={24} fill="currentColor" />
                       </button>
                       <div><strong>{asset.title}</strong><span>{versionLabel(asset, demoMode)}</span><small>{asset.comment_count ?? 0} comments</small></div>
@@ -2448,15 +2498,10 @@ export default function ProjectCockpit({
             <div className="cockpit-upload-progress-copy">
               <span>{uploadStatus.message ?? "Keep this window open while Co‑ProVideo prepares the review asset."}</span>
               <b>{uploadStatus.progress}%</b>
-            </div>
-            <ol className="cockpit-upload-steps">
-              {[
-                ["validating", "Validate media"],
-                ["transferring", uploadStatus.mode === "demo" ? "Register local preview" : "Transfer to media storage"],
-                ["proxy", "Prepare review proxy"],
-                ["indexing", "Index project metadata"],
-              ].map(([phase, label], index, all) => {
-                const currentIndex = all.findIndex(([candidate]) => candidate === uploadStatus.phase);
+                </div>
+                <ol className="cockpit-upload-steps">
+                  {uploadSteps.map(([phase, label], index, all) => {
+                    const currentIndex = all.findIndex(([candidate]) => candidate === uploadStatus.phase);
                 const complete = uploadStatus.phase === "complete" || currentIndex > index;
                 const current = currentIndex === index;
                 return (
@@ -2471,11 +2516,13 @@ export default function ProjectCockpit({
               <span>{uploadStatus.completed} of {uploadStatus.total} file{uploadStatus.total === 1 ? "" : "s"} prepared</span>
               {uploadStatus.mode === "demo" ? (
                 <small>
-                  {uploadStatus.phase === "complete"
-                    ? "A new version is now available in Project Browser and Version history."
-                    : uploadStatus.phase === "error"
-                      ? "No version was added. Retry from Upload when the issue is fixed."
-                      : "Preview mode uses browser-local media storage when available; production uses the configured CCNAS or cloud media authority."}
+                      {uploadStatus.phase === "complete"
+                        ? "A new version is now available in Project Browser and Version history."
+                        : uploadStatus.phase === "error"
+                          ? uploadStatus.completed > 0
+                            ? `${uploadStatus.completed} file${uploadStatus.completed === 1 ? " was" : "s were"} stored before this upload stopped. Retry the remaining media from Upload.`
+                            : "No version was added. Retry from Upload when the issue is fixed."
+                          : "Preview mode uses browser-local media storage when available; production uses the configured CCNAS or cloud media authority."}
                 </small>
               ) : null}
               {uploadTerminal && onUploadDismiss ? (

@@ -466,6 +466,7 @@ export default function ProjectCockpit({
     return Number.isFinite(saved) && saved > 0 ? normalizeReviewSeekStep(saved) : 2;
   });
   const [commentStatus, setCommentStatus] = useState<"open" | "resolved">("open");
+  const [expandedCommentIds, setExpandedCommentIds] = useState<ReadonlySet<string>>(new Set());
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [mobileDockOpen, setMobileDockOpen] = useState(false);
   const [commandOpen, setCommandOpen] = useState(false);
@@ -2162,21 +2163,45 @@ export default function ProjectCockpit({
                             <button type="button" className={commentStatus === "resolved" ? "active" : ""} onClick={() => setCommentStatus("resolved")}>Resolved ({comments.filter((comment) => comment.status === "resolved").length})</button>
                           </div>
                           <div className="cockpit-comment-list">
-                            {visibleComments.slice(0, 4).map((comment) => (
-                              <article key={comment.id}>
-                                <button type="button" onClick={() => seekTo(comment.time_seconds)}>{formatShortClock(comment.time_seconds)}</button>
-                                <div><strong>{comment.author_name}</strong><p>{comment.body}</p></div>
-                                <button
-                                  type="button"
-                                  className="cockpit-resolve"
-                                  onClick={() => void toggleCommentStatus(comment)}
-                                  title={comment.status === "open" ? "Resolve comment" : "Reopen comment"}
-                                  aria-label={comment.status === "open" ? "Resolve comment" : "Reopen comment"}
-                                >
-                                  {comment.status === "open" ? <Circle size={14} /> : <Check size={14} />}
-                                </button>
-                              </article>
-                            ))}
+                            {visibleComments.slice(0, 4).map((comment) => {
+                              const expanded = expandedCommentIds.has(comment.id);
+                              const clampable = comment.body.length > 140;
+                              return (
+                                <article key={comment.id}>
+                                  <button type="button" onClick={() => seekTo(comment.time_seconds)}>{formatShortClock(comment.time_seconds)}</button>
+                                  <div>
+                                    <strong>{comment.author_name}</strong>
+                                    <p className={expanded ? undefined : "cockpit-comment-clamped"}>{comment.body}</p>
+                                    {clampable || expanded ? (
+                                      <button
+                                        type="button"
+                                        className="cockpit-comment-expand"
+                                        aria-expanded={expanded}
+                                        onClick={() =>
+                                          setExpandedCommentIds((current) => {
+                                            const next = new Set(current);
+                                            if (next.has(comment.id)) next.delete(comment.id);
+                                            else next.add(comment.id);
+                                            return next;
+                                          })
+                                        }
+                                      >
+                                        {expanded ? "Show less" : "Read full comment"}
+                                      </button>
+                                    ) : null}
+                                  </div>
+                                  <button
+                                    type="button"
+                                    className="cockpit-resolve"
+                                    onClick={() => void toggleCommentStatus(comment)}
+                                    title={comment.status === "open" ? "Resolve comment" : "Reopen comment"}
+                                    aria-label={comment.status === "open" ? "Resolve comment" : "Reopen comment"}
+                                  >
+                                    {comment.status === "open" ? <Circle size={14} /> : <Check size={14} />}
+                                  </button>
+                                </article>
+                              );
+                            })}
                             {visibleComments.length === 0 ? <p className="cockpit-rail-empty">No {commentStatus} comments.</p> : null}
                           </div>
                           <button

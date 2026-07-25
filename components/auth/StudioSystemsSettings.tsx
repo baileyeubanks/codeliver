@@ -411,6 +411,39 @@ export default function StudioSystemsSettings({
 }) {
   const online = useOnlineStatus();
   const [activeSystemsGroup, setActiveSystemsGroup] = useState<SystemsGroup>("All");
+  const [healthProbe, setHealthProbe] = useState<{
+    state: "idle" | "loading" | "ready" | "degraded";
+    detail: string;
+  }>({ state: "idle", detail: "" });
+
+  // Run the readiness probe inline so operators never leave Settings for a
+  // raw-JSON page. The result states exactly what the route returned.
+  async function runHealthProbe() {
+    setHealthProbe({ state: "loading", detail: "" });
+    try {
+      const response = await fetch("/api/health/ready", { cache: "no-store" });
+      const payload: unknown = await response.json().catch(() => null);
+      if (response.ok) {
+        setHealthProbe({
+          state: "ready",
+          detail: "Readiness probe passed — data and storage dependencies respond.",
+        });
+        return;
+      }
+      const failed = payload && typeof payload === "object" && Array.isArray((payload as { failedDependencies?: unknown }).failedDependencies)
+        ? ((payload as { failedDependencies: unknown[] }).failedDependencies).filter((item): item is string => typeof item === "string")
+        : [];
+      const code = payload && typeof payload === "object" && typeof (payload as { code?: unknown }).code === "string"
+        ? String((payload as { code: string }).code)
+        : "";
+      setHealthProbe({
+        state: "degraded",
+        detail: `Readiness probe returned ${response.status}${failed.length ? ` — failing: ${failed.join(", ")}` : ""}${code ? ` (${code})` : ""}.`,
+      });
+    } catch {
+      setHealthProbe({ state: "degraded", detail: "Readiness probe unreachable." });
+    }
+  }
 
   const readiness = useMemo(() => {
     const capabilities = CO_PRODUCE_CAPABILITY_GROUPS.reduce<CoProduceCapability[]>(
@@ -564,9 +597,27 @@ export default function StudioSystemsSettings({
               </button>
             ))}
           </div>
-          <a className={styles.systemsHealthLink} href="/api/health/ready">
-            <BadgeCheck size={14} aria-hidden="true" /> Health check
-          </a>
+          <div className={styles.systemsHealthProbe}>
+            <button
+              className={styles.systemsHealthLink}
+              type="button"
+              onClick={() => void runHealthProbe()}
+              disabled={healthProbe.state === "loading"}
+            >
+              <BadgeCheck size={14} aria-hidden="true" />
+              {healthProbe.state === "loading" ? "Probing…" : "Health check"}
+            </button>
+            {healthProbe.state === "ready" || healthProbe.state === "degraded" ? (
+              <StatusBadge tone={healthProbe.state === "ready" ? "good" : "warn"}>
+                {healthProbe.state === "ready" ? "Ready" : "Degraded"}
+              </StatusBadge>
+            ) : null}
+            {healthProbe.detail ? (
+              <small className={styles.systemsHealthProbeDetail} role="status">
+                {healthProbe.detail}
+              </small>
+            ) : null}
+          </div>
         </div>
       </SettingsSection>
 

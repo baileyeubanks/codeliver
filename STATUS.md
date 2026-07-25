@@ -198,6 +198,55 @@ wiring (`lib/demo/DemoThemeSync.tsx`, `IdentitySettings.tsx` copy change), not
 from P12; P12 files alone leave every test they touch green · `npm run build`
 pass.
 
+## P10 — Responsive + accessibility pass (2026-07-25)
+
+Re-verified every responsive/a11y finding against the post-P12 UI before
+touching anything: D21 (mobile/iPad cockpit overflow) and D24 (dead project
+switcher) were already fixed by the P12 reskin — regression proofs now lock
+them in (`~/covideopro-visual-audit/regressions/p10/`, 12/12 + 3/3 PASS at
+390/768/1440).
+
+- D22 focus-visible (WCAG 2.4.7): one design-system ring token
+  (`--cvp-focus-ring`/`--cvp-focus-ring-offset` in `app/brand-tokens.css`)
+  backs the global `:focus-visible` rule in `app/globals.css`; the real bug
+  was ~11 CSS-module rules that grouped `:focus-visible` with `:hover` and
+  zeroed the outline (rail nav, dock tabs, toolbar menus, drawers, command
+  palette). Those `outline: 0` declarations are removed so the global token
+  applies everywhere instead of per-button hacks. Proof: Tab walk lands on
+  rail "Overview" with a 2px brand-blue ring (`d22-focus-visible.mjs`, 2/2).
+- D23 touch targets (WCAG 2.5.5): a coarse-pointer/≤900px block in
+  `app/globals.css` enforces 44px minimum hit area on the named offenders —
+  cockpit project `select` (was 18px), `.cockpit-action-primary` Upload
+  (was 20px), all `input[type="range"]` (seek slider was 16px), cockpit
+  icon/avatar buttons (were 28–36px) — with the ≤640px/≤390px breakpoint
+  rules retuned to match. Proof: `d23-touch-targets.mjs` 4/4 at 390px, and
+  D21's 12/12 still passes (no overflow reintroduced).
+- Truth minors, each with a live proof in `minors.mjs` (9/9 PASS):
+  favicon.ico 308→`icon.svg` (was 404 every load); degraded-storage banner in
+  the workspace shell when `/api/health/ready` 503s (sticky, reuses the
+  offline-notice slot); failed login clears the password field; demo login no
+  longer blocks one-click entry behind required fields (`required={!demoMode}`);
+  `/settings?section=bogus` rewrites to `section=account` with an explanatory
+  notice; Systems "Health check" probes `/api/health/ready` inline with a
+  Ready/Degraded badge instead of navigating to raw JSON; `/reviews` hydration
+  mismatch eliminated (public-link origin now SSR-stable, adopted from
+  `window.location.origin` only after mount); login trust chips wrap instead
+  of truncating at 1440; rail comments clamp to 3 lines with an honest
+  "Read full comment"/"Show less" toggle; rail nav labels (workspace rail +
+  cockpit rail) carry `title` tooltips for truncated text; mobile toasts dock
+  above the 58px bottom bar instead of covering it.
+- Deferred with reason: hover edit/delete on rail comments (resolve/reopen
+  already exists; edit/delete need real demo-store mutations and confirm
+  flows — not a trivial stub). The "1 Issue" pill from the old audit was the
+  Next.js dev-overlay indicator, not app UI. Signup confirm-password eye
+  toggle and Systems pill filtering were verified already working (one toggle
+  governs both password fields; pills filter 16→2 rows live).
+
+Proof: `~/covideopro-visual-audit/regressions/p10/` — d21 12/12, d22 2/2,
+d23 4/4, d24 3/3, minors 9/9, all on :4115 with screenshots in `shots/`.
+Harness: `git diff --check` pass · typecheck 0 errors · lint 0 errors
+(40 pre-existing warnings) · `npm test` 741/741 · `npm run build` pass.
+
 ## Audit Finding Dispositions (handoff section 11)
 
 | ID | Item | Disposition |
@@ -276,12 +325,13 @@ commands that would prove the blocked items are in `BLOCKERS.md`.
   Accepted: framework-level, leaks nothing; 405 would be nicer but is Next's default.
 - Commit 2d57b7b fixed a verifier false positive (login return-path echo).
 
-## P10 — Responsive + accessibility sweep (D21–D24 + minors)
+## P10 — Responsive + accessibility sweep summary
 
-- D21: mobile/iPad cockpit overflow fixed (tab row, avatar overlap, card width) — 12/12 regression checks
-- D22: global focus-visible system (brand-blue outline) across rail/cockpit/workspace nav
-- D23: 44px touch-target floor on coarse pointers for cockpit + nav controls
-- D24: project switcher functional and measurable
-- Review route: getReviewInviteByToken throws now map to BackendUnavailableError (no masked 500s)
-- Minors: favicon.ico route, /reviews hydration-safe origin + share-link handling, settings unknown-section redirect + notice, login one-click demo path, auth-shell trust chips, comment clamp, tooltip coverage
-- Regressions: ~/covideopro-visual-audit/regressions/p10 — all PASS. Harness: typecheck 0, lint 0, 741/741, build green.
+Detailed entry above (before "Audit Finding Dispositions"). Note: commit
+9c86f22 also swept in a concurrent P9-session hardening —
+`getReviewInviteByToken` throws now map to `BackendUnavailableError` in
+`app/review/[token]/page.tsx` so a misconfigured backend never masquerades
+as a missing record. P10 regressions:
+`~/covideopro-visual-audit/regressions/p10/` — d21 12/12, d22 2/2, d23 4/4,
+d24 3/3, minors 9/9. Harness: typecheck 0 errors, lint 0 errors, 741/741,
+build green.

@@ -833,6 +833,27 @@
   min-height: 34px;
   padding: 0 10px;
   color: var(--blue);
+  cursor: pointer;
+}
+
+.systemsHealthLink:disabled {
+  cursor: progress;
+  opacity: 0.7;
+}
+
+.systemsHealthProbe {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.systemsHealthProbeDetail {
+  flex-basis: 100%;
+  color: var(--muted);
+  font-size: 10px;
+  text-align: right;
 }
 
 .systemsCapabilityList {

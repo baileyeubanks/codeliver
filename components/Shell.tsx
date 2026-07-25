@@ -8,6 +8,7 @@ import {
   BriefcaseBusiness,
   ChevronDown,
   CircleHelp,
+  DatabaseZap,
   Film,
   LogOut,
   Menu,
@@ -86,6 +87,7 @@ export default function Shell({ children }: { children: React.ReactNode }) {
   const [navigationOpen, setNavigationOpen] = useState(false);
   const [remoteSession, setRemoteSession] = useState<RemoteSession | null>(null);
   const [remoteNotifications, setRemoteNotifications] = useState<RemoteNotification[]>([]);
+  const [storageDegraded, setStorageDegraded] = useState(false);
   const isProjectCockpit = /^\/projects\/(?!new$|archive$|trash$)[^/]+$/.test(pathname);
   // Remote identity and role come from the authenticated session; until it
   // resolves (or if it fails) the shell stays fail-closed at viewer.
@@ -223,6 +225,17 @@ export default function Shell({ children }: { children: React.ReactNode }) {
 
     return () => controller.abort();
   }, [demoSuffix, isProjectCockpit]);
+
+  // Readiness probe: when the storage/data layer cannot answer honestly,
+  // say so in the shell instead of letting saves fail silently.
+  useEffect(() => {
+    if (isProjectCockpit) return;
+    const controller = new AbortController();
+    void fetch("/api/health/ready", { cache: "no-store", signal: controller.signal })
+      .then((response) => setStorageDegraded(!response.ok))
+      .catch(() => setStorageDegraded(true));
+    return () => controller.abort();
+  }, [isProjectCockpit]);
 
   useEffect(() => {
     if (isProjectCockpit) return;
@@ -466,6 +479,11 @@ export default function Shell({ children }: { children: React.ReactNode }) {
           {!online ? (
             <div className={styles.offlineNotice} role="status">
               <WifiOff size={15} /> Offline. Changes that require the server are paused.
+            </div>
+          ) : null}
+          {storageDegraded ? (
+            <div className={styles.offlineNotice} role="status">
+              <DatabaseZap size={15} /> Backend storage is unreachable — work stays in this browser until the readiness probe recovers.
             </div>
           ) : null}
           <div className={styles.content}>{children}</div>

@@ -1,8 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { Archive, ExternalLink, MoreHorizontal, Share2, Trash2, Users } from "lucide-react";
+import { useOverlay } from "@/components/overlay/useOverlay";
 import type { MediaAsset } from "./MediaCard";
 
 function timeAgo(iso: string) {
@@ -52,6 +53,14 @@ export default function MediaTable({
   onTrash,
 }: MediaTableProps) {
   const [openAssetId, setOpenAssetId] = useState<string | null>(null);
+  const menuAnchorRef = useRef<HTMLButtonElement>(null);
+  const [rowMenuOverlayRef, rowMenuOverlayStyle] = useOverlay({
+    open: openAssetId !== null,
+    onClose: () => setOpenAssetId(null),
+    anchorRef: menuAnchorRef,
+    align: "end",
+    offset: 6,
+  });
 
   return (
     <div className="table-container">
@@ -138,6 +147,7 @@ export default function MediaTable({
                 </td>
                 <td className="media-row-actions relative">
                   <button
+                    ref={openAssetId === asset.id ? menuAnchorRef : undefined}
                     className="btn-icon"
                     style={{ width: 28, height: 28 }}
                     title={`Actions for ${asset.title}`}
@@ -148,7 +158,11 @@ export default function MediaTable({
                     <MoreHorizontal size={14} />
                   </button>
                   {openAssetId === asset.id ? (
-                    <div className="dropdown" style={{ right: 6, top: 34, minWidth: 190 }}>
+                    <div
+                      ref={rowMenuOverlayRef}
+                      className="dropdown"
+                      style={{ ...rowMenuOverlayStyle, minWidth: 190 }}
+                    >
                       <Link href={assetHref} className="dropdown-item">
                         <ExternalLink size={14} /> Open review
                       </Link>

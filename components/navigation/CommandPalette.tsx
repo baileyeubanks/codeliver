@@ -85,6 +85,7 @@ export default function CommandPalette({
           <Search size={19} aria-hidden="true" />
           <input
             ref={inputRef}
+            autoFocus
             value={query}
             onChange={(event) => {
               setQuery(event.target.value);

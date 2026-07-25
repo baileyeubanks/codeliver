@@ -34,12 +34,12 @@ export function useDialogFocus(
     const previousOverflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
 
-    const focusFrame = window.requestAnimationFrame(() => {
-      const target = initialFocusRef?.current
-        ?? dialogRef.current?.querySelector<HTMLElement>(FOCUSABLE_SELECTOR)
-        ?? dialogRef.current;
-      target?.focus({ preventScroll: true });
-    });
+    // Focus synchronously: a deferred (rAF) focus leaves a window where
+    // keystrokes typed right after opening land on the trigger instead.
+    const focusTarget = initialFocusRef?.current
+      ?? dialogRef.current?.querySelector<HTMLElement>(FOCUSABLE_SELECTOR)
+      ?? dialogRef.current;
+    focusTarget?.focus({ preventScroll: true });
 
     function handleKeyDown(event: KeyboardEvent) {
       if (event.key === "Escape") {
@@ -73,7 +73,6 @@ export function useDialogFocus(
 
     document.addEventListener("keydown", handleKeyDown);
     return () => {
-      window.cancelAnimationFrame(focusFrame);
       document.removeEventListener("keydown", handleKeyDown);
       document.body.style.overflow = previousOverflow;
       const returnTarget = returnFocusRef?.current ?? previouslyFocused;

@@ -1,6 +1,6 @@
 "use client";
 
-import { type ReactNode, useEffect, useMemo, useState } from "react";
+import { type ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import {
   Calendar,
   Check,
@@ -15,6 +15,7 @@ import {
   X,
 } from "lucide-react";
 import ShareLinkList from "@/components/sharing/ShareLinkList";
+import { useDialogFocus } from "@/components/navigation/useDialogFocus";
 import ShareAuthorityPreview from "@/components/sharing/ShareAuthorityPreview";
 import NotificationAuthorityControl, {
   EMPTY_NOTIFICATION_AUTHORITY,
@@ -152,6 +153,10 @@ function ShareModalContent({
   previewMode = false,
   onClose,
 }: ShareModalContentProps) {
+  // Always rendered "open" — focus moves into the dialog on mount, returns
+  // to the trigger on close, and Escape is owned by useDialogFocus.
+  const dialogRef = useRef<HTMLDivElement>(null);
+  useDialogFocus(true, dialogRef, onClose);
   const clientReviewDefaults = resolveShareIntentDefaults("client_review");
   const [shareIntent, setShareIntent] = useState<ShareIntent>("client_review");
   const [link, setLink] = useState("");
@@ -468,6 +473,7 @@ function ShareModalContent({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-[rgba(18,29,42,0.34)] px-4 py-6 backdrop-blur-[2px]">
       <div
+        ref={dialogRef}
         className="max-h-[92vh] w-full max-w-5xl overflow-y-auto rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface)] shadow-2xl"
         role="dialog"
         aria-modal="true"

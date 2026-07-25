@@ -19,6 +19,7 @@ import {
   WifiOff,
 } from "lucide-react";
 import CommandPalette, { type CommandPaletteItem } from "./navigation/CommandPalette";
+import { useOverlay } from "./overlay/useOverlay";
 import CoProductionBrand from "./brand/CoProductionBrand";
 import WorkspaceNavigation from "./navigation/WorkspaceNavigation";
 import WorkspaceRail from "./navigation/WorkspaceRail";
@@ -91,11 +92,23 @@ export default function Shell({ children }: { children: React.ReactNode }) {
   const workspaceRole: WorkspaceRole = demoSuffix
     ? (demoWorkspace.session.role ?? "owner")
     : (remoteSession?.role ?? "viewer");
-  const accountRef = useRef<HTMLDivElement>(null);
-  const notificationRef = useRef<HTMLDivElement>(null);
   const accountButtonRef = useRef<HTMLButtonElement>(null);
   const notificationButtonRef = useRef<HTMLButtonElement>(null);
   const commandButtonRef = useRef<HTMLButtonElement>(null);
+  const [notificationsOverlayRef, notificationsOverlayStyle] = useOverlay({
+    open: notificationsOpen,
+    onClose: () => setNotificationsOpen(false),
+    anchorRef: notificationButtonRef,
+    align: "end",
+    offset: 12,
+  });
+  const [accountOverlayRef, accountOverlayStyle] = useOverlay({
+    open: accountOpen,
+    onClose: () => setAccountOpen(false),
+    anchorRef: accountButtonRef,
+    align: "end",
+    offset: 12,
+  });
   const profileName = demoSuffix
     ? `${demoWorkspace.settings.profile.firstName} ${demoWorkspace.settings.profile.lastName}`.trim()
     : (remoteSession?.displayName ?? remoteSession?.email ?? "Workspace member");
@@ -212,41 +225,23 @@ export default function Shell({ children }: { children: React.ReactNode }) {
   }, [demoSuffix, isProjectCockpit]);
 
   useEffect(() => {
-    function handleClick(event: MouseEvent) {
-      const target = event.target as Node;
-      if (accountRef.current && !accountRef.current.contains(target)) setAccountOpen(false);
-      if (notificationRef.current && !notificationRef.current.contains(target)) setNotificationsOpen(false);
-    }
-    document.addEventListener("mousedown", handleClick);
-    return () => document.removeEventListener("mousedown", handleClick);
-  }, []);
-
-  useEffect(() => {
     if (isProjectCockpit) return;
 
     function handleKeyDown(event: KeyboardEvent) {
+      // Popover Escape/outside-click dismissal is owned by useOverlay's
+      // dismiss stack; only the command-palette shortcut lives here.
       if ((event.metaKey || event.ctrlKey) && event.key.toLocaleLowerCase() === "k") {
         event.preventDefault();
         setAccountOpen(false);
         setNotificationsOpen(false);
         setNavigationOpen(false);
         setCommandOpen(true);
-        return;
-      }
-
-      if (event.key !== "Escape") return;
-      if (accountOpen) {
-        setAccountOpen(false);
-        accountButtonRef.current?.focus();
-      } else if (notificationsOpen) {
-        setNotificationsOpen(false);
-        notificationButtonRef.current?.focus();
       }
     }
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [accountOpen, isProjectCockpit, notificationsOpen]);
+  }, [isProjectCockpit]);
 
   async function handleLogout() {
     if (demoSuffix) {
@@ -338,7 +333,7 @@ export default function Shell({ children }: { children: React.ReactNode }) {
             <CircleHelp size={19} />
           </a>
 
-          <div className="workspace-popover-anchor" ref={notificationRef}>
+          <div className="workspace-popover-anchor">
             <button
               ref={notificationButtonRef}
               className="workspace-icon-button"
@@ -354,7 +349,14 @@ export default function Shell({ children }: { children: React.ReactNode }) {
               <Bell size={19} />
             </button>
             {notificationsOpen ? (
-              <div id="workspace-notifications" className="workspace-popover workspace-notifications" role="region" aria-label="Notifications">
+              <div
+                ref={notificationsOverlayRef}
+                style={notificationsOverlayStyle}
+                id="workspace-notifications"
+                className="workspace-popover workspace-notifications"
+                role="region"
+                aria-label="Notifications"
+              >
                 <header>
                   <strong>Notifications</strong>
                   <Link href={withWorkspaceQuery("/activity", demoSuffix)}>View all</Link>
@@ -393,7 +395,7 @@ export default function Shell({ children }: { children: React.ReactNode }) {
             ) : null}
           </div>
 
-          <div className="workspace-popover-anchor" ref={accountRef}>
+          <div className="workspace-popover-anchor">
             <button
               ref={accountButtonRef}
               className="workspace-account-button"
@@ -411,6 +413,8 @@ export default function Shell({ children }: { children: React.ReactNode }) {
             </button>
             {accountOpen ? (
               <div
+                ref={accountOverlayRef}
+                style={accountOverlayStyle}
                 id="workspace-account-menu"
                 className="workspace-popover workspace-account-menu"
                 role="navigation"

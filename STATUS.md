@@ -30,6 +30,40 @@ Command set: `git diff --check && npm run typecheck && npm run lint && npm test 
 
 Do not cite the older 664/664 or 696/696 runs as current truth.
 
+## P6 — One shared overlay system (2026-07-25)
+
+One overlay primitive (`components/overlay/`: `useOverlay` + `overlay-position`)
+now backs every popover/menu: collision-aware flip+shift positioning, a global
+dismiss stack (Escape closes topmost, outside pointer-down closes, both
+independent of focus location), and focus-into/return on dialogs. Fixed the 7
+verified swarm defects:
+
+- D1 cockpit header action cluster off-viewport (Share at x=−111): the demo
+  stage chip was a 5th child in a 4-track header grid; grid gained an explicit
+  chip track at all three breakpoints (`app/globals.css`).
+- D2 public review playback-speed menu never dismissed: adopted `useOverlay`
+  in `components/player/PlayerControls.tsx`.
+- D3 Escape dead on Notifications/Account when an input held focus: cockpit
+  keydown guard skipped inputs; dismissal moved into the overlay stack.
+- D4 last-row `...` menu clipped at viewport bottom: `MediaTable` row menu now
+  flips up via `useOverlay`.
+- D5 Tab landed on offscreen Share/Upload (x=−112): same grid root cause as D1.
+- D6 Share dialog never received focus: `DemoShareModal`/`ShareModal` now use
+  `useDialogFocus` (focus in on open, return to trigger on close).
+- D7 palette input focus raced keystrokes (rAF-deferred): `useDialogFocus`
+  focuses synchronously and the palette input is `autoFocus`.
+
+Proof: 7 Playwright regressions in `~/covideopro-visual-audit/regressions/p6/`
+(0/7 → 7/7 PASS on :4115, before/after screenshots in `shots/`), plus
+`tests/overlay-position.test.ts` (7 positioning-math units). Harness after P6:
+`git diff --check` pass · typecheck 0 errors · lint 0 errors (40 pre-existing
+warnings) · `npm test` 728/729 — the one failure (`exterior-states.test.ts`
+ENOENT on `app/loading.tsx`) comes from a concurrent P9 session's uncommitted
+deletion of that file, not from P6 · `npm run build` pass.
+Concurrency note: a parallel session committed `components/projects/ProjectCockpit.tsx`
+and `app/globals.css` hunks (P6's overlay/grid edits included) inside c65d460;
+the remaining P6 files are committed separately.
+
 ## Audit Finding Dispositions (handoff section 11)
 
 | ID | Item | Disposition |

@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { useEffect, useMemo, useState, type ComponentType } from "react";
+import { useMemo, useRef, useState, type ComponentType } from "react";
 import {
   Check,
   CheckCircle2,
@@ -32,6 +32,7 @@ import {
   type ShareIntent,
 } from "@/lib/sharing/share-intent";
 import { toDemoSiteUrl } from "@/lib/surface-origins";
+import { useDialogFocus } from "@/components/navigation/useDialogFocus";
 
 interface DemoShareModalProps {
   assets: MediaAsset[];
@@ -150,13 +151,10 @@ export default function DemoShareModal({
     },
   ];
 
-  useEffect(() => {
-    function handleKeyDown(event: KeyboardEvent) {
-      if (event.key === "Escape") onClose();
-    }
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [onClose]);
+  // The dialog always renders "open" — focus moves into it on mount and
+  // returns to the trigger on close; useDialogFocus also owns Escape.
+  const dialogRef = useRef<HTMLElement>(null);
+  useDialogFocus(true, dialogRef, onClose);
 
   function selectIntent(intent: ShareIntent) {
     const defaults = resolveShareIntentDefaults(intent);
@@ -250,6 +248,7 @@ export default function DemoShareModal({
   return (
     <div className="modal-overlay demo-share-overlay" role="presentation" onMouseDown={onClose}>
       <section
+        ref={dialogRef}
         className="modal demo-share-modal"
         role="dialog"
         aria-modal="true"

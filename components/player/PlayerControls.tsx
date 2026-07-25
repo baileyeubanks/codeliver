@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState, type RefObject } from "react";
+import { useOverlay } from "@/components/overlay/useOverlay";
 import {
   Play,
   Pause,
@@ -38,6 +39,15 @@ export default function PlayerControls({ videoRef }: PlayerControlsProps) {
 
   const [showRateMenu, setShowRateMenu] = useState(false);
   const [bufferedPct, setBufferedPct] = useState(0);
+  const rateButtonRef = useRef<HTMLButtonElement>(null);
+  const [rateMenuOverlayRef, rateMenuOverlayStyle] = useOverlay({
+    open: showRateMenu,
+    onClose: () => setShowRateMenu(false),
+    anchorRef: rateButtonRef,
+    side: "top",
+    align: "end",
+    offset: 8,
+  });
   const progressRef = useRef<HTMLDivElement>(null);
   const volumeRef = useRef<HTMLDivElement>(null);
 
@@ -235,14 +245,21 @@ export default function PlayerControls({ videoRef }: PlayerControlsProps) {
         {/* Playback rate */}
         <div className="relative">
           <button
+            ref={rateButtonRef}
             type="button"
+            aria-expanded={showRateMenu}
+            aria-label="Playback speed"
             onClick={() => setShowRateMenu(!showRateMenu)}
             className="h-11 min-w-11 rounded-[var(--radius-sm)] px-2 text-xs font-medium text-[var(--muted)] transition-colors hover:bg-[var(--surface-2)] hover:text-[var(--ink)] sm:h-8"
           >
             {playbackRate}x
           </button>
           {showRateMenu && (
-            <div className="absolute bottom-full right-0 mb-2 overflow-hidden rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--surface)] shadow-lg">
+            <div
+              ref={rateMenuOverlayRef}
+              style={rateMenuOverlayStyle}
+              className="z-[60] overflow-hidden rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--surface)] shadow-lg"
+            >
               {PLAYBACK_RATES.map((rate) => (
                 <button
                   type="button"

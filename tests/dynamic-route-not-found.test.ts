@@ -5,10 +5,13 @@ import test from "node:test";
 import { fileURLToPath } from "node:url";
 
 import {
+  DEMO_SHORT_SHARE_QUERY_FLAG,
   isKnownDemoAssetRoute,
   isKnownDemoProjectRoute,
+  isKnownDemoShareRoute,
   isOpaqueRouteToken,
   isProductionRecordId,
+  seededDemoShareRoute,
 } from "../lib/dynamic-route-authority.ts";
 import { isLocalDemoServerRequest } from "../lib/demo/server-mode.ts";
 
@@ -42,6 +45,37 @@ test("dynamic route authority distinguishes production, seeded demo, and local d
   assert.equal(isOpaqueRouteToken("V3ry_opaque-token-value-123456"), true);
   assert.equal(isOpaqueRouteToken("short"), false);
   assert.equal(isOpaqueRouteToken("../escape-token-value-123456"), false);
+});
+
+test("demo share route authority covers seeded and locally created share tokens", () => {
+  assert.equal(isKnownDemoShareRoute("demo-ica-final"), true);
+  assert.equal(isKnownDemoShareRoute("demo-ceraweek-cuts"), true);
+  assert.equal(
+    isKnownDemoShareRoute("review-11111111-2222-4333-8444-555555555555"),
+    true,
+  );
+  assert.equal(isKnownDemoShareRoute("demo"), false);
+  assert.equal(isKnownDemoShareRoute("bogus-token"), false);
+  assert.equal(isKnownDemoShareRoute("bogus-token-1234567890"), false);
+  assert.equal(isKnownDemoShareRoute("../demo-ica-final"), false);
+
+  assert.deepEqual(seededDemoShareRoute("demo-ica-final"), {
+    asset: "ica-roadshow-final",
+    intent: "approval_needed",
+  });
+  assert.deepEqual(seededDemoShareRoute("demo-ceraweek-cuts"), {
+    asset: "denie-mcdonald-v4",
+    intent: "client_review",
+  });
+  assert.equal(seededDemoShareRoute("demo"), null);
+  assert.equal(typeof DEMO_SHORT_SHARE_QUERY_FLAG, "string");
+
+  // The seeded routes must stay in sync with the demo workspace share seeds.
+  const workspaceStore = source("lib/demo/workspace-store.ts");
+  assert.match(workspaceStore, /token: "demo-ica-final"/);
+  assert.match(workspaceStore, /token: "demo-ceraweek-cuts"/);
+  assert.match(workspaceStore, /asset_ids: \["ica-roadshow-final"\]/);
+  assert.match(workspaceStore, /"denie-mcdonald-v4", "charles-drummond-v5"/);
 });
 
 test("server demo authority requires non-production localhost flag and query opt-in", () => {
@@ -145,8 +179,40 @@ test("token routes distinguish missing records from unavailable databases", () =
 
   assert.match(reviewAuthority, /if \(error\)[\s\S]*?status: 503/);
   assert.match(reviewAuthority, /if \(!data\)[\s\S]*?status: 404/);
-  assert.match(publicReviewPage, /inviteLookup\.status === 404\) notFound\(\)/);
+  assert.match(
+    publicReviewPage,
+    /inviteLookup\.status === 404 \|\| inviteLookup\.status === 410\)\) notFound\(\)/,
+  );
   assert.match(publicReviewPage, /inviteLookup\.status >= 500/);
   assert.match(publicReviewPage, /new BackendUnavailableError\("Review database"\)/);
   assert.match(teamInvitePage, /if \(error\) throw new BackendUnavailableError/);
+});
+
+test("demo review tokens resolve in the demo workspace and canonicalize to short URLs", () => {
+  const publicReviewPage = source("app/review/[token]/page.tsx");
+  const proxy = source("proxy.ts");
+
+  // Unknown demo tokens are missing records, never production database lookups.
+  assert.match(publicReviewPage, /if \(!isKnownDemoShareRoute\(token\)\) notFound\(\)/);
+  // Bare long-form visits redirect permanently to the canonical short URL.
+  assert.match(publicReviewPage, /permanentRedirect\(`\/review\/\$\{query\.share\}\?demo=1`\)/);
+  assert.match(publicReviewPage, /query\[DEMO_SHORT_SHARE_QUERY_FLAG\] !== "1"/);
+  // The proxy rewrites short URLs back to the query form the client resolves,
+  // re-supplying the seeded asset/intent, and marks the rewrite to break loops.
+  assert.match(proxy, /rewriteUrl\.pathname = "\/review\/demo"/);
+  assert.match(proxy, /rewriteUrl\.searchParams\.set\("share", shareToken\)/);
+  assert.match(proxy, /rewriteUrl\.searchParams\.set\(DEMO_SHORT_SHARE_QUERY_FLAG, "1"\)/);
+  assert.match(proxy, /rewriteUrl\.searchParams\.set\("asset", seeded\.asset\)/);
+  assert.match(proxy, /rewriteUrl\.searchParams\.set\("intent", seeded\.intent\)/);
+});
+
+test("no root loading boundary may stream a 200 shell ahead of notFound()", () => {
+  // app/loading.tsx wraps every route in an instant-flush Suspense boundary:
+  // the shell goes out with HTTP 200 before an async page can call notFound(),
+  // which is what turned every dynamic-route 404 into a soft-200 (D19).
+  assert.equal(
+    existsSync(resolve(repositoryRoot, "app/loading.tsx")),
+    false,
+    "a root loading boundary would reintroduce soft-200 dynamic routes",
+  );
 });

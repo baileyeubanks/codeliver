@@ -170,6 +170,71 @@ test("proxy matcher skips crawler manifests", async () => {
   }
 });
 
+test("proxy rewrites canonical demo share short URLs to the resolvable query form", async () => {
+  const previousEnvironment = {
+    nodeEnv: process.env.NODE_ENV,
+    demo: process.env.CODELIVER_DEMO_MODE,
+  };
+  process.env.NODE_ENV = "development";
+  process.env.CODELIVER_DEMO_MODE = "1";
+
+  try {
+    const { proxy } = await loadProxy();
+
+    const shortSeeded = await proxy(
+      new NextRequest("http://localhost:4103/review/demo-ica-final?demo=1", {
+        headers: { host: "localhost:4103" },
+      }),
+    );
+    const rewritten = new URL(shortSeeded.headers.get("x-middleware-rewrite") ?? "");
+    assert.equal(rewritten.pathname, "/review/demo");
+    assert.equal(rewritten.searchParams.get("demo"), "1");
+    assert.equal(rewritten.searchParams.get("share"), "demo-ica-final");
+    assert.equal(rewritten.searchParams.get("demo-short"), "1");
+    assert.equal(rewritten.searchParams.get("asset"), "ica-roadshow-final");
+    assert.equal(rewritten.searchParams.get("intent"), "approval_needed");
+    assert.equal(
+      shortSeeded.headers.get("x-middleware-request-x-codeliver-demo-preview"),
+      "1",
+    );
+
+    const shortLocalShare = await proxy(
+      new NextRequest(
+        "http://localhost:4103/review/review-11111111-2222-4333-8444-555555555555?demo=1",
+        { headers: { host: "localhost:4103" } },
+      ),
+    );
+    const localRewritten = new URL(shortLocalShare.headers.get("x-middleware-rewrite") ?? "");
+    assert.equal(localRewritten.pathname, "/review/demo");
+    assert.equal(
+      localRewritten.searchParams.get("share"),
+      "review-11111111-2222-4333-8444-555555555555",
+    );
+    assert.equal(localRewritten.searchParams.get("asset"), null);
+
+    const unknownToken = await proxy(
+      new NextRequest("http://localhost:4103/review/bogus-token?demo=1", {
+        headers: { host: "localhost:4103" },
+      }),
+    );
+    assert.equal(unknownToken.headers.get("x-middleware-rewrite"), null);
+    assert.equal(unknownToken.headers.get("x-middleware-next"), "1");
+
+    process.env.NODE_ENV = "production";
+    const productionShortUrl = await proxy(
+      new NextRequest("http://localhost:4103/review/demo-ica-final?demo=1", {
+        headers: { host: "localhost:4103" },
+      }),
+    );
+    assert.equal(productionShortUrl.headers.get("x-middleware-rewrite"), null);
+  } finally {
+    if (previousEnvironment.nodeEnv === undefined) delete process.env.NODE_ENV;
+    else process.env.NODE_ENV = previousEnvironment.nodeEnv;
+    if (previousEnvironment.demo === undefined) delete process.env.CODELIVER_DEMO_MODE;
+    else process.env.CODELIVER_DEMO_MODE = previousEnvironment.demo;
+  }
+});
+
 test("login form does not ship prefilled credentials", () => {
   const loginPage = readFileSync(resolve(repositoryRoot, "app/login/page.tsx"), "utf8");
 

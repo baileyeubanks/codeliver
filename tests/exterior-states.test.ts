@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
@@ -10,9 +10,8 @@ function source(path: string): string {
   return readFileSync(resolve(repositoryRoot, path), "utf8");
 }
 
-test("not-found and loading states stay inside the Co‑ProVideo exterior shell", () => {
+test("not-found and error states stay inside the Co‑ProVideo exterior shell", () => {
   const notFound = source("app/not-found.tsx");
-  const loading = source("app/loading.tsx");
   const globalError = source("app/global-error.tsx");
   const dashboardRedirect = source("app/(dashboard)/page.tsx");
   const demoGuard = source("components/demo/DemoSessionGuard.tsx");
@@ -29,10 +28,14 @@ test("not-found and loading states stay inside the Co‑ProVideo exterior shell"
   assert.doesNotMatch(notFound, />404</);
   assert.doesNotMatch(notFound, /Page not found/);
 
-  assert.match(loading, /CoProductionBrand/);
-  assert.match(loading, /variant="stacked"/);
-  assert.match(loading, /Loading Co‑ProVideo workspace/);
-  assert.match(loading, /aria-busy="true"/);
+  // app/loading.tsx was removed in P9 (D19): a root loading boundary streams
+  // the shell with HTTP 200 before async pages can call notFound(), turning
+  // every dynamic-route 404 into a soft-200. It must not come back.
+  assert.equal(
+    existsSync(resolve(repositoryRoot, "app/loading.tsx")),
+    false,
+    "a root loading boundary would reintroduce soft-200 dynamic routes",
+  );
 
   assert.match(globalError, /CoProductionBrand/);
   assert.match(globalError, /variant="stacked"/);

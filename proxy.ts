@@ -10,6 +10,11 @@ import {
   roleCanAccessSurface,
 } from "@/lib/auth/host-surface";
 import {
+  DEMO_SHORT_SHARE_QUERY_FLAG,
+  isKnownDemoShareRoute,
+  seededDemoShareRoute,
+} from "@/lib/dynamic-route-authority";
+import {
   getSupabaseAnonKey,
   getSupabasePublicUrl,
   hasSupabasePublicConfig,
@@ -219,6 +224,38 @@ function isLocalDemoPreviewEnabled(): boolean {
 
 const DEMO_CAPABILITY_HEADER = "x-codeliver-demo-preview";
 
+// Canonical demo share URLs are /review/<token>. The public review client
+// resolves demo shares from query params, so a local-demo short URL is
+// rewritten to the long form (the page redirects bare long-form visits back
+// to the short URL; DEMO_SHORT_SHARE_QUERY_FLAG breaks that loop).
+function demoShortShareRewrite(req: NextRequest): NextResponse | null {
+  const match = /^\/review\/([^/]+)$/.exec(req.nextUrl.pathname);
+  if (!match) return null;
+
+  let shareToken: string;
+  try {
+    shareToken = decodeURIComponent(match[1]);
+  } catch {
+    return null;
+  }
+  if (shareToken === "demo" || !isKnownDemoShareRoute(shareToken)) return null;
+
+  const rewriteUrl = req.nextUrl.clone();
+  rewriteUrl.pathname = "/review/demo";
+  rewriteUrl.searchParams.set("share", shareToken);
+  rewriteUrl.searchParams.set(DEMO_SHORT_SHARE_QUERY_FLAG, "1");
+  const seeded = seededDemoShareRoute(shareToken);
+  if (seeded) {
+    rewriteUrl.searchParams.set("asset", seeded.asset);
+    rewriteUrl.searchParams.set("intent", seeded.intent);
+  }
+
+  const requestHeaders = new Headers(req.headers);
+  requestHeaders.delete(DEMO_CAPABILITY_HEADER);
+  requestHeaders.set(DEMO_CAPABILITY_HEADER, "1");
+  return NextResponse.rewrite(rewriteUrl, { request: { headers: requestHeaders } });
+}
+
 function nextResponse(req: NextRequest, demoCapability = false): NextResponse {
   const requestHeaders = new Headers(req.headers);
   // Remove a client-forged value, then add this internal capability only after
@@ -304,6 +341,11 @@ export async function proxy(req: NextRequest) {
     isPathAtOrBelow(pathname, "/brand")
   ) {
     return nextResponse(req);
+  }
+
+  if (localDemo) {
+    const shareRewrite = demoShortShareRewrite(req);
+    if (shareRewrite) return shareRewrite;
   }
 
   if (isPublicRoute(pathname)) {

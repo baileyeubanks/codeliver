@@ -64,6 +64,46 @@ Concurrency note: a parallel session committed `components/projects/ProjectCockp
 and `app/globals.css` hunks (P6's overlay/grid edits included) inside c65d460;
 the remaining P6 files are committed separately.
 
+## P9 — Real dynamic-route statuses + canonical short review links (2026-07-25)
+
+D19 root cause: `app/loading.tsx` wrapped every route in an instant-flush
+Suspense boundary, so the HTML shell went out with HTTP 200 before the async
+F8 wrappers could call `notFound()` — the not-found UI rendered, but every
+missing record was a soft-200 in prod and demo. The root loading boundary is
+removed (regression-guarded by a test asserting it never returns); without it
+the wrappers block the initial render and `notFound()` sets the real status.
+
+- `app/review/[token]/page.tsx`: expired/exhausted invites (lookup 410) now
+  `notFound()` at the page layer too (App Router pages cannot emit 410; the
+  API keeps the precise 410 for clients); `>=500` still throws
+  `BackendUnavailableError`. Demo requests resolve tokens against the demo
+  workspace authority only — an unknown demo token is a 404, never a
+  production database lookup (previously a 500).
+- D20: `/review/<token>` is canonical in demo. `proxy.ts` rewrites local-demo
+  short share URLs (seeded `demo-ica-final`/`demo-ceraweek-cuts` plus the
+  `review-<uuid>` local-share pattern from `lib/dynamic-route-authority.ts`)
+  to the long query form the public client resolves, re-supplying the seeded
+  asset/intent and a `demo-short=1` loop-break flag; the wrapper
+  `permanentRedirect`s (308) bare long-form visits to the short URL.
+  Production (Supabase) token resolution is unchanged.
+
+Proof: `tests/runtime-route-status.test.ts` (live-status contract against
+:4103/:4115, skips when a runtime is down), new authority/proxy-rewrite units
+in `tests/dynamic-route-not-found.test.ts` and
+`tests/security-demo-auth-s1.test.ts`. Pre-rebuild `npm test` 735/736 — the
+single failure was the new prod runtime contract against the stale :4103
+build (the bug reproducing); after `./scripts/rebuild-public-runtime.sh` the
+full suite is green and the curl matrix is:
+
+| Route | :4103 before | :4103 after | :4115 before | :4115 after |
+| --- | --- | --- | --- | --- |
+| /review/bogus-token | 200 | 404 | 200 | 404 |
+| /review/bogus-token-1234567890 | 200 | 404 | 200 | 404 |
+| /review/demo-ica-final | 200 | 404 | 200 | 200 (resolves) |
+| /review/ica?demo=1 | — | — | 200 | 404 |
+| /projects/does-not-exist?demo=1 | — | — | 200 | 404 |
+| /review/demo?…&share=demo-ica-final (long form) | — | — | 200 | 308 → short |
+
 ## Audit Finding Dispositions (handoff section 11)
 
 | ID | Item | Disposition |

@@ -273,3 +273,17 @@ export interface AnnotationToolState {
   opacity: number;
   strokeWidth: number;
 }
+
+// ── Comments 2.0 (P18) ──
+
+/** A person who can be @mentioned in a comment body. */
+export interface MentionRosterEntry {
+  id: string;
+  /** Handle without the leading `@` (e.g. "jane.doe"). */
+  handle: string;
+  /** Display name shown in autocomplete. */
+  name: string;
+}
+
+/** Status filter for the comments rail. */
+export type CommentThreadFilter = "all" | "open" | "resolved";

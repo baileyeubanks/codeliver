@@ -16,6 +16,7 @@ import {
   type DemoProject,
 } from "./workspace";
 import type {
+  AnnotationData,
   ApprovalDecision,
   ApprovalStep,
   WorkflowMode,
@@ -167,6 +168,8 @@ export interface DemoReviewComment {
   time_seconds: number;
   pin_x?: number;
   pin_y?: number;
+  /** P17: annotation stroke attached to the note; null/absent = pin-only comment. */
+  drawing?: AnnotationData | null;
   status: "open" | "resolved";
   created_at: string;
 }
@@ -183,6 +186,8 @@ export interface DemoPublicReviewState {
   asset_status: string;
   active_approval_ids: string[];
   approval_access_message: string | null;
+  /** P20: assets whose review is locked after a final demo approval. */
+  locked_asset_ids: string[];
   updated_at: string;
 }
 
@@ -734,7 +739,10 @@ export function restoreDemoWorkspace(raw: string | null): DemoWorkspaceState {
       shareLinks: parsed.shareLinks ?? fallback.shareLinks,
       activity: parsed.activity ?? fallback.activity,
       reviewComments: mergeSeededRecords(parsed.reviewComments, fallback.reviewComments),
-      publicReviewStates: parsed.publicReviewStates ?? fallback.publicReviewStates,
+      // P20: states persisted before locked_asset_ids existed restore with [].
+      publicReviewStates: (parsed.publicReviewStates ?? fallback.publicReviewStates).map(
+        (state) => ({ ...state, locked_asset_ids: state.locked_asset_ids ?? [] }),
+      ),
       reviewCutMarkers: parsed.reviewCutMarkers ?? fallback.reviewCutMarkers,
       tasks: parsed.tasks ?? fallback.tasks,
       approvalStages: mergeSeededRecords(parsed.approvalStages, fallback.approvalStages),
@@ -1272,6 +1280,8 @@ export function addDemoReviewComment(input: {
   timeSeconds: number;
   pinX?: number;
   pinY?: number;
+  /** P17: annotation stroke to persist alongside the note. */
+  drawing?: AnnotationData | null;
 }) {
   const body = input.body.trim();
   if (!body) return null;
@@ -1300,6 +1310,7 @@ export function addDemoReviewComment(input: {
       !input.assetType || input.assetType === "video" ? Math.max(0, input.timeSeconds) : 0,
     pin_x: hasPinX ? input.pinX : undefined,
     pin_y: hasPinY ? input.pinY : undefined,
+    drawing: input.drawing ?? null,
     status: "open",
     created_at: createdAt,
   };
@@ -1460,6 +1471,8 @@ export function recordDemoPublicReviewApproval(input: RecordDemoPublicReviewAppr
     asset_status: assetStatus,
     active_approval_ids: nextActiveApprovalIds,
     approval_access_message: approvalAccessMessage,
+    // P20: preserve any lock state already recorded for this scope.
+    locked_asset_ids: existing?.locked_asset_ids ?? [],
     updated_at: decidedAt,
   };
 

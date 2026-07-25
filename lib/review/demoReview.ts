@@ -2,6 +2,7 @@ import type {
   ApprovalStep,
   Comment,
   SharePermission,
+  Version,
   WorkflowMode,
 } from "@/lib/types/codeliver";
 
@@ -28,6 +29,8 @@ interface DemoReviewPayload {
   watermark_enabled: boolean;
   watermark_text: string | null;
   workflow_mode: WorkflowMode | null;
+  /** P19: V1..V3 for the demo asset; exactly one entry has is_current. */
+  versions: Version[];
   invite: {
     id: string;
     view_count: number;
@@ -68,6 +71,10 @@ const now = new Date();
 
 function minutesAgo(minutes: number) {
   return new Date(now.getTime() - minutes * 60_000).toISOString();
+}
+
+function daysAgo(days: number) {
+  return new Date(now.getTime() - days * 24 * 60 * 60 * 1000).toISOString();
 }
 
 export const demoReviewPayload: DemoReviewPayload = {
@@ -415,4 +422,55 @@ export const demoReviewPayload: DemoReviewPayload = {
     view_count: 18,
     max_views: null,
   },
+  // ── P19 versions foundation (appended; nothing above changed) ──
+  // V1/V2 point at the other real files in public/demo/ so the version
+  // switcher swaps to visibly different media; V3 is the current cut and
+  // matches asset.file_url. Sizes/durations/resolutions are measured with
+  // stat + ffprobe. Seed comments intentionally keep version_id: null —
+  // null means "applies to all versions", so the existing thread stays
+  // visible no matter which version is selected.
+  versions: [
+    {
+      id: "demo-version-1",
+      asset_id: "demo-asset",
+      version_number: 1,
+      file_url: "/demo/interview-source.mp4",
+      file_size: 28_545_903,
+      thumbnail_url: null,
+      duration_seconds: 150,
+      resolution: "960x540",
+      is_current: false,
+      notes: "First assembly",
+      uploaded_by: "Content Co-op",
+      created_at: daysAgo(6),
+    },
+    {
+      id: "demo-version-2",
+      asset_id: "demo-asset",
+      version_number: 2,
+      file_url: "/demo/ambient-products.mp4",
+      file_size: 3_555_540,
+      thumbnail_url: null,
+      duration_seconds: 3.042,
+      resolution: "1920x1080",
+      is_current: false,
+      notes: "Client feedback round 1",
+      uploaded_by: "Content Co-op",
+      created_at: daysAgo(3),
+    },
+    {
+      id: "demo-version-3",
+      asset_id: "demo-asset",
+      version_number: 3,
+      file_url: "/demo/ica-ceo-preview.mp4",
+      file_size: 727_711,
+      thumbnail_url: null,
+      duration_seconds: 5.005,
+      resolution: "1920x1080",
+      is_current: true,
+      notes: "Final review cut",
+      uploaded_by: "Content Co-op",
+      created_at: daysAgo(1),
+    },
+  ],
 };

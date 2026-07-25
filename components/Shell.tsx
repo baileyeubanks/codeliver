@@ -54,6 +54,25 @@ function commandHref(href: string, querySuffix: string) {
   return href.includes("demo=1") ? href : withWorkspaceQuery(href, querySuffix);
 }
 
+type RemoteSession = {
+  email: string;
+  displayName: string | null;
+  role: WorkspaceRole;
+};
+
+type RemoteNotification = {
+  id: string;
+  title: string;
+  body: string | null;
+  read: boolean;
+};
+
+const WORKSPACE_ROLES: readonly WorkspaceRole[] = ["owner", "producer", "editor", "reviewer", "viewer"];
+
+function asWorkspaceRole(value: unknown): WorkspaceRole {
+  return WORKSPACE_ROLES.includes(value as WorkspaceRole) ? (value as WorkspaceRole) : "viewer";
+}
+
 export default function Shell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const demoSuffix = useDemoSuffix();
@@ -64,8 +83,14 @@ export default function Shell({ children }: { children: React.ReactNode }) {
   const [accountOpen, setAccountOpen] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [navigationOpen, setNavigationOpen] = useState(false);
+  const [remoteSession, setRemoteSession] = useState<RemoteSession | null>(null);
+  const [remoteNotifications, setRemoteNotifications] = useState<RemoteNotification[]>([]);
   const isProjectCockpit = /^\/projects\/(?!new$|archive$|trash$)[^/]+$/.test(pathname);
-  const workspaceRole: WorkspaceRole = demoSuffix ? (demoWorkspace.session.role ?? "owner") : "owner";
+  // Remote identity and role come from the authenticated session; until it
+  // resolves (or if it fails) the shell stays fail-closed at viewer.
+  const workspaceRole: WorkspaceRole = demoSuffix
+    ? (demoWorkspace.session.role ?? "owner")
+    : (remoteSession?.role ?? "viewer");
   const accountRef = useRef<HTMLDivElement>(null);
   const notificationRef = useRef<HTMLDivElement>(null);
   const accountButtonRef = useRef<HTMLButtonElement>(null);
@@ -73,8 +98,8 @@ export default function Shell({ children }: { children: React.ReactNode }) {
   const commandButtonRef = useRef<HTMLButtonElement>(null);
   const profileName = demoSuffix
     ? `${demoWorkspace.settings.profile.firstName} ${demoWorkspace.settings.profile.lastName}`.trim()
-    : "Bailey Eubanks";
-  const profileEmail = demoSuffix ? demoWorkspace.session.email : "bailey@contentco-op.com";
+    : (remoteSession?.displayName ?? remoteSession?.email ?? "Workspace member");
+  const profileEmail = demoSuffix ? demoWorkspace.session.email : (remoteSession?.email ?? "");
   const profileInitials = profileName
     .split(/\s+/)
     .filter(Boolean)
@@ -148,6 +173,43 @@ export default function Shell({ children }: { children: React.ReactNode }) {
       ? "true"
       : "false";
   }, [demoSuffix, demoWorkspace.settings.appearance, isProjectCockpit]);
+
+  useEffect(() => {
+    if (demoSuffix || isProjectCockpit) return;
+    const controller = new AbortController();
+
+    void fetch("/api/auth/session", { cache: "no-store", signal: controller.signal })
+      .then((response) => (response.ok ? response.json() : null))
+      .then((payload) => {
+        if (!payload?.authenticated || typeof payload.email !== "string") return;
+        setRemoteSession({
+          email: payload.email,
+          displayName: typeof payload.display_name === "string" ? payload.display_name : null,
+          role: asWorkspaceRole(payload.workspace_role),
+        });
+      })
+      .catch(() => {});
+
+    void fetch("/api/notifications?limit=3", { cache: "no-store", signal: controller.signal })
+      .then((response) => (response.ok ? response.json() : null))
+      .then((payload) => {
+        if (!Array.isArray(payload?.items)) return;
+        setRemoteNotifications(
+          payload.items
+            .filter((item: { id?: unknown; title?: unknown }) =>
+              typeof item?.id === "string" && typeof item?.title === "string")
+            .map((item: { id: string; title: string; body?: unknown; read?: unknown }) => ({
+              id: item.id,
+              title: item.title,
+              body: typeof item.body === "string" ? item.body : null,
+              read: item.read === true,
+            })),
+        );
+      })
+      .catch(() => {});
+
+    return () => controller.abort();
+  }, [demoSuffix, isProjectCockpit]);
 
   useEffect(() => {
     function handleClick(event: MouseEvent) {
@@ -297,17 +359,36 @@ export default function Shell({ children }: { children: React.ReactNode }) {
                   <strong>Notifications</strong>
                   <Link href={withWorkspaceQuery("/activity", demoSuffix)}>View all</Link>
                 </header>
-                {demoWorkspace.activity.slice(0, 3).map((item) => (
-                  <Link
-                    key={item.id}
-                    href={withWorkspaceQuery("/activity", demoSuffix)}
-                    onClick={() => setNotificationsOpen(false)}
-                  >
-                    <span>{item.actor_name} {activityLabel(item.action)}</span>
-                    <small>{item.details.asset_title ?? "Co‑ProVideo workspace"}</small>
-                  </Link>
-                ))}
-                {demoWorkspace.activity.length === 0 ? <p>No new notifications.</p> : null}
+                {demoSuffix ? (
+                  <>
+                    {demoWorkspace.activity.slice(0, 3).map((item) => (
+                      <Link
+                        key={item.id}
+                        href={withWorkspaceQuery("/activity", demoSuffix)}
+                        onClick={() => setNotificationsOpen(false)}
+                      >
+                        <span>{item.actor_name} {activityLabel(item.action)}</span>
+                        <small>{item.details.asset_title ?? "Co‑ProVideo workspace"}</small>
+                      </Link>
+                    ))}
+                    {demoWorkspace.activity.length === 0 ? <p>No new notifications.</p> : null}
+                  </>
+                ) : (
+                  <>
+                    {remoteNotifications.map((item) => (
+                      <Link
+                        key={item.id}
+                        href="/activity"
+                        onClick={() => setNotificationsOpen(false)}
+                        data-read={item.read}
+                      >
+                        <span>{item.title}</span>
+                        <small>{item.body ?? "Co‑ProVideo workspace"}</small>
+                      </Link>
+                    ))}
+                    {remoteNotifications.length === 0 ? <p>No new notifications.</p> : null}
+                  </>
+                )}
               </div>
             ) : null}
           </div>

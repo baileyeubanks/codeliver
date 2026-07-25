@@ -1,0 +1,91 @@
+/**
+ * Co-ProVideo brand tokens — Arc III (P11) foundation.
+ * Sources (in priority order):
+ *  1. LIVE BRAND from co-videopro.com production CSS (extracted 2026-07-25)
+ *  2. Bailey's inspiration set (CVP logo, dashboard/settings mocks, logo MP4)
+ *
+ * NOT YET WIRED IN. P11 imports this into app/globals.css and migrates
+ * components. Keep values in sync with ROADMAP_40.md when editing.
+ */
+
+:root {
+  /* ── Live brand core (co-videopro.com) ── */
+  --cvp-blue: #145bb8;            /* dominant brand blue (99 uses in prod CSS) */
+  --cvp-blue-soft: #7ca8d8;       /* secondary blue */
+  --cvp-blue-tint: #edf4ff;       /* blue tint surface */
+  --cvp-accent: #b9ff77;          /* signature lime accent */
+  --cvp-accent-hover: #9fe65f;
+  --cvp-accent-dim: #b9ff771c;
+  --cvp-accent-glow: #b9ff772e;
+
+  /* Ink — navy family */
+  --cvp-ink: #18223e;
+  --cvp-ink-deep: #12233e;
+  --cvp-ink-soft: #3f4962;
+  --cvp-ink-faint: #707b91;
+
+  /* Canvas + surfaces */
+  --cvp-canvas: #f7f9fc;
+  --cvp-surface: #ffffff;
+  --cvp-surface-alt: #f4f7fb;
+  --cvp-surface-sunken: #edf0f4;
+  --cvp-border: #dfe4ec;
+
+  /* Status */
+  --cvp-success: #267553;
+  --cvp-success-bright: #26915b;
+
+  /* ── 4-color phase coding (from CVP ribbon monogram) ──
+     Strategy → Pre-Production → Production → Post → Delivery.
+     Used for chips, whiteboard flows, gradient ribbon — never large fills. */
+  --cvp-red: #e8442e;
+  --cvp-green: #16a34a;
+  --cvp-amber: #f59e0b;
+  --cvp-phase-strategy: var(--cvp-red);
+  --cvp-phase-preproduction: var(--cvp-amber);
+  --cvp-phase-production: var(--cvp-blue);
+  --cvp-phase-post: var(--cvp-green);
+  --cvp-phase-delivery: var(--cvp-ink);
+  --cvp-red-tint: #fdeae7;
+  --cvp-green-tint: #e5f6ec;
+  --cvp-amber-tint: #fdf1da;
+
+  /* Signature accents */
+  --cvp-gradient-ribbon: linear-gradient(
+    90deg,
+    var(--cvp-red) 0%,
+    var(--cvp-amber) 33%,
+    var(--cvp-green) 66%,
+    var(--cvp-blue) 100%
+  );
+  --cvp-copilot-bg: #141a2e;      /* dark-navy floating AI Copilot panel */
+  --cvp-copilot-ink: #e5e9f2;
+  --cvp-copilot-border: #ffffff1a;
+  --cvp-unsaved-bar: var(--cvp-amber-tint); /* "N unsaved changes" strip */
+
+  /* Typography (live brand) */
+  --cvp-font-display: "Manrope", "Inter", -apple-system, sans-serif;
+  --cvp-font-body: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+
+  /* Shape (live brand radii) + elevation */
+  --cvp-radius-sm: 6px;
+  --cvp-radius-md: 8px;
+  --cvp-radius-lg: 12px;
+  --cvp-radius-pill: 999px;
+  --cvp-shadow-card: 0 1px 2px rgb(24 34 62 / 0.05),
+    0 8px 24px rgb(24 34 62 / 0.07);
+  --cvp-shadow-popover: 0 4px 12px rgb(24 34 62 / 0.09),
+    0 16px 48px rgb(24 34 62 / 0.13);
+
+  /* Motion — ribbon spirit: quick, eased, reduced-motion safe */
+  --cvp-motion-fast: 120ms;
+  --cvp-motion-med: 200ms;
+  --cvp-motion-ease: cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --cvp-motion-fast: 0ms;
+    --cvp-motion-med: 0ms;
+  }
+}

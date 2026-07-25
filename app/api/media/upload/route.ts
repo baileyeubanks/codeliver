@@ -1,9 +1,11 @@
 import { randomUUID, timingSafeEqual } from "node:crypto";
-import { writeFile } from "node:fs/promises";
+import { unlink, writeFile } from "node:fs/promises";
 import { extname, join } from "node:path";
 
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest } from "next/server";
 
+import { apiError, apiJson, backendUnavailable } from "@/lib/api/responses";
+import { isBackendUnavailableError } from "@/lib/api/backend";
 import { getProjectAccess } from "@/lib/access-control";
 import { requireAuth } from "@/lib/auth";
 import { resolveTrustedSurfaceRole } from "@/lib/auth/host-surface";
@@ -73,7 +75,7 @@ function allowlistedAssetRow(value: unknown): Record<string, unknown> | null {
 }
 
 function resumableUploadResponse(status: 411 | 413, code: string) {
-  return NextResponse.json(
+  return apiJson(
     {
       error: `Legacy upload is limited to ${LEGACY_UPLOAD_MAX_BYTES / (1024 * 1024)} MiB. Use the resumable upload endpoint.`,
       code,
@@ -162,31 +164,33 @@ function mediaStorageError(error: unknown) {
     error.code === "MEDIA_ROOT_UNCONFIGURED" ||
     error.code === "MEDIA_ROOT_UNAVAILABLE"
   ) {
-    return NextResponse.json(
-      {
-        error: "Media storage is not configured or unavailable.",
-        code: "MEDIA_STORAGE_UNAVAILABLE",
-      },
-      { status: 503 }
+    return apiError(
+      "Media storage is not configured or unavailable.",
+      "MEDIA_STORAGE_UNAVAILABLE",
+      503,
     );
   }
-  return NextResponse.json(
-    { error: "Invalid media folder.", code: "MEDIA_PATH_INVALID" },
-    { status: 403 }
-  );
+  return apiError("Invalid media folder.", "MEDIA_PATH_INVALID", 403);
 }
 
 export async function POST(req: NextRequest) {
-  const user = await requireAuth();
+  let user: Awaited<ReturnType<typeof requireAuth>>;
+  try {
+    user = await requireAuth();
+  } catch (error) {
+    return isBackendUnavailableError(error)
+      ? backendUnavailable()
+      : apiError("Authentication service is unavailable", "AUTH_UNAVAILABLE", 503);
+  }
   const serviceAuthorized = authorizedUploadService(req);
   if (!user && !serviceAuthorized) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    return apiError("Authentication required", "AUTH_REQUIRED", 401);
   }
 
   // Fail closed on role BEFORE touching the body: client and unclassified
   // identities must never reach raw NAS operations, even with invalid input.
   if (user && !serviceAuthorized && resolveTrustedSurfaceRole(user) !== "staff") {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    return apiError("Forbidden", "FORBIDDEN", 403);
   }
 
   const contentLength = parseContentLength(req);
@@ -203,7 +207,7 @@ export async function POST(req: NextRequest) {
   } catch (error) {
     return (
       mediaStorageError(error) ??
-      NextResponse.json({ error: "Media storage is unavailable." }, { status: 503 })
+      apiError("Media storage is unavailable.", "MEDIA_STORAGE_UNAVAILABLE", 503)
     );
   }
 
@@ -221,15 +225,12 @@ export async function POST(req: NextRequest) {
     if (error instanceof LegacyUploadRequestTooLargeError) {
       return resumableUploadResponse(413, "LEGACY_UPLOAD_TOO_LARGE");
     }
-    return NextResponse.json(
-      { error: "Invalid multipart upload." },
-      { status: 400 }
-    );
+    return apiError("Invalid multipart upload.", "INVALID_REQUEST", 400);
   }
 
   const fileEntry = formData.get("file");
   if (!(fileEntry instanceof File)) {
-    return NextResponse.json({ error: "No file provided" }, { status: 400 });
+    return apiError("No file provided", "INVALID_REQUEST", 400);
   }
   if (fileEntry.size > LEGACY_UPLOAD_MAX_BYTES) {
     return resumableUploadResponse(413, "LEGACY_UPLOAD_TOO_LARGE");
@@ -240,10 +241,7 @@ export async function POST(req: NextRequest) {
   const projectId = optionalFormText(formData.get("projectId"));
 
   if (folder && explicitFolderId && folder !== explicitFolderId) {
-    return NextResponse.json(
-      { error: "Conflicting folder metadata" },
-      { status: 400 }
-    );
+    return apiError("Conflicting folder metadata", "INVALID_REQUEST", 400);
   }
 
   let authorizedProjectId: string | null = null;
@@ -252,60 +250,64 @@ export async function POST(req: NextRequest) {
 
   if (projectId) {
     if (!user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      return apiError("Authentication required", "AUTH_REQUIRED", 401);
     }
     if (resolveTrustedSurfaceRole(user) !== "staff") {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+      return apiError("Forbidden", "FORBIDDEN", 403);
     }
 
-    supabase = getSupabase();
-    const projectAccess = await getProjectAccess(
-      projectId,
-      user.id,
-      "editor",
-      supabase
-    );
-    if (!projectAccess.ok) {
-      return NextResponse.json(
-        { error: "Project is unavailable for upload" },
-        { status: projectAccess.status >= 500 ? 503 : 403 }
+    try {
+      supabase = getSupabase();
+      const projectAccess = await getProjectAccess(
+        projectId,
+        user.id,
+        "editor",
+        supabase,
       );
-    }
-    authorizedProjectId = projectAccess.data.id;
+      if (!projectAccess.ok) {
+        return apiError(
+          "Project is unavailable for upload",
+          projectAccess.status >= 500 ? "BACKEND_UNAVAILABLE" : "PROJECT_FORBIDDEN",
+          projectAccess.status >= 500 ? 503 : 403,
+        );
+      }
+      authorizedProjectId = projectAccess.data.id;
 
-    const requestedFolderId = explicitFolderId ?? folder;
-    if (requestedFolderId) {
-      const folderLookup = await supabase
-        .from("folders")
-        .select("id, project_id")
-        .eq("id", requestedFolderId)
-        .eq("project_id", authorizedProjectId)
-        .maybeSingle();
-      if (folderLookup.error) {
-        return NextResponse.json(
-          { error: "Upload folder authority is unavailable" },
-          { status: 503 }
-        );
+      const requestedFolderId = explicitFolderId ?? folder;
+      if (requestedFolderId) {
+        const folderLookup = await supabase
+          .from("folders")
+          .select("id, project_id")
+          .eq("id", requestedFolderId)
+          .eq("project_id", authorizedProjectId)
+          .maybeSingle();
+        if (folderLookup.error) {
+          return apiError(
+            "Upload folder authority is unavailable",
+            "BACKEND_UNAVAILABLE",
+            503,
+          );
+        }
+        if (!folderLookup.data) {
+          return apiError(
+            "Folder is unavailable for upload",
+            "UPLOAD_FOLDER_FORBIDDEN",
+            403,
+          );
+        }
+        authorizedFolderId = folderLookup.data.id;
       }
-      if (!folderLookup.data) {
-        return NextResponse.json(
-          { error: "Folder is unavailable for upload" },
-          { status: 403 }
-        );
-      }
-      authorizedFolderId = folderLookup.data.id;
+    } catch {
+      return backendUnavailable();
     }
   } else {
     // Reaching this branch without a projectId means either a staff user
     // (role-gated above) or an authorized pipeline service.
     if (!serviceAuthorized && !user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      return apiError("Authentication required", "AUTH_REQUIRED", 401);
     }
     if (explicitFolderId) {
-      return NextResponse.json(
-        { error: "folderId requires a projectId" },
-        { status: 400 }
-      );
+      return apiError("folderId requires a projectId", "INVALID_REQUEST", 400);
     }
   }
 
@@ -357,12 +359,14 @@ export async function POST(req: NextRequest) {
 
       if (error) {
         console.error("Failed to create asset record for legacy media upload");
+        await unlink(created.absolutePath).catch(() => undefined);
+        return backendUnavailable();
       } else {
         assetRecord = allowlistedAssetRow(data);
       }
     }
 
-    return NextResponse.json({
+    return apiJson({
       success: true,
       fileName: created.fileName,
       relativePath,
@@ -374,6 +378,6 @@ export async function POST(req: NextRequest) {
     const storageResponse = mediaStorageError(error);
     if (storageResponse) return storageResponse;
     console.error("Legacy media upload failed");
-    return NextResponse.json({ error: "Failed to write file" }, { status: 500 });
+    return apiError("Media storage is unavailable", "MEDIA_STORAGE_UNAVAILABLE", 503);
   }
 }

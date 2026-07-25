@@ -11,6 +11,7 @@
 import { timingSafeEqual } from "node:crypto";
 
 import { NextRequest, NextResponse } from "next/server";
+import { apiJson } from "@/lib/api/responses";
 
 import { getProjectAccess } from "@/lib/access-control";
 import { requireAuth } from "@/lib/auth";
@@ -94,10 +95,11 @@ async function requireProjectUploadTarget(
 }
 
 function authorityErrorResponse(error: LegacyTusAuthorityError) {
-  return NextResponse.json(
-    { error: error.message },
-    { status: error.status, headers: tusHeaders() }
-  );
+  return apiJson({ error: error.status >= 500 ? "Upload authority is unavailable" : error.message, code: error.status >= 500 ? "BACKEND_UNAVAILABLE" : "UPLOAD_FORBIDDEN" }, { status: error.status, headers: tusHeaders() });
+}
+
+function tusJson(error: string, code: string, status: number) {
+  return apiJson({ error, code }, { status, headers: tusHeaders() });
 }
 
 function tusHeaders(extra: Record<string, string> = {}) {
@@ -106,6 +108,7 @@ function tusHeaders(extra: Record<string, string> = {}) {
     "Tus-Version": TUS_VERSION,
     "Tus-Extension": TUS_EXTENSIONS,
     "Tus-Max-Size": String(MAX_SIZE),
+    "Cache-Control": "no-store",
     "Access-Control-Expose-Headers":
       "Location, Upload-Offset, Upload-Length, Tus-Resumable, Tus-Version, Tus-Extension, Tus-Max-Size",
     "Access-Control-Allow-Headers":
@@ -136,22 +139,17 @@ export async function OPTIONS() {
   return new NextResponse(null, { status: 204, headers: tusHeaders() });
 }
 
-export async function POST(req: NextRequest) {
-  const user = await requireAuth();
+async function createLegacyUpload(req: NextRequest) {
+  let user;
+  try { user = await requireAuth(); } catch { return tusJson("Upload authentication is unavailable", "BACKEND_UNAVAILABLE", 503); }
   const serviceAuthorized = authorizedUploadService(req);
   if (!user && !serviceAuthorized) {
-    return NextResponse.json(
-      { error: "Unauthorized" },
-      { status: 401, headers: tusHeaders() }
-    );
+    return tusJson("Unauthorized", "UNAUTHORIZED", 401);
   }
 
   const tusVersion = req.headers.get("tus-resumable");
   if (tusVersion !== TUS_VERSION) {
-    return NextResponse.json(
-      { error: "Unsupported tus version" },
-      { status: 412, headers: tusHeaders() }
-    );
+    return tusJson("Unsupported tus version", "TUS_VERSION_UNSUPPORTED", 412);
   }
 
   const uploadLength = parseInt(
@@ -159,16 +157,10 @@ export async function POST(req: NextRequest) {
     10
   );
   if (!uploadLength || uploadLength <= 0) {
-    return NextResponse.json(
-      { error: "Upload-Length required" },
-      { status: 400, headers: tusHeaders() }
-    );
+    return tusJson("Upload-Length required", "INVALID_UPLOAD_LENGTH", 400);
   }
   if (uploadLength > MAX_SIZE) {
-    return NextResponse.json(
-      { error: `File too large (max ${MAX_SIZE} bytes)` },
-      { status: 413, headers: tusHeaders() }
-    );
+    return tusJson("File exceeds the upload limit", "UPLOAD_TOO_LARGE", 413);
   }
 
   const metadata = parseUploadMetadata(
@@ -182,10 +174,7 @@ export async function POST(req: NextRequest) {
 
   if (requestedProjectId) {
     if (!user) {
-      return NextResponse.json(
-        { error: "Unauthorized" },
-        { status: 401, headers: tusHeaders() }
-      );
+      return tusJson("Unauthorized", "UNAUTHORIZED", 401);
     }
     try {
       const target = await requireProjectUploadTarget(
@@ -203,15 +192,17 @@ export async function POST(req: NextRequest) {
     }
   } else {
     if (!serviceAuthorized) {
-      return NextResponse.json(
-        { error: "Projectless upload requires service authorization" },
-        { status: 403, headers: tusHeaders() }
+      return tusJson(
+        "Projectless upload requires service authorization",
+        "UPLOAD_FORBIDDEN",
+        403,
       );
     }
     if (requestedFolderId) {
-      return NextResponse.json(
-        { error: "folderId requires projectId metadata" },
-        { status: 400, headers: tusHeaders() }
+      return tusJson(
+        "folderId requires projectId metadata",
+        "INVALID_UPLOAD_METADATA",
+        400,
       );
     }
   }
@@ -254,9 +245,10 @@ export async function POST(req: NextRequest) {
             throw error;
           }
         } else if (!upload.projectId && !authorizedUploadService(req)) {
-          return NextResponse.json(
-            { error: "Projectless upload requires service authorization" },
-            { status: 403, headers: tusHeaders() }
+          return tusJson(
+            "Projectless upload requires service authorization",
+            "UPLOAD_FORBIDDEN",
+            403,
           );
         }
         await finalizeUpload(upload.id);
@@ -278,4 +270,16 @@ export async function POST(req: NextRequest) {
       "Upload-Offset": "0",
     }),
   });
+}
+
+export async function POST(req: NextRequest) {
+  try {
+    return await createLegacyUpload(req);
+  } catch {
+    return tusJson(
+      "Upload service is unavailable",
+      "BACKEND_UNAVAILABLE",
+      503,
+    );
+  }
 }

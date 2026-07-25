@@ -5,6 +5,8 @@ import { Readable } from "node:stream";
 
 import { NextRequest, NextResponse } from "next/server";
 
+import { apiError, backendUnavailable } from "@/lib/api/responses";
+import { isBackendUnavailableError } from "@/lib/api/backend";
 import { requireAuth } from "@/lib/auth";
 import { resolveTrustedSurfaceRole } from "@/lib/auth/host-surface";
 import {
@@ -89,34 +91,39 @@ function mediaPathErrorResponse(error: unknown): NextResponse | null {
   switch (error.code) {
     case "MEDIA_ROOT_UNCONFIGURED":
     case "MEDIA_ROOT_UNAVAILABLE":
-      return NextResponse.json(
-        {
-          error: "Media storage is not configured or unavailable.",
-          code: "MEDIA_STORAGE_UNAVAILABLE",
-        },
-        { status: 503 }
+      return apiError(
+        "Media storage is not configured or unavailable.",
+        "MEDIA_STORAGE_UNAVAILABLE",
+        503,
       );
     case "MEDIA_PATH_NOT_FOUND":
-      return NextResponse.json({ error: "File not found" }, { status: 404 });
+      return apiError("File not found", "MEDIA_FILE_NOT_FOUND", 404);
     case "MEDIA_PATH_NOT_FILE":
-      return NextResponse.json({ error: "Not a file" }, { status: 400 });
+      return apiError("Not a file", "MEDIA_PATH_NOT_FILE", 400);
     default:
-      return NextResponse.json({ error: "Invalid path" }, { status: 403 });
+      return apiError("Invalid path", "MEDIA_PATH_INVALID", 403);
   }
 }
 
 export async function GET(req: NextRequest) {
-  const user = await requireAuth();
+  let user: Awaited<ReturnType<typeof requireAuth>>;
+  try {
+    user = await requireAuth();
+  } catch (error) {
+    return isBackendUnavailableError(error)
+      ? backendUnavailable()
+      : apiError("Authentication service is unavailable", "AUTH_UNAVAILABLE", 503);
+  }
   if (!user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    return apiError("Authentication required", "AUTH_REQUIRED", 401);
   }
   if (resolveTrustedSurfaceRole(user) !== "staff") {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    return apiError("Forbidden", "FORBIDDEN", 403);
   }
 
   const requestedPath = req.nextUrl.searchParams.get("path");
   if (!requestedPath) {
-    return NextResponse.json({ error: "Missing path parameter" }, { status: 400 });
+    return apiError("Missing path parameter", "INVALID_REQUEST", 400);
   }
 
   let fileHandle: Awaited<ReturnType<typeof open>> | null = null;
@@ -128,7 +135,7 @@ export async function GET(req: NextRequest) {
     if (!status.isFile()) {
       await fileHandle.close();
       fileHandle = null;
-      return NextResponse.json({ error: "Not a file" }, { status: 400 });
+      return apiError("Not a file", "MEDIA_PATH_NOT_FILE", 400);
     }
 
     const fileSize = status.size;
@@ -187,11 +194,11 @@ export async function GET(req: NextRequest) {
 
     const code = (error as NodeJS.ErrnoException).code;
     if (code === "ENOENT") {
-      return NextResponse.json({ error: "File not found" }, { status: 404 });
+      return apiError("File not found", "MEDIA_FILE_NOT_FOUND", 404);
     }
     if (code === "ELOOP") {
-      return NextResponse.json({ error: "Invalid path" }, { status: 403 });
+      return apiError("Invalid path", "MEDIA_PATH_INVALID", 403);
     }
-    return NextResponse.json({ error: "Failed to read file" }, { status: 500 });
+    return apiError("Media storage is unavailable", "MEDIA_STORAGE_UNAVAILABLE", 503);
   }
 }

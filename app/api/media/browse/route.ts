@@ -3,6 +3,8 @@ import { basename, extname, join } from "node:path";
 
 import { NextRequest, NextResponse } from "next/server";
 
+import { apiError, apiJson, backendUnavailable } from "@/lib/api/responses";
+import { isBackendUnavailableError } from "@/lib/api/backend";
 import { requireAuth } from "@/lib/auth";
 import { resolveTrustedSurfaceRole } from "@/lib/auth/host-surface";
 import {
@@ -41,12 +43,19 @@ function formatFileSize(bytes: number): string {
 }
 
 async function staffAuthorizationFailure(): Promise<NextResponse | null> {
-  const user = await requireAuth();
+  let user: Awaited<ReturnType<typeof requireAuth>>;
+  try {
+    user = await requireAuth();
+  } catch (error) {
+    return isBackendUnavailableError(error)
+      ? backendUnavailable()
+      : apiError("Authentication service is unavailable", "AUTH_UNAVAILABLE", 503);
+  }
   if (!user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    return apiError("Authentication required", "AUTH_REQUIRED", 401);
   }
   if (resolveTrustedSurfaceRole(user) !== "staff") {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    return apiError("Forbidden", "FORBIDDEN", 403);
   }
   return null;
 }
@@ -57,21 +66,19 @@ function mediaPathErrorResponse(error: unknown): NextResponse | null {
   switch (error.code) {
     case "MEDIA_ROOT_UNCONFIGURED":
     case "MEDIA_ROOT_UNAVAILABLE":
-      return NextResponse.json(
-        {
-          error: "Media storage is not configured or unavailable.",
-          code: "MEDIA_STORAGE_UNAVAILABLE",
-        },
-        { status: 503 }
+      return apiError(
+        "Media storage is not configured or unavailable.",
+        "MEDIA_STORAGE_UNAVAILABLE",
+        503,
       );
     case "MEDIA_PATH_NOT_FOUND":
-      return NextResponse.json({ error: "Path not found" }, { status: 404 });
+      return apiError("Path not found", "MEDIA_PATH_NOT_FOUND", 404);
     case "MEDIA_PATH_NOT_DIRECTORY":
-      return NextResponse.json({ error: "Not a directory" }, { status: 400 });
+      return apiError("Not a directory", "MEDIA_PATH_NOT_DIRECTORY", 400);
     case "MEDIA_PATH_EXISTS":
-      return NextResponse.json({ error: "Folder already exists" }, { status: 409 });
+      return apiError("Folder already exists", "MEDIA_PATH_EXISTS", 409);
     default:
-      return NextResponse.json({ error: "Invalid path" }, { status: 403 });
+      return apiError("Invalid path", "MEDIA_PATH_INVALID", 403);
   }
 }
 
@@ -160,7 +167,7 @@ export async function GET(req: NextRequest) {
     folders.sort((a, b) => a.name.localeCompare(b.name));
     files.sort((a, b) => new Date(b.modified).getTime() - new Date(a.modified).getTime());
 
-    return NextResponse.json({
+    return apiJson({
       path: directory.relativePath,
       folders,
       files,
@@ -170,7 +177,7 @@ export async function GET(req: NextRequest) {
   } catch (error) {
     return (
       mediaPathErrorResponse(error) ??
-      NextResponse.json({ error: "Failed to read directory" }, { status: 500 })
+      apiError("Media storage is unavailable", "MEDIA_STORAGE_UNAVAILABLE", 503)
     );
   }
 }
@@ -183,28 +190,28 @@ export async function POST(req: NextRequest) {
   try {
     body = await req.json();
   } catch {
-    return NextResponse.json({ error: "Invalid request body" }, { status: 400 });
+    return apiError("Invalid request body", "INVALID_REQUEST", 400);
   }
 
   if (!body || typeof body !== "object" || Array.isArray(body)) {
-    return NextResponse.json({ error: "Invalid request body" }, { status: 400 });
+    return apiError("Invalid request body", "INVALID_REQUEST", 400);
   }
 
   const { parentPath, folderName } = body as Record<string, unknown>;
   if (!folderName || typeof folderName !== "string") {
-    return NextResponse.json({ error: "Missing folderName" }, { status: 400 });
+    return apiError("Missing folderName", "INVALID_REQUEST", 400);
   }
   if (parentPath !== undefined && typeof parentPath !== "string") {
-    return NextResponse.json({ error: "Invalid parentPath" }, { status: 400 });
+    return apiError("Invalid parentPath", "INVALID_REQUEST", 400);
   }
 
   try {
     const created = await createMediaDirectory(parentPath || "", folderName);
-    return NextResponse.json({ success: true, path: created.relativePath });
+    return apiJson({ success: true, path: created.relativePath });
   } catch (error) {
     return (
       mediaPathErrorResponse(error) ??
-      NextResponse.json({ error: "Failed to create folder" }, { status: 500 })
+      apiError("Media storage is unavailable", "MEDIA_STORAGE_UNAVAILABLE", 503)
     );
   }
 }

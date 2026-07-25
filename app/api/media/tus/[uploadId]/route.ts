@@ -9,6 +9,7 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
+import { apiJson } from "@/lib/api/responses";
 import { requireAuth } from "@/lib/auth";
 import {
   getUpload,
@@ -32,6 +33,10 @@ function tusHeaders(extra: Record<string, string> = {}) {
   };
 }
 
+function tusJson(error: string, code: string, status: number) {
+  return apiJson({ error, code }, { status, headers: tusHeaders() });
+}
+
 type RouteParams = { params: Promise<{ uploadId: string }> };
 
 export async function OPTIONS() {
@@ -41,7 +46,7 @@ export async function OPTIONS() {
 /**
  * HEAD — Return current upload offset so client knows where to resume.
  */
-export async function HEAD(
+async function readLegacyUpload(
   _req: NextRequest,
   { params }: RouteParams
 ) {
@@ -74,55 +79,45 @@ export async function HEAD(
  * PATCH — Append bytes at the given offset.
  * Content-Type must be application/offset+octet-stream.
  */
-export async function PATCH(
+async function appendLegacyUpload(
   req: NextRequest,
   { params }: RouteParams
 ) {
   const { uploadId } = await params;
   const user = await requireAuth();
   if (!user) {
-    return NextResponse.json(
-      { error: "Unauthorized" },
-      { status: 401, headers: tusHeaders() }
-    );
+    return tusJson("Unauthorized", "UNAUTHORIZED", 401);
   }
 
   const tusVersion = req.headers.get("tus-resumable");
   if (tusVersion !== TUS_VERSION) {
-    return NextResponse.json(
-      { error: "Unsupported tus version" },
-      { status: 412, headers: tusHeaders() }
+    return tusJson(
+      "Unsupported tus version",
+      "TUS_VERSION_UNSUPPORTED",
+      412,
     );
   }
 
   const contentType = req.headers.get("content-type");
   if (contentType !== "application/offset+octet-stream") {
-    return NextResponse.json(
-      { error: "Content-Type must be application/offset+octet-stream" },
-      { status: 415, headers: tusHeaders() }
+    return tusJson(
+      "Content-Type must be application/offset+octet-stream",
+      "INVALID_CONTENT_TYPE",
+      415,
     );
   }
 
   const upload = getUpload(uploadId);
   if (!upload) {
-    return NextResponse.json(
-      { error: "Upload not found" },
-      { status: 404, headers: tusHeaders() }
-    );
+    return tusJson("Upload not found", "UPLOAD_NOT_FOUND", 404);
   }
 
   if (upload.userId !== user.id) {
-    return NextResponse.json(
-      { error: "Forbidden" },
-      { status: 403, headers: tusHeaders() }
-    );
+    return tusJson("Forbidden", "UPLOAD_FORBIDDEN", 403);
   }
 
   if (upload.completed) {
-    return NextResponse.json(
-      { error: "Upload already completed" },
-      { status: 409, headers: tusHeaders() }
-    );
+    return tusJson("Upload already completed", "UPLOAD_STATE", 409);
   }
 
   const clientOffset = parseInt(
@@ -130,16 +125,18 @@ export async function PATCH(
     10
   );
   if (clientOffset < 0) {
-    return NextResponse.json(
-      { error: "Upload-Offset header required" },
-      { status: 400, headers: tusHeaders() }
+    return tusJson(
+      "Upload-Offset header required",
+      "INVALID_UPLOAD_OFFSET",
+      400,
     );
   }
 
   if (clientOffset !== upload.offset) {
-    return NextResponse.json(
-      { error: `Offset conflict: server at ${upload.offset}` },
-      { status: 409, headers: tusHeaders() }
+    return tusJson(
+      "Upload offset does not match server state",
+      "UPLOAD_OFFSET",
+      409,
     );
   }
 
@@ -175,12 +172,11 @@ export async function PATCH(
       status: 204,
       headers: tusHeaders(extraHeaders),
     });
-  } catch (err) {
-    const msg = err instanceof Error ? err.message : "Chunk write failed";
-    const status = msg.includes("mismatch") ? 409 : 500;
-    return NextResponse.json(
-      { error: msg },
-      { status, headers: tusHeaders() }
+  } catch {
+    return tusJson(
+      "Upload storage is unavailable",
+      "STORAGE_UNAVAILABLE",
+      503,
     );
   }
 }
@@ -189,7 +185,7 @@ export async function PATCH(
  * DELETE — Cancel and clean up an in-progress upload.
  * Implements tus termination extension.
  */
-export async function DELETE(
+async function removeLegacyUpload(
   _req: NextRequest,
   { params }: RouteParams
 ) {
@@ -210,4 +206,43 @@ export async function DELETE(
 
   deleteUpload(uploadId);
   return new NextResponse(null, { status: 204, headers: tusHeaders() });
+}
+
+export async function HEAD(
+  request: NextRequest,
+  context: RouteParams,
+) {
+  try {
+    return await readLegacyUpload(request, context);
+  } catch {
+    // HEAD responses are bodyless by protocol; the status still fails closed.
+    return new NextResponse(null, { status: 503, headers: tusHeaders() });
+  }
+}
+
+export async function PATCH(
+  request: NextRequest,
+  context: RouteParams,
+) {
+  try {
+    return await appendLegacyUpload(request, context);
+  } catch {
+    return tusJson(
+      "Upload service is unavailable",
+      "BACKEND_UNAVAILABLE",
+      503,
+    );
+  }
+}
+
+export async function DELETE(
+  request: NextRequest,
+  context: RouteParams,
+) {
+  try {
+    return await removeLegacyUpload(request, context);
+  } catch {
+    // TUS termination responses remain bodyless while still avoiding a 500.
+    return new NextResponse(null, { status: 503, headers: tusHeaders() });
+  }
 }

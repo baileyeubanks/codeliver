@@ -3,7 +3,15 @@ import { NextResponse } from "next/server";
 import { getProjectAccess } from "@/lib/access-control";
 import { getSupabase } from "@/lib/supabase";
 import { detectFileType } from "@/lib/utils/media";
-import { isStorageError } from "@/lib/storage/errors";
+import {
+  isStorageError,
+  StorageError,
+} from "@/lib/storage/errors";
+import type { StorageRuntimeConfig } from "@/lib/storage/config";
+import {
+  BackendUnavailableError,
+  isBackendUnavailableError,
+} from "@/lib/api/backend";
 import type { UploadSession } from "@/lib/tus/session";
 import {
   isUploadOrchestrationError,
@@ -13,52 +21,108 @@ import type { UploadOrchestrator } from "@/lib/tus/orchestrator";
 
 export interface UploadHttpError {
   status: number;
+  code: string;
   message: string;
   retryAfter?: string;
 }
 
+export function assertUploadStorageConfigured(
+  config: StorageRuntimeConfig,
+): void {
+  if (
+    !config.providerWasExplicit ||
+    !config.filesystemRoot ||
+    !config.writeEnabled ||
+    config.issues.length > 0
+  ) {
+    throw new StorageError(
+      "STORAGE_NOT_CONFIGURED",
+      "Upload storage is unavailable",
+      true,
+    );
+  }
+}
+
 export function mapUploadError(error: unknown): UploadHttpError {
+  if (isBackendUnavailableError(error)) {
+    return {
+      status: 503,
+      code: "BACKEND_UNAVAILABLE",
+      message: "Backend service is unavailable",
+      retryAfter: "15",
+    };
+  }
+
   if (isUploadOrchestrationError(error)) {
     switch (error.code) {
       case "UPLOAD_NOT_FOUND":
-        return { status: 404, message: error.message };
+        return { status: 404, code: error.code, message: error.message };
       case "UPLOAD_FORBIDDEN":
-        return { status: 403, message: error.message };
+        return { status: 403, code: error.code, message: error.message };
       case "UPLOAD_INVALID":
-        return { status: 400, message: error.message };
+        return { status: 400, code: error.code, message: error.message };
       case "UPLOAD_CONFLICT":
       case "UPLOAD_OFFSET":
       case "UPLOAD_STATE":
-        return { status: 409, message: error.message };
+        return { status: 409, code: error.code, message: error.message };
       case "UPLOAD_CHECKSUM":
-        return { status: 422, message: error.message };
+        return { status: 422, code: error.code, message: error.message };
       case "UPLOAD_QUOTA":
-        return { status: 429, message: error.message, retryAfter: "60" };
+        return {
+          status: 429,
+          code: error.code,
+          message: error.message,
+          retryAfter: "60",
+        };
       case "UPLOAD_BUSY":
-        return { status: 423, message: error.message, retryAfter: "2" };
+        return {
+          status: 423,
+          code: error.code,
+          message: error.message,
+          retryAfter: "2",
+        };
       case "UPLOAD_BACKPRESSURE":
-        return { status: 503, message: error.message, retryAfter: "15" };
+        return {
+          status: 503,
+          code: "STORAGE_UNAVAILABLE",
+          message: "Upload storage is unavailable",
+          retryAfter: "15",
+        };
     }
   }
 
   if (isStorageError(error)) {
     switch (error.code) {
       case "STORAGE_PATH_INVALID":
-        return { status: 400, message: error.message };
+        return { status: 400, code: error.code, message: error.message };
       case "STORAGE_CONFLICT":
       case "STORAGE_OFFSET":
-        return { status: 409, message: error.message };
+        return { status: 409, code: error.code, message: error.message };
       case "STORAGE_CHECKSUM":
-        return { status: 422, message: error.message };
+        return { status: 422, code: error.code, message: error.message };
       case "STORAGE_CAPACITY":
-        return { status: 507, message: error.message, retryAfter: "60" };
+        return {
+          status: 507,
+          code: error.code,
+          message: error.message,
+          retryAfter: "60",
+        };
       case "STORAGE_NOT_CONFIGURED":
       case "STORAGE_NOT_READY":
       case "STORAGE_UNSUPPORTED":
-        return { status: 503, message: error.message, retryAfter: "15" };
+        return {
+          status: 503,
+          code: "STORAGE_UNAVAILABLE",
+          message: "Upload storage is unavailable",
+          retryAfter: "15",
+        };
     }
   }
-  return { status: 500, message: "Upload orchestration failed" };
+  return {
+    status: 500,
+    code: "UPLOAD_FAILED",
+    message: "Upload orchestration failed",
+  };
 }
 
 export function jsonUploadError(
@@ -67,11 +131,12 @@ export function jsonUploadError(
 ): NextResponse {
   const mapped = mapUploadError(error);
   return NextResponse.json(
-    { error: mapped.message },
+    { error: mapped.message, code: mapped.code },
     {
       status: mapped.status,
       headers: {
         ...headers,
+        "Cache-Control": "no-store",
         ...(mapped.retryAfter ? { "Retry-After": mapped.retryAfter } : {}),
       },
     }
@@ -91,6 +156,9 @@ export async function requireOwnedUploadTarget(
     supabase,
   );
   if (!projectAccess.ok) {
+    if (projectAccess.status >= 500) {
+      throw new BackendUnavailableError("Upload project authority");
+    }
     throw new UploadOrchestrationError(
       "UPLOAD_FORBIDDEN",
       "Project is unavailable for upload"
@@ -98,12 +166,15 @@ export async function requireOwnedUploadTarget(
   }
 
   if (folderId) {
-    const { data: folder } = await supabase
+    const { data: folder, error } = await supabase
       .from("folders")
       .select("id")
       .eq("id", folderId)
       .eq("project_id", projectId)
       .maybeSingle();
+    if (error) {
+      throw new BackendUnavailableError("Upload folder authority");
+    }
     if (!folder) {
       throw new UploadOrchestrationError(
         "UPLOAD_FORBIDDEN",

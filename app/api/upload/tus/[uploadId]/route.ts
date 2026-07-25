@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { apiJson } from "@/lib/api/responses";
 
 import { requireAuth } from "@/lib/auth";
 import { readStorageConfig } from "@/lib/storage/config";
@@ -11,6 +12,7 @@ import {
   tusHeaders,
 } from "@/lib/tus/protocol";
 import {
+  assertUploadStorageConfigured,
   ensureCatalogAsset,
   jsonUploadError,
   mapUploadError,
@@ -23,7 +25,11 @@ export const dynamic = "force-dynamic";
 type RouteParams = { params: Promise<{ uploadId: string }> };
 
 function headers(extra: Record<string, string> = {}): Record<string, string> {
-  return tusHeaders(readStorageConfig().maxUploadBytes, extra);
+  return tusHeaders(readStorageConfig().maxUploadBytes, { "Cache-Control": "no-store", ...extra });
+}
+
+function tusError(error: string, code: string, status: number, responseHeaders: Record<string, string>) {
+  return apiJson({ error, code }, { status, headers: responseHeaders });
 }
 
 function sessionHeaders(
@@ -68,6 +74,7 @@ export async function HEAD(_request: NextRequest, { params }: RouteParams) {
   try {
     const user = await requireAuth();
     if (!user) return new NextResponse(null, { status: 401, headers: responseHeaders });
+    assertUploadStorageConfigured(readStorageConfig());
     const { uploadId } = await params;
     const orchestrator = createDefaultUploadOrchestrator();
     let session = await orchestrator.recoverSession(uploadId, user.id);
@@ -94,37 +101,23 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
   try {
     const user = await requireAuth();
     if (!user) {
-      return NextResponse.json(
-        { error: "Unauthorized" },
-        { status: 401, headers: responseHeaders }
-      );
+      return tusError("Unauthorized", "UNAUTHORIZED", 401, responseHeaders);
     }
     if (request.headers.get("tus-resumable") !== TUS_VERSION) {
-      return NextResponse.json(
-        { error: "Unsupported tus version" },
-        { status: 412, headers: responseHeaders }
-      );
+      return tusError("Unsupported tus version", "TUS_VERSION_UNSUPPORTED", 412, responseHeaders);
     }
+    assertUploadStorageConfigured(readStorageConfig());
     if (request.headers.get("content-type") !== "application/offset+octet-stream") {
-      return NextResponse.json(
-        { error: "Content-Type must be application/offset+octet-stream" },
-        { status: 415, headers: responseHeaders }
-      );
+      return tusError("Content-Type must be application/offset+octet-stream", "INVALID_CONTENT_TYPE", 415, responseHeaders);
     }
 
     const rawOffset = request.headers.get("upload-offset");
     if (!rawOffset || !/^(0|[1-9][0-9]*)$/.test(rawOffset)) {
-      return NextResponse.json(
-        { error: "Upload-Offset must be a non-negative integer" },
-        { status: 400, headers: responseHeaders }
-      );
+      return tusError("Upload-Offset must be a non-negative integer", "INVALID_UPLOAD_OFFSET", 400, responseHeaders);
     }
     const offset = Number(rawOffset);
     if (!Number.isSafeInteger(offset)) {
-      return NextResponse.json(
-        { error: "Upload-Offset exceeds the safe integer range" },
-        { status: 400, headers: responseHeaders }
-      );
+      return tusError("Upload-Offset exceeds the safe integer range", "INVALID_UPLOAD_OFFSET", 400, responseHeaders);
     }
 
     const config = readStorageConfig();
@@ -134,10 +127,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
       /^\d+$/.test(contentLength) &&
       BigInt(contentLength) > config.maxChunkBytes
     ) {
-      return NextResponse.json(
-        { error: "Upload part exceeds the chunk limit" },
-        { status: 413, headers: responseHeaders }
-      );
+      return tusError("Upload part exceeds the chunk limit", "UPLOAD_PART_TOO_LARGE", 413, responseHeaders);
     }
 
     const { uploadId } = await params;
@@ -170,6 +160,7 @@ export async function DELETE(_request: NextRequest, { params }: RouteParams) {
   try {
     const user = await requireAuth();
     if (!user) return new NextResponse(null, { status: 401, headers: responseHeaders });
+    assertUploadStorageConfigured(readStorageConfig());
     const { uploadId } = await params;
     await createDefaultUploadOrchestrator().abort(uploadId, user.id);
     return new NextResponse(null, { status: 204, headers: responseHeaders });

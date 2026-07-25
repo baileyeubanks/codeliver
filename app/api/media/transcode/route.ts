@@ -7,7 +7,8 @@
 
 import { timingSafeEqual } from "node:crypto";
 
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest } from "next/server";
+import { apiJson } from "@/lib/api/responses";
 
 import { getAssetAccess } from "@/lib/access-control";
 import { requireAuth } from "@/lib/auth";
@@ -55,10 +56,12 @@ class JsonRequestError extends Error {
 }
 
 function json(body: Record<string, unknown>, status = 200) {
-  return NextResponse.json(body, {
+  const normalized = "error" in body && typeof body.error === "string" && !("code" in body)
+    ? { ...body, code: status >= 500 ? "BACKEND_UNAVAILABLE" : status === 401 ? "UNAUTHORIZED" : "INVALID_REQUEST" }
+    : body;
+  return apiJson(normalized, {
     status,
     headers: {
-      "Cache-Control": "private, no-store",
       "X-Content-Type-Options": "nosniff",
       Vary: `Cookie, Authorization, ${WORKER_TOKEN_HEADER}`,
     },

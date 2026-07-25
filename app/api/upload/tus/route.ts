@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { apiJson } from "@/lib/api/responses";
 
 import { requireAuth } from "@/lib/auth";
 import { readStorageConfig } from "@/lib/storage/config";
@@ -9,6 +10,7 @@ import {
   tusHeaders,
 } from "@/lib/tus/protocol";
 import {
+  assertUploadStorageConfigured,
   jsonUploadError,
   requireOwnedUploadTarget,
 } from "@/app/api/upload/_shared";
@@ -17,7 +19,11 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 function headers(extra: Record<string, string> = {}): Record<string, string> {
-  return tusHeaders(readStorageConfig().maxUploadBytes, extra);
+  return tusHeaders(readStorageConfig().maxUploadBytes, { "Cache-Control": "no-store", ...extra });
+}
+
+function tusError(error: string, code: string, status: number, responseHeaders: Record<string, string>) {
+  return apiJson({ error, code }, { status, headers: responseHeaders });
 }
 
 function parseUploadLength(value: string | null): number {
@@ -40,27 +46,19 @@ export async function POST(request: NextRequest) {
   try {
     const user = await requireAuth();
     if (!user) {
-      return NextResponse.json(
-        { error: "Unauthorized" },
-        { status: 401, headers: responseHeaders }
-      );
+      return tusError("Unauthorized", "UNAUTHORIZED", 401, responseHeaders);
     }
     if (request.headers.get("tus-resumable") !== TUS_VERSION) {
-      return NextResponse.json(
-        { error: "Unsupported tus version" },
-        { status: 412, headers: responseHeaders }
-      );
+      return tusError("Unsupported tus version", "TUS_VERSION_UNSUPPORTED", 412, responseHeaders);
     }
+    assertUploadStorageConfigured(readStorageConfig());
 
     const uploadLength = parseUploadLength(request.headers.get("upload-length"));
     const metadata = parseUploadMetadata(request.headers.get("upload-metadata"));
     const projectId = metadata.projectId;
     const idempotencyKey = metadata.idempotencyKey;
     if (!projectId || !idempotencyKey) {
-      return NextResponse.json(
-        { error: "projectId and idempotencyKey metadata are required" },
-        { status: 400, headers: responseHeaders }
-      );
+      return tusError("projectId and idempotencyKey metadata are required", "INVALID_UPLOAD_METADATA", 400, responseHeaders);
     }
     await requireOwnedUploadTarget(user.id, projectId, metadata.folderId);
 
@@ -88,10 +86,7 @@ export async function POST(request: NextRequest) {
     });
   } catch (error) {
     if (error instanceof Error && error.message.startsWith("Upload-Length")) {
-      return NextResponse.json(
-        { error: error.message },
-        { status: 400, headers: responseHeaders }
-      );
+      return tusError("Upload-Length is invalid", "INVALID_UPLOAD_LENGTH", 400, responseHeaders);
     }
     return jsonUploadError(error, responseHeaders);
   }

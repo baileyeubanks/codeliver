@@ -1,5 +1,5 @@
-import { NextResponse } from "next/server";
-
+import { isBackendUnavailableError } from "@/lib/api/backend";
+import { apiError, apiJson, backendUnavailable } from "@/lib/api/responses";
 import { requireAuth } from "@/lib/auth";
 import { readStorageConfig } from "@/lib/storage/config";
 import { createMalwareScanHook } from "@/lib/storage/malware";
@@ -11,25 +11,33 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 export async function GET() {
-  const user = await requireAuth();
-  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  let user: Awaited<ReturnType<typeof requireAuth>>;
+  try {
+    user = await requireAuth();
+  } catch (error) {
+    return isBackendUnavailableError(error)
+      ? backendUnavailable()
+      : apiError("Authentication service is unavailable", "AUTH_UNAVAILABLE", 503);
+  }
+  if (!user) return apiError("Unauthorized", "UNAUTHORIZED", 401);
 
-  const runtime = createStorageRuntime();
-  const config = readStorageConfig();
-  const uploadDiagnostics = config.filesystemRoot
-    ? await createDefaultUploadOrchestrator().diagnostics(user.id)
-    : null;
-  const readiness =
-    uploadDiagnostics?.storage ?? (await runtime.adapter.diagnose());
-  const scanner = createMalwareScanHook(config.malwarePolicy).readiness!;
-  const workflow =
-    uploadDiagnostics?.workflow ??
-    buildUploadWorkflowReadiness({
-      storage: readiness,
-      scanner,
-      derivativeHooksConfigured: false,
-    });
-  return NextResponse.json(
+  try {
+    const runtime = createStorageRuntime();
+    const config = readStorageConfig();
+    const uploadDiagnostics = config.filesystemRoot
+      ? await createDefaultUploadOrchestrator().diagnostics(user.id)
+      : null;
+    const readiness =
+      uploadDiagnostics?.storage ?? (await runtime.adapter.diagnose());
+    const scanner = createMalwareScanHook(config.malwarePolicy).readiness!;
+    const workflow =
+      uploadDiagnostics?.workflow ??
+      buildUploadWorkflowReadiness({
+        storage: readiness,
+        scanner,
+        derivativeHooksConfigured: false,
+      });
+    return apiJson(
     {
       status: readiness.readyForWrites ? "ready" : "blocked",
       provider: readiness.provider,
@@ -61,6 +69,8 @@ export async function GET() {
       },
       observedAt: readiness.observedAt,
     },
-    { headers: { "Cache-Control": "no-store" } }
-  );
+    );
+  } catch {
+    return apiError("Storage readiness is unavailable", "STORAGE_UNAVAILABLE", 503);
+  }
 }

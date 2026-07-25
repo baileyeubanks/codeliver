@@ -57,8 +57,8 @@
 }
 
 :focus-visible {
-  outline: 2px solid var(--cvp-blue);
-  outline-offset: 2px;
+  outline: var(--cvp-focus-ring, 2px solid var(--cvp-blue));
+  outline-offset: var(--cvp-focus-ring-offset, 2px);
 }
 
 /* Stage theme — opt-in only (review theater, media islands). */
@@ -1666,8 +1666,22 @@ a { color: inherit; text-decoration: none; }
 
 /* ── Focus ───────────────────────────────────────────────────── */
 :focus-visible {
-  outline: 2px solid var(--blue);
-  outline-offset: 2px;
+  outline: var(--cvp-focus-ring, 2px solid var(--cvp-blue));
+  outline-offset: var(--cvp-focus-ring-offset, 2px);
+}
+
+/* ── Touch targets (WCAG 2.5.5) ─────────────────────────────── */
+/* 44px minimum hit area on coarse pointers and small screens. */
+@media (pointer: coarse), (max-width: 900px) {
+  .cockpit-project-switcher select { min-height: 44px; }
+  .cockpit-action-primary,
+  .cockpit-action-secondary,
+  .cockpit-icon-button,
+  .cockpit-avatar-button {
+    min-width: 44px;
+    min-height: 44px;
+  }
+  input[type="range"] { min-height: 44px; }
 }
 
 /* ── Animations ──────────────────────────────────────────────── */
@@ -3702,6 +3716,8 @@ a { color: inherit; text-decoration: none; }
 .cockpit-comment-list article div { min-width: 0; }
 .cockpit-comment-list strong { display: block; color: var(--cockpit-copy); font-size: 10px; }
 .cockpit-comment-list p { margin-top: 2px; color: var(--cockpit-muted); font-size: 9px; line-height: 1.4; }
+.cockpit-comment-clamped { display: -webkit-box; overflow: hidden; -webkit-box-orient: vertical; -webkit-line-clamp: 3; }
+.cockpit-comment-expand { margin-top: 1px; padding: 1px 0; border: 0; background: transparent; color: var(--cockpit-accent); font-size: 9px; font-weight: 650; cursor: pointer; }
 .cockpit-resolve { width: 24px; height: 24px; display: inline-flex; align-items: center; justify-content: center; border: 0; border-radius: 5px; background: transparent; color: var(--cockpit-muted); opacity: 0; }
 .cockpit-comment-list article:hover .cockpit-resolve,
 .cockpit-resolve:focus-visible { opacity: 1; }
@@ -3934,7 +3950,7 @@ a { color: inherit; text-decoration: none; }
   .cockpit-header-actions { flex: 0 0 auto; }
   .cockpit-icon-button,
   .cockpit-avatar-button,
-  .cockpit-action-primary { width: 36px; min-height: 36px; }
+  .cockpit-action-primary { width: 44px; min-height: 44px; }
   .cockpit-popover { position: fixed; top: 58px; right: 8px; width: min(300px, calc(100vw - 16px)); }
   .cockpit-main { padding: 15px 12px 40px; }
   .cockpit-welcome { align-items: start; margin-bottom: 16px; }
@@ -4007,7 +4023,8 @@ a { color: inherit; text-decoration: none; }
   .cockpit-table-list > article { grid-template-columns: 32px minmax(0, 1fr) auto; }
   .cockpit-table-list > article > a,
   .cockpit-table-list > article > button { grid-column: 2 / -1; justify-self: start; }
-  .cockpit-toast { left: 10px; right: 10px; bottom: 10px; justify-content: center; }
+  .cockpit-toast { left: 10px; right: 10px; bottom: calc(58px + env(safe-area-inset-bottom) + 10px); justify-content: center; }
+  .demo-toast { right: 10px; bottom: calc(58px + env(safe-area-inset-bottom) + 10px); }
   .cockpit-upload-overlay { padding: 12px; }
   .cockpit-upload-overlay > section { padding: 22px 18px; }
   .cockpit-upload-overlay section > h2 { font-size: 19px; }

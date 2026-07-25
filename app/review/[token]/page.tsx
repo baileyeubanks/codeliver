@@ -49,7 +49,14 @@ export default async function PublicReviewRoute({
 
   if (!isOpaqueRouteToken(token)) notFound();
 
-  const inviteLookup = await getReviewInviteByToken(token);
+  let inviteLookup: Awaited<ReturnType<typeof getReviewInviteByToken>>;
+  try {
+    inviteLookup = await getReviewInviteByToken(token);
+  } catch {
+    // A misconfigured/unreachable backend must never masquerade as a
+    // missing record: surface the honest unavailable state instead.
+    throw new BackendUnavailableError("Review database");
+  }
   // Expired or exhausted links (410) are missing records at the page layer;
   // the API keeps the precise 410 for clients.
   if (!inviteLookup.ok && (inviteLookup.status === 404 || inviteLookup.status === 410)) notFound();

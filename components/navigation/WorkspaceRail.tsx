@@ -48,6 +48,7 @@ export default function WorkspaceRail({ pathname, querySuffix, role, projects = 
                   data-active={activeId === item.id}
                   aria-current={activeId === item.id ? "page" : undefined}
                   className={styles.item}
+                  title={item.label}
                 >
                   <Icon size={16} />
                   <span>{item.label}</span>
@@ -67,6 +68,7 @@ export default function WorkspaceRail({ pathname, querySuffix, role, projects = 
                 data-active={activeProjectId === project.id}
                 aria-current={activeProjectId === project.id ? "page" : undefined}
                 className={styles.item}
+                title={project.name}
               >
                 <BriefcaseBusiness size={16} />
                 <span>{project.name}</span>

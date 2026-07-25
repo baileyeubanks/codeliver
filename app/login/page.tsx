@@ -44,6 +44,9 @@ export default function LoginPage() {
   function showError(message: string) {
     setError(message);
     setLoading(false);
+    // Never keep a rejected password on screen.
+    const passwordInput = document.getElementById("login-password");
+    if (passwordInput instanceof HTMLInputElement) passwordInput.value = "";
     window.requestAnimationFrame(() => alertRef.current?.focus());
   }
 
@@ -129,7 +132,7 @@ export default function LoginPage() {
               id="login-email"
               name="email"
               type="email"
-              required
+              required={!demoMode}
               autoComplete="email"
               inputMode="email"
               autoCapitalize="none"
@@ -148,7 +151,7 @@ export default function LoginPage() {
                 id="login-password"
                 name="password"
                 type={showPassword ? "text" : "password"}
-                required
+                required={!demoMode}
                 autoComplete="current-password"
                 onChange={() => {
                   if (error) setError("");

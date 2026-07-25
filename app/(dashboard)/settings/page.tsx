@@ -118,25 +118,33 @@ export default function SettingsPage() {
     [],
   );
 
+  function flashNotice(message: string) {
+    setNotice(message);
+    if (noticeTimer.current) window.clearTimeout(noticeTimer.current);
+    noticeTimer.current = window.setTimeout(() => setNotice(""), 3200);
+  }
+
   useEffect(() => {
     function syncTabFromLocation() {
-      setTab(
-        resolveSettingsTab(
-          new URLSearchParams(window.location.search).get("section"),
-        ),
-      );
+      const params = new URLSearchParams(window.location.search);
+      const requested = params.get("section");
+      const resolved = resolveSettingsTab(requested);
+      setTab(resolved);
+      if (requested && requested !== resolved) {
+        params.set("section", resolved);
+        window.history.replaceState(
+          window.history.state,
+          "",
+          `${window.location.pathname}?${params.toString()}`,
+        );
+        flashNotice(`Unknown settings section "${requested}" — opened Account`);
+      }
     }
 
     syncTabFromLocation();
     window.addEventListener("popstate", syncTabFromLocation);
     return () => window.removeEventListener("popstate", syncTabFromLocation);
   }, []);
-
-  function flashNotice(message: string) {
-    setNotice(message);
-    if (noticeTimer.current) window.clearTimeout(noticeTimer.current);
-    noticeTimer.current = window.setTimeout(() => setNotice(""), 3200);
-  }
 
   function resetLocalPillar() {
     resetDemoWorkspace();

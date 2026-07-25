@@ -65,7 +65,6 @@
   .item:focus-visible {
     background: var(--surface-hover, #f1f5fa);
     color: var(--ink, #18223e);
-    outline: 0;
   }
 
   .item[data-active="true"] {

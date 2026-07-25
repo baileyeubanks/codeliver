@@ -77,6 +77,11 @@
   --cvp-shadow-popover: 0 4px 12px rgb(24 34 62 / 0.09),
     0 16px 48px rgb(24 34 62 / 0.13);
 
+  /* Focus — WCAG 2.4.7: one ring token for the whole system.
+     Component CSS must never zero this out on :focus-visible. */
+  --cvp-focus-ring: 2px solid var(--cvp-blue);
+  --cvp-focus-ring-offset: 2px;
+
   /* Motion — ribbon spirit: quick, eased, reduced-motion safe */
   --cvp-motion-fast: 120ms;
   --cvp-motion-med: 200ms;

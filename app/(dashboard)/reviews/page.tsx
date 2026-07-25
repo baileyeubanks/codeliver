@@ -49,9 +49,7 @@ function timeAgo(iso: string) {
   return new Date(iso).toLocaleDateString();
 }
 
-function resolvePublicLink(value: string, demoMode: boolean): string | null {
-  const runtimeOrigin = typeof window === "undefined" ? undefined : window.location.origin;
-
+function resolvePublicLink(value: string, demoMode: boolean, runtimeOrigin?: string): string | null {
   try {
     if (demoMode && runtimeOrigin) return toDemoSiteUrl(value, runtimeOrigin);
     return toClientSiteUrl(value, runtimeOrigin);
@@ -73,8 +71,16 @@ export default function ReviewsPage() {
   const [remoteLinks, setRemoteLinks] = useState<ShareLink[]>([]);
   const [remoteLoading, setRemoteLoading] = useState(true);
   const [detail, setDetail] = useState<ShareLink | null>(null);
+  // The public-link origin must stay identical between SSR and the first
+  // client render; adopt window.location.origin only after mount.
+  const [runtimeOrigin, setRuntimeOrigin] = useState<string | undefined>(undefined);
   const links = demoMode ? demoWorkspace.shareLinks : remoteLinks;
   const loading = demoMode ? false : remoteLoading;
+
+  useEffect(() => {
+    const frame = window.requestAnimationFrame(() => setRuntimeOrigin(window.location.origin));
+    return () => window.cancelAnimationFrame(frame);
+  }, []);
 
   useEffect(() => {
     if (demoMode) return;
@@ -90,7 +96,7 @@ export default function ReviewsPage() {
     ? links.filter((l) => l.created_by_name === "You")
     : links;
   const detailPublicUrl = detail?.public_url
-    ? resolvePublicLink(detail.public_url, demoMode)
+    ? resolvePublicLink(detail.public_url, demoMode, runtimeOrigin)
     : null;
   const reviewHref = demoMode
     ? "/projects/bp?asset=bp-rodeo-v2&view=review&demo=1"
@@ -276,7 +282,7 @@ export default function ReviewsPage() {
               <tbody>
                 {filtered.map((link) => {
                   const publicUrl = link.public_url
-                    ? resolvePublicLink(link.public_url, demoMode)
+                    ? resolvePublicLink(link.public_url, demoMode, runtimeOrigin)
                     : null;
 
                   return (

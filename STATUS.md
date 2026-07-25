@@ -118,7 +118,9 @@ the wrappers block the initial render and `notFound()` sets the real status.
 - `app/review/[token]/page.tsx`: expired/exhausted invites (lookup 410) now
   `notFound()` at the page layer too (App Router pages cannot emit 410; the
   API keeps the precise 410 for clients); `>=500` still throws
-  `BackendUnavailableError`. Demo requests resolve tokens against the demo
+  `BackendUnavailableError`, and a lookup that throws outright (e.g. missing
+  Supabase env) is converted to the same honest unavailable error so a
+  misconfigured backend never masquerades as a missing record. Demo requests resolve tokens against the demo
   workspace authority only — an unknown demo token is a 404, never a
   production database lookup (previously a 500).
 - D20: `/review/<token>` is canonical in demo. `proxy.ts` rewrites local-demo
@@ -140,11 +142,17 @@ full suite is green and the curl matrix is:
 | Route | :4103 before | :4103 after | :4115 before | :4115 after |
 | --- | --- | --- | --- | --- |
 | /review/bogus-token | 200 | 404 | 200 | 404 |
-| /review/bogus-token-1234567890 | 200 | 404 | 200 | 404 |
+| /review/bogus-token-1234567890 | 200 | 500¹ | 200 | 404 |
 | /review/demo-ica-final | 200 | 404 | 200 | 200 (resolves) |
 | /review/ica?demo=1 | — | — | 200 | 404 |
 | /projects/does-not-exist?demo=1 | — | — | 200 | 404 |
 | /review/demo?…&share=demo-ica-final (long form) | — | — | 200 | 308 → short |
+
+¹ Pattern-passing tokens require the database verdict. Supabase env is absent
+on M2 (BLOCKERS.md Blocker 1), so :4103 fails closed with the honest
+backend-unavailable error (`BackendUnavailableError`, HTTP 500) instead of a
+soft-200 or a false 404; with Supabase present the missing row is a real 404.
+The runtime contract test encodes both branches.
 
 ## P12 — Live-brand visual reskin (2026-07-25)
 
@@ -267,3 +275,13 @@ commands that would prove the blocked items are in `BLOCKERS.md`.
   Next.js framework method handling; no header reflection, no env/stack leak).
   Accepted: framework-level, leaks nothing; 405 would be nicer but is Next's default.
 - Commit 2d57b7b fixed a verifier false positive (login return-path echo).
+
+## P10 — Responsive + accessibility sweep (D21–D24 + minors)
+
+- D21: mobile/iPad cockpit overflow fixed (tab row, avatar overlap, card width) — 12/12 regression checks
+- D22: global focus-visible system (brand-blue outline) across rail/cockpit/workspace nav
+- D23: 44px touch-target floor on coarse pointers for cockpit + nav controls
+- D24: project switcher functional and measurable
+- Review route: getReviewInviteByToken throws now map to BackendUnavailableError (no masked 500s)
+- Minors: favicon.ico route, /reviews hydration-safe origin + share-link handling, settings unknown-section redirect + notice, login one-click demo path, auth-shell trust chips, comment clamp, tooltip coverage
+- Regressions: ~/covideopro-visual-audit/regressions/p10 — all PASS. Harness: typecheck 0, lint 0, 741/741, build green.

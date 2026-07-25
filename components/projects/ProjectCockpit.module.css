@@ -423,8 +423,8 @@
   .shell :global(.cockpit-icon-button),
   .shell :global(.cockpit-avatar-button),
   .shell :global(.cockpit-action-primary) {
-    width: 34px;
-    min-height: 34px;
+    width: 44px;
+    min-height: 44px;
   }
 
   .shell :global(.cockpit-section-heading) {

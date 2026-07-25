@@ -91,7 +91,7 @@ export function CockpitProjectNavigation({
               aria-expanded={item.id === "overview" ? overviewOpen : undefined}
               aria-controls={item.id === "overview" ? "cockpit-project-overview" : undefined}
               onClick={() => select(item.id)}
-              title={compact ? item.label : undefined}
+              title={item.label}
             >
               <Icon size={18} />
               <span className={styles.label}>{item.label}</span>

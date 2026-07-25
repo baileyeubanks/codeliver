@@ -194,7 +194,6 @@
 .menuItem:focus-visible {
   background: var(--cockpit-accent-soft, #edf4ff);
   color: var(--cockpit-accent, #145bb8);
-  outline: 0;
 }
 
 .menuItemCopy {

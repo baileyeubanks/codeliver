@@ -33,6 +33,35 @@ interface DemoReviewPayload {
   };
 }
 
+export function bindDemoReviewApprovals({
+  approvals,
+  assetId,
+  reviewerEmail,
+  permission,
+}: {
+  approvals: ApprovalStep[];
+  assetId: string;
+  reviewerEmail: string | null;
+  permission: SharePermission;
+}) {
+  const normalizedReviewerEmail = reviewerEmail?.trim().toLowerCase() || null;
+  const recipientApprovalId =
+    permission === "approve" && normalizedReviewerEmail
+      ? [...approvals]
+          .sort((left, right) => left.step_order - right.step_order)
+          .find((approval) => approval.status === "pending")?.id
+      : null;
+
+  return approvals.map((approval) => ({
+    ...approval,
+    asset_id: assetId,
+    assignee_email:
+      approval.id === recipientApprovalId
+        ? normalizedReviewerEmail
+        : approval.assignee_email,
+  }));
+}
+
 const now = new Date();
 
 function minutesAgo(minutes: number) {

@@ -227,3 +227,10 @@ Baseline: `e068ee8` (checkpoint of the prior session's transformation state).
 - Local media now bypasses that failing optimizer path through the central Next image configuration. Existing `next/image` surfaces emit the source asset URL without per-component workarounds.
 - Verification: focused regression test, scoped ESLint, typecheck, `621/621` node tests, and the live M2 projects response contains zero `/_next/image` references.
 - **Learning:** a successful static-asset request does not prove the framework's internal image path; verify both the raw route and the URL actually emitted to the client.
+
+## U31 — Wave 1.2–1.3: one public approval truth (2026-07-25)
+
+- Demo approval links now bind the first pending approval step to the link's invited recipient instead of retaining a conflicting generic email.
+- The duplicate demo-only “Finish review” control was removed from the public route. Approval decisions now enter through the existing recipient-scoped authority path that updates the approval steps, public-review state, and asset status together.
+- Verification: recipient-binding and single-path regression tests, scoped ESLint, typecheck, and the complete node suite.
+- **Learning:** an approval link is not active because it has approve permission alone; its recipient, active step, durable state, and visible controls must all resolve from the same authority record.

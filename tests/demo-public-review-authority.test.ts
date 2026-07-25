@@ -244,3 +244,50 @@ test("public demo approval authority fails closed and restores sequential state 
     false,
   );
 });
+
+test("the seeded approval share binds its pending step to the invited recipient", async () => {
+  const workspace = await import(moduleUrl("lib/demo/workspace-store.ts"));
+  const { bindDemoReviewApprovals, demoReviewPayload } = await import(
+    moduleUrl("lib/review/demoReview.ts")
+  );
+  const initial = workspace.createInitialDemoWorkspace();
+  const share = initial.shareLinks.find((candidate) => candidate.token === "demo-ica-final");
+
+  assert.ok(share, "the seeded approval share must exist");
+  const approvals = bindDemoReviewApprovals({
+    approvals: demoReviewPayload.approvals,
+    assetId: share.asset_ids[0],
+    reviewerEmail: share.reviewer_email,
+    permission: share.permission,
+  });
+  const pending = approvals.find((approval) => approval.status === "pending");
+
+  assert.equal(pending?.assignee_email, share.reviewer_email);
+  assert.equal(
+    approvals.filter(
+      (approval) =>
+        approval.status === "pending" &&
+        approval.assignee_email === share.reviewer_email,
+    ).length,
+    1,
+  );
+
+  const asset = initial.assets.find((candidate) => candidate.id === share.asset_ids[0]);
+  assert.ok(asset, "the seeded approval asset must exist");
+  const result = workspace.recordDemoPublicReviewApproval({
+    projectId: asset.project_id,
+    assetId: asset.id,
+    versionId: `demo-version-${asset.version_count}`,
+    reviewInviteId: share.id,
+    reviewerName: "Client Reviewer",
+    reviewerEmail: share.reviewer_email,
+    permission: share.permission,
+    workflowMode: demoReviewPayload.workflow_mode,
+    approvals,
+    initialAssetStatus: asset.status,
+    approvalId: pending?.id ?? "",
+    decision: "approved",
+  });
+
+  assert.equal(result.ok, true, "the seeded recipient must be able to decide its active step");
+});

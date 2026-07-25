@@ -21,8 +21,10 @@ import {
   recordDemoPublicReviewApproval,
   useDemoWorkspace,
 } from "@/lib/demo/workspace-store";
-import FinishReviewBar from "@/components/review/FinishReviewBar";
-import { demoReviewPayload } from "@/lib/review/demoReview";
+import {
+  bindDemoReviewApprovals,
+  demoReviewPayload,
+} from "@/lib/review/demoReview";
 import {
   deriveReviewState,
   formatAssetStatusLabel,
@@ -260,10 +262,16 @@ export default function PublicReviewPage() {
             reviewer_email:
               requestedDemoShare?.reviewer_email ??
               (requestedIntent === "approval_needed" ? demoReviewPayload.reviewer_email : null),
-            approvals: demoReviewPayload.approvals.map((approval) => ({
-              ...approval,
-              asset_id: publicAssetId,
-            })),
+            approvals: bindDemoReviewApprovals({
+              approvals: demoReviewPayload.approvals,
+              assetId: publicAssetId,
+              reviewerEmail:
+                requestedDemoShare?.reviewer_email ??
+                (requestedIntent === "approval_needed"
+                  ? demoReviewPayload.reviewer_email
+                  : null),
+              permission: requestedDemoShare?.permission ?? intentDefaults.permissions,
+            }),
             comments: demoReviewPayload.comments.map((comment) => ({
               ...comment,
               asset_id: publicAssetId,
@@ -1110,20 +1118,12 @@ export default function PublicReviewPage() {
                   }
                 />
               )),
-              footer: (
-                <>
-                  {orderedApprovals.length > 0 && approvalAccessMessage ? (
-                    <div className="rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--bg)] px-3 py-3 text-sm text-[var(--muted)]">
-                      {approvalAccessMessage}
-                    </div>
-                  ) : null}
-                  {demoMode && asset ? (
-                    <div className="mt-2">
-                      <FinishReviewBar assetId={asset.id} reviewerName={reviewerName} />
-                    </div>
-                  ) : null}
-                </>
-              ),
+              footer:
+                orderedApprovals.length > 0 && approvalAccessMessage ? (
+                  <div className="rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--bg)] px-3 py-3 text-sm text-[var(--muted)]">
+                    {approvalAccessMessage}
+                  </div>
+                ) : null,
             }
           : null,
         comments: {

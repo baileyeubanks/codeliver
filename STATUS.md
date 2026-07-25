@@ -336,3 +336,34 @@ as a missing record. P10 regressions:
 `~/covideopro-visual-audit/regressions/p10/` — d21 12/12, d22 2/2, d23 4/4,
 d24 3/3, minors 9/9. Harness: typecheck 0 errors, lint 0 errors, 741/741,
 build green.
+
+## P15 — Logo + brand integration (2026-07-25)
+
+The CVP flowing-ribbon monogram (C `#E8442E`, V `#1E40AF`, green `#16A34A`
+upper ribbon + amber `#F59E0B` lower bowl on the P) now ships as a clean
+inline SVG — crisp at the 24–32px sizes where the 900px raster artwork
+(`public/brand/cvp-mark-muted.png`, retained for large lockups) muddies.
+
+- `components/navigation/CvpMonogram.tsx` (new): stroked-letterform
+  simplified mark, all four brand colors, `size`/`title` props, decorative
+  by default (`aria-hidden`) unless titled.
+- Sidebar brand slot (`components/navigation/WorkspaceRail.tsx` +
+  `.module.css`): brand header above the rail groups — monogram +
+  "Co‑ProVideo" wordmark + "BY CONTENT CO-OP" microcopy, gradient-ribbon
+  hairline, home link. Mobile drawer keeps the existing raster lockup.
+- Login/auth (`components/auth/AuthShell.tsx` + `.module.css`): brand hero
+  above the access panel — 30px monogram + "CREATE • COLLABORATE • CONQUER"
+  tagline with red/amber dots (existing gradient-ribbon header untouched).
+  Shared by login, signup, invite, and all AuthShell consumers.
+- Icons: `app/icon.svg` replaces the generic purple play button with the
+  monogram on the navy rounded square; `app/favicon.ico/route.ts` still
+  308-redirects to `/icon.svg` (verified live); `app/manifest.ts`
+  `theme_color` aligned from stale purple `#6d5dfc` to brand navy `#0b1020`.
+- Tests: `tests/cvp-monogram-p15.test.ts` (4 source tests — monogram colors,
+  rail brand slot, auth hero, icon contents).
+
+Proof: before/after captures in `~/covideopro-visual-audit/regressions/p15/`
+(login desktop/mobile, rail zoom + brand header, mobile drawer, icon render).
+Harness: `git diff --check` pass · typecheck 0 errors · lint 0 errors
+(40 pre-existing warnings) · `npm test` 752/752 · `npm run build` pass.
+No behavior changes; surfaces outside the brand slots untouched.

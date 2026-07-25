@@ -136,6 +136,37 @@
   outline: 0;
 }
 
+/* Brand hero above the access panel: monogram + the CVP tagline with
+   colored dots, echoing the logo lockup. `.shell .tagline` beats the
+   `.shell *` letter-spacing reset above. */
+.brandHero {
+  display: grid;
+  justify-items: center;
+  gap: 9px;
+  margin-bottom: 20px;
+}
+
+.shell .tagline {
+  margin: 0;
+  color: var(--auth-muted);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.22em;
+  text-align: center;
+}
+
+.taglineDot {
+  font-weight: 900;
+}
+
+.dotRed {
+  color: #e8442e;
+}
+
+.dotAmber {
+  color: #f59e0b;
+}
+
 .panel {
   position: relative;
   width: 100%;

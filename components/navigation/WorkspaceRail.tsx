@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { BriefcaseBusiness } from "lucide-react";
+import CvpMonogram from "./CvpMonogram";
 import { NAVIGATION_ICONS } from "./navigation-icons";
 import {
   activeNavigationId,
@@ -35,6 +36,19 @@ export default function WorkspaceRail({ pathname, querySuffix, role, projects = 
 
   return (
     <nav className={styles.rail} aria-label="Workspace rail">
+      <header className={styles.brandHeader}>
+        <Link
+          href={withWorkspaceQuery("/", querySuffix)}
+          className={styles.brandLink}
+          aria-label="Co‑ProVideo by Content Co-op home"
+        >
+          <CvpMonogram size={26} className={styles.brandMark} />
+          <span className={styles.brandCopy}>
+            <strong>Co‑ProVideo</strong>
+            <small>by Content Co-op</small>
+          </span>
+        </Link>
+      </header>
       <div className={styles.scroll}>
         {sections.map((section) => (
           <section key={section.id} className={styles.group}>

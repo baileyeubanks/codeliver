@@ -12,6 +12,7 @@ import {
 import styles from "./AuthShell.module.css";
 import useAuthHostContext from "./useAuthHostContext";
 import CoProductionBrand from "@/components/brand/CoProductionBrand";
+import CvpMonogram from "@/components/navigation/CvpMonogram";
 
 interface AuthShellProps {
   children: ReactNode;
@@ -81,6 +82,16 @@ export default function AuthShell({ children, demoMode, loginHref }: AuthShellPr
 
       <section className={styles.workspace} aria-label="Account access">
         <div className={styles.formColumn} id="auth-content" tabIndex={-1}>
+          <div className={styles.brandHero}>
+            <CvpMonogram size={30} title="CVP monogram" />
+            <p className={styles.tagline}>
+              CREATE
+              <span className={`${styles.taglineDot} ${styles.dotRed}`} aria-hidden="true"> • </span>
+              COLLABORATE
+              <span className={`${styles.taglineDot} ${styles.dotAmber}`} aria-hidden="true"> • </span>
+              CONQUER
+            </p>
+          </div>
           {children}
           <section className={styles.accessStrip} aria-label="Access readiness">
             {accessReadiness.map((item) => {

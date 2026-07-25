@@ -24,11 +24,12 @@ Command set: `git diff --check && npm run typecheck && npm run lint && npm test 
 - `git diff --check`: pass
 - `npm run typecheck`: pass, 0 errors
 - `npm run lint`: pass, 0 errors, 40 warnings (pre-existing)
-- `npm test`: pass, 722/722
+- `npm test`: pass, 741/741 (post-P9; includes the live runtime status contract)
 - `npm run build`: pass (one pre-existing Turbopack NFT trace warning, unchanged)
 - Runtime on `:4103`: `next start` (production) since 2026-07-25 cutover; verifier PASS
+  (re-verified after the P9 rebuild)
 
-Do not cite the older 664/664 or 696/696 runs as current truth.
+Do not cite the older 664/664, 696/696, or 722/722 runs as current truth.
 
 ## P6 — One shared overlay system (2026-07-25)
 

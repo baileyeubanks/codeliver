@@ -165,8 +165,12 @@ test("one login path carries only a safe local return target", () => {
 test("proxy routes verified identities and denies untrusted managed-surface access", async () => {
   const previousUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const previousKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  const previousNodeEnv = process.env.NODE_ENV;
+  const previousDemoMode = process.env.CODELIVER_DEMO_MODE;
   process.env.NEXT_PUBLIC_SUPABASE_URL = "https://auth.test";
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = "test-anon-key";
+  process.env.NODE_ENV = "development";
+  process.env.CODELIVER_DEMO_MODE = "1";
 
   try {
     const { config, proxy } = await import(
@@ -265,9 +269,15 @@ test("proxy routes verified identities and denies untrusted managed-surface acce
       "/download/public-token",
       "/_next/static/chunks/app.js",
       "/_next/image?url=%2Fdemo%2Fcco-lockup.png&w=256&q=75",
-      "/favicon.ico",
       "/demo/cco-lockup.png",
       "/brand/co-production-pro-horizontal.png",
+    ];
+    const publicMetadataPaths = [
+      "/robots.txt",
+      "/sitemap.xml",
+      "/manifest.webmanifest",
+      "/favicon.ico",
+      "/icon.svg",
     ];
     const unsupportedHosts = [
       `studio.${ADMIN_SURFACE_HOST}`,
@@ -287,6 +297,17 @@ test("proxy routes verified identities and denies untrusted managed-surface acce
         }),
         true,
         `proxy matcher skipped ${path}`,
+      );
+    }
+
+    for (const path of publicMetadataPaths) {
+      assert.equal(
+        unstable_doesMiddlewareMatch({
+          config,
+          url: `https://unsupported.example${path}`,
+        }),
+        false,
+        `proxy matcher included public metadata ${path}`,
       );
     }
 
@@ -373,5 +394,9 @@ test("proxy routes verified identities and denies untrusted managed-surface acce
     else process.env.NEXT_PUBLIC_SUPABASE_URL = previousUrl;
     if (previousKey === undefined) delete process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
     else process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = previousKey;
+    if (previousNodeEnv === undefined) delete process.env.NODE_ENV;
+    else process.env.NODE_ENV = previousNodeEnv;
+    if (previousDemoMode === undefined) delete process.env.CODELIVER_DEMO_MODE;
+    else process.env.CODELIVER_DEMO_MODE = previousDemoMode;
   }
 });

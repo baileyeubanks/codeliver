@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-labelledby="title">
+  <title>Co-ProVideo</title>
+  <rect width="64" height="64" rx="14" fill="#0b1020"/>
+  <path d="M18 19.5A5.5 5.5 0 0 1 26.3 15l18.2 11.4a6.6 6.6 0 0 1 0 11.2L26.3 49A5.5 5.5 0 0 1 18 44.5v-25Z" fill="#6d5dfc"/>
+  <path d="m29 25 11 7-11 7V25Z" fill="#fff"/>
+</svg>

@@ -573,3 +573,44 @@ Demo password for tests: `cvp-review-2026`. Regressions in
 Coordinator verification (wave 1.5, commits a84b5d7 / 3ddb2f5): typecheck
 0 errors · `npm test` 878/878 (836 + 42) · lint 0 errors (40 pre-existing
 warnings) · agent regression suites green (p21 2/2, p22 2/2).
+
+## P19 — Version system + full review integrations (2026-07-25, wave 2)
+
+**P19a foundation (453adf6):** pure version logic in `lib/versions/versions.ts`
+(sortVersions, currentVersion, resolveVersionParam, versionBadgeLabel,
+comparePair — null-safe, 22 tests). Demo seeds V1–V3 with ffprobe/stat-measured
+metadata on three REAL media files (interview-source, ambient-products,
+ica-ceo-preview); comments stay `version_id: null` = applies to all versions
+(documented). Workspace store: `locked_asset_ids` (P20 persistence),
+`drawing` passthrough on demo comments (P17 persistence). Note: the new
+`lib/versions/` directory coexists with legacy `lib/versions.ts` — import
+from `@/lib/versions/versions`.
+
+**P19b UI + integrations (1188798):** VersionSwitcher (V-chips, `?v=` param,
+honest "viewing older version" note), VersionCompare (two synced VideoPlayers,
+shared transport, drift correction, per-pane audio), and ALL wave-1
+integrations mounted: ShareLinkAccessGate (demo-only by design — a
+browser-local record must never gate a real token), ShareWatermark (stage +
+compare, intent-driven), ShareSettingsDialog (header button), ApprovalPanel
+(replaces ApprovalStepCard, consumes locked_asset_ids), CommentList (owns
+filtering; P18 selectors preserved), Summary rail tab (ProducerSummaryPanel +
+TriageBoard with real data). `current_version_only` now real (filters
+switcher + compare). The agent deleted its interim local helpers and moved
+everything to the canonical lib/versions/versions — no duplicated logic.
+Honest limits: `onLock` unwired (nothing writes lock entries — not faked);
+compare pins/drawings stay on single view (labeled); two keyboard listeners
+in compare (harmless, identical responses).
+
+## Brand re-canonization (a573f12, 2026-07-25)
+
+Bailey's three CVP Enterprise brand guides are the canon: Primary Blue
+#156BFF, Deep Blue #0A1D3D, Cool Gray #E6E9EF, Charcoal #0D0F14, White,
+Inter / Inter Display. Lime (#b9ff77) and tan/cream tints REMOVED across 24
+files (tokens, globals, layout font loading, 66 fallback literals, annotation
+stroke, 2 test assertions). Signature action color is now canon Primary Blue
+(hover #0052CC from guide 3). ROADMAP_40 design direction updated to match.
+
+Coordinator verification (wave 2, commits 453adf6 / 1188798 / a573f12):
+typecheck 0 errors · `npm test` 922/922 · lint 0 errors (40 pre-existing
+warnings) · p19a 1/1 + p19b 6/6 regression scripts re-run green (63 checks)
+· canon visual pass on both surfaces (no lime, no tan, Inter throughout).

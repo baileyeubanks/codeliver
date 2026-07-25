@@ -407,3 +407,16 @@ Proof: before/after captures in `~/covideopro-visual-audit/regressions/p15/`
 Harness: `git diff --check` pass · typecheck 0 errors · lint 0 errors
 (40 pre-existing warnings) · `npm test` 752/752 · `npm run build` pass.
 No behavior changes; surfaces outside the brand slots untouched.
+
+## P13 — Component lift (verified mostly-delivered; remainder deferred)
+
+Three agent attempts at a broad component lift stalled/reverted; coordinator
+audit (2026-07-25) verified the substance was already delivered by P10/P12:
+status chips use the soft-tint pill system (P12), progress bars share the
+brand-blue-on-tint treatment, avatar chips are consistent, the archive/trash/
+library empty states already follow the icon + headline + action pattern on
+the token system (components/demo/DemoAssetCollection.tsx), and surfaces use
+the token radius/border/elevation throughout. Deferred honestly: the
+unsaved-changes amber bar (needs real dirty-tracking, a feature not polish)
+and a component gallery page. Arc III closed: tokens (P11), reskin (P12),
+component states (P13), Copilot (P14), monogram (P15).

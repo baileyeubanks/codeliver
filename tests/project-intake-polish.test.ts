@@ -10,23 +10,26 @@ function source(path: string): string {
   return readFileSync(resolve(repositoryRoot, path), "utf8");
 }
 
-test("project intake reads as the first step of the production workflow", () => {
+test("project intake stays focused on the four fields needed to open a workspace", () => {
   const newProjectPage = source("app/(dashboard)/projects/new/page.tsx");
 
   assert.match(newProjectPage, /Project intake/);
   assert.match(newProjectPage, /New production workspace/);
-  assert.match(newProjectPage, /intakePath/);
-  assert.match(newProjectPage, /Client intake/);
-  assert.match(newProjectPage, /readinessStrip/);
-  assert.match(newProjectPage, /Intake readiness/);
-  assert.match(newProjectPage, /Billing authority/);
-  assert.match(newProjectPage, /No payment state claimed/);
-  assert.match(newProjectPage, /Setup path/);
-  assert.match(newProjectPage, /What happens next/);
-  assert.match(newProjectPage, /Front-office readiness/);
-  assert.match(newProjectPage, /Upload media/);
-  assert.match(newProjectPage, /Review link/);
-  assert.match(newProjectPage, /Delivery trail/);
+  assert.match(newProjectPage, /Workspace details/);
+  assert.match(newProjectPage, /Project name/);
+  assert.match(newProjectPage, /Client \/ company/);
+  assert.match(newProjectPage, /Brief/);
+  assert.match(newProjectPage, /Business context/);
+  assert.match(newProjectPage, /Create workspace/);
+  assert.match(newProjectPage, /Cancel/);
+  assert.doesNotMatch(newProjectPage, /intakePath/);
+  assert.doesNotMatch(newProjectPage, /frontOfficeReadiness/);
+  assert.doesNotMatch(newProjectPage, /readinessStrip/);
+  assert.doesNotMatch(newProjectPage, /What happens next/);
+  assert.doesNotMatch(newProjectPage, /value: "Live"/);
+  assert.doesNotMatch(newProjectPage, /value: "Payload"/);
+  assert.doesNotMatch(newProjectPage, /value: "Gated"/);
+  assert.doesNotMatch(newProjectPage, /value: "Planned"/);
   assert.doesNotMatch(newProjectPage, /rounded-xl/);
 });
 
@@ -42,12 +45,9 @@ test("project intake validates the workspace contract before routing", () => {
   assert.match(newProjectPage, /Client \/ company/);
   assert.match(newProjectPage, /Business context/);
   assert.match(newProjectPage, /Creating workspace\.\.\./);
-  assert.match(newProjectPage, /Activity trail/);
-  assert.match(
-    newProjectPage,
-    /CRM, contracts, signatures, invoices,[\s\S]*deposits, payments, and expenses remain readiness-gated/,
-  );
-  assert.match(newProjectPage, /No money state is marked received until billing authority exists/);
+  assert.match(newProjectPage, /These details become the starting project record/);
+  assert.doesNotMatch(newProjectPage, /Activity trail/);
+  assert.doesNotMatch(newProjectPage, /readiness-gated/);
   assert.doesNotMatch(newProjectPage, /AI cleanup complete/i);
   assert.doesNotMatch(newProjectPage, /waveform generated/i);
   assert.doesNotMatch(newProjectPage, /notification sent/i);

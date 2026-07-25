@@ -36,7 +36,9 @@ type Asset = {
 type UploadStatus =
   | "pending"
   | "uploading"
+  | "pausing"
   | "paused"
+  | "cancelling"
   | "processing"
   | "quarantined"
   | "done"
@@ -108,44 +110,60 @@ export default function AssetUpload({
   });
   const inputRef = useRef<HTMLInputElement>(null);
 
+  const refreshStorageReadiness = useCallback(async (signal?: AbortSignal) => {
+    setStorage((current) => ({
+      ...current,
+      phase: "checking",
+      message: "Checking storage readiness...",
+    }));
+    try {
+      const response = await fetch("/api/storage/readiness", {
+        cache: "no-store",
+        signal,
+      });
+      const payload = (await response.json()) as StorageReadinessResponse;
+      if (!response.ok || !payload.readyForWrites) {
+        const failure = payload.checks?.find((check) => check.status === "fail");
+        throw new Error(failure?.message || payload.error || "Storage is unavailable");
+      }
+      const maxUploadBytes = Number(payload.limits?.maxUploadBytes);
+      const maxChunkBytes = Number(payload.limits?.maxChunkBytes);
+      const nextStorage: StorageReadiness = {
+        phase: "ready",
+        label: payload.label || "Storage",
+        message: "Ready",
+        maxUploadBytes: Number.isSafeInteger(maxUploadBytes) ? maxUploadBytes : 0,
+        maxChunkBytes:
+          Number.isSafeInteger(maxChunkBytes) && maxChunkBytes > 0
+            ? Math.min(maxChunkBytes, CHUNK_SIZE)
+            : CHUNK_SIZE,
+        quarantineRequired: payload.quarantineRequired !== false,
+        automaticReleaseReady:
+          payload.workflow?.scanner?.automaticReleaseReady === true,
+      };
+      setStorage(nextStorage);
+      return nextStorage;
+    } catch (error: unknown) {
+      if (signal?.aborted) return null;
+      const blockedStorage: StorageReadiness = {
+        phase: "blocked",
+        label: "Storage",
+        message: error instanceof Error ? error.message : "Storage is unavailable",
+        maxUploadBytes: 0,
+        maxChunkBytes: CHUNK_SIZE,
+        quarantineRequired: true,
+        automaticReleaseReady: false,
+      };
+      setStorage(blockedStorage);
+      return blockedStorage;
+    }
+  }, []);
+
   useEffect(() => {
     const controller = new AbortController();
-    void fetch("/api/storage/readiness", {
-      cache: "no-store",
-      signal: controller.signal,
-    })
-      .then(async (response) => {
-        const payload = (await response.json()) as StorageReadinessResponse;
-        if (!response.ok || !payload.readyForWrites) {
-          const failure = payload.checks?.find((check) => check.status === "fail");
-          throw new Error(failure?.message || payload.error || "Storage is unavailable");
-        }
-        const maxUploadBytes = Number(payload.limits?.maxUploadBytes);
-        const maxChunkBytes = Number(payload.limits?.maxChunkBytes);
-        setStorage({
-          phase: "ready",
-          label: payload.label || "Storage",
-          message: "Ready",
-          maxUploadBytes: Number.isSafeInteger(maxUploadBytes) ? maxUploadBytes : 0,
-          maxChunkBytes:
-            Number.isSafeInteger(maxChunkBytes) && maxChunkBytes > 0
-              ? Math.min(maxChunkBytes, CHUNK_SIZE)
-              : CHUNK_SIZE,
-          quarantineRequired: payload.quarantineRequired !== false,
-          automaticReleaseReady:
-            payload.workflow?.scanner?.automaticReleaseReady === true,
-        });
-      })
-      .catch((error: unknown) => {
-        if (controller.signal.aborted) return;
-        setStorage((current) => ({
-          ...current,
-          phase: "blocked",
-          message: error instanceof Error ? error.message : "Storage is unavailable",
-        }));
-      });
+    void refreshStorageReadiness(controller.signal);
     return () => controller.abort();
-  }, []);
+  }, [refreshStorageReadiness]);
 
   const updateItem = useCallback(
     (id: string, patch: Partial<UploadItem>) => {
@@ -157,11 +175,11 @@ export default function AssetUpload({
   );
 
   const startTusUpload = useCallback(
-    (item: UploadItem) => {
-      if (storage.phase !== "ready") {
+    (item: UploadItem, readiness: StorageReadiness = storage) => {
+      if (readiness.phase !== "ready") {
         updateItem(item.id, {
           status: "error",
-          error: storage.message,
+          error: readiness.message,
         });
         return;
       }
@@ -169,7 +187,7 @@ export default function AssetUpload({
       let originalReleaseReady = false;
       const upload = new tus.Upload(item.file, {
         endpoint: "/api/upload/tus",
-        chunkSize: storage.maxChunkBytes,
+        chunkSize: readiness.maxChunkBytes,
         retryDelays: [0, 1000, 3000, 5000, 10000],
         removeFingerprintOnSuccess: true,
         metadata: {
@@ -187,7 +205,9 @@ export default function AssetUpload({
             response.getHeader("Upload-Original-Ready") === "true";
         },
         onProgress(bytesUploaded, bytesTotal) {
-          const progress = Math.round((bytesUploaded / bytesTotal) * 100);
+          const progress = bytesTotal > 0
+            ? Math.round((bytesUploaded / bytesTotal) * 100)
+            : 0;
           updateItem(item.id, {
             progress,
             bytesUploaded,
@@ -201,6 +221,8 @@ export default function AssetUpload({
           updateItem(item.id, {
             status: quarantined ? "quarantined" : "done",
             progress: 100,
+            bytesUploaded: item.bytesTotal,
+            bytesTotal: item.bytesTotal,
           });
           onUploadComplete([]);
         },
@@ -255,6 +277,9 @@ export default function AssetUpload({
     (files: FileList | File[]) => {
       const newItems: UploadItem[] = Array.from(files).map((file) => {
         const tooLarge = storage.maxUploadBytes > 0 && file.size > storage.maxUploadBytes;
+        const readinessError = storage.phase === "ready" ? undefined : storage.phase === "checking"
+          ? "Storage readiness is still being checked. Retry after it is ready."
+          : `Storage is blocked: ${storage.message}`;
         const id = crypto.randomUUID();
         return {
           file,
@@ -263,10 +288,12 @@ export default function AssetUpload({
           progress: 0,
           bytesUploaded: 0,
           bytesTotal: file.size,
-          status: tooLarge ? ("error" as const) : ("pending" as const),
+          status: tooLarge || readinessError ? "error" : "pending",
           ...(tooLarge
             ? { error: `File exceeds the ${formatFileSize(storage.maxUploadBytes)} limit` }
-            : {}),
+            : readinessError
+              ? { error: readinessError }
+              : {}),
         };
       });
       setItems((prev) => [...prev, ...newItems]);
@@ -274,37 +301,34 @@ export default function AssetUpload({
         .filter((item) => item.status === "pending")
         .forEach((item) => startTusUpload(item));
     },
-    [startTusUpload, storage.maxUploadBytes]
+    [startTusUpload, storage]
   );
 
   const pauseUpload = useCallback(
     (id: string) => {
-      setItems((prev) => {
-        const item = prev.find((i) => i.id === id);
-        if (item?.tusUpload) {
-          item.tusUpload.abort();
-        }
-        return prev.map((i) =>
-          i.id === id ? { ...i, status: "paused" as const } : i
-        );
-      });
+      const item = items.find((current) => current.id === id);
+      if (!item?.tusUpload) return;
+      updateItem(id, { status: "pausing" });
+      void item.tusUpload.abort()
+        .then(() => updateItem(id, { status: "paused" }))
+        .catch((error: unknown) => {
+          updateItem(id, {
+            status: "error",
+            error: error instanceof Error ? error.message : "Unable to pause upload",
+          });
+        });
     },
-    []
+    [items, updateItem]
   );
 
   const resumeUpload = useCallback(
     (id: string) => {
-      setItems((prev) => {
-        const item = prev.find((i) => i.id === id);
-        if (item?.tusUpload) {
-          item.tusUpload.start();
-        }
-        return prev.map((i) =>
-          i.id === id ? { ...i, status: "uploading" as const } : i
-        );
-      });
+      const item = items.find((current) => current.id === id);
+      if (!item?.tusUpload) return;
+      item.tusUpload.start();
+      updateItem(id, { status: "uploading" });
     },
-    []
+    [items, updateItem]
   );
 
   const retryUpload = useCallback(
@@ -321,28 +345,61 @@ export default function AssetUpload({
           tusUpload: undefined,
         };
         updateItem(id, retryItem);
-        const restart = () => startTusUpload(retryItem);
+        const restart = () => {
+          if (storage.phase === "ready") {
+            startTusUpload(retryItem);
+            return;
+          }
+          void refreshStorageReadiness().then((readiness) => {
+            if (readiness?.phase === "ready") {
+              startTusUpload(retryItem, readiness);
+              return;
+            }
+            updateItem(id, {
+              status: "error",
+              error: readiness?.message || "Storage readiness could not be confirmed",
+            });
+          });
+        };
         if (item.tusUpload) {
-          void item.tusUpload.abort(true).catch(() => undefined).finally(restart);
+          void item.tusUpload.abort(true)
+            .then(restart)
+            .catch((error: unknown) => {
+              updateItem(id, {
+                status: "error",
+                error: error instanceof Error ? error.message : "Unable to restart upload",
+              });
+            });
         } else {
           restart();
         }
       }
     },
-    [items, startTusUpload, updateItem]
+    [items, refreshStorageReadiness, startTusUpload, storage.phase, updateItem]
   );
+
+  const removeUploadItem = useCallback((id: string) => {
+    setItems((prev) => prev.filter((item) => item.id !== id));
+  }, []);
 
   const cancelUpload = useCallback(
     (id: string) => {
-      setItems((prev) => {
-        const item = prev.find((i) => i.id === id);
-        if (item?.tusUpload) {
-          item.tusUpload.abort(true); // true = terminate on server
-        }
-        return prev.filter((i) => i.id !== id);
-      });
+      const item = items.find((current) => current.id === id);
+      if (!item?.tusUpload) {
+        removeUploadItem(id);
+        return;
+      }
+      updateItem(id, { status: "cancelling" });
+      void item.tusUpload.abort(true)
+        .then(() => removeUploadItem(id))
+        .catch((error: unknown) => {
+          updateItem(id, {
+            status: "error",
+            error: error instanceof Error ? error.message : "Unable to cancel upload",
+          });
+        });
     },
-    []
+    [items, removeUploadItem, updateItem]
   );
 
   const ext = (name: string) => name.split(".").pop()?.toLowerCase() || "";
@@ -353,8 +410,12 @@ export default function AssetUpload({
         return "Preparing...";
       case "uploading":
         return `${progress}%`;
+      case "pausing":
+        return "Pausing...";
       case "paused":
         return "Paused";
+      case "cancelling":
+        return "Cancelling...";
       case "processing":
         return "Processing...";
       case "quarantined":
@@ -367,15 +428,18 @@ export default function AssetUpload({
   };
 
   const activeUploadCount = items.filter((item) =>
-    ["pending", "uploading", "paused", "processing"].includes(item.status),
+    ["pending", "uploading", "pausing", "paused", "cancelling", "processing"].includes(item.status),
   ).length;
   const receivedUploadCount = items.filter((item) =>
     item.status === "done" || item.status === "quarantined",
   ).length;
   const failedUploadCount = items.filter((item) => item.status === "error").length;
-  const overallProgress = items.length > 0
-    ? Math.round(items.reduce((sum, item) => sum + item.progress, 0) / items.length)
+  const totalBytes = items.reduce((sum, item) => sum + item.bytesTotal, 0);
+  const uploadedBytes = items.reduce((sum, item) => sum + item.bytesUploaded, 0);
+  const overallProgress = totalBytes > 0
+    ? Math.round((uploadedBytes / totalBytes) * 100)
     : 0;
+  const overallByteProgress = `${formatFileSize(uploadedBytes)} of ${formatFileSize(totalBytes)} uploaded`;
   const uploadTerminal = items.length > 0 && activeUploadCount === 0;
   const uploadTitle = activeUploadCount > 0
     ? "Preparing your media"
@@ -396,36 +460,32 @@ export default function AssetUpload({
     <div className="space-y-4">
       <div
         className={`${variant === "cockpit" ? "hidden" : ""} border-2 border-dashed rounded-[var(--radius)] p-8 text-center transition-colors ${
-          storage.phase === "ready" ? "cursor-pointer" : "cursor-not-allowed opacity-70"
+          storage.phase === "ready" ? "cursor-pointer" : "cursor-pointer opacity-70"
         } ${
           dragOver && storage.phase === "ready"
             ? "border-[var(--accent)] bg-[var(--accent)]/5"
             : "border-[var(--border)] hover:border-[var(--muted)]"
         }`}
         role="button"
-        tabIndex={storage.phase === "ready" ? 0 : -1}
+        tabIndex={0}
         aria-label="Select files to upload"
-        aria-disabled={storage.phase !== "ready"}
         onDragOver={(e) => {
           e.preventDefault();
-          if (storage.phase === "ready") setDragOver(true);
+          setDragOver(true);
         }}
         onDragLeave={() => setDragOver(false)}
         onDrop={(e) => {
           e.preventDefault();
           setDragOver(false);
-          if (storage.phase === "ready" && e.dataTransfer.files.length) {
+          if (e.dataTransfer.files.length) {
             addFiles(e.dataTransfer.files);
           }
         }}
         onClick={() => {
-          if (storage.phase === "ready") inputRef.current?.click();
+          inputRef.current?.click();
         }}
         onKeyDown={(event) => {
-          if (
-            storage.phase === "ready" &&
-            (event.key === "Enter" || event.key === " ")
-          ) {
+          if (event.key === "Enter" || event.key === " ") {
             event.preventDefault();
             inputRef.current?.click();
           }
@@ -433,7 +493,11 @@ export default function AssetUpload({
       >
         <Upload size={32} className="mx-auto mb-3 text-[var(--dim)]" />
         <p className="text-sm text-[var(--ink)] font-medium">
-          {storage.phase === "ready" ? "Drag and drop files here" : "Uploads unavailable"}
+          {storage.phase === "ready"
+            ? "Drag and drop files here"
+            : storage.phase === "checking"
+              ? "Storage check in progress"
+              : "Uploads unavailable until storage is ready"}
         </p>
         <p
           className={`text-xs mt-1 ${
@@ -455,7 +519,7 @@ export default function AssetUpload({
           ref={inputRef}
           type="file"
           multiple
-          disabled={storage.phase !== "ready"}
+          aria-label="Upload files"
           className="hidden"
           onChange={(e) => {
             if (e.target.files?.length) addFiles(e.target.files);
@@ -492,11 +556,19 @@ export default function AssetUpload({
                 <strong title={items.map((item) => item.file.name).join(", ")}>
                   {items.length === 1 ? items[0].file.name : `${items.length} files`}
                 </strong>
-                <div className="cockpit-upload-progress" aria-label={`Upload ${overallProgress}% complete`}>
+                <div
+                  className="cockpit-upload-progress"
+                  role="progressbar"
+                  aria-label="Total upload progress"
+                  aria-valuemin={0}
+                  aria-valuemax={totalBytes}
+                  aria-valuenow={uploadedBytes}
+                  aria-valuetext={`${overallByteProgress} (${overallProgress}%)`}
+                >
                   <span style={{ width: `${overallProgress}%` }} />
                 </div>
                 <div className="cockpit-upload-progress-copy">
-                  <span>{uploadMessage}</span>
+                  <span>{uploadMessage} {overallByteProgress}</span>
                   <b>{overallProgress}%</b>
                 </div>
               </>
@@ -521,9 +593,7 @@ export default function AssetUpload({
                     )}
                   </span>
                   <span className="text-xs text-[var(--dim)] ml-2 flex-shrink-0 whitespace-nowrap">
-                    {item.status === "uploading" || item.status === "paused"
-                      ? `${formatFileSize(item.bytesUploaded)} / ${formatFileSize(item.bytesTotal)}`
-                      : formatFileSize(item.file.size)}
+                        {formatFileSize(item.bytesUploaded)} / {formatFileSize(item.bytesTotal)}
                     {" · "}
                     <span
                       className={
@@ -543,14 +613,24 @@ export default function AssetUpload({
                   </span>
                 </div>
                 {(item.status === "uploading" ||
+                  item.status === "pausing" ||
                   item.status === "paused" ||
+                  item.status === "cancelling" ||
                   item.status === "processing") && (
-                  <div className="w-full bg-[var(--surface-2)] rounded-full h-1.5">
+                  <div
+                    className="w-full bg-[var(--surface-2)] rounded-full h-1.5"
+                    role="progressbar"
+                    aria-label={`${item.file.name} upload progress`}
+                    aria-valuemin={0}
+                    aria-valuemax={item.bytesTotal}
+                    aria-valuenow={item.bytesUploaded}
+                    aria-valuetext={`${formatFileSize(item.bytesUploaded)} of ${formatFileSize(item.bytesTotal)} uploaded (${item.progress}%)`}
+                  >
                     <div
                       className={`h-1.5 rounded-full transition-all ${
                         item.status === "processing"
                           ? "bg-[var(--accent)] animate-pulse"
-                          : item.status === "paused"
+                          : item.status === "paused" || item.status === "pausing"
                             ? "bg-[var(--muted)]"
                             : "bg-[var(--accent)]"
                       }`}
@@ -559,7 +639,7 @@ export default function AssetUpload({
                   </div>
                 )}
                 {item.status === "error" && (
-                  <p className="text-xs text-[var(--red)]">{item.error}</p>
+                  <p className="text-xs text-[var(--red)]" role="alert">{item.error}</p>
                 )}
               </div>
 
@@ -577,72 +657,88 @@ export default function AssetUpload({
                       className="text-[var(--orange)]"
                       aria-label="Security scan pending"
                     />
-                    <button
-                      onClick={() => cancelUpload(item.id)}
-                      className="text-[var(--dim)] hover:text-[var(--red)]"
-                      title="Cancel quarantined upload"
+                        <button
+                          type="button"
+                          onClick={() => cancelUpload(item.id)}
+                          className="text-[var(--dim)] hover:text-[var(--red)]"
+                          title="Cancel quarantined upload"
+                          aria-label="Cancel quarantined upload"
                     >
                       <X size={16} />
                     </button>
                   </>
                 ) : item.status === "error" ? (
                   <>
-                    <button
-                      onClick={() => retryUpload(item.id)}
-                      className="text-[var(--dim)] hover:text-[var(--accent)]"
-                      title="Retry upload"
+                        <button
+                          type="button"
+                          onClick={() => retryUpload(item.id)}
+                          className="text-[var(--dim)] hover:text-[var(--accent)]"
+                          title="Retry upload"
+                          aria-label="Retry upload"
                     >
                       <RotateCcw size={16} />
                     </button>
-                    <button
-                      onClick={() => cancelUpload(item.id)}
-                      className="text-[var(--dim)] hover:text-[var(--red)]"
-                      title="Remove"
+                        <button
+                          type="button"
+                          onClick={() => removeUploadItem(item.id)}
+                          className="text-[var(--dim)] hover:text-[var(--red)]"
+                          title="Remove"
+                          aria-label="Remove failed upload"
                     >
                       <X size={16} />
                     </button>
                   </>
                 ) : item.status === "uploading" ? (
                   <>
-                    <button
-                      onClick={() => pauseUpload(item.id)}
-                      className="text-[var(--dim)] hover:text-[var(--accent)]"
-                      title="Pause upload"
+                        <button
+                          type="button"
+                          onClick={() => pauseUpload(item.id)}
+                          className="text-[var(--dim)] hover:text-[var(--accent)]"
+                          title="Pause upload"
+                          aria-label="Pause upload"
                     >
                       <Pause size={14} />
                     </button>
-                    <button
-                      onClick={() => cancelUpload(item.id)}
-                      className="text-[var(--dim)] hover:text-[var(--red)]"
-                      title="Cancel upload"
+                        <button
+                          type="button"
+                          onClick={() => cancelUpload(item.id)}
+                          className="text-[var(--dim)] hover:text-[var(--red)]"
+                          title="Cancel upload"
+                          aria-label="Cancel upload"
                     >
                       <X size={16} />
                     </button>
                   </>
                 ) : item.status === "paused" ? (
                   <>
-                    <button
-                      onClick={() => resumeUpload(item.id)}
-                      className="text-[var(--dim)] hover:text-[var(--accent)]"
-                      title="Resume upload"
+                        <button
+                          type="button"
+                          onClick={() => resumeUpload(item.id)}
+                          className="text-[var(--dim)] hover:text-[var(--accent)]"
+                          title="Resume upload"
+                          aria-label="Resume upload"
                     >
                       <Play size={14} />
                     </button>
-                    <button
-                      onClick={() => cancelUpload(item.id)}
-                      className="text-[var(--dim)] hover:text-[var(--red)]"
-                      title="Cancel upload"
+                        <button
+                          type="button"
+                          onClick={() => cancelUpload(item.id)}
+                          className="text-[var(--dim)] hover:text-[var(--red)]"
+                          title="Cancel upload"
+                          aria-label="Cancel upload"
                     >
                       <X size={16} />
                     </button>
                   </>
-                ) : item.status === "processing" ? (
-                  <div className="w-4 h-4 border-2 border-[var(--accent)] border-t-transparent rounded-full animate-spin" />
-                ) : (
-                  <button
-                    onClick={() => cancelUpload(item.id)}
-                    className="text-[var(--dim)] hover:text-[var(--red)]"
-                    title="Cancel"
+                    ) : item.status === "processing" || item.status === "pausing" || item.status === "cancelling" ? (
+                      <div className="w-4 h-4 border-2 border-[var(--accent)] border-t-transparent rounded-full animate-spin" />
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => cancelUpload(item.id)}
+                        className="text-[var(--dim)] hover:text-[var(--red)]"
+                        title="Cancel"
+                        aria-label="Cancel upload"
                   >
                     <X size={16} />
                   </button>

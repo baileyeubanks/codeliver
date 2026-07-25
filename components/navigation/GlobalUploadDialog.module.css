@@ -57,6 +57,11 @@
   color: var(--ink, #18223e);
 }
 
+.iconButton:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
 .field {
   display: grid;
   gap: 6px;
@@ -90,6 +95,119 @@
   margin: 0;
   font-size: 0.78rem;
   color: var(--muted, #707b91);
+}
+
+.progressSurface {
+  display: grid;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid var(--border, #dfe4ec);
+  border-radius: 8px;
+  background: var(--surface-hover, #f7f9fc);
+}
+
+.progressSummary,
+.uploadEntryHeader {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.progressSummary span,
+.uploadEntryHeader strong {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.progressSummary span {
+  font-size: 0.76rem;
+  font-weight: 700;
+  color: var(--ink, #18223e);
+}
+
+.progressSummary strong,
+.uploadEntryHeader span {
+  flex: 0 0 auto;
+  font-size: 0.76rem;
+  font-variant-numeric: tabular-nums;
+  color: var(--muted, #707b91);
+}
+
+.progressBar {
+  width: 100%;
+  height: 8px;
+  overflow: hidden;
+  border: 0;
+  border-radius: 4px;
+  accent-color: var(--accent, #145bb8);
+}
+
+.progressBar::-webkit-progress-bar {
+  background: var(--border, #dfe4ec);
+}
+
+.progressBar::-webkit-progress-value {
+  background: var(--accent, #145bb8);
+}
+
+.progressBar::-moz-progress-bar {
+  background: var(--accent, #145bb8);
+}
+
+.uploadEntries {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.uploadEntry {
+  display: grid;
+  gap: 3px;
+  padding-top: 8px;
+  border-top: 1px solid var(--border, #dfe4ec);
+}
+
+.uploadEntry:first-child {
+  padding-top: 0;
+  border-top: 0;
+}
+
+.uploadEntryHeader strong {
+  font-size: 0.78rem;
+  font-weight: 650;
+  color: var(--ink, #18223e);
+}
+
+.uploadEntry p {
+  margin: 0;
+  font-size: 0.72rem;
+  font-variant-numeric: tabular-nums;
+  color: var(--muted, #707b91);
+}
+
+.persistent,
+.session,
+.entryError {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 0.72rem;
+  font-weight: 650;
+}
+
+.persistent {
+  color: var(--signal-green, #217a52);
+}
+
+.session {
+  color: var(--signal-amber, #95650a);
+}
+
+.entryError {
+  color: var(--signal-red, #cf4433);
 }
 
 .error {
@@ -130,4 +248,19 @@
 .primary:disabled {
   opacity: 0.5;
   cursor: not-allowed;
+}
+
+@media (max-width: 520px) {
+  .dialog {
+    padding: 16px;
+  }
+
+  .footer {
+    align-items: stretch;
+  }
+
+  .primary {
+    justify-content: center;
+    width: 100%;
+  }
 }

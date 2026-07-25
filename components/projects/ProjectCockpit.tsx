@@ -10,7 +10,7 @@ import {
   useRef,
   useState,
   type KeyboardEvent as ReactKeyboardEvent,
-  type PointerEvent as ReactPointerEvent,
+  type MouseEvent as ReactMouseEvent,
 } from "react";
 import {
   AlertTriangle,
@@ -35,6 +35,7 @@ import {
   Pause,
   Play,
   Plus,
+  RotateCcw,
   Save,
   Search,
   ServerCog,
@@ -103,6 +104,7 @@ import {
   SequencesSection,
 } from "@/components/projects/ProjectRecordSections";
 import { useDemoMediaObjectUrl } from "@/lib/demo/media-blob-store";
+import { formatSmpteTimecode } from "@/components/player/timecode";
 import { normalizeReviewSeekStep, normalizeReviewShortcutKey, shouldIgnoreReviewShortcut } from "@/lib/review/player-policy";
 import { buildSurfaceUrl, getBrowserClientSiteUrl } from "@/lib/surface-origins";
 import type { EditDecision } from "@/lib/types/codeliver";
@@ -158,15 +160,7 @@ function isCockpitSection(value: string | null): value is CockpitSection {
   return COCKPIT_NAVIGATION.some((item) => item.id === value);
 }
 
-function formatClock(seconds: number) {
-  const safeSeconds = Number.isFinite(seconds) ? Math.max(0, seconds) : 0;
-  const whole = Math.floor(safeSeconds);
-  const frames = Math.floor((safeSeconds - whole) * 24);
-  const hours = Math.floor(whole / 3600);
-  const minutes = Math.floor((whole % 3600) / 60);
-  const secs = whole % 60;
-  return [hours, minutes, secs, frames].map((part) => String(part).padStart(2, "0")).join(":");
-}
+const formatClock = formatSmpteTimecode;
 
 function formatShortClock(seconds: number) {
   const whole = Math.max(0, Math.floor(seconds));
@@ -454,6 +448,8 @@ export default function ProjectCockpit({
   const [simulatedPlayback, setSimulatedPlayback] = useState(false);
   const [nativeVideoActive, setNativeVideoActive] = useState(false);
   const [isMuted, setIsMuted] = useState(false);
+  const [volume, setVolume] = useState(1);
+  const [hasEnded, setHasEnded] = useState(false);
   const [commentBody, setCommentBody] = useState("");
   const [pendingPin, setPendingPin] = useState<{
     x: number;
@@ -909,6 +905,7 @@ export default function ProjectCockpit({
         const next = time + 0.1;
         if (next >= previewDuration) {
           setIsPlaying(false);
+          setHasEnded(true);
           return previewDuration;
         }
         return next;
@@ -1089,6 +1086,7 @@ export default function ProjectCockpit({
     setCurrentTime(0);
     setNativeDuration(0);
     setIsPlaying(false);
+    setHasEnded(false);
     setSearchQuery("");
     if (typeof videoRef.current?.pause === "function") videoRef.current.pause();
     if (typeof videoRef.current?.load === "function") videoRef.current.load();
@@ -1125,11 +1123,19 @@ export default function ProjectCockpit({
     const video = videoRef.current;
     if (!video || typeof video.play !== "function" || typeof video.pause !== "function") {
       setSimulatedPlayback(true);
+      if (hasEnded) {
+        setHasEnded(false);
+        setCurrentTime(0);
+        setIsPlaying(true);
+        return;
+      }
       setIsPlaying((playing) => !playing);
       return;
     }
     try {
       if (video.paused) {
+        if (video.ended || hasEnded) video.currentTime = 0;
+        setHasEnded(false);
         await video.play();
         setNativeVideoActive(true);
       } else {
@@ -1142,13 +1148,39 @@ export default function ProjectCockpit({
     }
   }
 
+  async function replayFromStart() {
+    const video = videoRef.current;
+    setHasEnded(false);
+    setCurrentTime(0);
+    if (video) video.currentTime = 0;
+    if (video && typeof video.play === "function") {
+      try {
+        await video.play();
+        setNativeVideoActive(true);
+        return;
+      } catch {
+        setNativeVideoActive(false);
+      }
+    }
+    setSimulatedPlayback(true);
+    setIsPlaying(true);
+  }
+
   function seekTo(seconds: number) {
     const normalized = Math.max(0, Math.min(previewDuration, seconds));
     if (videoRef.current) videoRef.current.currentTime = normalized;
+    if (normalized < previewDuration) setHasEnded(false);
     setCurrentTime(normalized);
   }
 
-  function handleReviewFrameClick(event: ReactPointerEvent<HTMLDivElement>) {
+  function changeVolume(nextVolume: number) {
+    const normalized = Math.max(0, Math.min(1, nextVolume));
+    setVolume(normalized);
+    if (videoRef.current) videoRef.current.volume = normalized;
+    if (normalized > 0 && isMuted) setIsMuted(false);
+  }
+
+  function handleReviewFrameClick(event: ReactMouseEvent<HTMLDivElement>) {
     if (!activeAsset) return;
     const frameRect = videoFrameRef.current?.getBoundingClientRect()
       ?? event.currentTarget.getBoundingClientRect();
@@ -1827,25 +1859,51 @@ export default function ProjectCockpit({
                             setNativeDuration(event.currentTarget.duration);
                           }
                         }}
-                        onPlay={() => setIsPlaying(true)}
+                        onPlay={() => {
+                          setIsPlaying(true);
+                          setHasEnded(false);
+                        }}
                         onPause={() => setIsPlaying(false)}
                         onTimeUpdate={(event) => setCurrentTime(event.currentTarget.currentTime)}
-                        onEnded={() => setIsPlaying(false)}
+                        onEnded={() => {
+                          setIsPlaying(false);
+                          setHasEnded(true);
+                        }}
                       />
                       <time>{formatClock(currentTime)}</time>
                       <div
-                        className="cockpit-review-overlay"
+                        className={`cockpit-review-overlay ${styles.stageOverlay}`}
                         data-review-overlay
-                        onPointerDown={handleReviewFrameClick}
+                        onClick={() => void togglePlayback()}
+                        onDoubleClick={handleReviewFrameClick}
+                        title="Click to play or pause · double-click to pin a comment"
                         aria-hidden="true"
                       />
+                      {hasEnded ? (
+                        <button
+                          type="button"
+                          className={styles.replayOverlay}
+                          onClick={() => void replayFromStart()}
+                          aria-label="Replay from beginning"
+                        >
+                          <RotateCcw size={18} aria-hidden="true" />
+                          Replay
+                        </button>
+                      ) : null}
                       {comments.filter((comment) => comment.pin_x != null && comment.pin_y != null).map((comment, index) => (
                         <button
                           key={comment.id}
                           type="button"
                           className="cockpit-frame-pin"
                           style={{ left: `${comment.pin_x}%`, top: `${comment.pin_y}%` }}
-                          onClick={() => seekTo(comment.time_seconds)}
+                          onClick={() => {
+                            seekTo(comment.time_seconds);
+                            setToast(
+                              comment.body.length > 96
+                                ? `Comment: ${comment.body.slice(0, 96)}…`
+                                : `Comment: ${comment.body}`,
+                            );
+                          }}
                           aria-label={`Jump to pinned comment ${index + 1} at ${formatShortClock(comment.time_seconds)}`}
                           title={comment.body}
                         >
@@ -1865,7 +1923,7 @@ export default function ProjectCockpit({
                         <button type="button" onClick={togglePlayback} aria-label={isPlaying ? "Pause" : "Play"}>
                           {isPlaying ? <Pause size={20} fill="currentColor" /> : <Play size={20} fill="currentColor" />}
                         </button>
-                        <span>{formatShortClock(currentTime)} / {formatShortClock(previewDuration)}</span>
+                        <span data-transport-time>{formatClock(currentTime)} / {formatClock(previewDuration)}</span>
                         <input
                           type="range"
                           min={0}
@@ -1896,6 +1954,16 @@ export default function ProjectCockpit({
                         >
                           {isMuted ? <VolumeX size={19} /> : <Volume2 size={19} />}
                         </button>
+                        <input
+                          className={styles.volumeSlider}
+                          type="range"
+                          min={0}
+                          max={1}
+                          step={0.05}
+                          value={isMuted ? 0 : volume}
+                          onChange={(event) => changeVolume(Number(event.target.value))}
+                          aria-label="Volume"
+                        />
                         <button
                           type="button"
                           onClick={() => videoRef.current?.requestFullscreen?.()}

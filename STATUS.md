@@ -64,6 +64,48 @@ Concurrency note: a parallel session committed `components/projects/ProjectCockp
 and `app/globals.css` hunks (P6's overlay/grid edits included) inside c65d460;
 the remaining P6 files are committed separately.
 
+## P7 — Review player core fixes (2026-07-25)
+
+Player-core defect cluster from the visual swarm, regression-guarded in
+`~/covideopro-visual-audit/regressions/p7/` (5 scripts, before/after shots in
+`shots/`). Two of the five verified defects no longer reproduced on the current
+build and are now pinned by regressions instead of code changes:
+
+- D8 timeline zoom: the canvas already rescales (`width: zoom * 100%`;
+  measured scrollWidth 762 → 1524 → 3048 px at 1x/2x/4x on :4115) — the audit
+  had measured the non-scrolling container. Guard added: source assertion on
+  the zoom-width binding in `tests/cockpit-review-timeline.test.ts` plus the
+  d8 Playwright script.
+- D9 ended state: the "collapsed orange band" was the demo clip's actual
+  baked-in end card (verified by ffmpeg-extracting the last frame of
+  `public/demo/ica-ceo-preview.mp4`) — the stage never collapsed. The real gap
+  was a dead end: no affordance once playback finished. Added `hasEnded`
+  state, a centered Replay overlay button that restarts from 0, ended-aware
+  `togglePlayback` (restarts instead of resuming at the end), and ended
+  tracking on the simulated-playback path (`components/projects/ProjectCockpit.tsx`).
+- D10 overlay click model: `[data-review-overlay]` consumed `pointerdown` over
+  the whole stage to arm comment pins, so click-to-play was impossible. New
+  model: single click toggles play/pause, double-click arms a pin (cursor +
+  title hint updated), frame pins keep pointer events and now surface their
+  comment body (seek + toast) on click.
+- D11 mute: already wired on the current build (`video.muted` flips and the
+  icon/aria-label swap); the d11 Playwright regression pins it.
+- D12 timecode/volume: new floor-based SMPTE helper
+  `components/player/timecode.ts` (`formatSmpteTimecode`) replaces the local
+  `formatClock`; the transport readout now uses the same HH:MM:SS:FF format as
+  the stage chip, and a volume slider wired to `video.volume` sits next to
+  Mute. New styles live in `components/projects/ProjectCockpit.module.css`
+  (globals.css untouched — parallel-session lane).
+
+Proof: d9/d10/d12 failed pre-fix (1/4, 3/6, 1/2), 5/5 PASS post-fix;
+`tests/player-timecode.test.ts` (5 SMPTE units); updated the
+`ReactPointerEvent → ReactMouseEvent` signature regex in
+`tests/cockpit-control-regressions.test.ts`. Harness: `git diff --check` pass ·
+typecheck 0 errors · lint 0 errors (40 pre-existing warnings) · `npm test`
+741/741 (the earlier `exterior-states.test.ts` failure from the parallel
+session's `app/loading.tsx` deletion is resolved — that work has landed) ·
+`npm run build` pass.
+
 ## P9 — Real dynamic-route statuses + canonical short review links (2026-07-25)
 
 D19 root cause: `app/loading.tsx` wrapped every route in an instant-flush

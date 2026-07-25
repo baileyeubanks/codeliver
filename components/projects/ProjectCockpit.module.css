@@ -486,3 +486,44 @@
   border-radius: 50%;
   background: var(--accent, #2f66e0);
 }
+
+/* Review player — stage click model, ended-state replay, volume (P7) */
+
+.stageOverlay {
+  cursor: pointer;
+}
+
+.replayOverlay {
+  position: absolute;
+  top: 44%;
+  left: 50%;
+  z-index: 4;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 20px;
+  border: 0;
+  border-radius: 999px;
+  background: rgba(5, 17, 37, 0.88);
+  color: #ffffff;
+  font-size: 13px;
+  font-weight: 650;
+  transform: translate(-50%, -50%);
+  cursor: pointer;
+  box-shadow: 0 8px 24px rgba(5, 17, 37, 0.35);
+}
+
+.replayOverlay:hover {
+  background: var(--cockpit-accent, #145bb8);
+}
+
+.replayOverlay:focus-visible {
+  outline: 2px solid #ffffff;
+  outline-offset: 2px;
+}
+
+.volumeSlider {
+  min-width: 0 !important;
+  width: 64px;
+  flex: 0 0 auto !important;
+}

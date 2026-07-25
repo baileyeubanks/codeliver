@@ -130,6 +130,9 @@ test("zoom steps are bounded and Fit restores the whole duration", () => {
   assert.match(componentSource, /applyZoom\(getNextTimelineZoom\(zoom, "zoom-in"\)\)/);
   assert.match(componentSource, /applyZoom\(getNextTimelineZoom\(zoom, "fit"\)\)/);
   assert.match(componentSource, /nextViewport\.scrollTo\(\{ left: 0, behavior: "auto" \}\)/);
+  // The canvas width must scale with zoom (pixels-per-second) so the viewport
+  // gains scrollable overflow — the D8 "dead zoom" regression guard.
+  assert.match(componentSource, /width: `\$\{zoom \* 100\}%`/);
 });
 
 test("the rendered timeline preserves source names and positions real markers", () => {

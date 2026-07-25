@@ -208,7 +208,7 @@ test("the down-arrow shortcut creates a reviewable cut proposal, not an accepted
 
 test("frame-pin coordinates are measured against the full video frame", () => {
   const handlerBody = cockpitSource.match(
-    /function handleReviewFrameClick\(event: ReactPointerEvent<HTMLDivElement>\) \{([\s\S]*?)\n  \}\n\n  async function addCutDecision/,
+    /function handleReviewFrameClick\(event: ReactMouseEvent<HTMLDivElement>\) \{([\s\S]*?)\n  \}\n\n  async function addCutDecision/,
   )?.[1];
 
   assert.ok(handlerBody, "review frame click handler is missing");

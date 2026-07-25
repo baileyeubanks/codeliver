@@ -48,6 +48,10 @@
   grid-row: 1;
 }
 
+.shell :global(.cockpit-header) > * {
+  grid-row: 1;
+}
+
 .shell :global(.cockpit-sidebar) {
   grid-column: 1;
   grid-row: 2 / 4;
@@ -67,7 +71,7 @@
 }
 
 .shell[data-rail="compact"] :global(.cockpit-header) {
-  grid-template-columns: 64px minmax(230px, 270px) minmax(220px, 1fr) auto;
+  grid-template-columns: 64px minmax(230px, 270px) auto minmax(220px, 1fr) auto;
 }
 
 .shell[data-rail="compact"] :global(.cockpit-brand) {
@@ -251,7 +255,7 @@
   }
 
   .shell :global(.cockpit-header) {
-    grid-template-columns: 240px minmax(250px, 292px) minmax(320px, 1fr) auto;
+    grid-template-columns: 240px minmax(250px, 292px) auto minmax(320px, 1fr) auto;
   }
 
   .shell[data-rail="compact"] {
@@ -259,7 +263,7 @@
   }
 
   .shell[data-rail="compact"] :global(.cockpit-header) {
-    grid-template-columns: 64px minmax(250px, 292px) minmax(320px, 1fr) auto;
+    grid-template-columns: 64px minmax(250px, 292px) auto minmax(320px, 1fr) auto;
   }
 
   .shell :global(.cockpit-main) {
@@ -278,7 +282,7 @@
   }
 
   .shell :global(.cockpit-header) {
-    grid-template-columns: 64px 230px minmax(180px, 1fr) auto;
+    grid-template-columns: 64px 230px auto minmax(180px, 1fr) auto;
   }
 
   .shell .brandLockup {

@@ -70,38 +70,45 @@ test("the cockpit uses the truthful shared review timeline", () => {
   assert.doesNotMatch(cockpitSource, /activeAsset\.title\}\.mp4/);
 });
 
-test("the review cockpit exposes honest systems posture without fake backend readiness", () => {
-  assert.match(cockpitSource, /aria-label="Studio systems posture"/);
+test("the review cockpit surfaces systems health only when it needs attention", () => {
+  // Systems diagnostics live in Settings > Systems. The cockpit shows a single
+  // chip, and only when something is actually wrong — no permanent status wall.
   assert.match(cockpitSource, /settings\?section=systems/);
   assert.match(cockpitSource, /\/api\/health\/ready/);
   assert.match(cockpitSource, /cache: "no-store"/);
   assert.match(cockpitSource, /controller\.abort\(\)/);
-  assert.match(cockpitSource, /Checking readiness/);
-  assert.match(cockpitSource, /Ready with warnings/);
-  assert.match(cockpitSource, /Needs attention/);
-  assert.match(cockpitSource, /Not checked/);
-  assert.match(cockpitSource, /Browser online only/);
-  assert.match(cockpitSource, /presence unverified/);
-  assert.match(cockpitSource, /Not used in demo/);
-  assert.match(cockpitSource, /Credential gated/);
-  assert.equal(cockpitSource.match(/id: "(?:network|live-room|media-worker)"/g)?.length, 3);
-  assert.match(globalStyles, /\.cockpit-system-posture \{/);
-  assert.match(globalStyles, /\.cockpit-system-posture \{[\s\S]*?display: flex;[\s\S]*?overflow-x: auto;/);
-  assert.match(globalStyles, /\.cockpit-system-posture article,[\s\S]*?\.cockpit-system-posture-link \{[\s\S]*?flex: 1 0 132px;/);
+  assert.match(cockpitSource, /systemsReadiness\.tone === "attention" \? \(/);
+  assert.doesNotMatch(cockpitSource, /aria-label="Studio systems posture"/);
+  assert.doesNotMatch(cockpitSource, /Browser online only/);
+  assert.doesNotMatch(cockpitSource, /presence unverified/);
+  assert.doesNotMatch(cockpitSource, /Credential gated/);
   assert.doesNotMatch(cockpitSource, /Screen share active/i);
   assert.doesNotMatch(cockpitSource, /FFmpeg ready/i);
-  assert.doesNotMatch(cockpitSource, /Live collaborators/i);
 });
 
-test("review readiness chrome stays compact so the player remains the focus", () => {
-  assert.match(globalStyles, /\.cockpit-section-heading \{[\s\S]*?margin-bottom: 8px;/);
-  assert.match(globalStyles, /\.cockpit-review-strip \{[\s\S]*?margin: 0 0 6px;[\s\S]*?border-radius: 7px;/);
-  assert.match(globalStyles, /\.cockpit-review-strip article \{[\s\S]*?min-height: 46px;[\s\S]*?padding: 6px 8px;/);
-  assert.match(globalStyles, /\.cockpit-system-posture \{[\s\S]*?min-height: 32px;[\s\S]*?margin: 0 0 8px;[\s\S]*?border-radius: 7px;/);
-  assert.match(globalStyles, /\.cockpit-system-posture article,[\s\S]*?\.cockpit-system-posture-link \{[\s\S]*?flex: 1 0 132px;[\s\S]*?min-height: 31px;[\s\S]*?padding: 4px 7px;/);
+test("review readiness is one chip row, not a wall of status cards", () => {
+  // The player is the subject. Readiness is a single flex row of icon+value
+  // chips; explanatory detail belongs in a title tooltip, never on screen.
+  assert.match(globalStyles, /\.cockpit-review-strip \{[^}]*display: flex;[^}]*flex-wrap: wrap;/);
+  // the chip rule must not reintroduce card sizing
+  const chipRule = globalStyles.slice(
+    globalStyles.indexOf(".cockpit-review-strip article,"),
+    globalStyles.indexOf(".cockpit-review-strip svg"),
+  );
+  assert.ok(chipRule.length > 0, "chip rule is missing");
+  assert.doesNotMatch(chipRule, /min-height/);
+  assert.match(chipRule, /display: inline-flex;/);
+  assert.doesNotMatch(globalStyles, /\.cockpit-review-strip small \{/);
+  assert.doesNotMatch(globalStyles, /\.cockpit-system-posture \{/);
+  // chips render an icon and a value only — no label span, no detail caption
+  const stripStart = cockpitSource.indexOf('className="cockpit-review-strip"');
+  assert.notEqual(stripStart, -1, "review strip is missing");
+  const strip = cockpitSource.slice(stripStart, stripStart + 900);
+  assert.match(strip, /<strong>\{value\}<\/strong>/);
+  assert.doesNotMatch(strip, /<small>\{detail\}<\/small>/);
+  assert.doesNotMatch(strip, /<span>\{label\}<\/span>/);
+  assert.match(strip, /title=\{detail\}/);
   assert.match(globalStyles, /\.cockpit-timeline \{[\s\S]*?margin-top: 14px;/);
-  assert.match(globalStyles, /\.cockpit-track-row \{[\s\S]*?min-height: 44px;/);
-  assert.match(globalStyles, /\.cockpit-video-track \{ height: 52px;/);
 });
 
 test("mobile review tools keep only distinct primary actions", () => {
@@ -117,24 +124,16 @@ test("mobile review tools keep only distinct primary actions", () => {
   assert.match(globalStyles, /\.cockpit-mobile-review-strip \{[\s\S]*?grid-template-columns: repeat\(2, minmax\(0, 1fr\)\);/);
 });
 
-test("review dock exposes live session readiness without fake screenshare", () => {
-  assert.match(cockpitSource, /const liveSessionItems = activeAsset \? \[/);
-  assert.match(cockpitSource, /Roster only; realtime unverified/);
-  assert.match(cockpitSource, /Reconnect before live sync/);
-  assert.match(cockpitSource, /Disabled until session contract/);
-  assert.match(cockpitSource, /Comments are record/);
-  assert.match(cockpitSource, /Presence is ephemeral/);
-  assert.match(cockpitSource, /<header><h2>Live session<\/h2><button type="button" onClick=\{\(\) => router\.push\(systemsHref\)\}>Systems<\/button><\/header>/);
-  assert.match(cockpitSource, /aria-label="Live collaboration readiness"/);
-  assert.match(cockpitSource, /aria-label="Live session controls"/);
+test("the review dock carries no live-session status prose", () => {
+  // The Live session block was four rows of engineer-facing jargon
+  // ("Roster only; realtime unverified", "Presence is ephemeral"). Removed.
+  assert.doesNotMatch(cockpitSource, /liveSessionItems/);
+  assert.doesNotMatch(cockpitSource, /Live session/);
+  assert.doesNotMatch(cockpitSource, /Roster only; realtime unverified/);
+  assert.doesNotMatch(cockpitSource, /Presence is ephemeral/);
+  assert.doesNotMatch(cockpitSource, /Comments are record/);
   assert.doesNotMatch(cockpitSource, /Start screen share/);
-  assert.match(globalStyles, /\.cockpit-live-session \{/);
-  assert.match(globalStyles, /\.cockpit-live-actions \{[\s\S]*?grid-template-columns: minmax\(0, 1fr\);/);
-  const controlsStart = cockpitSource.indexOf('aria-label="Live session controls"');
-  assert.notEqual(controlsStart, -1, "live controls are missing");
-  const controlsEnd = cockpitSource.indexOf("</div>\n                        </section>", controlsStart);
-  const liveControls = cockpitSource.slice(controlsStart, controlsEnd);
-  assert.match(liveControls, /Pin comment/);
+  assert.doesNotMatch(cockpitSource, /aria-label="Live collaboration readiness"/);
 });
 
 test("operator dock tabs stay compact instead of exposing crowded labels by viewport", () => {

@@ -3055,7 +3055,10 @@ a { color: inherit; text-decoration: none; }
   top: 0;
   z-index: 80;
   display: grid;
-  grid-template-columns: 224px minmax(230px, 270px) minmax(220px, 1fr) auto;
+  /* Five tracks: brand / project switcher / stage chip / search / actions.
+     The demo stage chip is a real grid item — without its own track the
+     action cluster wraps onto row 2 off the left edge of the viewport. */
+  grid-template-columns: 224px minmax(230px, 270px) auto minmax(180px, 1fr) auto;
   align-items: center;
   min-width: 0;
   height: 72px;
@@ -3499,66 +3502,42 @@ a { color: inherit; text-decoration: none; }
 .cockpit-section-heading select { min-width: 0; margin-left: auto; max-width: 220px; padding: 5px 25px 5px 8px; border: 1px solid var(--cockpit-border); border-radius: 6px; background: var(--cockpit-panel); color: var(--cockpit-copy); font-size: 11px; text-overflow: ellipsis; }
 .cockpit-section-heading .cockpit-empty-upload { min-height: 32px; margin-left: auto; padding-inline: 11px; font-size: 10px; }
 
+/* One quiet row of chips. Detail lives in title tooltips, not on screen. */
 .cockpit-review-strip {
   min-width: 0;
-  display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
-  gap: 1px;
-  overflow: hidden;
-  margin: 0 0 6px;
-  border: 1px solid var(--cockpit-border);
-  border-radius: 7px;
-  background: var(--cockpit-border);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 14px;
+  margin: 0 0 8px;
 }
 
-.cockpit-review-strip article {
+.cockpit-review-strip article,
+.cockpit-review-strip .cockpit-system-posture-link {
   min-width: 0;
-  min-height: 46px;
-  display: grid;
-  grid-template-columns: 14px minmax(0, 1fr);
-  grid-template-rows: auto auto auto;
-  column-gap: 6px;
-  align-content: center;
-  padding: 6px 8px;
-  background: var(--cockpit-panel);
-  color: var(--cockpit-copy);
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 0;
+  background: none;
+  border: 0;
+  color: var(--cockpit-muted);
 }
 
 .cockpit-review-strip svg {
-  grid-column: 1;
-  grid-row: 1 / span 3;
-  align-self: start;
-  margin-top: 1px;
-  color: var(--cockpit-accent);
+  flex: none;
+  color: var(--cockpit-muted);
 }
 
-.cockpit-review-strip span,
-.cockpit-review-strip strong,
-.cockpit-review-strip small {
+.cockpit-review-strip strong {
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-}
-
-.cockpit-review-strip span {
-  color: var(--cockpit-muted);
-  font-size: 9px;
-  font-weight: 700;
-  text-transform: uppercase;
-}
-
-.cockpit-review-strip strong {
-  color: var(--cockpit-ink);
+  color: var(--cockpit-copy);
   font-size: 11px;
-  line-height: 1.25;
-  font-weight: 720;
-}
-
-.cockpit-review-strip small {
-  color: var(--cockpit-muted);
-  font-size: 9px;
-  line-height: 1.2;
+  line-height: 1.3;
+  font-weight: 600;
 }
 
 .cockpit-review-strip article[data-tone="approved"] svg,
@@ -3566,127 +3545,9 @@ a { color: inherit; text-decoration: none; }
   color: var(--green);
 }
 
-.cockpit-system-posture {
-  min-width: 0;
-  min-height: 32px;
-  display: flex;
-  align-items: stretch;
-  overflow-x: auto;
-  margin: 0 0 8px;
-  border: 1px solid var(--cockpit-border);
-  border-radius: 7px;
-  background: var(--cockpit-panel);
-  scrollbar-width: thin;
-}
-
-.cockpit-system-posture article,
-.cockpit-system-posture-link {
-  flex: 1 0 132px;
-  min-width: 132px;
-  min-height: 31px;
-  display: grid;
-  grid-template-columns: 14px minmax(0, 1fr) minmax(0, auto);
-  grid-template-rows: auto auto;
-  column-gap: 5px;
-  align-content: center;
-  padding: 4px 7px;
-  border-right: 1px solid var(--cockpit-border);
-  background: transparent;
-  color: var(--cockpit-copy);
-  text-decoration: none;
-}
-
-.cockpit-system-posture article:last-child,
-.cockpit-system-posture-link:last-child {
-  border-right: 0;
-}
-
-.cockpit-system-posture svg,
-.cockpit-system-posture-link svg {
-  grid-column: 1;
-  grid-row: 1 / span 2;
-  align-self: center;
-  margin-top: 1px;
-  color: var(--cockpit-accent);
-}
-
-.cockpit-system-posture span,
-.cockpit-system-posture strong,
-.cockpit-system-posture small,
-.cockpit-system-posture-link span,
-.cockpit-system-posture-link strong,
-.cockpit-system-posture-link small {
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.cockpit-system-posture span,
-.cockpit-system-posture-link span {
-  grid-column: 2;
-  grid-row: 1;
-  color: var(--cockpit-muted);
-  font-size: 8px;
-  font-weight: 740;
-  letter-spacing: 0;
-  text-transform: uppercase;
-}
-
-.cockpit-system-posture strong,
-.cockpit-system-posture-link strong {
-  grid-column: 2 / 4;
-  grid-row: 2;
-  color: var(--cockpit-ink);
-  font-size: 10px;
-  line-height: 1.24;
-  font-weight: 720;
-}
-
-.cockpit-system-posture small {
-  grid-column: 3;
-  grid-row: 1;
-  max-width: 74px;
-  color: var(--cockpit-muted);
-  font-size: 8px;
-  line-height: 1.2;
-  text-align: right;
-}
-
-.cockpit-system-posture-link small {
-  grid-column: 3;
-  grid-row: 1;
-  max-width: 74px;
-  color: var(--cockpit-muted);
-  font-size: 8px;
-  line-height: 1.2;
-  text-align: right;
-}
-
-.cockpit-system-posture article[data-tone="healthy"] svg,
-.cockpit-system-posture article[data-tone="healthy"] strong,
-.cockpit-system-posture-link[data-tone="healthy"] svg,
-.cockpit-system-posture-link[data-tone="healthy"] strong {
-  color: var(--green);
-}
-
-.cockpit-system-posture article[data-tone="active"] svg,
-.cockpit-system-posture article[data-tone="active"] strong,
-.cockpit-system-posture-link[data-tone="checking"] svg,
-.cockpit-system-posture-link[data-tone="checking"] strong {
-  color: var(--cockpit-accent);
-}
-
-.cockpit-system-posture article[data-tone="attention"] svg,
-.cockpit-system-posture article[data-tone="attention"] strong,
-.cockpit-system-posture-link[data-tone="attention"] svg,
-.cockpit-system-posture-link[data-tone="attention"] strong {
+.cockpit-review-strip [data-tone="attention"] svg,
+.cockpit-review-strip [data-tone="attention"] strong {
   color: var(--orange);
-}
-
-.cockpit-system-posture-link:hover,
-.cockpit-system-posture-link:focus-visible {
-  background: var(--cockpit-canvas);
 }
 
 .cockpit-review-stage {
@@ -3828,104 +3689,6 @@ a { color: inherit; text-decoration: none; }
 .cockpit-project-setup > span { width: 36px; height: 36px; display: inline-flex; align-items: center; justify-content: center; border-radius: 7px; background: var(--cockpit-accent-soft); color: var(--cockpit-accent); }
 .cockpit-project-setup > p { color: var(--cockpit-muted); font-size: 10px; line-height: 1.55; }
 .cockpit-project-setup .cockpit-rail-primary { display: inline-flex; align-items: center; justify-content: center; gap: 6px; }
-
-.cockpit-live-session {
-  display: grid;
-  gap: 1px;
-  overflow: hidden;
-  margin-top: 10px;
-  border: 1px solid var(--cockpit-border);
-  border-radius: 7px;
-  background: var(--cockpit-border);
-}
-
-.cockpit-live-session article {
-  min-width: 0;
-  min-height: 42px;
-  display: grid;
-  grid-template-columns: 18px minmax(0, 1fr) minmax(0, auto);
-  grid-template-rows: auto auto;
-  align-content: center;
-  column-gap: 7px;
-  padding: 7px 9px;
-  background: var(--cockpit-panel);
-}
-
-.cockpit-live-session svg {
-  grid-column: 1;
-  grid-row: 1 / span 2;
-  align-self: center;
-  color: var(--cockpit-accent);
-}
-
-.cockpit-live-session span,
-.cockpit-live-session strong,
-.cockpit-live-session small {
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.cockpit-live-session span {
-  grid-column: 2;
-  color: var(--cockpit-muted);
-  font-size: 8px;
-  font-weight: 750;
-  text-transform: uppercase;
-}
-
-.cockpit-live-session strong {
-  grid-column: 2 / 4;
-  color: var(--cockpit-copy);
-  font-size: 10px;
-  font-weight: 720;
-}
-
-.cockpit-live-session small {
-  grid-column: 3;
-  grid-row: 1;
-  max-width: 104px;
-  color: var(--cockpit-muted);
-  font-size: 8px;
-  text-align: right;
-}
-
-.cockpit-live-session article[data-tone="healthy"] svg,
-.cockpit-live-session article[data-tone="healthy"] strong {
-  color: var(--green);
-}
-
-.cockpit-live-session article[data-tone="attention"] svg,
-.cockpit-live-session article[data-tone="attention"] strong,
-.cockpit-live-session article[data-tone="planned"] svg,
-.cockpit-live-session article[data-tone="planned"] strong {
-  color: var(--orange);
-}
-
-.cockpit-live-actions {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr);
-  gap: 8px;
-  margin-top: 10px;
-}
-
-.cockpit-live-actions button {
-  min-width: 0;
-  min-height: 32px;
-  border: 1px solid var(--cockpit-border);
-  border-radius: 6px;
-  background: var(--cockpit-panel);
-  color: var(--cockpit-accent);
-  font-size: 9px;
-  font-weight: 700;
-}
-
-.cockpit-live-actions button:disabled {
-  color: var(--cockpit-muted);
-  opacity: 0.58;
-  cursor: not-allowed;
-}
 
 .cockpit-approval-stage { padding: 12px 0; border-bottom: 1px solid var(--cockpit-border); }
 .cockpit-approval-stage:last-of-type { border-bottom: 0; }
@@ -4104,7 +3867,7 @@ a { color: inherit; text-decoration: none; }
 @keyframes cockpit-upload-spin { to { transform: rotate(360deg); } }
 
 @media (max-width: 1180px) {
-  .cockpit-header { grid-template-columns: 210px 230px minmax(180px, 1fr) auto; }
+  .cockpit-header { grid-template-columns: 210px 230px auto minmax(140px, 1fr) auto; }
   .cockpit-shell { grid-template-columns: 210px minmax(0, 1fr); }
   .cockpit-brand { padding-inline: 20px; }
   .cockpit-brand > img { width: 150px; }
@@ -4122,7 +3885,7 @@ a { color: inherit; text-decoration: none; }
 
 @media (max-width: 900px) {
   .cockpit-shell { grid-template-columns: minmax(0, 1fr); grid-template-rows: 64px minmax(0, 1fr); }
-  .cockpit-header { height: 64px; grid-template-columns: minmax(0, 1fr) auto; }
+  .cockpit-header { height: 64px; grid-template-columns: minmax(0, 1fr) auto auto; }
   .cockpit-brand,
   .cockpit-search-wrap,
   .cockpit-sidebar { display: none; }
@@ -4164,8 +3927,6 @@ a { color: inherit; text-decoration: none; }
   .cockpit-section-heading select { width: 100%; max-width: none; margin-left: 0; }
   .cockpit-review-strip { grid-template-columns: repeat(5, minmax(118px, 1fr)); overflow-x: auto; scrollbar-width: thin; }
   .cockpit-review-strip article { min-height: 50px; }
-  .cockpit-system-posture article,
-  .cockpit-system-posture-link { flex-basis: 132px; min-width: 132px; min-height: 34px; }
   .cockpit-comment-composer { grid-template-columns: 30px minmax(0, 1fr); gap: 8px; padding: 10px; }
   .cockpit-avatar { width: 30px; height: 30px; }
   .cockpit-timecode { grid-column: 1 / 2; }

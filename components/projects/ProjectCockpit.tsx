@@ -21,8 +21,6 @@ import {
   ChevronDown,
   Circle,
   Compass,
-  Cpu,
-  Gauge,
   Clock3,
   History,
   Info,
@@ -39,7 +37,6 @@ import {
   Plus,
   Save,
   Search,
-  ScreenShare,
   ServerCog,
   Share2,
   Upload,
@@ -51,6 +48,7 @@ import DemoShareModal from "@/components/demo/DemoShareModal";
 import CoProductionBrand from "@/components/brand/CoProductionBrand";
 import ShareModal from "@/components/sharing/ShareModal";
 import CommandPalette, { type CommandPaletteItem } from "@/components/navigation/CommandPalette";
+import { useOverlay } from "@/components/overlay/useOverlay";
 import { roleCan, type WorkspaceRole } from "@/components/navigation/navigation-model";
 import { useMediaQuery, useOnlineStatus } from "@/components/navigation/useEnvironmentStatus";
 import CockpitDock from "@/components/cockpit/CockpitDock";
@@ -434,8 +432,6 @@ export default function ProjectCockpit({
   const videoRef = useRef<HTMLVideoElement>(null);
   const videoFrameRef = useRef<HTMLDivElement>(null);
   const commentInputRef = useRef<HTMLInputElement>(null);
-  const notificationRef = useRef<HTMLDivElement>(null);
-  const accountRef = useRef<HTMLDivElement>(null);
   const notificationButtonRef = useRef<HTMLButtonElement>(null);
   const accountButtonRef = useRef<HTMLButtonElement>(null);
   const requestedAssetId = searchParams.get("asset");
@@ -482,6 +478,20 @@ export default function ProjectCockpit({
   const [accountOpen, setAccountOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const commandButtonRef = useRef<HTMLButtonElement>(null);
+  const [notificationsOverlayRef, notificationsOverlayStyle] = useOverlay({
+    open: notificationsOpen,
+    onClose: () => setNotificationsOpen(false),
+    anchorRef: notificationButtonRef,
+    align: "end",
+    offset: 10,
+  });
+  const [accountOverlayRef, accountOverlayStyle] = useOverlay({
+    open: accountOpen,
+    onClose: () => setAccountOpen(false),
+    anchorRef: accountButtonRef,
+    align: "end",
+    offset: 10,
+  });
   const liveAssetRequestRef = useRef(0);
   const [toast, setToast] = useState("");
   const [commentSubmitting, setCommentSubmitting] = useState(false);
@@ -671,66 +681,6 @@ export default function ProjectCockpit({
       detail: assets.length > 1 ? `${assets.length} asset batch` : "Single asset",
       icon: Share2,
       tone: activeShareLinkCount > 0 ? "active" : "neutral",
-    },
-  ] : [];
-  const systemPostureItems = activeAsset ? [
-    {
-      id: "network",
-      label: "Network",
-      value: online ? "Browser online only" : "Browser offline",
-      detail: online ? "System health checked separately" : "Review controls remain local",
-      icon: Gauge,
-      tone: online ? "neutral" : "attention",
-    },
-    {
-      id: "live-room",
-      label: "Collaboration",
-      value: `${collaborators.length} listed`,
-      detail: "presence unverified",
-      icon: Circle,
-      tone: "neutral",
-    },
-    {
-      id: "media-worker",
-      label: "Media worker",
-      value: demoMode ? "Not used in demo" : "Credential gated",
-      detail: demoMode ? "FFmpeg backend not claimed" : "FFmpeg worker requires service role",
-      icon: Cpu,
-      tone: "neutral",
-    },
-  ] : [];
-  const liveSessionItems = activeAsset ? [
-    {
-      id: "presence",
-      label: "Presence",
-      value: `${collaborators.length} listed`,
-      detail: "Roster only; realtime unverified",
-      icon: Circle,
-      tone: "neutral",
-    },
-    {
-      id: "quality",
-      label: "Quality",
-      value: online ? "Browser online" : "Browser offline",
-      detail: online ? systemsReadiness.label : "Reconnect before live sync",
-      icon: Gauge,
-      tone: online && systemsReadiness.tone === "healthy" ? "healthy" : online ? "neutral" : "attention",
-    },
-    {
-      id: "screenshare",
-      label: "Screen share",
-      value: "Planned",
-      detail: "Disabled until session contract",
-      icon: ScreenShare,
-      tone: "planned",
-    },
-    {
-      id: "authority",
-      label: "Authority",
-      value: "Comments are record",
-      detail: "Presence is ephemeral",
-      icon: MessageSquareText,
-      tone: "neutral",
     },
   ] : [];
   const lifecyclePhases = useMemo<CoProduceLifecycleData>(() => {
@@ -968,16 +918,6 @@ export default function ProjectCockpit({
   }, [isPlaying, previewDuration, simulatedPlayback]);
 
   useEffect(() => {
-    function handleClick(event: MouseEvent) {
-      const target = event.target as Node;
-      if (notificationRef.current && !notificationRef.current.contains(target)) setNotificationsOpen(false);
-      if (accountRef.current && !accountRef.current.contains(target)) setAccountOpen(false);
-    }
-    document.addEventListener("mousedown", handleClick);
-    return () => document.removeEventListener("mousedown", handleClick);
-  }, []);
-
-  useEffect(() => {
     function handleKeyDown(event: KeyboardEvent) {
       if ((event.metaKey || event.ctrlKey) && event.key.toLocaleLowerCase() === "k") {
         event.preventDefault();
@@ -1026,26 +966,20 @@ export default function ProjectCockpit({
         return;
       }
 
+      // Header popover dismissal (Escape + outside pointer) is owned by
+      // useOverlay's dismiss stack — it must fire even while an input holds
+      // focus, so it cannot live behind the `editing` guard above.
       if (event.key !== "Escape") return;
       if (mobileNavOpen) setMobileNavOpen(false);
       else if (mobileDockOpen) setMobileDockOpen(false);
-      else if (accountOpen) {
-        setAccountOpen(false);
-        accountButtonRef.current?.focus();
-      } else if (notificationsOpen) {
-        setNotificationsOpen(false);
-        notificationButtonRef.current?.focus();
-      }
     }
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [
-    accountOpen,
     compactViewport,
     mobileDockOpen,
     mobileNavOpen,
-    notificationsOpen,
     changeMode,
     toggleDock,
     toggleRail,
@@ -1640,7 +1574,7 @@ export default function ProjectCockpit({
           >
             <Plus size={18} /> <span>{uploading ? "Uploading" : "Upload"}</span>
           </button>
-          <div className="cockpit-popover-anchor" ref={notificationRef}>
+          <div className="cockpit-popover-anchor">
             <button
               ref={notificationButtonRef}
               className="cockpit-icon-button"
@@ -1658,7 +1592,14 @@ export default function ProjectCockpit({
               {projectActivity.length > 0 ? <i /> : null}
             </button>
             {notificationsOpen ? (
-              <div id="cockpit-notifications" className="cockpit-popover cockpit-notifications" role="region" aria-label="Project notifications">
+              <div
+                ref={notificationsOverlayRef}
+                style={notificationsOverlayStyle}
+                id="cockpit-notifications"
+                className="cockpit-popover cockpit-notifications"
+                role="region"
+                aria-label="Project notifications"
+              >
                 <header className="cockpit-popover-heading">
                   <span><Bell size={14} aria-hidden="true" /> Audit notifications</span>
                   <small>{projectActivity.length} project events</small>
@@ -1696,7 +1637,7 @@ export default function ProjectCockpit({
               </div>
             ) : null}
           </div>
-          <div className="cockpit-popover-anchor" ref={accountRef}>
+          <div className="cockpit-popover-anchor">
             <button
               ref={accountButtonRef}
               className="cockpit-avatar-button"
@@ -1713,7 +1654,14 @@ export default function ProjectCockpit({
               {avatarInitials(viewerName) || "CC"}
             </button>
             {accountOpen ? (
-              <div id="cockpit-account-menu" className="cockpit-popover cockpit-account" role="menu" aria-label="Account menu">
+              <div
+                ref={accountOverlayRef}
+                style={accountOverlayStyle}
+                id="cockpit-account-menu"
+                className="cockpit-popover cockpit-account"
+                role="menu"
+                aria-label="Account menu"
+              >
                 <header className="cockpit-popover-heading">
                   <span>{viewerName}</span>
                   <small>{workspaceRole} workspace role</small>
@@ -1830,33 +1778,18 @@ export default function ProjectCockpit({
 
                 {activeAsset ? (
                   <div className="cockpit-review-strip" aria-label="Review readiness">
-                    {reviewReadinessItems.map(({ id, label, value, detail, icon: Icon, tone }) => (
-                      <article key={id} data-tone={tone}>
-                        <Icon size={14} aria-hidden="true" />
-                        <span>{label}</span>
+                    {reviewReadinessItems.map(({ id, value, detail, icon: Icon, tone }) => (
+                      <article key={id} data-tone={tone} title={detail}>
+                        <Icon size={13} aria-hidden="true" />
                         <strong>{value}</strong>
-                        <small>{detail}</small>
                       </article>
                     ))}
-                  </div>
-                ) : null}
-
-                {activeAsset ? (
-                  <div className="cockpit-system-posture" aria-label="Studio systems posture">
-                    <Link className="cockpit-system-posture-link" href={systemsHref} data-tone={systemsReadiness.tone}>
-                      <ServerCog size={14} aria-hidden="true" />
-                      <span>Systems</span>
-                      <strong>{systemsReadiness.label}</strong>
-                      <small>{systemsReadiness.detail}</small>
-                    </Link>
-                    {systemPostureItems.map(({ id, label, value, detail, icon: Icon, tone }) => (
-                      <article key={id} data-tone={tone}>
-                        <Icon size={14} aria-hidden="true" />
-                        <span>{label}</span>
-                        <strong>{value}</strong>
-                        <small>{detail}</small>
-                      </article>
-                    ))}
+                    {systemsReadiness.tone === "attention" ? (
+                      <Link className="cockpit-system-posture-link" href={systemsHref} data-tone="attention" title={systemsReadiness.detail}>
+                        <ServerCog size={13} aria-hidden="true" />
+                        <strong>{systemsReadiness.label}</strong>
+                      </Link>
+                    ) : null}
                   </div>
                 ) : null}
 
@@ -2152,31 +2085,6 @@ export default function ProjectCockpit({
                           >
                             Add comment
                           </button>
-                        </section>
-
-                        <section className={styles.dockSection}>
-                          <header><h2>Live session</h2><button type="button" onClick={() => router.push(systemsHref)}>Systems</button></header>
-                          <div className="cockpit-live-session" aria-label="Live collaboration readiness">
-                            {liveSessionItems.map(({ id, label, value, detail, icon: Icon, tone }) => (
-                              <article key={id} data-tone={tone}>
-                                <Icon size={14} aria-hidden="true" />
-                                <span>{label}</span>
-                                <strong>{value}</strong>
-                                <small>{detail}</small>
-                              </article>
-                            ))}
-                          </div>
-                          <div className="cockpit-live-actions" aria-label="Live session controls">
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setMobileDockOpen(false);
-                                window.requestAnimationFrame(() => document.querySelector<HTMLInputElement>(".cockpit-comment-composer input")?.focus());
-                              }}
-                            >
-                              Pin comment
-                            </button>
-                          </div>
                         </section>
 
                         <section className={styles.dockSection}>

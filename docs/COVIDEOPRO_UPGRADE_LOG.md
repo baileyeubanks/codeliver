@@ -255,3 +255,10 @@ Baseline: `e068ee8` (checkpoint of the prior session's transformation state).
 - Repaired the shell command memo dependency while validating the touched component, so role changes also rebuild role-filtered commands.
 - Verification: regression test written red first, focused shell tests, typecheck, and scoped ESLint with no warnings or errors.
 - **Learning:** activity history and unread notification state are different authorities; when unread truth is unavailable, show no badge.
+
+## U35 — Wave 1.7: truthful technical metadata (2026-07-25)
+
+- Removed invented `1920 x 1080` and `23.98 fps` values from both media-inspector surfaces.
+- Video assets now report `Not probed in demo` when no probe record exists and `Not reported` in production when the loaded asset record has no technical fields. Non-video values remain explicitly not applicable or source-file based.
+- Verification: regression test written red first, focused cockpit tests, typecheck, and scoped ESLint with no errors.
+- **Learning:** a plausible media property is still false data; technical metadata must come from a probe/version record or be labeled unavailable.

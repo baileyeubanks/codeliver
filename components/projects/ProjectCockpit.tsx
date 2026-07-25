@@ -213,6 +213,16 @@ function versionLabel(asset: MediaAsset, demoMode: boolean) {
   return version ? `Version ${version}` : "Version not indexed";
 }
 
+function mediaResolutionLabel(asset: MediaAsset, demoMode: boolean) {
+  if (asset.file_type !== "video") return "Source file";
+  return demoMode ? "Not probed in demo" : "Not reported";
+}
+
+function mediaFrameRateLabel(asset: MediaAsset, demoMode: boolean) {
+  if (asset.file_type !== "video") return "Not applicable";
+  return demoMode ? "Not probed in demo" : "Not reported";
+}
+
 function timeAgo(iso: string) {
   const diff = Math.max(0, Date.now() - new Date(iso).getTime());
   const minutes = Math.floor(diff / 60000);
@@ -2213,8 +2223,8 @@ export default function ProjectCockpit({
                           <dl className="cockpit-details">
                             <div><dt>File name</dt><dd>{assetFileName(activeAsset)}</dd></div>
                             <div><dt>Duration</dt><dd>{formatShortClock(activeAsset.duration_seconds ?? 0)}</dd></div>
-                            <div><dt>Resolution</dt><dd>{activeAsset.file_type === "video" ? demoMode ? "1920 x 1080" : "Not reported" : "Source file"}</dd></div>
-                            <div><dt>Frame rate</dt><dd>{activeAsset.file_type === "video" ? demoMode ? "23.98 fps" : "Not reported" : "Not applicable"}</dd></div>
+                            <div><dt>Resolution</dt><dd>{mediaResolutionLabel(activeAsset, demoMode)}</dd></div>
+                            <div><dt>Frame rate</dt><dd>{mediaFrameRateLabel(activeAsset, demoMode)}</dd></div>
                             <div><dt>Versions</dt><dd>{activeAsset.version_count ?? (demoMode ? 1 : "Not indexed")}</dd></div>
                             <div><dt>Owner</dt><dd>Content Co-op</dd></div>
                           </dl>
@@ -2354,7 +2364,7 @@ export default function ProjectCockpit({
                 <header><div><h2>Project metadata</h2><p>Delivery, ownership, technical, and brand details.</p></div></header>
                 <div className="cockpit-metadata-grid">
                   <section><h3>Project</h3><dl><div><dt>Name</dt><dd>{project.name}</dd></div><div><dt>Status</dt><dd>Active</dd></div><div><dt>Owner</dt><dd>Content Co-op</dd></div><div><dt>Storage</dt><dd>CCNAS media authority</dd></div></dl></section>
-                  <section><h3>Active media</h3>{activeAsset ? <dl><div><dt>Title</dt><dd>{activeAsset.title}</dd></div><div><dt>Duration</dt><dd>{formatShortClock(activeAsset.duration_seconds ?? 0)}</dd></div><div><dt>Resolution</dt><dd>{activeAsset.file_type === "video" ? demoMode ? "1920 x 1080" : "Not reported" : "Source file"}</dd></div><div><dt>Frame rate</dt><dd>{activeAsset.file_type === "video" ? demoMode ? "23.98 fps" : "Not reported" : "Not applicable"}</dd></div></dl> : <p className="cockpit-rail-empty">No media has been uploaded.</p>}</section>
+                  <section><h3>Active media</h3>{activeAsset ? <dl><div><dt>Title</dt><dd>{activeAsset.title}</dd></div><div><dt>Duration</dt><dd>{formatShortClock(activeAsset.duration_seconds ?? 0)}</dd></div><div><dt>Resolution</dt><dd>{mediaResolutionLabel(activeAsset, demoMode)}</dd></div><div><dt>Frame rate</dt><dd>{mediaFrameRateLabel(activeAsset, demoMode)}</dd></div></dl> : <p className="cockpit-rail-empty">No media has been uploaded.</p>}</section>
                   <section><h3>Review authority</h3><dl><div><dt>Open comments</dt><dd>{comments.filter((comment) => comment.status === "open").length}</dd></div><div><dt>Approval stages</dt><dd>{approvalStages.length}</dd></div><div><dt>Active links</dt><dd>{projectLinks.filter((link) => link.is_active).length}</dd></div><div><dt>Brand</dt><dd>{demoMode ? workspace.settings.brand.displayName : "Content Co-op"}</dd></div></dl></section>
                 </div>
               </>

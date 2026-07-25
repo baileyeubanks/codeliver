@@ -229,6 +229,17 @@ test("production approval and version labels come from indexed records", () => {
   assert.match(cockpitSource, /Version not indexed/);
 });
 
+test("media inspector never fabricates unprobed resolution or frame rate", () => {
+  assert.match(cockpitSource, /function mediaResolutionLabel/);
+  assert.match(cockpitSource, /function mediaFrameRateLabel/);
+  assert.match(cockpitSource, /Not probed in demo/);
+  assert.match(cockpitSource, /Not reported/);
+  assert.doesNotMatch(cockpitSource, /1920 x 1080/);
+  assert.doesNotMatch(cockpitSource, /23\.98 fps/);
+  assert.equal(cockpitSource.match(/mediaResolutionLabel\(activeAsset, demoMode\)/g)?.length, 2);
+  assert.equal(cockpitSource.match(/mediaFrameRateLabel\(activeAsset, demoMode\)/g)?.length, 2);
+});
+
 test("demo upload terminal states stay readable and dismissible", () => {
   assert.match(cockpitSource, /onUploadDismiss\?: \(\) => void/);
   assert.match(cockpitSource, /const uploadTerminal =\s*uploadStatus\?\.phase === "complete" \|\| uploadStatus\?\.phase === "error"/);

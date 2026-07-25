@@ -62,7 +62,12 @@ editor_status="$(status_for "$BASE_URL/__nextjs_launch-editor?file=package.json"
 case "$editor_status" in
   2*) fail "Next.js editor endpoint returned HTTP $editor_status" ;;
 esac
-if grep -Eqi 'launch.?editor|open in editor' "$tmp_dir/body"; then
+# The middleware 307s unknown paths to /login?next=<original-url>, which echoes
+# the (harmless) endpoint name inside the login page's return-path param. That
+# echo is not editor behavior — strip the return-path value before matching.
+if sed -E -e 's/%2F__nextjs_launch-editor[^" <]*//g' \
+  -e 's/__nextjs_launch-editor[^" <]*//g' "$tmp_dir/body" \
+  | grep -Eqi 'launch.?editor|open in editor'; then
   fail "Next.js editor endpoint returned editor behavior"
 fi
 pass "Next.js editor endpoint has no production behavior"

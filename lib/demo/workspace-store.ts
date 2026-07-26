@@ -116,6 +116,17 @@ import { snapToGrid } from "@/lib/whiteboard/geometry.ts";
 import type { WhiteboardEdge, WhiteboardNode } from "@/lib/whiteboard/model.ts";
 import { applyTemplate, type WhiteboardTemplateId } from "@/lib/whiteboard/templates.ts";
 import { demoLibrarySeedAssets } from "@/lib/assets/demo-library.ts";
+import {
+  validateRequestInput,
+  type ClientRequestInput,
+  type RequestKind,
+  type RequestPriority,
+} from "@/lib/requests/model.ts";
+import {
+  transitionRequestStatus,
+  type RequestStatus,
+} from "@/lib/requests/lifecycle.ts";
+import { shapeWorkOrder, type WorkOrderDeliverable } from "@/lib/requests/work-order.ts";
 
 export const DEMO_WORKSPACE_STORAGE_KEY = "co-videopro.workspace.v2";
 export const LEGACY_DEMO_WORKSPACE_STORAGE_KEYS = ["co-deliver.demo-workspace.v1"];
@@ -310,6 +321,11 @@ export interface DemoWorkspaceState {
    * in lib/assets/demo-library.ts, keyed by asset id). */
   libraryFavorites: string[];
   libraryCutdownRequests: DemoLibraryCutdownRequest[];
+  /* P27: Request Center (typed client requests, messaging threads, scoped  */
+  /* work orders; lifecycle + validation live in lib/requests/).            */
+  requests: DemoRequest[];
+  requestMessages: DemoRequestMessage[];
+  workOrders: DemoWorkOrder[];
 }
 
 export interface CreateDemoShareInput {
@@ -673,6 +689,12 @@ export function createInitialDemoWorkspace(): DemoWorkspaceState {
     })),
     libraryFavorites: [],
     libraryCutdownRequests: [],
+    requests: seedDemoRequests().map((request) => ({ ...request, aspect_ratios: [...request.aspect_ratios] })),
+    requestMessages: seedDemoRequestMessages().map((message) => ({ ...message })),
+    workOrders: seedDemoWorkOrders().map((order) => ({
+      ...order,
+      deliverables: order.deliverables.map((deliverable) => ({ ...deliverable })),
+    })),
   };
 }
 
@@ -812,6 +834,9 @@ export function restoreDemoWorkspace(raw: string | null): DemoWorkspaceState {
       ],
       libraryFavorites: parsed.libraryFavorites ?? [],
       libraryCutdownRequests: parsed.libraryCutdownRequests ?? [],
+      requests: mergeSeededRecords(parsed.requests, fallback.requests),
+      requestMessages: mergeSeededRecords(parsed.requestMessages, fallback.requestMessages),
+      workOrders: mergeSeededRecords(parsed.workOrders, fallback.workOrders),
       settings: {
         profile: { ...fallback.settings.profile, ...savedSettings?.profile },
         appearance: { ...fallback.settings.appearance, ...savedSettings?.appearance },
@@ -3477,4 +3502,387 @@ export function recordDemoLibraryCutdownRequest(input: {
     ],
   }));
   return { ok: true, id: request.id };
+}
+
+/* --------------------- P27: Request Center -------------------------------- */
+/* Typed client requests, per-request messaging threads, and scoped work     */
+/* orders. Lifecycle, validation, and work-order shaping are pure and live   */
+/* in lib/requests/; this section only persists and applies them.            */
+
+export interface DemoRequest {
+  id: string;
+  kind: RequestKind;
+  title: string;
+  priority: RequestPriority;
+  requested_due_date: string;
+  source_asset_id: string | null;
+  source_asset_title: string | null;
+  platform: string | null;
+  duration_seconds: number | null;
+  aspect_ratios: string[];
+  asset_reference: string | null;
+  notes: string;
+  status: RequestStatus;
+  decline_note: string | null;
+  work_order_id: string | null;
+  requester_name: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface DemoRequestMessage {
+  id: string;
+  request_id: string;
+  author_name: string;
+  author_role: "client" | "team";
+  /** internal = team-only note; never exposed to the client audience. */
+  visibility: "client" | "internal";
+  body: string;
+  created_at: string;
+}
+
+export interface DemoWorkOrderDeliverable extends WorkOrderDeliverable {
+  id: string;
+}
+
+export interface DemoWorkOrder {
+  id: string;
+  request_id: string;
+  title: string;
+  kind: RequestKind;
+  priority: RequestPriority;
+  due_date: string;
+  /** Conversion target chosen at accept time; null = standalone order. */
+  project_id: string | null;
+  deliverables: DemoWorkOrderDeliverable[];
+  scope_note: string;
+  /** Local preview only — the order is recorded, never dispatched. */
+  status: "local_preview";
+  created_at: string;
+}
+
+function seedDemoRequests(): DemoRequest[] {
+  return [
+    {
+      id: "request-ceo-cutdown",
+      kind: "social_cutdown",
+      title: "LinkedIn cut of the CEO hero",
+      priority: "rush",
+      requested_due_date: "2026-07-22",
+      source_asset_id: "ica-ceo-hero-v1",
+      source_asset_title: "ICA CEO Hero Cut_v1",
+      platform: "linkedin",
+      duration_seconds: 30,
+      aspect_ratios: [],
+      asset_reference: null,
+      notes: "Lead with the acquisition answer, not the intro.",
+      status: "submitted",
+      decline_note: null,
+      work_order_id: null,
+      requester_name: "Morgan Lee",
+      created_at: "2026-07-15T14:20:00.000Z",
+      updated_at: "2026-07-15T14:20:00.000Z",
+    },
+    {
+      id: "request-denie-captions",
+      kind: "caption_update",
+      title: "Fix captions on Denie v4",
+      priority: "standard",
+      requested_due_date: "2026-07-24",
+      source_asset_id: "denie-mcdonald-v4",
+      source_asset_title: "Denie McDonald_v4",
+      platform: null,
+      duration_seconds: null,
+      aspect_ratios: [],
+      asset_reference: null,
+      notes: "Two typos in the first minute, flagged in review.",
+      status: "in_progress",
+      decline_note: null,
+      work_order_id: "workorder-denie-captions",
+      requester_name: "Alex Rivera",
+      created_at: "2026-07-14T16:05:00.000Z",
+      updated_at: "2026-07-15T09:12:00.000Z",
+    },
+  ];
+}
+
+function seedDemoRequestMessages(): DemoRequestMessage[] {
+  return [
+    {
+      id: "reqmsg-cutdown-client-1",
+      request_id: "request-ceo-cutdown",
+      author_name: "Morgan Lee",
+      author_role: "client",
+      visibility: "client",
+      body: "Can we see a first pass before Friday?",
+      created_at: "2026-07-15T14:22:00.000Z",
+    },
+    {
+      id: "reqmsg-cutdown-team-1",
+      request_id: "request-ceo-cutdown",
+      author_name: "Content Co-op",
+      author_role: "team",
+      visibility: "client",
+      body: "First pass lands Thursday with the vertical master.",
+      created_at: "2026-07-15T15:02:00.000Z",
+    },
+    {
+      id: "reqmsg-cutdown-internal-1",
+      request_id: "request-ceo-cutdown",
+      author_name: "Bailey Eubanks",
+      author_role: "team",
+      visibility: "internal",
+      body: "Rush fee applies if the due date moves earlier than the 22nd.",
+      created_at: "2026-07-15T15:05:00.000Z",
+    },
+    {
+      id: "reqmsg-captions-team-1",
+      request_id: "request-denie-captions",
+      author_name: "Content Co-op",
+      author_role: "team",
+      visibility: "client",
+      body: "Caption file is in the edit suite now — fixes land with v5.",
+      created_at: "2026-07-15T09:12:00.000Z",
+    },
+  ];
+}
+
+function seedDemoWorkOrders(): DemoWorkOrder[] {
+  return [
+    {
+      id: "workorder-denie-captions",
+      request_id: "request-denie-captions",
+      title: "Fix captions on Denie v4",
+      kind: "caption_update",
+      priority: "standard",
+      due_date: "2026-07-24",
+      project_id: "ica",
+      deliverables: [
+        {
+          id: "wodel-denie-captions",
+          title: "Denie McDonald_v4 — caption update",
+          platform: null,
+          aspectRatio: null,
+          durationSeconds: null,
+          sourceAssetId: "denie-mcdonald-v4",
+        },
+      ],
+      scope_note: "Scoped from a caption update request: 1 deliverable on the source asset.",
+      status: "local_preview",
+      created_at: "2026-07-14T16:20:00.000Z",
+    },
+  ];
+}
+
+/** Record a typed client request. Validation is the pure per-kind rules in
+ * lib/requests/model.ts; failures come back as a truthful reason. */
+export function submitDemoRequest(
+  input: ClientRequestInput & { requesterName?: string },
+): RecordMutationResult {
+  const validation = validateRequestInput(input);
+  if (!validation.ok) return { ok: false, reason: validation.errors.join(" ") };
+  const value = validation.value;
+
+  const state = getSnapshot();
+  const sourceAsset = value.sourceAssetId
+    ? state.assets.find((candidate) => candidate.id === value.sourceAssetId)
+    : null;
+  if (value.sourceAssetId && !sourceAsset) {
+    return { ok: false, reason: "Source asset not found in the demo workspace." };
+  }
+
+  const now = new Date().toISOString();
+  const request: DemoRequest = {
+    id: createId("request"),
+    kind: value.kind,
+    title: value.title,
+    priority: value.priority,
+    requested_due_date: value.requestedDueDate,
+    source_asset_id: sourceAsset?.id ?? null,
+    source_asset_title: sourceAsset?.title ?? null,
+    platform: value.platform,
+    duration_seconds: value.durationSeconds,
+    aspect_ratios: [...value.aspectRatios],
+    asset_reference: value.assetReference,
+    notes: value.notes,
+    status: "submitted",
+    decline_note: null,
+    work_order_id: null,
+    requester_name: input.requesterName?.trim() || "Client Reviewer",
+    created_at: now,
+    updated_at: now,
+  };
+
+  updateState((current) => ({
+    ...current,
+    requests: [request, ...current.requests],
+    activity: [
+      {
+        id: createId("activity"),
+        action: "submitted_request",
+        actor_name: request.requester_name,
+        details: { request_title: request.title, kind: request.kind },
+        created_at: now,
+        project_id: sourceAsset?.project_id ?? "ica",
+        asset_id: sourceAsset?.id ?? null,
+      },
+      ...current.activity,
+    ],
+  }));
+  return { ok: true, id: request.id };
+}
+
+function applyRequestTransition(
+  requestId: string,
+  to: RequestStatus,
+  opts: { note?: string } = {},
+): RecordMutationResult {
+  const state = getSnapshot();
+  const request = state.requests.find((candidate) => candidate.id === requestId);
+  if (!request) return { ok: false, reason: "Request not found in the demo workspace." };
+  const result = transitionRequestStatus(request, to, opts);
+  if (!result.ok) return { ok: false, reason: result.reason };
+
+  const now = new Date().toISOString();
+  updateState((current) => ({
+    ...current,
+    requests: current.requests.map((candidate) =>
+      candidate.id === requestId ? { ...result.value, updated_at: now } : candidate,
+    ),
+  }));
+  return { ok: true, id: requestId };
+}
+
+/** Move a submitted request into triage without accepting or declining it. */
+export function triageDemoRequest(requestId: string): RecordMutationResult {
+  return applyRequestTransition(requestId, "triaged");
+}
+
+/** Accept a request and convert it into a scoped work order. Submitted
+ * requests pass through triage automatically so accept stays one click. */
+export function acceptDemoRequest(
+  requestId: string,
+  opts: { projectId?: string | null } = {},
+): RecordMutationResult {
+  const state = getSnapshot();
+  const request = state.requests.find((candidate) => candidate.id === requestId);
+  if (!request) return { ok: false, reason: "Request not found in the demo workspace." };
+  if (request.status !== "submitted" && request.status !== "triaged") {
+    return { ok: false, reason: `A ${request.status} request cannot be accepted.` };
+  }
+
+  const now = new Date().toISOString();
+  const shaped = shapeWorkOrder(
+    {
+      id: request.id,
+      kind: request.kind,
+      title: request.title,
+      priority: request.priority,
+      requestedDueDate: request.requested_due_date,
+      sourceAssetId: request.source_asset_id,
+      sourceAssetTitle: request.source_asset_title,
+      platform: request.platform,
+      durationSeconds: request.duration_seconds,
+      aspectRatios: request.aspect_ratios,
+      assetReference: request.asset_reference,
+      notes: request.notes,
+    },
+    { projectId: opts.projectId ?? null },
+  );
+  const workOrder: DemoWorkOrder = {
+    id: createId("workorder"),
+    request_id: request.id,
+    title: shaped.title,
+    kind: shaped.kind,
+    priority: shaped.priority,
+    due_date: shaped.dueDate,
+    project_id: shaped.projectId,
+    deliverables: shaped.deliverables.map((deliverable) => ({
+      ...deliverable,
+      id: createId("wodel"),
+    })),
+    scope_note: shaped.scopeNote,
+    status: "local_preview",
+    created_at: now,
+  };
+
+  updateState((current) => ({
+    ...current,
+    requests: current.requests.map((candidate) =>
+      candidate.id === requestId
+        ? { ...candidate, status: "accepted" as const, work_order_id: workOrder.id, updated_at: now }
+        : candidate,
+    ),
+    workOrders: [workOrder, ...current.workOrders],
+    activity: [
+      {
+        id: createId("activity"),
+        action: "accepted_request",
+        actor_name: "You",
+        details: { request_title: request.title, work_order_id: workOrder.id },
+        created_at: now,
+        project_id: workOrder.project_id ?? "ica",
+        asset_id: request.source_asset_id,
+      },
+      ...current.activity,
+    ],
+  }));
+  return { ok: true, id: workOrder.id };
+}
+
+/** Decline a triaged (or submitted) request — a client-facing note is
+ * required, enforced by the lifecycle guard. */
+export function declineDemoRequest(requestId: string, note: string): RecordMutationResult {
+  const state = getSnapshot();
+  const request = state.requests.find((candidate) => candidate.id === requestId);
+  if (!request) return { ok: false, reason: "Request not found in the demo workspace." };
+  if (request.status === "submitted") {
+    const triaged = applyRequestTransition(requestId, "triaged");
+    if (!triaged.ok) return triaged;
+  }
+  return applyRequestTransition(requestId, "declined", { note });
+}
+
+/** Advance an accepted request through in_progress → delivered → closed. */
+export function advanceDemoRequest(
+  requestId: string,
+  to: "in_progress" | "delivered" | "closed",
+): RecordMutationResult {
+  return applyRequestTransition(requestId, to);
+}
+
+/** Post to a request's messaging thread. Client authors can only post
+ * client-visible messages; internal notes are a team-only channel. */
+export function addDemoRequestMessage(
+  requestId: string,
+  input: {
+    authorRole: "client" | "team";
+    visibility: "client" | "internal";
+    body: string;
+    authorName?: string;
+  },
+): RecordMutationResult {
+  const state = getSnapshot();
+  if (!state.requests.some((candidate) => candidate.id === requestId)) {
+    return { ok: false, reason: "Request not found in the demo workspace." };
+  }
+  const body = input.body.trim();
+  if (!body) return { ok: false, reason: "Write a message before posting." };
+
+  const message: DemoRequestMessage = {
+    id: createId("reqmsg"),
+    request_id: requestId,
+    author_name:
+      input.authorName?.trim() || (input.authorRole === "team" ? "Content Co-op" : "Client Reviewer"),
+    author_role: input.authorRole,
+    visibility: input.authorRole === "client" ? "client" : input.visibility,
+    body,
+    created_at: new Date().toISOString(),
+  };
+
+  updateState((current) => ({
+    ...current,
+    requestMessages: [...current.requestMessages, message],
+  }));
+  return { ok: true, id: message.id };
 }

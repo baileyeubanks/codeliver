@@ -1,0 +1,564 @@
+/**
+ * Project Whiteboard — hand-drawn-feel canvas styles.
+ * Canon tokens only (app/brand-tokens.css); the sketchy look comes from dashed
+ * borders, uneven border radii, and a deterministic ±1.6° tilt — no new fonts.
+ */
+
+.board {
+  /* Full-screen surface: fill the workspace main area exactly (Shell's .main
+     is position:relative). Absolute inset keeps the canvas from overflowing
+     when the Shell's transient readiness notice takes layout space — without
+     it the main area scrolls and hit targets shift under the notice. */
+  position: absolute;
+  inset: 0;
+  z-index: 95;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--cvp-canvas);
+  color: var(--cvp-ink);
+  font-family: var(--cvp-font-body);
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 16px;
+  background: var(--cvp-surface);
+  border-bottom: 1px solid var(--cvp-border);
+  z-index: 30;
+}
+
+.backLink {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 44px;
+  padding: 0 10px;
+  border-radius: var(--cvp-radius-md);
+  color: var(--cvp-ink-soft);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.backLink:hover {
+  background: var(--cvp-surface-alt);
+  color: var(--cvp-ink);
+}
+
+.titleBlock {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.title {
+  margin: 0;
+  font-family: var(--cvp-font-display);
+  font-size: 1rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.persistenceNote {
+  font-size: 0.6875rem;
+  color: var(--cvp-ink-faint);
+}
+
+.canvas {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  cursor: grab;
+  touch-action: none;
+}
+
+.canvasPanning {
+  cursor: grabbing;
+}
+
+.world {
+  position: absolute;
+  top: 0;
+  left: 0;
+  transform-origin: 0 0;
+}
+
+.connectors {
+  position: absolute;
+  top: 0;
+  left: 0;
+  overflow: visible;
+  pointer-events: none;
+}
+
+/* ------------------------------- phase cards ------------------------------- */
+
+.phaseCard {
+  position: absolute;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 14px 16px;
+  background: var(--cvp-surface);
+  border: 2px dashed var(--phase-color, var(--cvp-border));
+  border-radius: 255px 15px 225px 15px / 15px 225px 15px 255px;
+  box-shadow: var(--cvp-shadow-card);
+  transform: rotate(var(--tilt, 0deg));
+}
+
+.phaseCard:focus-visible,
+.sticky:focus-visible,
+.card:focus-visible {
+  outline: var(--cvp-focus-ring);
+  outline-offset: var(--cvp-focus-ring-offset);
+}
+
+.phaseCardCurrent {
+  border: 3px solid var(--cvp-blue);
+  background: var(--cvp-blue-tint);
+  box-shadow: 0 0 0 4px var(--cvp-accent-glow), var(--cvp-shadow-popover);
+}
+
+.phaseIndex {
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--phase-color, var(--cvp-ink-faint));
+}
+
+.phaseCardCurrent .phaseIndex {
+  color: var(--cvp-blue);
+}
+
+.phaseLabel {
+  font-family: var(--cvp-font-display);
+  font-size: 1.0625rem;
+  font-weight: 700;
+  color: var(--cvp-ink);
+}
+
+.phaseStatus {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--cvp-ink-faint);
+}
+
+.youAreHere {
+  position: absolute;
+  top: -14px;
+  left: 16px;
+  padding: 3px 10px;
+  border-radius: var(--cvp-radius-pill);
+  background: var(--cvp-blue);
+  color: #fff;
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  box-shadow: var(--cvp-shadow-card);
+  transform: rotate(calc(var(--tilt, 0deg) * -1));
+}
+
+.completeTick {
+  position: absolute;
+  top: -10px;
+  right: 12px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--phase-color, var(--cvp-ink-faint));
+  color: #fff;
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+/* ------------------------------ sticky notes ------------------------------- */
+
+.sticky {
+  position: absolute;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px;
+  border: 2px dashed var(--phase-color, var(--cvp-border));
+  border-radius: 15px 225px 15px 255px / 255px 15px 225px 15px;
+  box-shadow: var(--cvp-shadow-card);
+  transform: rotate(var(--tilt, 0deg));
+  cursor: grab;
+}
+
+.sticky[data-phase="strategy"] {
+  background: var(--cvp-red-tint);
+}
+
+.sticky[data-phase="preproduction"] {
+  background: var(--cvp-amber-tint);
+}
+
+.sticky[data-phase="production"] {
+  background: var(--cvp-blue-tint);
+}
+
+.sticky[data-phase="post"] {
+  background: var(--cvp-green-tint);
+}
+
+.sticky[data-phase="delivery"] {
+  background: var(--cvp-surface-sunken);
+}
+
+.stickyDragging {
+  cursor: grabbing;
+  box-shadow: var(--cvp-shadow-popover);
+}
+
+.stickyBody {
+  flex: 1;
+  margin: 0;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  line-height: 1.45;
+  color: var(--cvp-ink);
+  white-space: pre-wrap;
+  word-break: break-word;
+  overflow-wrap: anywhere;
+}
+
+.stickyEditor {
+  flex: 1;
+  width: 100%;
+  min-height: 72px;
+  resize: none;
+  border: 1px solid var(--cvp-border);
+  border-radius: var(--cvp-radius-sm);
+  padding: 6px 8px;
+  font: inherit;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--cvp-ink);
+  background: var(--cvp-surface);
+}
+
+.stickyFooter {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.swatches {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-right: auto;
+}
+
+.swatch {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 32px;
+  min-height: 32px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  cursor: pointer;
+}
+
+.swatch::before {
+  content: "";
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--phase-color, var(--cvp-border));
+  box-shadow: inset 0 0 0 1px rgb(10 29 61 / 0.18);
+}
+
+.swatch[aria-pressed="true"]::before {
+  outline: 2px solid var(--cvp-ink);
+  outline-offset: 2px;
+}
+
+.stickyAction {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 44px;
+  min-height: 44px;
+  padding: 0;
+  border: 0;
+  border-radius: var(--cvp-radius-md);
+  background: transparent;
+  color: var(--cvp-ink-soft);
+  cursor: pointer;
+}
+
+.stickyAction:hover {
+  background: rgb(10 29 61 / 0.06);
+  color: var(--cvp-ink);
+}
+
+/* ------------------------------ template cards ----------------------------- */
+
+.card {
+  position: absolute;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 12px 14px;
+  background: var(--cvp-surface);
+  border: 2px dashed var(--phase-color, var(--cvp-border));
+  border-radius: 225px 15px 255px 15px / 15px 255px 15px 225px;
+  box-shadow: var(--cvp-shadow-card);
+  transform: rotate(var(--tilt, 0deg));
+  cursor: grab;
+}
+
+.cardTitle {
+  font-size: 0.875rem;
+  font-weight: 700;
+  color: var(--cvp-ink);
+}
+
+.cardPhase {
+  font-size: 0.625rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--phase-color, var(--cvp-ink-faint));
+}
+
+.cardBody {
+  margin: 0;
+  font-size: 0.75rem;
+  font-weight: 600;
+  line-height: 1.45;
+  color: var(--cvp-ink-soft);
+}
+
+.cardFooter {
+  display: flex;
+  justify-content: flex-end;
+}
+
+/* -------------------------------- toolbar ---------------------------------- */
+
+.toolbar {
+  position: absolute;
+  top: 16px;
+  left: 16px;
+  z-index: 20;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-width: 240px;
+  padding: 10px;
+  background: var(--cvp-surface);
+  border: 1px solid var(--cvp-border);
+  border-radius: var(--cvp-radius-lg);
+  box-shadow: var(--cvp-shadow-popover);
+}
+
+.toolbarLabel {
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--cvp-ink-faint);
+}
+
+.toolbarButton {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 0 12px;
+  border: 1px solid var(--cvp-border);
+  border-radius: var(--cvp-radius-md);
+  background: var(--cvp-surface);
+  color: var(--cvp-ink);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  cursor: pointer;
+  text-align: left;
+}
+
+.toolbarButton:hover:not(:disabled) {
+  border-color: var(--cvp-blue);
+  color: var(--cvp-blue);
+}
+
+.toolbarButton:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.toolbarButtonPrimary {
+  background: var(--cvp-blue);
+  border-color: var(--cvp-blue);
+  color: #fff;
+}
+
+.toolbarButtonPrimary:hover:not(:disabled) {
+  background: var(--cvp-accent-hover);
+  color: #fff;
+}
+
+.templateDescription {
+  margin: -4px 0 0;
+  font-size: 0.6875rem;
+  color: var(--cvp-ink-faint);
+}
+
+/* ------------------------------ zoom controls ------------------------------ */
+
+.zoomControls {
+  position: absolute;
+  /* Bottom-left: bottom-right belongs to the Shell's AI Copilot FAB. */
+  left: 16px;
+  bottom: 16px;
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px;
+  background: var(--cvp-surface);
+  border: 1px solid var(--cvp-border);
+  border-radius: var(--cvp-radius-lg);
+  box-shadow: var(--cvp-shadow-card);
+}
+
+.zoomButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 44px;
+  min-height: 44px;
+  border: 0;
+  border-radius: var(--cvp-radius-md);
+  background: transparent;
+  color: var(--cvp-ink);
+  font-size: 1rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.zoomButton:hover {
+  background: var(--cvp-surface-alt);
+}
+
+.zoomLevel {
+  min-width: 52px;
+  text-align: center;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--cvp-ink-soft);
+}
+
+/* ------------------------------- empty state ------------------------------- */
+
+.emptyState {
+  position: absolute;
+  inset: 0;
+  z-index: 15;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+}
+
+.emptyPanel {
+  pointer-events: auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  max-width: 380px;
+  padding: 24px 28px;
+  text-align: center;
+  background: var(--cvp-surface);
+  border: 2px dashed var(--cvp-border);
+  border-radius: 255px 15px 225px 15px / 15px 225px 15px 255px;
+  box-shadow: var(--cvp-shadow-popover);
+  transform: rotate(-0.6deg);
+}
+
+.emptyTitle {
+  margin: 0;
+  font-family: var(--cvp-font-display);
+  font-size: 1.125rem;
+  font-weight: 700;
+}
+
+.emptyCopy {
+  margin: 0;
+  font-size: 0.8125rem;
+  line-height: 1.5;
+  color: var(--cvp-ink-soft);
+}
+
+.emptyActions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+/* --------------------------------- miscellany ------------------------------ */
+
+.visuallyHidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.productionNotice {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  height: calc(100svh - 72px);
+  padding: 32px;
+  text-align: center;
+  background: var(--cvp-canvas);
+  color: var(--cvp-ink-soft);
+}
+
+.productionNotice h1 {
+  margin: 0;
+  font-family: var(--cvp-font-display);
+  font-size: 1.25rem;
+  color: var(--cvp-ink);
+}
+
+.productionNotice p {
+  margin: 0;
+  max-width: 420px;
+  font-size: 0.875rem;
+  line-height: 1.6;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sticky,
+  .card,
+  .phaseCard {
+    transition: none;
+  }
+}

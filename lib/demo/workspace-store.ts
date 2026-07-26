@@ -112,6 +112,9 @@ import {
   seedSequences,
   seedShots,
 } from "./record-seed";
+import { snapToGrid } from "@/lib/whiteboard/geometry.ts";
+import type { WhiteboardEdge, WhiteboardNode } from "@/lib/whiteboard/model.ts";
+import { applyTemplate, type WhiteboardTemplateId } from "@/lib/whiteboard/templates.ts";
 import { demoLibrarySeedAssets } from "@/lib/assets/demo-library.ts";
 
 export const DEMO_WORKSPACE_STORAGE_KEY = "co-videopro.workspace.v2";
@@ -301,6 +304,8 @@ export interface DemoWorkspaceState {
   discoveryAnswers: DiscoveryAnswer[];
   rateCards: RateCard[];
   rateItems: RateItem[];
+  /* P25: Project Whiteboard boards (persisted user content; phase flow is derived). */
+  whiteboardBoards: DemoWhiteboardBoard[];
   /* P26: Asset Library (favorites + cutdown requests; curated metadata lives
    * in lib/assets/demo-library.ts, keyed by asset id). */
   libraryFavorites: string[];
@@ -661,6 +666,11 @@ export function createInitialDemoWorkspace(): DemoWorkspaceState {
     discoveryAnswers: seedDiscoveryAnswers.map((record) => ({ ...record })),
     rateCards: seedRateCards.map((record) => ({ ...record })),
     rateItems: seedRateItems.map((record) => ({ ...record })),
+    whiteboardBoards: seedDemoWhiteboardBoards().map((board) => ({
+      ...board,
+      nodes: board.nodes.map((node) => ({ ...node })),
+      edges: board.edges.map((edge) => ({ ...edge })),
+    })),
     libraryFavorites: [],
     libraryCutdownRequests: [],
   };
@@ -793,6 +803,13 @@ export function restoreDemoWorkspace(raw: string | null): DemoWorkspaceState {
       discoveryAnswers: mergeSeededRecords(parsed.discoveryAnswers, fallback.discoveryAnswers),
       rateCards: mergeSeededRecords(parsed.rateCards, fallback.rateCards),
       rateItems: mergeSeededRecords(parsed.rateItems, fallback.rateItems),
+      whiteboardBoards: [
+        ...(parsed.whiteboardBoards ?? []),
+        ...fallback.whiteboardBoards.filter(
+          (seeded) =>
+            !(parsed.whiteboardBoards ?? []).some((board) => board.project_id === seeded.project_id),
+        ),
+      ],
       libraryFavorites: parsed.libraryFavorites ?? [],
       libraryCutdownRequests: parsed.libraryCutdownRequests ?? [],
       settings: {
@@ -3159,6 +3176,232 @@ export function compileBidToProposal(projectId: string): RecordMutationResult {
     }),
   }));
   return { ok: true, id: result.id };
+}
+
+/* --------------------- P25: Project Whiteboard ---------------------------- */
+/* Persisted per-project board content (stickies + template cards + edges).   */
+/* The phase-flow lane itself is derived from the project stage at render     */
+/* time (lib/whiteboard/model.ts) and is never persisted.                     */
+
+export interface DemoWhiteboardBoard {
+  project_id: string;
+  nodes: WhiteboardNode[];
+  edges: WhiteboardEdge[];
+  /** Last template applied (null when the board has only hand-placed content). */
+  template_id: WhiteboardTemplateId | null;
+  updated_at: string;
+}
+
+export const DEMO_STICKY_WIDTH = 176;
+export const DEMO_STICKY_HEIGHT = 144;
+
+/**
+ * ICA demo seeds — truthful notes mirroring the project's real review state
+ * (open lower-third comment on Charles Drummond_v5, pending final approval on
+ * ICA_ROADSHOW_x_FINAL). Positions sit under the Post phase card, snapped to
+ * the 16px grid. Hoisted function (not a const) because createInitialDemoWorkspace
+ * runs at module evaluation time, before this appended section initializes.
+ */
+export function seedDemoWhiteboardBoards(): DemoWhiteboardBoard[] {
+  // Literal dimensions: DEMO_STICKY_WIDTH/HEIGHT below are still in the TDZ
+  // when createInitialDemoWorkspace runs this at module evaluation time.
+  return [
+  {
+    project_id: "ica",
+    nodes: [
+      {
+        id: "wb-sticky-ica-lower-third",
+        kind: "sticky",
+        phase: "post",
+        title: "",
+        body: "Hold the lower third for another beat — Charles Drummond_v5",
+        x: 1088,
+        y: 336,
+        width: 176,
+        height: 144,
+      },
+      {
+        id: "wb-sticky-ica-final-approval",
+        kind: "sticky",
+        phase: "delivery",
+        title: "",
+        body: "Final approval: Lena Ortiz — ICA_ROADSHOW_x_FINAL",
+        x: 1312,
+        y: 368,
+        width: 176,
+        height: 144,
+      },
+    ],
+    edges: [],
+    template_id: null,
+    updated_at: "2026-07-14T22:10:00.000Z",
+  },
+  ];
+}
+
+export function getDemoWhiteboardBoard(projectId: string): DemoWhiteboardBoard {
+  const state = getSnapshot();
+  const existing = state.whiteboardBoards.find((board) => board.project_id === projectId);
+  if (existing) return existing;
+  return {
+    project_id: projectId,
+    nodes: [],
+    edges: [],
+    template_id: null,
+    updated_at: new Date().toISOString(),
+  };
+}
+
+function updateWhiteboardBoard(
+  projectId: string,
+  updater: (board: DemoWhiteboardBoard) => DemoWhiteboardBoard,
+) {
+  const now = new Date().toISOString();
+  updateState((state) => {
+    const current = state.whiteboardBoards.find((board) => board.project_id === projectId) ?? {
+      project_id: projectId,
+      nodes: [],
+      edges: [],
+      template_id: null,
+      updated_at: now,
+    };
+    const next = { ...updater(current), updated_at: now };
+    const boards = state.whiteboardBoards.some((board) => board.project_id === projectId)
+      ? state.whiteboardBoards.map((board) => (board.project_id === projectId ? next : board))
+      : [...state.whiteboardBoards, next];
+    return { ...state, whiteboardBoards: boards };
+  });
+}
+
+export function addWhiteboardSticky(input: {
+  projectId: string;
+  phase: WhiteboardNode["phase"];
+  body: string;
+  x: number;
+  y: number;
+}): RecordMutationResult {
+  const id = createId("wb-sticky");
+  updateWhiteboardBoard(input.projectId, (board) => ({
+    ...board,
+    nodes: [
+      ...board.nodes,
+      {
+        id,
+        kind: "sticky",
+        phase: input.phase,
+        title: "",
+        body: input.body,
+        x: snapToGrid(input.x),
+        y: snapToGrid(input.y),
+        width: DEMO_STICKY_WIDTH,
+        height: DEMO_STICKY_HEIGHT,
+      },
+    ],
+  }));
+  return { ok: true, id };
+}
+
+export function updateWhiteboardSticky(input: {
+  projectId: string;
+  nodeId: string;
+  body?: string;
+  phase?: WhiteboardNode["phase"];
+}): RecordMutationResult {
+  const board = getDemoWhiteboardBoard(input.projectId);
+  if (!board.nodes.some((node) => node.id === input.nodeId)) {
+    return { ok: false, reason: "Sticky note not found." };
+  }
+  updateWhiteboardBoard(input.projectId, (current) => ({
+    ...current,
+    nodes: current.nodes.map((node) =>
+      node.id === input.nodeId
+        ? {
+            ...node,
+            body: input.body ?? node.body,
+            phase: input.phase ?? node.phase,
+          }
+        : node,
+    ),
+  }));
+  return { ok: true, id: input.nodeId };
+}
+
+/** Persist a dragged node's position, snapped to the grid. */
+export function moveWhiteboardNode(input: {
+  projectId: string;
+  nodeId: string;
+  x: number;
+  y: number;
+}): RecordMutationResult {
+  const board = getDemoWhiteboardBoard(input.projectId);
+  if (!board.nodes.some((node) => node.id === input.nodeId)) {
+    return { ok: false, reason: "Whiteboard node not found." };
+  }
+  const x = snapToGrid(input.x);
+  const y = snapToGrid(input.y);
+  updateWhiteboardBoard(input.projectId, (current) => ({
+    ...current,
+    nodes: current.nodes.map((node) => (node.id === input.nodeId ? { ...node, x, y } : node)),
+  }));
+  return { ok: true, id: input.nodeId };
+}
+
+/** Delete a node and any connectors touching it. */
+export function deleteWhiteboardNode(input: {
+  projectId: string;
+  nodeId: string;
+}): RecordMutationResult {
+  const board = getDemoWhiteboardBoard(input.projectId);
+  if (!board.nodes.some((node) => node.id === input.nodeId)) {
+    return { ok: false, reason: "Whiteboard node not found." };
+  }
+  updateWhiteboardBoard(input.projectId, (current) => ({
+    ...current,
+    nodes: current.nodes.filter((node) => node.id !== input.nodeId),
+    edges: current.edges.filter(
+      (edge) => edge.from !== input.nodeId && edge.to !== input.nodeId,
+    ),
+  }));
+  return { ok: true, id: input.nodeId };
+}
+
+/** Apply a starter template below the phase-flow lane. Pure layout lives in
+ * lib/whiteboard/templates.ts; the caller keeps the prior content for undo. */
+export function applyDemoWhiteboardTemplate(input: {
+  projectId: string;
+  templateId: WhiteboardTemplateId;
+  anchor: { x: number; y: number };
+}): RecordMutationResult {
+  const board = getDemoWhiteboardBoard(input.projectId);
+  const applied = applyTemplate(
+    { nodes: board.nodes, edges: board.edges },
+    input.templateId,
+    input.anchor,
+    createId,
+  );
+  updateWhiteboardBoard(input.projectId, (current) => ({
+    ...current,
+    nodes: applied.nodes,
+    edges: applied.edges,
+    template_id: input.templateId,
+  }));
+  return { ok: true, id: input.templateId };
+}
+
+/** Restore a content snapshot — the undo path for template application. */
+export function restoreDemoWhiteboardContent(input: {
+  projectId: string;
+  nodes: WhiteboardNode[];
+  edges: WhiteboardEdge[];
+  templateId: WhiteboardTemplateId | null;
+}): RecordMutationResult {
+  updateWhiteboardBoard(input.projectId, (current) => ({
+    ...current,
+    nodes: input.nodes.map((node) => ({ ...node })),
+    edges: input.edges.map((edge) => ({ ...edge })),
+    template_id: input.templateId,
+  }));
+  return { ok: true, id: input.projectId };
 }
 
 /* --------------------- P26: Asset Library --------------------------------- */

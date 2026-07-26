@@ -1348,12 +1348,9 @@ export default function PublicReviewPage() {
         kicker: "Review stage",
         title: stageTitle,
         description: stageDescription,
-        stats: [
-          `${openThreads} open`,
-          `${resolvedThreads} resolved`,
-          `${timedThreads} timeline notes`,
-          `${cutMarkers.length} cut ${cutMarkers.length === 1 ? "decision" : "decisions"}`,
-        ],
+        // Count stats intentionally empty — they duplicated the rail header and
+        // the timeline count label below the player (visual normalization).
+        stats: [],
         context: selectedComment ? (
           <>
             <div className="flex flex-wrap items-center gap-2">
@@ -1520,52 +1517,24 @@ export default function PublicReviewPage() {
         kicker: railTitle,
         title: railHeading,
         description: railDescription,
-        stats: [
-          `${openThreads} open`,
-          `${resolvedThreads} resolved`,
-          shareMeta.permissionsLabel,
-        ],
+        // Count chips trimmed to the access label — the description sentence
+        // already carries the open/resolved counts (visual normalization).
+        stats: [shareMeta.permissionsLabel],
         intro: null,
         approval: permissions === "approve"
           ? {
               header: (
                 <div className="flex flex-wrap items-center justify-between gap-3">
-                  <div>
-                    <p className="review-kicker">Approval</p>
-                    <p className="mt-1 text-sm text-[var(--muted)]">
-                      {workflowMode === "sequential"
-                        ? "Approvals move step by step."
-                        : workflowMode === "parallel"
-                          ? "Approvers can decide in parallel."
-                          : "Single-step approval flow."}
-                    </p>
-                  </div>
+                  <span className="text-xs text-[var(--dim)]">Sign-off progress</span>
                   <span className="rounded-full bg-[var(--bg)] px-3 py-1 text-xs text-[var(--muted)]">
                     {completedApprovals.length}/{approvals.length || 1} decided
                   </span>
                 </div>
               ),
-              summary: (
-                <div className="rounded-[var(--radius)] border border-[var(--border)] bg-[var(--bg)] px-4 py-3">
-                  <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[var(--dim)]">
-                    {activeApproval ? "Decision needed" : "Decision state"}
-                  </p>
-                  <p className="mt-2 text-sm font-medium text-[var(--ink)]">
-                    {activeApproval
-                      ? `${activeApproval.role_label} is ready for review`
-                      : orderedApprovals.length > 0
-                        ? "No active decision is waiting on this link"
-                        : "No approval step is assigned to this review link yet"}
-                  </p>
-                  <p className="mt-2 text-sm leading-6 text-[var(--muted)]">
-                    {!reviewerName.trim()
-                      ? "Enter your reviewer name below before you record approval."
-                      : activeApproval
-                        ? "Leave any final notes, then use the actions below to approve or request changes."
-                        : approvalAccessMessage || "Review decisions already captured remain visible here."}
-                  </p>
-                </div>
-              ),
+              // The decision context lives inside ApprovalPanel ("Your decision"
+              // card) — a second summary card here duplicated it and buried the
+              // comments rail. Removed in the visual normalization pass.
+              summary: null,
               error: "",
               content: (
                 <ApprovalPanel

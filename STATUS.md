@@ -614,3 +614,43 @@ Coordinator verification (wave 2, commits 453adf6 / 1188798 / a573f12):
 typecheck 0 errors · `npm test` 922/922 · lint 0 errors (40 pre-existing
 warnings) · p19a 1/1 + p19b 6/6 regression scripts re-run green (63 checks)
 · canon visual pass on both surfaces (no lime, no tan, Inter throughout).
+
+## P23 — Client dashboard (091fba7, 2026-07-25, Arc V wave 1)
+
+New client-facing portal at `/portal` (own `(client)` route group + PortalShell
+— deliberately NOT the internal shell). "What we need from you" derives real
+pending approvals/feedback from demo state with click-through to review;
+plain-language status maps all 9 internal stages onto Planning / Production /
+Editing / Awaiting Feedback / Final Delivery (no internal names leak — browser
+asserted); latest reviews with real share links; delivered assets with
+real-file downloads ("Available on request" otherwise); `clientSafeActivity`
+allowlist feed (18 internal event kinds proven excluded). Client identity is
+derived (reviewer-email domain → organization), never fake-seeded.
+
+## P25 — Project whiteboard (a45401c, 2026-07-25, Arc V wave 1)
+
+Full-screen canvas at `projects/[id]/whiteboard`: pan (pointer capture) +
+wheel zoom with cursor anchoring (pure geometry, tested). Hand-drawn phase
+cards (Strategy → Delivery, dashed token borders, deterministic tilt, current
+= canon blue + "You are here") derived from the project's real stage. Draggable
+grid-snapped stickies (persisted), Brand film / Social campaign templates with
+undo, elbow connectors with arrowheads, arrow-key navigation. Two real bugs
+caught by its own regressions and fixed (pointer-capture swallowing clicks,
+TDZ seed crash). Board overlays the shell notice by design on this surface.
+
+## P26 — Asset library (8df8cc1, 2026-07-25, Arc V wave 1)
+
+`/library` rebuilt: tokenizer + faceted query engine (campaign/platform/
+format/orientation/rights/date/fav, AND semantics, unknown keys degrade to
+text), rich cards with ffprobe-truthful metadata + rights badges, real
+hover-scrub (clamped pointer→time, never plays), 9-format download matrix with
+honest availability (only real-file rows downloadable), curated packages with
+SHA-256 manifests (re-verified against disk on every test run), persisted
+favorites, request-a-cutdown (validated, recorded, "local preview" labeled).
+Notable git hygiene: the agent split its workspace-store commit around the
+concurrent whiteboard lane via hash-object/update-index — zero cross-lane
+bleed, no forbidden git ops.
+
+Coordinator verification (Arc V wave 1): typecheck 0 errors · `npm test`
+1003/1003 (922 + 81) · lint clean (chain exit 0) · agents' regression suites
+green (p23 5/5, p25 4/4, p26 6/6 — 15 scripts).

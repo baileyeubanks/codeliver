@@ -22,6 +22,7 @@ const CLIENT_AUTH_HOST_CONTEXT: AuthHostContext = {
 
 const ADMIN_HOST = "admin.contentco-op.com";
 const CLIENT_HOST = "client.contentco-op.com";
+const LEGACY_ADMIN_HOST = "co-videopro.com";
 
 function normalizedHostname(value: string): string {
   return value.trim().toLowerCase();
@@ -31,7 +32,7 @@ function normalizedHostname(value: string): string {
 export function resolveAuthHostContext(hostname: string): AuthHostContext {
   const normalized = normalizedHostname(hostname);
 
-  if (normalized === ADMIN_HOST) {
+  if (normalized === ADMIN_HOST || normalized === LEGACY_ADMIN_HOST) {
     return ADMIN_AUTH_HOST_CONTEXT;
   }
 

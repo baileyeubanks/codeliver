@@ -64,7 +64,7 @@ test("App Router crawler metadata is static, valid, and exposes no application r
   const manifest = manifestModule.default();
 
   assert.deepEqual(robots.rules, { userAgent: "*", disallow: "/" });
-  assert.equal(robots.sitemap, "https://deliver.contentco-op.com/sitemap.xml");
+  assert.equal(robots.sitemap, "https://co-videopro.com/sitemap.xml");
   assert.deepEqual(sitemap, []);
   assert.equal(manifest.start_url, "/login");
   assert.deepEqual(manifest.icons, [

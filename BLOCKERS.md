@@ -202,7 +202,9 @@ current M2 shell:
 - `CO_PRODUCTION_REVIEW_ADMISSION_TRUSTED_IP_HEADER`
 - `CODELIVER_MEDIA_PIPELINE_WORKER_TOKEN`
 
-This blocks production split-surface origin proof, opaque-token encryption,
+All four origin variables may explicitly use `https://co-videopro.com` for a
+legacy single-host deployment; otherwise the canonical admin/client defaults
+remain separate. Their absence blocks production origin proof, opaque-token encryption,
 webhook-secret encryption, stable private analytics hashing, and worker
 authorization. Review admission rotation verification keys are optional; the
 active signing key and a trusted ingress header are required. A configured

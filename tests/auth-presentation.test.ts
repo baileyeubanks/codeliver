@@ -6,7 +6,7 @@ import {
   resolveAuthHostContext,
 } from "../components/auth/auth-context.ts";
 
-test("auth context recognizes only the exact canonical hostnames", () => {
+test("auth context recognizes exact canonical and legacy hostnames", () => {
   assert.deepEqual(resolveAuthHostContext("admin.contentco-op.com"), {
     kind: "admin",
     label: "Content Co-op team",
@@ -15,8 +15,13 @@ test("auth context recognizes only the exact canonical hostnames", () => {
     kind: "client",
     label: "Client collaboration",
   });
+  assert.deepEqual(resolveAuthHostContext("co-videopro.com"), {
+    kind: "admin",
+    label: "Content Co-op team",
+  });
   assert.equal(resolveAuthHostContext("ADMIN.CONTENTCO-OP.COM").kind, "admin");
   assert.equal(resolveAuthHostContext("CLIENT.CONTENTCO-OP.COM").kind, "client");
+  assert.equal(resolveAuthHostContext("CO-VIDEOPRO.COM").kind, "admin");
 });
 
 test("aliases, local, and deceptive hosts retain the neutral auth context", () => {
@@ -31,6 +36,9 @@ test("aliases, local, and deceptive hosts retain the neutral auth context", () =
     "localhost",
     "admin.contentco-op.com:443",
     "client.contentco-op.com.",
+    "co-videopro.com.",
+    "preview.co-videopro.com",
+    "co-videopro.com.attacker.test",
     "admin.contentco-op.com.attacker.test",
     "client-contentco-op.example",
     "",

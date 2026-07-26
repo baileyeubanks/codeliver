@@ -11,6 +11,7 @@ import {
   CLIENT_PRODUCTION_ORIGIN,
   DEFAULT_LOCAL_ORIGIN,
   getBrowserClientSiteUrl,
+  LEGACY_UNIFIED_PRODUCTION_ORIGIN,
   normalizeSurfaceOrigin,
   resolveSurfaceOrigin,
   toDemoSiteUrl,
@@ -97,7 +98,7 @@ test("origin normalization accepts only origin-only HTTP(S) values", () => {
   }
 });
 
-test("production origins are canonical and unsafe configuration fails closed", () => {
+test("production origins default canonical, allow the explicit legacy origin, and fail closed", () => {
   assert.equal(
     resolveSurfaceOrigin({ surface: "admin", environment: "production" }),
     ADMIN_PRODUCTION_ORIGIN,
@@ -106,6 +107,16 @@ test("production origins are canonical and unsafe configuration fails closed", (
     resolveSurfaceOrigin({ surface: "client", environment: "production" }),
     CLIENT_PRODUCTION_ORIGIN,
   );
+  for (const surface of ["admin", "client"] as const) {
+    assert.equal(
+      resolveSurfaceOrigin({
+        surface,
+        environment: "production",
+        candidates: [{ name: `${surface.toUpperCase()}_SITE_URL`, value: LEGACY_UNIFIED_PRODUCTION_ORIGIN }],
+      }),
+      LEGACY_UNIFIED_PRODUCTION_ORIGIN,
+    );
+  }
 
   for (const value of [
     ADMIN_PRODUCTION_ORIGIN,

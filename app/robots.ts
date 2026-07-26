@@ -6,6 +6,6 @@ export default function robots(): MetadataRoute.Robots {
       userAgent: "*",
       disallow: "/",
     },
-    sitemap: "https://deliver.contentco-op.com/sitemap.xml",
+    sitemap: "https://co-videopro.com/sitemap.xml",
   };
 }

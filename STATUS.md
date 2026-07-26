@@ -2,8 +2,8 @@
 
 Updated: 2026-07-26
 Machine: M2
-Branch: `codex/co-videopro-definitive-20260715`
-Application-source release candidate: CCO-C6B reviewed tree, pending publication
+Canonical branch: `main`
+Full release merge baseline: `61b2a397b880c1805a05498d79e2324f28d38073`
 Historical CCO-C2 runtime build: `bad8ef16e8fd041f98095f068d89140f20d74e45`
 
 ## Anti-Drift Contract

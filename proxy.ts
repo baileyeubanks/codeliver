@@ -3,8 +3,8 @@ import type { NextRequest } from "next/server";
 import { createServerClient } from "@supabase/ssr";
 import {
   buildProtectedReturnPath,
-  hostForSurface,
   LOGIN_PATH,
+  resolveApprovedSurfaceHost,
   resolveHostSurface,
   resolveTrustedSurfaceRole,
   roleCanAccessSurface,
@@ -19,12 +19,17 @@ import {
   getSupabasePublicUrl,
   hasSupabasePublicConfig,
 } from "@/lib/public-env";
+import { buildPendingAccessPath } from "@/lib/auth/flow";
 
 const PUBLIC_EXACT_ROUTES = [
   LOGIN_PATH,
   "/signup",
+  "/forgot-password",
+  "/reset-password",
+  "/onboarding",
   "/welcome",
   "/auth/callback",
+  "/auth/confirm",
   "/api/notifications/provider-events",
 ];
 const PUBLIC_ROUTE_PREFIXES = [
@@ -41,7 +46,7 @@ const UUID_PATH_SEGMENT =
   "[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12}";
 
 const CLIENT_API_ROUTE_PATTERNS = [
-  /^\/api\/auth\/(?:login|logout|session|signup)$/,
+  /^\/api\/auth\/(?:login|logout|session|signup|resend|password\/(?:forgot|reset))$/,
   /^\/api\/health(?:\/(?:dependencies|live|ready))?$/,
   /^\/api\/review\/[^/]+(?:\/(?:admission|approvals|comments|edit-decisions))?$/,
   new RegExp(`^/api/review/media/${UUID_PATH_SEGMENT}$`),
@@ -268,12 +273,40 @@ function nextResponse(req: NextRequest, demoCapability = false): NextResponse {
 
 function buildLoginUrl(
   req: NextRequest,
-  hostSurface: ReturnType<typeof resolveHostSurface>,
 ): URL {
-  const baseUrl = hostSurface
-    ? `https://${hostForSurface(hostSurface)}`
-    : req.nextUrl.origin;
+  const approvedHost = resolveApprovedSurfaceHost(req.headers.get("host"));
+  const baseUrl = approvedHost ? `https://${approvedHost}` : req.nextUrl.origin;
   return new URL(LOGIN_PATH, baseUrl);
+}
+
+function pendingAccessResponse(req: NextRequest, next: string) {
+  if (isApiLikePath(req.nextUrl.pathname)) {
+    return NextResponse.json(
+      {
+        error: "Workspace access is pending approval",
+        code: "AUTHORIZATION_PENDING",
+      },
+      { status: 403, headers: { "Cache-Control": "no-store" } },
+    );
+  }
+
+  const approvedHost = resolveApprovedSurfaceHost(req.headers.get("host"));
+  const baseUrl = approvedHost ? `https://${approvedHost}` : req.nextUrl.origin;
+  return NextResponse.redirect(new URL(buildPendingAccessPath(next), baseUrl));
+}
+
+function surfaceMismatchResponse(
+  req: NextRequest,
+  requiredSurface: "admin" | "client",
+  next: string,
+) {
+  if (isApiLikePath(req.nextUrl.pathname)) return surfaceAccessDenied(req.nextUrl.pathname);
+
+  const loginUrl = buildLoginUrl(req);
+  loginUrl.searchParams.set("access", "surface_mismatch");
+  loginUrl.searchParams.set("required_surface", requiredSurface);
+  loginUrl.searchParams.set("next", next);
+  return NextResponse.redirect(loginUrl);
 }
 
 function surfaceAccessDenied(pathname: string) {
@@ -373,7 +406,7 @@ export async function proxy(req: NextRequest) {
       );
     }
 
-    const loginUrl = buildLoginUrl(req, hostSurface);
+    const loginUrl = buildLoginUrl(req);
     loginUrl.searchParams.set("next", pathnameWithSanitizedQuery);
     return NextResponse.redirect(loginUrl);
   }
@@ -417,17 +450,21 @@ export async function proxy(req: NextRequest) {
       );
     }
 
-    const loginUrl = buildLoginUrl(req, hostSurface);
+    const loginUrl = buildLoginUrl(req);
     loginUrl.searchParams.set("next", pathnameWithSanitizedQuery);
     return NextResponse.redirect(loginUrl);
   }
 
   if (hostSurface) {
     const role = resolveTrustedSurfaceRole(user);
-    if (!role) return surfaceAccessDenied(pathname);
+    if (!role) return pendingAccessResponse(req, pathnameWithSanitizedQuery);
 
     if (!roleCanAccessSurface(role, hostSurface)) {
-      return surfaceAccessDenied(pathname);
+      return surfaceMismatchResponse(
+        req,
+        role === "staff" ? "admin" : "client",
+        pathnameWithSanitizedQuery,
+      );
     }
   }
 

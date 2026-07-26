@@ -8,23 +8,23 @@ currently configured or healthy.
 ## Canonical Source
 
 - Repo: `/Users/baileyeubanks/Desktop/Projects/contentco-op/cco-videopro-definitive-20260715`
-- Branch: `codex/co-videopro-definitive-20260715`
-- Application-source release candidate: CCO-C6B reviewed tree, pending publication
+- Canonical branch: `main`
+- Full release merge baseline: `61b2a397b880c1805a05498d79e2324f28d38073`
 - Framework: Next.js 16
 - Default port: `4103`
 - Health endpoint: `/api/health` (public response is exactly `{"status":"ok"}`)
 - Source-enforced production surfaces:
   - `https://admin.contentco-op.com`
   - `https://client.contentco-op.com`
+- Explicit legacy admin alias: `https://co-videopro.com`. A single-host
+  compatibility deployment must set all four admin/client site URL variables
+  to that origin; the canonical split-host defaults remain unchanged.
 - Legacy/external host declarations whose live behavior is `UNKNOWN`:
   - `https://deliver.contentco-op.com`
   - `https://co-deliver.contentco-op.com`
   - `https://codeliver.contentco-op.com`
-- Current application source does not implement redirects for those legacy
+- Current application source does not implement redirects for the other legacy
   hosts; unrecognized production hosts fail closed with `HOST_FORBIDDEN`.
-- `app/robots.ts` still publishes the legacy `deliver` sitemap hostname. That
-  stale source reference requires a bounded follow-up after live host
-  provenance is established.
 - The older `.../contentco-op/codeliver` checkout is superseded for local
   consolidation. This definitive repo is the canonical M2 source; deployed
   provenance is unverified.
@@ -56,8 +56,8 @@ fresh read-only preflight and explicit scope.
 | `SUPABASE_SERVICE_KEY` | Yes for server routes | Service-role access for project data |
 | `SUPABASE_DATA_SCHEMA` | Yes in production | Must equal `co_production` |
 | `NEXT_PUBLIC_SUPABASE_DATA_SCHEMA` | Yes in production | Must equal the server schema, `co_production` |
-| `ADMIN_SITE_URL` / `NEXT_PUBLIC_ADMIN_SITE_URL` | Required for split-host production | Trusted admin origin pair |
-| `CLIENT_SITE_URL` / `NEXT_PUBLIC_CLIENT_SITE_URL` | Required for split-host production | Trusted client/review origin pair |
+| `ADMIN_SITE_URL` / `NEXT_PUBLIC_ADMIN_SITE_URL` | Required for production | Trusted admin origin pair; canonical admin origin or explicit `https://co-videopro.com` compatibility origin |
+| `CLIENT_SITE_URL` / `NEXT_PUBLIC_CLIENT_SITE_URL` | Required for production | Trusted client/review origin pair; canonical client origin or explicit `https://co-videopro.com` compatibility origin |
 | `CO_PRODUCTION_TOKEN_ENCRYPTION_KEY` | Required for production opaque tokens | Exact 32-byte encoded key; value must never be logged |
 | `CO_PRODUCTION_WEBHOOK_SECRET_ENCRYPTION_KEY` | Required for production webhooks | Exact 32-byte encoded key; value must never be logged |
 | `CO_PRODUCTION_ANALYTICS_HASH_KEY` | Required for production share analytics | Stable private hash key; value must never be logged |

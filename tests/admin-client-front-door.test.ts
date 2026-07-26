@@ -13,6 +13,7 @@ import { resolveAuthHostContext } from "../components/auth/auth-context.ts";
 import {
   buildProtectedReturnPath,
   buildSurfaceUrl,
+  LEGACY_ADMIN_SURFACE_HOST,
   resolveHostSurface,
   resolveTrustedSurfaceRole,
   roleCanAccessSurface,
@@ -79,6 +80,7 @@ test("admin and client hosts share one Content Co-op branded login", () => {
 
   assert.equal(resolveAuthHostContext(ADMIN_HOST).kind, "admin");
   assert.equal(resolveAuthHostContext(CLIENT_HOST).kind, "client");
+  assert.equal(resolveAuthHostContext(LEGACY_ADMIN_SURFACE_HOST).kind, "admin");
 
   for (const obsoleteHost of [
     `studio.${ADMIN_HOST}`,
@@ -89,7 +91,7 @@ test("admin and client hosts share one Content Co-op branded login", () => {
     assert.equal(resolveAuthHostContext(obsoleteHost).kind, "workspace", obsoleteHost);
   }
 
-  for (const host of [ADMIN_HOST, CLIENT_HOST]) {
+  for (const host of [ADMIN_HOST, CLIENT_HOST, LEGACY_ADMIN_SURFACE_HOST]) {
     assert.equal(
       frontDoorSource.includes(host),
       true,
@@ -222,7 +224,7 @@ test("authenticated host access requires trusted server claims", () => {
   );
 });
 
-test("protected admin and client cross-surface requests are denied without redirecting sessions", () => {
+test("protected admin and client requests route pending and mismatched identities safely", () => {
   const proxySource = source("proxy.ts");
   const publicMatcherIndex = proxySource.indexOf("function isPublicRoute");
   const publicMatcherEnd = proxySource.indexOf("\n}\n", publicMatcherIndex) + 2;
@@ -238,6 +240,7 @@ test("protected admin and client cross-surface requests are denied without redir
 
   assert.equal(resolveHostSurface(ADMIN_HOST), "admin");
   assert.equal(resolveHostSurface(CLIENT_HOST), "client");
+  assert.equal(resolveHostSurface(LEGACY_ADMIN_SURFACE_HOST), "admin");
   assert.equal(roleCanAccessSurface("staff", "admin"), true);
   assert.equal(roleCanAccessSurface("staff", "client"), false);
   assert.equal(roleCanAccessSurface("client", "client"), true);
@@ -256,8 +259,13 @@ test("protected admin and client cross-surface requests are denied without redir
   assert.doesNotMatch(publicMatcher, /pathname\.startsWith/);
 
   assert.match(proxySource, /if \(hostSurface\)[\s\S]*?resolveTrustedSurfaceRole\(user\)/);
-  assert.match(proxySource, /if \(!role\) return surfaceAccessDenied\(pathname\)/);
+  assert.match(
+    proxySource,
+    /if \(!role\) return pendingAccessResponse\(req, pathnameWithSanitizedQuery\)/,
+  );
   assert.match(proxySource, /if \(!roleCanAccessSurface\(role, hostSurface\)\)/);
+  assert.match(proxySource, /return surfaceMismatchResponse\(/);
+  assert.match(proxySource, /code: "AUTHORIZATION_PENDING"/);
   assert.doesNotMatch(proxySource, /req\.method !== "GET" && req\.method !== "HEAD"/);
   assert.doesNotMatch(proxySource, /buildSurfaceUrl\(surfaceForRole\(role\)/);
 });

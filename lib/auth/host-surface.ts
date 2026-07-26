@@ -1,5 +1,6 @@
 export const ADMIN_SURFACE_HOST = "admin.contentco-op.com";
 export const CLIENT_SURFACE_HOST = "client.contentco-op.com";
+export const LEGACY_ADMIN_SURFACE_HOST = "co-videopro.com";
 export const LOGIN_PATH = "/login";
 
 const AUTH_RETURN_BASE_URL = "https://co-deliver.local";
@@ -43,9 +44,28 @@ function normalizedHostname(hostHeader: string | null | undefined): string | nul
 export function resolveHostSurface(
   hostHeader: string | null | undefined,
 ): HostSurface | null {
-  const hostname = normalizedHostname(hostHeader);
-  if (hostname === ADMIN_SURFACE_HOST) return "admin";
+  const hostname = resolveApprovedSurfaceHost(hostHeader);
+  if (
+    hostname === ADMIN_SURFACE_HOST ||
+    hostname === LEGACY_ADMIN_SURFACE_HOST
+  ) {
+    return "admin";
+  }
   if (hostname === CLIENT_SURFACE_HOST) return "client";
+  return null;
+}
+
+export function resolveApprovedSurfaceHost(
+  hostHeader: string | null | undefined,
+): string | null {
+  const hostname = normalizedHostname(hostHeader);
+  if (
+    hostname === ADMIN_SURFACE_HOST ||
+    hostname === CLIENT_SURFACE_HOST ||
+    hostname === LEGACY_ADMIN_SURFACE_HOST
+  ) {
+    return hostname;
+  }
   return null;
 }
 
@@ -112,7 +132,7 @@ export function buildProtectedReturnPath(pathname: string, search = ""): string 
       !decoded ||
       decoded.startsWith("//") ||
       /\\|[\u0000-\u001f\u007f]/.test(decoded) ||
-      /^\/(?:login|signup|auth|api\/auth)(?:\/|$)/i.test(decoded)
+      /^\/(?:login|signup|forgot-password|reset-password|onboarding|auth|api\/auth)(?:\/|$)/i.test(decoded)
     ) {
       return DEFAULT_RETURN_PATH;
     }

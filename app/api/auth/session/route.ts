@@ -1,5 +1,6 @@
 import { requireAuth } from "@/lib/auth";
 import { resolveProvisionedRole } from "@/lib/auth/provisioning";
+import { surfaceForRole } from "@/lib/auth/host-surface";
 import { apiJson, backendUnavailable } from "@/lib/api/responses";
 
 // Provisioned auth roles map onto workspace navigation roles fail-closed:
@@ -32,5 +33,10 @@ export async function GET() {
     id: user.id,
     display_name: displayName,
     workspace_role: provisioned ? WORKSPACE_ROLE_BY_PROVISIONED[provisioned] : "viewer",
+    access: {
+      state: provisioned ? "provisioned" : "pending",
+      email_confirmed: Boolean(user.email_confirmed_at),
+      required_surface: provisioned ? surfaceForRole(provisioned) : null,
+    },
   });
 }

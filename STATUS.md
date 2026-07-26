@@ -1,8 +1,9 @@
 # Co-ProVideo Stabilization Status
 
-Updated: 2026-07-25
+Updated: 2026-07-26
 Machine: M2
 Branch: `codex/co-videopro-definitive-20260715`
+HEAD at reconciliation: `a7eaaab73729b8e8f591f0ea18e1ee06ae21e499`
 
 ## Anti-Drift Contract
 
@@ -13,23 +14,96 @@ Branch: `codex/co-videopro-definitive-20260715`
 
 ## Current State
 
-The F1–F14 security stabilization is fully implemented, committed atomically
-(ca9336b..c71eb04), and the source harness is green. Port 4103 runs `next start`
-(post-cutover 2026-07-25) and the runtime verifier passes.
+The tracked tree was clean at CCO-C1 entry on `a7eaaab`; the inherited
+untracked `audit/` directory is preserved and out of scope for cleanup.
+F1–F14 source stabilization and the later P6–P28 commits are present, and the
+source harness is green at this exact SHA.
 
-## Harness Evidence (current truth)
+The operating-system claim is **not complete**. No process currently listens
+on M2 ports `4103` or `4115`, so the 2026-07-25 runtime verifier receipt below
+is historical evidence, not current runtime proof. A real file has not yet
+been independently proved through upload → asset → V1 → playback → anonymous
+public review → frame comment → attributable approval → locked delivery.
+P10–P28 now have a source-and-current-evidence classification ledger below;
+none qualifies as `REAL` without current route, data, authority, and runtime
+proof.
+
+## Harness Evidence (current source truth)
 
 Command set: `git diff --check && npm run typecheck && npm run lint && npm test && npm run build`
 
+- Reproduced on M2 on 2026-07-26 at exact HEAD `a7eaaab`.
 - `git diff --check`: pass
 - `npm run typecheck`: pass, 0 errors
-- `npm run lint`: pass, 0 errors, 40 warnings (pre-existing)
-- `npm test`: pass, 741/741 (post-P9; includes the live runtime status contract)
-- `npm run build`: pass (one pre-existing Turbopack NFT trace warning, unchanged)
-- Runtime on `:4103`: `next start` (production) since 2026-07-25 cutover; verifier PASS
-  (re-verified after the P9 rebuild)
+- `npm run lint`: pass, 0 errors, 42 warnings
+- `npm test`: pass, 1,097 total / 1,094 pass / 0 fail / 3 runtime skips
+- `npm run build`: pass (one Turbopack NFT trace warning)
+- Runtime on `:4103`: **down**; no current verifier receipt
+- Runtime on `:4115`: **down**
 
-Do not cite the older 664/664, 696/696, or 722/722 runs as current truth.
+The phase-level harness counts below are preserved as historical receipts.
+Do not cite 664/664, 696/696, 722/722, or 741/741 as current source truth.
+
+## Current Runtime and Configuration Snapshot
+
+Presence-only checks in the inspected M2 shell on 2026-07-26 found these keys
+absent: `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`,
+`SUPABASE_URL`, `SUPABASE_SERVICE_KEY`, `SUPABASE_DATA_SCHEMA`,
+`NEXT_PUBLIC_SUPABASE_DATA_SCHEMA`, `CODELIVER_STORAGE_PROVIDER`,
+`CODELIVER_STORAGE_WRITE_ENABLED`, `NAS_MEDIA_ROOT`,
+`CODELIVER_LOCAL_STORAGE_ROOT`, and `CODELIVER_MALWARE_POLICY`. This describes
+the inspected shell only; it is not evidence about every private service or
+configuration store on M2.
+
+Current source requires an explicit storage provider and write-enable flag.
+CCNAS additionally requires `NAS_MEDIA_ROOT`. The default malware policy is
+`required`, but the current scanner hook is unconfigured and leaves verified
+bytes quarantined; the only bypass is explicitly restricted to the local demo
+provider. Explicit local or CCNAS storage can ingest bytes when its own write
+gate is ready, but scanner readiness separately gates release and derivative
+readiness separately gates playable processing. The current gaps therefore
+block automatic release, playable media, and locked delivery—not byte
+ingestion by itself. Additional absent production origin, encryption,
+analytics, and worker-authorization inputs are enumerated in `BLOCKERS.md`;
+FFmpeg and FFprobe themselves currently resolve from M2's `PATH`.
+
+## P10–P28 Capability Ledger (CCO-C3 source classification)
+
+Classification is anchored to committed HEAD `a7eaaab` and current M2 evidence
+on 2026-07-26. `REAL` requires current route, UI, data, authority, and runtime
+proof; source presence or a unit test alone is insufficient. A phase can be
+upgraded only by new evidence.
+
+| Phase | Classification | Current evidence |
+| --- | --- | --- |
+| P10 | `PARTIAL` | Responsive/accessibility changes exist; no current browser/runtime proof. |
+| P11 | `PARTIAL` | Brand tokens exist and are consumed; this is source/UI evidence only. |
+| P12 | `CONTRADICTED` | The lime/Manrope reskin was deliberately replaced by brand-canon commit `a573f12`. |
+| P13 | `PARTIAL` | Closure is documentation-only; intended elements were deferred or reverted. |
+| P14 | `DEMONSTRATION` | Copilot requires demo mode, uses canned browser-local state, and has no AI API. |
+| P15 | `PARTIAL` | Monogram is integrated into production-facing UI paths; presentation only. |
+| P16 | `PARTIAL` | Player controls mount in review UI; current playable-media runtime proof is absent. |
+| P17 | `PARTIAL` | Annotation UI exists; the production comment route discards drawing/annotation payloads. |
+| P18 | `PARTIAL` | Parent replies persist; reactions, edits, deletes, attachments, and mentions remain incomplete for public review. |
+| P19 | `PARTIAL` | Real review is version-bound; rich V1–V3 behavior is demo-seeded and production returns one version. |
+| P20 | `PARTIAL` | Approval writes/audit route exist; exact-version binding, attribution, and lock wiring are incomplete. |
+| P21 | `PARTIAL` | Summary logic can use loaded comments; its API is demo-only and triage is localStorage. |
+| P22 | `PARTIAL` | Server invites support some controls; password/settings/receipts remain browser-local and are skipped for real tokens. |
+| P23 | `DEMONSTRATION` | Client portal is demo-guarded and reads demo workspace state. |
+| P24 | `DEMONSTRATION` | New workspace tabs mount only in the demo branch. |
+| P25 | `DEMONSTRATION` | The production surface says the board API is still being built. |
+| P26 | `PARTIAL` | Production fetches basic assets; the rich library experience is demo-only. |
+| P27 | `DEMONSTRATION` | No request API exists; mutations are browser-local and dispatch is simulated. |
+| P28 | `DEMONSTRATION` | Production shows a connect-analytics notice; reports/CSV/print use seeded browser data. |
+
+Totals: 12 `PARTIAL`, 6 `DEMONSTRATION`, 1 `CONTRADICTED`, and 0
+`REAL`, `DEAD`, or `CONTAMINATED`. A targeted committed-source scan found no
+direct ACS contamination in P10–P28. Demonstrations must remain visibly
+labeled until they are either wired or removed.
+
+Phase sections below are implementation and test receipts. They do not
+establish present runtime availability, production deployment, backend
+persistence, or end-to-end business reality.
 
 ## P6 — One shared overlay system (2026-07-25)
 
@@ -290,6 +364,10 @@ Harness: `git diff --check` pass · typecheck 0 errors · lint 0 errors
 
 ## Audit Finding Dispositions (handoff section 11)
 
+This table preserves the 2026-07-25 stabilization dispositions. Any
+runtime-backed `fixed-proven` label refers to that dated receipt and must not be
+read as a currently running verifier result.
+
 | ID | Item | Disposition |
 | --- | --- | --- |
 | C1 | `?demo=1` authentication bypass | fixed-proven (F1; prod 307→login, verifier PASS) |
@@ -326,17 +404,20 @@ image optimizer SSRF, obvious project ID guessing, hardcoded secret values in ch
 | F7 | Webhook hardening | Implemented | Source tests + runtime matrix PASS |
 | F8 | Real dynamic-route 404s | Implemented | Source tests pass; authenticated 404 blocked-on-env |
 | F9 | Middleware static metadata exclusions | Implemented | Source tests + curl-verified |
-| F10 | Production runtime on port 4103 | Implemented | Cutover done; verify-runtime.sh PASS |
-| F11 | Fail-closed storage and retry UI | Implemented | Source tests pass; NAS proof blocked-on-env |
+| F10 | Production runtime tooling for port 4103 | Partial | Rebuild/verifier scripts exist; the current listener is down and proof is expired |
+| F11 | Fail-closed storage and retry UI | Partial | Source tests pass; provider, write-enable, CCNAS, scanner, and positive media proof remain |
 | F12 | Stable auth session JSON | Implemented | Source tests + runtime matrix PASS |
 | F13 | Error and response hygiene | Implemented | Source tests + runtime matrix PASS |
-| F14 | Contract documentation | Implemented | This update |
+| F14 | Contract documentation | In progress | Four truth documents reconciled in CCO-C1; independent review required |
 
 ## Blocked-on-env
 
-The absence of Supabase configuration and `NAS_MEDIA_ROOT` in the M2 shell
-blocks all authenticated and NAS-backed runtime proof. Details and the exact
-commands that would prove the blocked items are in `BLOCKERS.md`.
+The inspected M2 shell lacks Supabase configuration, an explicit storage
+provider, write authorization, and both local/CCNAS storage roots. Current
+source also has no production malware-scanner implementation, so the required
+policy leaves verified bytes quarantined. These conditions block authenticated
+database proof, positive media proof, and locked delivery. Details and
+presence-only verification commands are in `BLOCKERS.md`.
 
 ## Required Harness
 
@@ -347,7 +428,10 @@ commands that would prove the blocked items are in `BLOCKERS.md`.
 - `scripts/verify-runtime.sh`
 - Browser proof for upload, reload, playback, login, and protected-route behavior
 
-## Runtime proof — 2026-07-25 (post-cutover)
+## Historical runtime proof — 2026-07-25 (post-cutover)
+
+This receipt is retained for provenance. It expired when the process stopped;
+on 2026-07-26 no listener was present on `4103` or `4115`.
 
 - Port 4103: `next start` (next-server v16.2.10, parent `npm run start`) — dev runtime replaced.
 - `scripts/verify-runtime.sh` ALL PASS (authenticated 404 SKIP — AUTH_COOKIE unset, see BLOCKERS.md):
@@ -654,3 +738,39 @@ bleed, no forbidden git ops.
 Coordinator verification (Arc V wave 1): typecheck 0 errors · `npm test`
 1003/1003 (922 + 81) · lint clean (chain exit 0) · agents' regression suites
 green (p23 5/5, p25 4/4, p26 6/6 — 15 scripts).
+
+## P24 — Project workspace tabs (c34f964, 2026-07-25)
+
+Evidence state: `SOURCE_COMMITTED`; current class: `DEMONSTRATION`.
+
+Brief/version, milestones, deliverables, team, files, communications, and
+calendar panels are mounted through `ProjectWorkspaceTabs`, with pure project
+date/guardrail/model helpers and source tests. Current evidence is
+source-level; real database persistence and authenticated browser behavior
+remain unproved, and the tabs mount only in the demo branch.
+
+## P27 — Request center (6978b30, 2026-07-25)
+
+Evidence state: `SOURCE_COMMITTED`; current class: `DEMONSTRATION`.
+
+Portal request intake, client request history, internal request queue, typed
+lifecycle logic, threaded updates, and work-order conversion are present in
+the source tree and covered by request model/store/DOM tests. Navigation was
+wired in follow-up commits `8be839b` and `095dddf`. The current implementation
+uses the demo workspace store; production persistence, authenticated runtime,
+and cross-tenant behavior have not been end-to-end proved. No request API
+exists, browser-local mutations are not durable, and dispatch is simulated.
+
+## P28 — Reporting (a7eaaab, 2026-07-25)
+
+Evidence state: `SOURCE_COMMITTED`; current class: `DEMONSTRATION`.
+
+Project recap, performance, deterministic rule-based insights, CSV export, and
+print views are present under `/reports`, with reporting model and DOM tests.
+The data is derived from the demo workspace store; it is not production
+analytics proof. The production surface instead shows a connect-analytics
+notice.
+
+Current exact-SHA source verification for all committed phases is the
+2026-07-26 harness at the top of this document. It does not upgrade any phase
+to `REAL` without route, data, authority, and runtime evidence.

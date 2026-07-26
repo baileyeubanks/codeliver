@@ -1,3 +1,4 @@
+import { isAuthSessionMissingError } from "@supabase/supabase-js";
 import { createSupabaseAuth } from "./supabase-auth";
 import type { User } from "@supabase/supabase-js";
 import { BackendUnavailableError } from "./api/backend";
@@ -11,6 +12,9 @@ export async function requireAuthWithClient() {
   try {
     const supabase = await createSupabaseAuth();
     const { data, error } = await supabase.auth.getUser();
+    if (isAuthSessionMissingError(error)) {
+      return { user: null, supabase };
+    }
     if (error) throw new Error("Authentication provider rejected the request");
     return { user: (data.user ?? null) as User | null, supabase };
   } catch {

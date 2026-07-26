@@ -160,6 +160,8 @@ test("production API launch gate fails closed before public, auth, and demo bypa
         "/api/auth/admin",
         "/api/health/debug",
         "/api/review/token/admin-data",
+        "/api/review/media/not-a-uuid",
+        `/api/review/media/${RESOURCE_ID}/extra`,
         "/api/upload/tus/not-a-uuid",
         "/api/upload/tus-legacy",
         "/api/mediaevil/browse",
@@ -271,9 +273,11 @@ test("production API launch gate fails closed before public, auth, and demo bypa
         "/api/health/ready",
         "/api/health/dependencies",
         "/api/review/public-token",
+        "/api/review/public-token/admission",
         "/api/review/public-token/comments",
         "/api/review/public-token/approvals",
         "/api/review/public-token/edit-decisions",
+        `/api/review/media/${RESOURCE_ID}`,
       ];
       for (const pathname of clientApis) {
         const response = await proxy(request(CLIENT_HOST, pathname));

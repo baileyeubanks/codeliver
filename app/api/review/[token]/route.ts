@@ -1,24 +1,43 @@
-import { apiError, apiJson, backendUnavailable } from "@/lib/api/responses";
-import { getExternalApprovalState, getReviewInviteByToken } from "@/lib/review-invites";
+import { getExternalApprovalState } from "@/lib/review-invites";
+import { authorizeAdmittedReviewInvite } from "@/lib/review/admission-authority";
 import {
   EXTERNAL_COMMENT_COLUMNS,
   projectExternalComment,
 } from "@/lib/review/external-comment";
+import { validateReviewReadRequest } from "@/lib/review/request-boundary";
+import {
+  reviewBackendUnavailable,
+  reviewError,
+  reviewJson,
+} from "@/lib/review/responses";
 import { deriveShareIntent } from "@/lib/sharing/share-intent";
 import { getSupabase } from "@/lib/supabase";
 import type { ApprovalStep, SharePermission } from "@/lib/types/codeliver";
 import { resolveAssetVersion } from "@/lib/versions";
 
 async function getReview(_req: Request, { params }: { params: Promise<{ token: string }> }) {
-  const { token } = await params;
-  const inviteLookup = await getReviewInviteByToken(token);
-
-  if (!inviteLookup.ok) {
-    if (inviteLookup.status >= 500) return backendUnavailable();
-    return apiError(inviteLookup.error, "REVIEW_INVITE_UNAVAILABLE", inviteLookup.status);
+  const boundary = validateReviewReadRequest(_req);
+  if (!boundary.ok) {
+    return reviewError(
+      "Review request is not allowed",
+      boundary.code,
+      boundary.status,
+    );
   }
 
-  const { invite } = inviteLookup;
+  const { token } = await params;
+  const authority = await authorizeAdmittedReviewInvite(_req, token);
+  if (!authority.ok) {
+    return reviewError(
+      authority.status >= 500
+        ? "Review service is unavailable"
+        : "Review link is unavailable",
+      authority.code,
+      authority.status,
+    );
+  }
+
+  const { invite } = authority;
   const supabase = getSupabase();
   const versionLookup = await resolveAssetVersion({
     assetId: invite.asset_id,
@@ -26,8 +45,12 @@ async function getReview(_req: Request, { params }: { params: Promise<{ token: s
   });
 
   if (!versionLookup.ok) {
-    if (versionLookup.status >= 500) return backendUnavailable();
-    return apiError(versionLookup.error, "REVIEW_VERSION_UNAVAILABLE", versionLookup.status);
+    if (versionLookup.status >= 500) return reviewBackendUnavailable();
+    return reviewError(
+      versionLookup.error,
+      "REVIEW_VERSION_UNAVAILABLE",
+      versionLookup.status,
+    );
   }
 
   const [commentsResult, approvalsResult, workflowResult, editDecisionsResult] = await Promise.all([
@@ -61,29 +84,20 @@ async function getReview(_req: Request, { params }: { params: Promise<{ token: s
   ]);
 
   if (commentsResult.error) {
-    return backendUnavailable();
+    return reviewBackendUnavailable();
   }
 
   if (approvalsResult.error) {
-    return backendUnavailable();
+    return reviewBackendUnavailable();
   }
 
   if (workflowResult.error) {
-    return backendUnavailable();
+    return reviewBackendUnavailable();
   }
 
   if (editDecisionsResult.error) {
-    return backendUnavailable();
+    return reviewBackendUnavailable();
   }
-
-  const nextViewCount = (invite.view_count ?? 0) + 1;
-  await supabase
-    .from("review_invites")
-    .update({
-      view_count: nextViewCount,
-      last_viewed_at: new Date().toISOString(),
-    })
-    .eq("id", invite.id);
 
   const approvalState = getExternalApprovalState({
     approvals: (approvalsResult.data ?? []) as ApprovalStep[],
@@ -91,13 +105,15 @@ async function getReview(_req: Request, { params }: { params: Promise<{ token: s
     workflowMode: workflowResult.data?.mode ?? null,
   });
 
-  return apiJson({
+  const mediaUrl = `/api/review/media/${authority.claims.admissionId}`;
+
+  return reviewJson({
     asset: invite.assets
       ? {
           id: invite.assets.id,
           title: invite.assets.title,
           file_type: invite.assets.file_type,
-          file_url: versionLookup.version.file_url,
+          file_url: mediaUrl,
           status: invite.assets.status,
           projects: invite.assets.projects,
         }
@@ -106,9 +122,9 @@ async function getReview(_req: Request, { params }: { params: Promise<{ token: s
       id: versionLookup.version.id,
       asset_id: versionLookup.version.asset_id,
       version_number: versionLookup.version.version_number,
-      file_url: versionLookup.version.file_url,
+      file_url: mediaUrl,
       file_size: versionLookup.version.file_size,
-      thumbnail_url: versionLookup.version.thumbnail_url,
+      thumbnail_url: null,
       duration_seconds: versionLookup.version.duration_seconds,
       resolution: versionLookup.version.resolution,
       is_current: versionLookup.version.is_current,
@@ -143,8 +159,8 @@ async function getReview(_req: Request, { params }: { params: Promise<{ token: s
     }),
     reviewer_name: invite.reviewer_name,
     expires_at: invite.expires_at,
-    download_enabled: invite.download_enabled ?? true,
-    watermark_enabled: invite.watermark_enabled ?? false,
+    download_enabled: invite.download_enabled ?? false,
+    watermark_enabled: invite.watermark_enabled ?? true,
     watermark_text: invite.watermark_text,
     workflow_mode: workflowResult.data?.mode ?? null,
     invite: {
@@ -152,12 +168,14 @@ async function getReview(_req: Request, { params }: { params: Promise<{ token: s
       reviewer_name: invite.reviewer_name,
       expires_at: invite.expires_at,
       permissions: invite.permissions,
-      download_enabled: invite.download_enabled ?? true,
-      watermark_enabled: invite.watermark_enabled ?? false,
+      download_enabled: invite.download_enabled ?? false,
+      watermark_enabled: invite.watermark_enabled ?? true,
       watermark_text: invite.watermark_text,
-      view_count: nextViewCount,
+      view_count: invite.view_count,
       max_views: invite.max_views,
     },
+  }, {
+    headers: { "Set-Cookie": authority.setCookie },
   });
 }
 
@@ -165,6 +183,6 @@ export async function GET(req: Request, context: { params: Promise<{ token: stri
   try {
     return await getReview(req, context);
   } catch {
-    return backendUnavailable();
+    return reviewBackendUnavailable();
   }
 }

@@ -172,19 +172,22 @@ test("project and internal asset wrappers authorize before rendering clients", (
   assert.match(assetPage, /isKnownDemoAssetRoute/);
 });
 
-test("token routes distinguish missing records from unavailable databases", () => {
+test("token routes defer production review authority to admission while team invites distinguish backend failures", () => {
   const publicReviewPage = source("app/review/[token]/page.tsx");
   const teamInvitePage = source("app/invite/[token]/page.tsx");
   const reviewAuthority = source("lib/review-invites.ts");
 
   assert.match(reviewAuthority, /if \(error\)[\s\S]*?status: 503/);
   assert.match(reviewAuthority, /if \(!data\)[\s\S]*?status: 404/);
+  assert.match(publicReviewPage, /if \(!isOpaqueRouteToken\(token\)\) notFound\(\)/);
+  assert.doesNotMatch(
+    publicReviewPage,
+    /getReviewInviteByToken|inviteLookup|Review database/,
+  );
   assert.match(
     publicReviewPage,
-    /inviteLookup\.status === 404 \|\| inviteLookup\.status === 410\)\) notFound\(\)/,
+    /return <PublicReviewPage \/>/,
   );
-  assert.match(publicReviewPage, /inviteLookup\.status >= 500/);
-  assert.match(publicReviewPage, /new BackendUnavailableError\("Review database"\)/);
   assert.match(teamInvitePage, /if \(error\) throw new BackendUnavailableError/);
 });
 

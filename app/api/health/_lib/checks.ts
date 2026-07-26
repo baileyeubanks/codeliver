@@ -7,7 +7,9 @@ import {
   HEALTH_BRAND_NAME,
   HEALTH_PRODUCT_NAME,
   HEALTH_SERVICE_ID,
-} from "./identity";
+} from "./identity.ts";
+import { assertReviewAdmissionSigningConfiguration } from "../../../../lib/review/admission-grant.ts";
+import { isSupportedReviewAdmissionTrustedIpHeader } from "../../../../lib/review/request-boundary.ts";
 
 export type DependencyStatus = "pass" | "warn" | "fail";
 
@@ -325,6 +327,48 @@ function credentialEncryptionCheck(env: NodeJS.ProcessEnv): DependencyCheck {
   };
 }
 
+function reviewAdmissionAuthorityCheck(
+  env: NodeJS.ProcessEnv,
+): DependencyCheck {
+  const isolated =
+    env.NODE_ENV === "production" ||
+    env.SUPABASE_DATA_SCHEMA === "co_production" ||
+    env.NEXT_PUBLIC_SUPABASE_DATA_SCHEMA === "co_production";
+  if (!isolated) {
+    return {
+      id: "review-admission-authority",
+      label: "Anonymous review admission",
+      required: false,
+      status: "pass",
+      latencyMs: 0,
+      message: "Production anonymous review admission is not active",
+    };
+  }
+
+  let signingKeysValid = false;
+  try {
+    assertReviewAdmissionSigningConfiguration(env);
+    signingKeysValid = true;
+  } catch {
+    signingKeysValid = false;
+  }
+  const trustedHeaderValid =
+    isSupportedReviewAdmissionTrustedIpHeader(
+      env.CO_PRODUCTION_REVIEW_ADMISSION_TRUSTED_IP_HEADER,
+    );
+  return {
+    id: "review-admission-authority",
+    label: "Anonymous review admission",
+    required: true,
+    status: signingKeysValid && trustedHeaderValid ? "pass" : "fail",
+    latencyMs: 0,
+    message:
+      signingKeysValid && trustedHeaderValid
+        ? "Admission signing and trusted client-address configuration are present"
+        : "Admission signing or trusted client-address configuration is missing or invalid",
+  };
+}
+
 export async function collectDependencySnapshot(
   options: DependencyProbeOptions = {}
 ): Promise<DependencySnapshot> {
@@ -339,6 +383,7 @@ export async function collectDependencySnapshot(
     storageCheck(env, now, accessProbe, timeoutMs),
     Promise.resolve(notificationCheck(env)),
     Promise.resolve(credentialEncryptionCheck(env)),
+    Promise.resolve(reviewAdmissionAuthorityCheck(env)),
   ]);
   const requiredFailure = checks.some((check) => check.required && check.status === "fail");
   const degraded = checks.some((check) => check.status === "warn" || check.status === "fail");

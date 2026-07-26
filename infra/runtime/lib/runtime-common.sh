@@ -108,6 +108,46 @@ require_configured_value() {
   esac
 }
 
+require_exact_32_byte_key() {
+  local variable_name="$1"
+  "$NODE_BIN" -e '
+    const name = process.argv[1];
+    const value = process.env[name]?.trim() ?? "";
+    let bytes;
+    try {
+      bytes = /^[0-9a-f]{64}$/i.test(value)
+        ? Buffer.from(value, "hex")
+        : Buffer.from(value, "base64url");
+    } catch {
+      process.exit(1);
+    }
+    process.exit(bytes.length === 32 ? 0 : 1);
+  ' "$variable_name" >/dev/null 2>&1 || \
+    fail "$variable_name must encode exactly 32 bytes"
+}
+
+require_optional_32_byte_key_list() {
+  local variable_name="$1"
+  "$NODE_BIN" -e '
+    const name = process.argv[1];
+    const raw = process.env[name]?.trim() ?? "";
+    if (!raw) process.exit(0);
+    for (const value of raw.split(",").map((part) => part.trim())) {
+      if (!value) process.exit(1);
+      let bytes;
+      try {
+        bytes = /^[0-9a-f]{64}$/i.test(value)
+          ? Buffer.from(value, "hex")
+          : Buffer.from(value, "base64url");
+      } catch {
+        process.exit(1);
+      }
+      if (bytes.length !== 32) process.exit(1);
+    }
+  ' "$variable_name" >/dev/null 2>&1 || \
+    fail "$variable_name must contain only comma-separated 32-byte encoded keys"
+}
+
 load_runtime_env() {
   [[ -f "$ENV_FILE" && ! -L "$ENV_FILE" ]] || fail "private runtime env file is missing or is a symlink: $ENV_FILE"
   [[ "$(file_mode "$ENV_FILE")" == "600" ]] || fail "$ENV_FILE must have mode 0600"
@@ -134,6 +174,25 @@ load_runtime_env() {
   require_configured_value NEXT_PUBLIC_SUPABASE_ANON_KEY
   require_configured_value SUPABASE_URL
   require_configured_value SUPABASE_SERVICE_KEY
+  [[ "${SUPABASE_DATA_SCHEMA:-}" == "co_production" ]] || \
+    fail "SUPABASE_DATA_SCHEMA must be co_production"
+  [[ "${NEXT_PUBLIC_SUPABASE_DATA_SCHEMA:-}" == "co_production" ]] || \
+    fail "NEXT_PUBLIC_SUPABASE_DATA_SCHEMA must be co_production"
+
+  local key_variable
+  for key_variable in \
+    CO_PRODUCTION_TOKEN_ENCRYPTION_KEY \
+    CO_PRODUCTION_WEBHOOK_SECRET_ENCRYPTION_KEY \
+    CO_PRODUCTION_ANALYTICS_HASH_KEY \
+    CO_PRODUCTION_REVIEW_ADMISSION_SIGNING_KEY
+  do
+    require_configured_value "$key_variable"
+    require_exact_32_byte_key "$key_variable"
+  done
+  require_optional_32_byte_key_list \
+    CO_PRODUCTION_REVIEW_ADMISSION_VERIFICATION_KEYS
+  [[ "${CO_PRODUCTION_REVIEW_ADMISSION_TRUSTED_IP_HEADER:-}" == "cf-connecting-ip" ]] || \
+    fail "CO_PRODUCTION_REVIEW_ADMISSION_TRUSTED_IP_HEADER must be cf-connecting-ip on M4"
 
   [[ "${CODELIVER_STORAGE_PROVIDER:-}" == "ccnas" ]] || fail "CODELIVER_STORAGE_PROVIDER must be ccnas"
   [[ "${CODELIVER_STORAGE_WRITE_ENABLED:-}" == "1" ]] || fail "CODELIVER_STORAGE_WRITE_ENABLED must be 1"

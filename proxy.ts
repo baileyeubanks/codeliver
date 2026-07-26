@@ -43,7 +43,8 @@ const UUID_PATH_SEGMENT =
 const CLIENT_API_ROUTE_PATTERNS = [
   /^\/api\/auth\/(?:login|logout|session|signup)$/,
   /^\/api\/health(?:\/(?:dependencies|live|ready))?$/,
-  /^\/api\/review\/[^/]+(?:\/(?:approvals|comments|edit-decisions))?$/,
+  /^\/api\/review\/[^/]+(?:\/(?:admission|approvals|comments|edit-decisions))?$/,
+  new RegExp(`^/api/review/media/${UUID_PATH_SEGMENT}$`),
 ];
 
 const ADMIN_API_ROUTE_PATTERNS = [

@@ -20,8 +20,9 @@ interface SubmitReviewCommentInput {
  * Local preview semantics: demo comments persist through the workspace store,
  * which has no annotation column, so the drawing rides on the returned
  * comment object (annotations + a WebP attachment) for this session. The
- * remote path posts the same fields to the API and mirrors whatever the
- * reviewer drew onto the parsed response so the UI updates identically.
+ * production comment schema does not yet persist annotation artifacts, so
+ * remote requests send only the text/time/pin record. The drawing is kept in
+ * this browser session and must not be mistaken for durable review evidence.
  */
 function withDrawing(
   comment: Comment,
@@ -131,14 +132,15 @@ export async function submitReviewComment({
   const response = await fetch(`/api/review/${token}/comments`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
+    credentials: "same-origin",
+    cache: "no-store",
+    referrerPolicy: "no-referrer",
     body: JSON.stringify({
       body: commentBody,
       author_name: authorName,
       timecode_seconds: assetType === "video" ? timecode : null,
       pin_x: pin?.x ?? null,
       pin_y: pin?.y ?? null,
-      drawing: drawing ?? null,
-      annotations: annotations?.length ? annotations : null,
     }),
   });
 
@@ -153,7 +155,6 @@ export async function submitReviewComment({
     throw new Error("Comment saved, but the response was invalid.");
   }
 
-  // If the API does not echo the drawing fields back yet, keep the local copy
-  // so the reviewer still sees their own annotation.
+  // Keep the non-durable drawing visible to its author for this session.
   return withDrawing(comment, annotations, drawing, comment.created_at);
 }

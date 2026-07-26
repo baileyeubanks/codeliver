@@ -3,14 +3,16 @@
 Updated: 2026-07-26
 Machine: M2
 Branch: `codex/co-videopro-definitive-20260715`
-Application-source baseline: `2639e8973211476649f95029d1a3d33a5fccf57d`
+Application-source release candidate: CCO-C6B reviewed tree, pending publication
 Historical CCO-C2 runtime build: `bad8ef16e8fd041f98095f068d89140f20d74e45`
 
 ## Anti-Drift Contract
 
 - Preserve the shared player-first review workspace.
 - Keep one compact top bar, one dominant media stage, and one adjacent review rail.
-- Do not deploy, push, alter DNS, or touch the public Content Co-op site from this loop.
+- Source push and landing are approved for this release. Do not alter DNS,
+  apply migrations, or replace a public runtime without a verified target and
+  a fresh fail-closed preflight.
 - Treat missing auth, database, NAS, or provider configuration as an explicit unavailable state.
 
 ## Current State
@@ -19,8 +21,8 @@ The tracked tree was clean at CCO-C1 entry on `a7eaaab`; the inherited
 untracked `audit/` directory is preserved and out of scope for cleanup.
 F1–F14 source stabilization, the later P6–P28 commits, and the independently
 reviewed CCO-C5A upload/asset/V1 authority packet and its storage/public-review
-hardening follow-up are present. The source harness is green at exact local
-commit `2639e89`.
+hardening follow-up are present. CCO-C6B review-admission authority is also
+present, and the release-candidate source harness is green.
 
 The operating-system claim is **not complete**. CCO-C2 established a dated
 repo-owned M2 `next start` and anonymous fail-closed receipt at `bad8ef1`, but
@@ -54,16 +56,36 @@ aborts before DDL if any legacy pin exists, so ambiguous 0–1 rows cannot be
 silently reinterpreted. These are reviewed source contracts—not CCNAS,
 database, anonymous-playback, or end-to-end runtime proof.
 
+CCO-C6B now adds a source-only anonymous review admission bridge. A successful
+admission binds one opaque-token hash, invite, asset, exact version, and
+durable admission for at most eight hours; the browser receives a signed,
+host-only 15-minute grant and a token-free media URL. The database contract
+allows at most 32 active admissions per invite, 32 new admissions per invite
+per hour, and 120 network attempts per ten minutes. Admitted mutations are
+separately limited to 20 comments, 10 approval attempts, and 30 edit decisions
+per minute. Password-protected and watermark-enabled invites fail closed.
+Download permission changes response disposition only; it is not DRM and
+cannot prevent a viewer from retaining bytes already delivered for playback.
+
+The CCO-C6B migration is **source-only and unapplied**. Its PostgreSQL
+compatibility, effective grants, RPC behavior, concurrency semantics, ingress
+header provenance, private signing configuration, storage receipts, and
+real-file runtime behavior remain unproved. Approval requests now require a
+live exact-version admission and use a compare-and-set against the pending
+asset approval step, but the recorded approval packet remains asset/workflow
+scoped and accepts caller-supplied reviewer identity. Exact-version approval
+attribution and locked delivery therefore remain open.
+
 ## Harness Evidence (current source truth)
 
 Command set: `git diff --check && npm run typecheck && npm run lint && npm test && npm run build`
 
-- Reproduced on M2 on 2026-07-26 at exact local commit `2639e89`.
+- Reproduced on M2 on 2026-07-26 against the CCO-C6B release-candidate tree.
 - `git diff --check`: pass
 - `npm run typecheck`: pass, 0 errors
-- `npm run lint`: pass, 0 errors, 40 warnings
-- `npm test`: pass, 1,153 total / 1,150 pass / 0 fail / 3 runtime skips
-- `npm run build`: pass
+- `npm run lint`: pass, 0 errors, 36 warnings in the tracked release tree
+- `npm test`: pass, 1,211 total / 1,208 pass / 0 fail / 3 runtime skips
+- `npm run build`: pass without a whole-project NFT trace warning
 - Independent exact-diff review: no remaining Critical or Important findings
 - Runtime on `:4103`: **down**
 - Runtime on `:4115`: **down**
@@ -79,9 +101,13 @@ absent: `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`,
 `SUPABASE_URL`, `SUPABASE_SERVICE_KEY`, `SUPABASE_DATA_SCHEMA`,
 `NEXT_PUBLIC_SUPABASE_DATA_SCHEMA`, `CODELIVER_STORAGE_PROVIDER`,
 `CODELIVER_STORAGE_WRITE_ENABLED`, `NAS_MEDIA_ROOT`,
-`CODELIVER_LOCAL_STORAGE_ROOT`, and `CODELIVER_MALWARE_POLICY`. This describes
-the inspected shell only; it is not evidence about every private service or
-configuration store on M2.
+`CODELIVER_LOCAL_STORAGE_ROOT`, `CODELIVER_MALWARE_POLICY`,
+`CO_PRODUCTION_REVIEW_ADMISSION_SIGNING_KEY`,
+`CO_PRODUCTION_REVIEW_ADMISSION_VERIFICATION_KEYS`, and
+`CO_PRODUCTION_REVIEW_ADMISSION_TRUSTED_IP_HEADER`. Rotation verification keys
+are optional; the active signing key and trusted ingress header are required
+for isolated production. This describes the inspected shell only; it is not
+evidence about every private service or configuration store on M2.
 
 Current source requires an explicit storage provider and write-enable flag.
 CCNAS additionally requires `NAS_MEDIA_ROOT`. The default malware policy is
@@ -97,8 +123,8 @@ FFmpeg and FFprobe themselves currently resolve from M2's `PATH`.
 
 ## P10–P28 Capability Ledger (CCO-C3 source classification)
 
-Classification is anchored to application-source baseline `2639e89` and
-current M2 evidence on 2026-07-26. `REAL` requires current route, UI, data,
+Classification is anchored to the CCO-C6B release-candidate tree and current
+M2 evidence on 2026-07-26. `REAL` requires current route, UI, data,
 authority, and runtime proof; source presence or a unit test alone is
 insufficient. A phase can be upgraded only by new evidence.
 
@@ -110,13 +136,13 @@ insufficient. A phase can be upgraded only by new evidence.
 | P13 | `PARTIAL` | Closure is documentation-only; intended elements were deferred or reverted. |
 | P14 | `DEMONSTRATION` | Copilot requires demo mode, uses canned browser-local state, and has no AI API. |
 | P15 | `PARTIAL` | Monogram is integrated into production-facing UI paths; presentation only. |
-| P16 | `PARTIAL` | Player controls and exact authenticated range playback exist in source; current playable-media runtime proof is absent. |
+| P16 | `PARTIAL` | Player controls plus authenticated and admission-bound anonymous exact-version range playback exist in source; the admission migration, configuration, ingress provenance, and current playable-media runtime proof are absent. |
 | P17 | `PARTIAL` | Complete 0–100 frame-pin pairs persist in source; richer drawing/annotation payloads remain incomplete. |
-| P18 | `PARTIAL` | Exact-version public frame comments and parent replies persist in source; reactions, edits, deletes, attachments, mentions, and live proof remain incomplete. |
+| P18 | `PARTIAL` | Admission-bound exact-version public frame comments and parent replies persist in source with per-admission throttling; reactions, edits, deletes, attachments, mentions, database application, and live proof remain incomplete. |
 | P19 | `PARTIAL` | Canonical ingest now creates exact V1 in unapplied source; rich V1–V3 behavior remains demo-seeded and no live database/runtime receipt exists. |
-| P20 | `PARTIAL` | Approval writes/audit route exist; exact-version binding, attribution, and lock wiring are incomplete. |
+| P20 | `PARTIAL` | Approval requests require a live exact-version admission and compare-and-set the pending asset approval step, but the durable packet is still asset/workflow scoped, reviewer identity is caller-supplied, exact-version attribution is absent, and lock wiring is incomplete. |
 | P21 | `PARTIAL` | Summary logic can use loaded comments; its API is demo-only and triage is localStorage. |
-| P22 | `PARTIAL` | Active existing-asset invites are source-enforced; password-protected invites fail closed because verification, settings, and receipts are not yet governed end to end. |
+| P22 | `PARTIAL` | Source now admits active invites only to their exact asset/version/media receipt with bounded grants, views, sessions, and request rates; password and watermark paths fail closed, while migration/configuration/ingress/runtime proof remains absent. |
 | P23 | `DEMONSTRATION` | Client portal is demo-guarded and reads demo workspace state. |
 | P24 | `DEMONSTRATION` | New workspace tabs mount only in the demo branch. |
 | P25 | `DEMONSTRATION` | The production surface says the board API is still being built. |
@@ -437,7 +463,8 @@ image optimizer SSRF, obvious project ID guessing, hardcoded secret values in ch
 | F12 | Stable auth session JSON | Implemented | Source tests + runtime matrix PASS |
 | F13 | Error and response hygiene | Implemented | Source tests + runtime matrix PASS |
 | F14 | Contract documentation | Implemented | Four truth documents committed at `bad8ef1`; exact-diff rereview found no Critical or Important issues |
-| F15 | Canonical upload → asset → exact V1 authority | Implemented in source | Core `3c8f3f9`, hardening `2639e89`; current harness 1,150/1,153 tests pass, build/typecheck/lint pass, exact-diff rereviews clean; migrations unapplied and runtime unproved |
+| F15 | Canonical upload → asset → exact V1 authority | Implemented in source | Core `3c8f3f9`, hardening `2639e89`; current harness 1,208/1,211 tests pass, build/typecheck/lint pass; migrations unapplied and runtime unproved |
+| F16 | Anonymous exact-version review admission and playback | Implemented in source | Signed short grants, durable exact-version admissions, token-free media URLs, admitted mutation gates, and bounded database rate/session authority are source-tested; migration/configuration/ingress/storage/runtime proof remains open |
 
 ## Blocked-on-env
 

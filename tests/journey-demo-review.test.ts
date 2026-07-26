@@ -277,7 +277,11 @@ test(
     const authorized = await PATCH(
       new Request("http://localhost/api/review/demo/approvals", {
         method: "PATCH",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          Origin: "http://localhost",
+          "Content-Type": "application/json",
+          "Sec-Fetch-Site": "same-origin",
+        },
         body: JSON.stringify({ id: "approval-1", status: "approved" }),
       }),
       { params: Promise.resolve({ token: "demo" }) },
@@ -287,7 +291,11 @@ test(
     const foreignStep = await PATCH(
       new Request("http://localhost/api/review/demo/approvals", {
         method: "PATCH",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          Origin: "http://localhost",
+          "Content-Type": "application/json",
+          "Sec-Fetch-Site": "same-origin",
+        },
         body: JSON.stringify({ id: "approval-2", status: "rejected" }),
       }),
       { params: Promise.resolve({ token: "demo" }) },
@@ -308,7 +316,11 @@ test(
     const malformed = await POST(
       new Request("http://localhost/api/review/demo/comments", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          Origin: "http://localhost",
+          "Content-Type": "application/json",
+          "Sec-Fetch-Site": "same-origin",
+        },
         body: JSON.stringify({ body: "Pinned", pin_x: 50, pin_y: null }),
       }),
       { params: Promise.resolve({ token: "demo" }) },
@@ -318,7 +330,11 @@ test(
     const accepted = await POST(
       new Request("http://localhost/api/review/demo/comments", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          Origin: "http://localhost",
+          "Content-Type": "application/json",
+          "Sec-Fetch-Site": "same-origin",
+        },
         body: JSON.stringify({
           body: "  Version note  ",
           author_name: "External Reviewer",

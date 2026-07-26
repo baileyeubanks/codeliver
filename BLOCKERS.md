@@ -58,6 +58,13 @@ What it blocks:
   coordinate is present, preventing silent reinterpretation of ambiguous
   legacy 0–1 values. A read-only legacy-pin inventory and explicit remediation
   decision are therefore required before approved application.
+- The anonymous review admission migration
+  `20260726120000_review_view_admissions.sql` is also source-only. Live
+  PostgreSQL syntax, existing invite/version compatibility, effective
+  service-only grants, admission/media/action RPC behavior, and concurrent
+  enforcement of view, active-session, invite, network, and action limits
+  remain unproved. An approved read-only compatibility preflight and explicit
+  migration application are required before any live admission claim.
 - Real-session proof for audit C2 (stable server session with a genuine
   Supabase identity) cannot be completed.
 - Production data authority cannot pass unless both schema keys are present,
@@ -190,15 +197,21 @@ current M2 shell:
 - `CO_PRODUCTION_TOKEN_ENCRYPTION_KEY`
 - `CO_PRODUCTION_WEBHOOK_SECRET_ENCRYPTION_KEY`
 - `CO_PRODUCTION_ANALYTICS_HASH_KEY`
+- `CO_PRODUCTION_REVIEW_ADMISSION_SIGNING_KEY`
+- `CO_PRODUCTION_REVIEW_ADMISSION_VERIFICATION_KEYS`
+- `CO_PRODUCTION_REVIEW_ADMISSION_TRUSTED_IP_HEADER`
 - `CODELIVER_MEDIA_PIPELINE_WORKER_TOKEN`
 
 This blocks production split-surface origin proof, opaque-token encryption,
 webhook-secret encryption, stable private analytics hashing, and worker
-authorization. `FFMPEG_PATH` and `FFPROBE_PATH` are not set, but both commands
-currently resolve from M2's `PATH`; executable presence alone does not prove
-the derivative worker path.
+authorization. Review admission rotation verification keys are optional; the
+active signing key and a trusted ingress header are required. A configured
+header is not provenance proof: the trusted ingress must strip or overwrite
+client-supplied copies before forwarding the request. `FFMPEG_PATH` and
+`FFPROBE_PATH` are not set, but both commands currently resolve from M2's
+`PATH`; executable presence alone does not prove the derivative worker path.
 
-## Known real-spine gaps after CCO-C5A
+## Known real-spine gaps after CCO-C6B
 
 Core commit `3c8f3f9` plus hardening commit `2639e89` close the
 duplicate-writer, missing-V1, writable-inode, and public-payload source gaps:
@@ -211,12 +224,20 @@ unapplied. Review invites must be active and reference an existing asset;
 password-protected invites intentionally fail closed until governed password
 verification is implemented.
 
+CCO-C6B adds a source-bound anonymous bridge: one signed short grant and one
+durable admission authorize one invite, asset, exact version, and token-free
+media URL. Admitted comment, approval, and edit-decision requests are
+same-origin, bounded, and rate-limited; password and watermark paths fail
+closed. This is not live capability until the migration, private signing
+configuration, trusted-ingress provenance, database authority, storage
+receipt, and production runtime are proved.
+
 Remaining gaps are:
 
-- the migration is unapplied and no live database/RPC/effective-privilege or
-  real-file playback receipt exists;
-- anonymous review playback still needs a token-authorized exact-version
-  bridge and live proof rather than internal-session authority;
+- the CCO-C5A, frame-pin, and CCO-C6B migrations are unapplied and no live
+  database/RPC/effective-privilege or real-file playback receipt exists;
+- the anonymous exact-version bridge exists in source but lacks approved
+  migration, configuration, ingress, storage, and runtime proof;
 - approval is not durably exact-version-bound, external actor attribution is
   incomplete in approval history, and P19's lock callback is unwired; and
 - signed-delivery readiness and a durable final delivery package are not yet

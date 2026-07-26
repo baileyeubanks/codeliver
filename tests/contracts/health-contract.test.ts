@@ -26,6 +26,7 @@ test("readiness passes only when required database and storage probes pass", asy
     "pass",
     "pass",
     "pass",
+    "pass",
   ]);
 });
 
@@ -114,6 +115,11 @@ test("production readiness requires isolated credential and analytics privacy ke
     missingKeys.checks.find((check) => check.id === "credential-encryption")?.status,
     "fail",
   );
+  assert.equal(
+    missingKeys.checks.find((check) => check.id === "review-admission-authority")
+      ?.status,
+    "fail",
+  );
 
   const ready = await collectDependencySnapshot({
     env: {
@@ -125,6 +131,16 @@ test("production readiness requires isolated credential and analytics privacy ke
       CO_PRODUCTION_ANALYTICS_HASH_KEY: Buffer.alloc(32, 5).toString(
         "base64url",
       ),
+      CO_PRODUCTION_REVIEW_ADMISSION_SIGNING_KEY: Buffer.alloc(
+        32,
+        6,
+      ).toString("base64url"),
+      CO_PRODUCTION_REVIEW_ADMISSION_VERIFICATION_KEYS: [
+        Buffer.alloc(32, 7).toString("base64url"),
+        Buffer.alloc(32, 8).toString("base64url"),
+      ].join(","),
+      CO_PRODUCTION_REVIEW_ADMISSION_TRUSTED_IP_HEADER:
+        "cf-connecting-ip",
     },
     fetchProbe: async () => ({ ok: true, status: 200 }),
     accessProbe: async () => undefined,
@@ -133,5 +149,73 @@ test("production readiness requires isolated credential and analytics privacy ke
   assert.equal(
     ready.checks.find((check) => check.id === "credential-encryption")?.status,
     "pass",
+  );
+  assert.equal(
+    ready.checks.find((check) => check.id === "review-admission-authority")
+      ?.status,
+    "pass",
+  );
+
+  const malformedRotation = await collectDependencySnapshot({
+    env: {
+      ...productionEnv,
+      CO_PRODUCTION_TOKEN_ENCRYPTION_KEY: Buffer.alloc(32, 3).toString(
+        "base64url",
+      ),
+      CO_PRODUCTION_WEBHOOK_SECRET_ENCRYPTION_KEY: Buffer.alloc(
+        32,
+        4,
+      ).toString("base64url"),
+      CO_PRODUCTION_ANALYTICS_HASH_KEY: Buffer.alloc(32, 5).toString(
+        "base64url",
+      ),
+      CO_PRODUCTION_REVIEW_ADMISSION_SIGNING_KEY: Buffer.alloc(
+        32,
+        6,
+      ).toString("base64url"),
+      CO_PRODUCTION_REVIEW_ADMISSION_VERIFICATION_KEYS:
+        "not-a-32-byte-key",
+      CO_PRODUCTION_REVIEW_ADMISSION_TRUSTED_IP_HEADER: "x-real-ip",
+    },
+    fetchProbe: async () => ({ ok: true, status: 200 }),
+    accessProbe: async () => undefined,
+  });
+  assert.equal(malformedRotation.ready, false);
+  assert.equal(
+    malformedRotation.checks.find(
+      (check) => check.id === "review-admission-authority",
+    )?.status,
+    "fail",
+  );
+
+  const unsupportedHeader = await collectDependencySnapshot({
+    env: {
+      ...productionEnv,
+      CO_PRODUCTION_TOKEN_ENCRYPTION_KEY: Buffer.alloc(32, 3).toString(
+        "base64url",
+      ),
+      CO_PRODUCTION_WEBHOOK_SECRET_ENCRYPTION_KEY: Buffer.alloc(
+        32,
+        4,
+      ).toString("base64url"),
+      CO_PRODUCTION_ANALYTICS_HASH_KEY: Buffer.alloc(32, 5).toString(
+        "base64url",
+      ),
+      CO_PRODUCTION_REVIEW_ADMISSION_SIGNING_KEY: Buffer.alloc(
+        32,
+        6,
+      ).toString("base64url"),
+      CO_PRODUCTION_REVIEW_ADMISSION_TRUSTED_IP_HEADER:
+        "x-forwarded-for",
+    },
+    fetchProbe: async () => ({ ok: true, status: 200 }),
+    accessProbe: async () => undefined,
+  });
+  assert.equal(unsupportedHeader.ready, false);
+  assert.equal(
+    unsupportedHeader.checks.find(
+      (check) => check.id === "review-admission-authority",
+    )?.status,
+    "fail",
   );
 });

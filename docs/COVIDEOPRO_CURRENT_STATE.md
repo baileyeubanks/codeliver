@@ -16,8 +16,7 @@
 
 ## 2026-07-26 superseding snapshot
 
-At M2 application-source baseline
-`2639e8973211476649f95029d1a3d33a5fccf57d`, `/api/upload/tus` is the only
+In the M2 CCO-C6B release-candidate tree, `/api/upload/tus` is the only
 production catalog writer. A clean committed upload is source-bound through
 one service-only atomic RPC to one asset and exact V1. Authenticated
 `/api/media/versions/[versionId]` playback is exact-version, range-capable, and
@@ -28,15 +27,19 @@ Commit publication now preflights capacity for the full immutable copy, uses
 a separate sealed inode with deterministic crash cleanup, and requires a
 one-link receipt. Public review rows are allowlisted; invites must be active
 and reference an existing asset, and password-protected invites fail closed.
-Exact-version frame comments use complete 0–100 percentage pins. Both database
-migrations remain unapplied; the pin migration refuses to reinterpret any
-existing legacy pin. Neither M2 runtime port is listening, and no live
+Exact-version frame comments use complete 0–100 percentage pins. Anonymous
+review admission now binds the token hash, invite, asset, and exact version to
+a bounded durable admission plus a signed short-lived browser grant and
+token-free media route. All three database migrations remain unapplied; the
+pin migration refuses to reinterpret any existing legacy pin. Neither M2
+runtime port is listening, and no live
 database/RPC/privilege, provider, real-file, or anonymous-playback receipt
 exists. The full upload → asset → V1 → playback → anonymous comment →
 attributable approval → lock → delivery spine remains open.
 
-Current source gates: typecheck pass; lint 0 errors/40 warnings; 1,153 tests
-with 1,150 pass/0 fail/3 runtime skips; production build pass; independent
+Current source gates: typecheck pass; lint 0 errors/36 warnings in the tracked
+release tree; 1,211 tests with 1,208 pass/0 fail/3 runtime skips; production
+build pass without a whole-project NFT trace warning; independent
 exact-diff reviews with no Critical or Important findings.
 
 Everything below this point is the historical 2026-07-16 snapshot.
@@ -65,7 +68,7 @@ Current naming state (grep counts over `app/ components/ lib/ packages/`):
 
 ### 1.1 Stack (verified `package.json`, configs)
 
-- Next.js **16.2.10** (App Router, `proxy.ts` as middleware), React **19.2.3**, TypeScript strict, `tsc --noEmit` = **0 errors** (but see blind spots below).
+- Next.js **16.2.12** (App Router, `proxy.ts` as middleware), React **19.2.3**, TypeScript strict, `tsc --noEmit` = **0 errors** (but see blind spots below).
 - Tailwind v4 CSS-first + a **5,330-line hand-maintained `app/globals.css`** design system (dark navy/green; light theme via `html[data-theme="light"]`).
 - Supabase: `@supabase/ssr` + `supabase-js`; three clients — `lib/supabase.ts` (service role), `lib/supabase-auth.ts` (SSR cookie), `lib/supabase-browser.ts` (browser). Data schema `co_production` enforced in production by `lib/data-authority.ts`.
 - State: zustand stores (`lib/stores/annotationStore.ts`, `notificationStore.ts`, `playerStore.ts`) + **demo workspace store** (`lib/demo/workspace-store.ts`, localStorage-persisted).

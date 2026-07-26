@@ -16,9 +16,51 @@ type PinState = typeof globalThis & {
     table: string;
     payload: Record<string, unknown>;
   }>;
+  __ccoPublicReviewAuthorityCalls: Array<{
+    kind: "authorize" | "reserve";
+    input: unknown;
+  }>;
+  __ccoPublicReviewAuthorityResult: Record<string, unknown>;
+  __ccoPublicReviewRateResult: Record<string, unknown>;
 };
 const state = globalThis as PinState;
 state.__ccoPublicPinInserts = [];
+state.__ccoPublicReviewAuthorityCalls = [];
+
+const admittedInvite = {
+  id: "invite-a",
+  asset_id: "asset-a",
+  version_id: "version-a",
+  reviewer_name: "External reviewer",
+  reviewer_email: "private-reviewer@example.test",
+  permissions: "comment",
+  password_hash: null,
+  expires_at: null,
+  watermark_enabled: false,
+  watermark_text: null,
+  download_enabled: false,
+  view_count: 1,
+  max_views: 1,
+  last_viewed_at: null,
+  active: true,
+};
+const admittedClaims = {
+  admissionId: "11111111-1111-4111-8111-111111111111",
+  inviteId: "22222222-2222-4222-8222-222222222222",
+  assetId: "33333333-3333-4333-8333-333333333333",
+  versionId: "44444444-4444-4444-8444-444444444444",
+  issuedAt: 1_785_060_000,
+  expiresAt: 1_785_060_900,
+  admissionExpiresAt: 1_785_088_800,
+};
+state.__ccoPublicReviewAuthorityResult = {
+  ok: true,
+  invite: admittedInvite,
+  claims: admittedClaims,
+  setCookie:
+    "__Host-cvp-review-admission-test=renewed; Path=/; HttpOnly; Secure; SameSite=Strict",
+};
+state.__ccoPublicReviewRateResult = { ok: true };
 
 const accessStub = dataModule(`
   export async function getAssetComment() {
@@ -38,19 +80,25 @@ const reviewInviteStub = dataModule(`
   export function inviteCanComment(invite) {
     return invite.permissions === "comment";
   }
-  export async function getReviewInviteByToken(token) {
-    return {
-      ok: true,
-      invite: {
-        id: "invite-a",
-        asset_id: "asset-a",
-        version_id: "version-a",
-        reviewer_name: "External reviewer",
-        reviewer_email: "private-reviewer@example.test",
-        permissions: "comment",
-        token
-      }
-    };
+  export async function getReviewInviteByToken() {
+    throw new Error("raw-token lookup must not authorize admitted actions");
+  }
+`);
+
+const admissionAuthorityStub = dataModule(`
+  export async function authorizeAdmittedReviewInvite(request, token) {
+    globalThis.__ccoPublicReviewAuthorityCalls.push({
+      kind: "authorize",
+      input: { url: request.url, token }
+    });
+    return globalThis.__ccoPublicReviewAuthorityResult;
+  }
+  export async function reserveReviewActionRate(input) {
+    globalThis.__ccoPublicReviewAuthorityCalls.push({
+      kind: "reserve",
+      input
+    });
+    return globalThis.__ccoPublicReviewRateResult;
   }
 `);
 
@@ -145,6 +193,9 @@ registerHooks({
     if (specifier === "@/lib/review-invites") {
       return nextResolve(reviewInviteStub, context);
     }
+    if (specifier === "@/lib/review/admission-authority") {
+      return nextResolve(admissionAuthorityStub, context);
+    }
     if (specifier === "@/lib/versions") return nextResolve(versionsStub, context);
     if (specifier === "@/lib/review/demoReview") {
       return nextResolve(demoStub, context);
@@ -170,13 +221,27 @@ function request(body: Record<string, unknown>) {
     "https://client.contentco-op.com/api/review/opaque-token/comments",
     {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        Origin: "https://client.contentco-op.com",
+        "Content-Type": "application/json",
+        "Sec-Fetch-Site": "same-origin",
+      },
       body: JSON.stringify(body),
     },
   );
 }
 
 test("anonymous public review persists a 0-100 frame pin and returns a safe projection", async () => {
+  state.__ccoPublicPinInserts = [];
+  state.__ccoPublicReviewAuthorityCalls = [];
+  state.__ccoPublicReviewAuthorityResult = {
+    ok: true,
+    invite: admittedInvite,
+    claims: admittedClaims,
+    setCookie:
+      "__Host-cvp-review-admission-test=renewed; Path=/; HttpOnly; Secure; SameSite=Strict",
+  };
+  state.__ccoPublicReviewRateResult = { ok: true };
   const { POST } = await import(
     pathToFileURL(
       resolve(repositoryRoot, "app/api/review/[token]/comments/route.ts"),
@@ -195,6 +260,23 @@ test("anonymous public review persists a 0-100 frame pin and returns a safe proj
   );
 
   assert.equal(response.status, 201);
+  assert.equal(
+    response.headers.get("set-cookie"),
+    state.__ccoPublicReviewAuthorityResult.setCookie,
+  );
+  assert.equal(response.headers.get("cache-control"), "private, no-store");
+  assert.deepEqual(
+    state.__ccoPublicReviewAuthorityCalls.map((call) => call.kind),
+    ["authorize", "reserve"],
+  );
+  assert.equal(
+    (
+      state.__ccoPublicReviewAuthorityCalls[1]?.input as {
+        action?: string;
+      }
+    )?.action,
+    "comment",
+  );
   const commentWrite = state.__ccoPublicPinInserts.find(
     (write) => write.table === "comments",
   );
@@ -235,4 +317,39 @@ test("anonymous public review rejects incomplete and out-of-range pins before an
     assert.equal(response.status, 400);
     assert.equal(state.__ccoPublicPinInserts.length, 0);
   }
+});
+
+test("anonymous public review rejects a missing live admission before rate authority or writes", async () => {
+  const { POST } = await import(
+    pathToFileURL(
+      resolve(repositoryRoot, "app/api/review/[token]/comments/route.ts"),
+    ).href
+  );
+  state.__ccoPublicPinInserts = [];
+  state.__ccoPublicReviewAuthorityCalls = [];
+  state.__ccoPublicReviewAuthorityResult = {
+    ok: false,
+    status: 404,
+    code: "REVIEW_ADMISSION_INVALID",
+  };
+  state.__ccoPublicReviewRateResult = { ok: true };
+
+  const response = await POST(
+    request({
+      body: "This cannot cross the admission boundary",
+      timecode_seconds: 4.25,
+      pin_x: 25,
+      pin_y: 75,
+    }),
+    context,
+  );
+
+  assert.equal(response.status, 404);
+  assert.deepEqual(
+    state.__ccoPublicReviewAuthorityCalls.map((call) => call.kind),
+    ["authorize"],
+  );
+  assert.equal(state.__ccoPublicPinInserts.length, 0);
+  assert.equal(response.headers.get("set-cookie"), null);
+  assert.equal(response.headers.get("cache-control"), "private, no-store");
 });

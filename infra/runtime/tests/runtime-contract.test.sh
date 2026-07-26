@@ -61,6 +61,14 @@ write_env() {
     printf '%s\n' 'NEXT_PUBLIC_SUPABASE_ANON_KEY=test-anon-key'
     printf '%s\n' 'SUPABASE_URL=https://example.invalid'
     printf '%s\n' 'SUPABASE_SERVICE_KEY=test-service-key'
+    printf '%s\n' 'SUPABASE_DATA_SCHEMA=co_production'
+    printf '%s\n' 'NEXT_PUBLIC_SUPABASE_DATA_SCHEMA=co_production'
+    printf '%s\n' 'CO_PRODUCTION_TOKEN_ENCRYPTION_KEY=1111111111111111111111111111111111111111111111111111111111111111'
+    printf '%s\n' 'CO_PRODUCTION_WEBHOOK_SECRET_ENCRYPTION_KEY=2222222222222222222222222222222222222222222222222222222222222222'
+    printf '%s\n' 'CO_PRODUCTION_ANALYTICS_HASH_KEY=3333333333333333333333333333333333333333333333333333333333333333'
+    printf '%s\n' 'CO_PRODUCTION_REVIEW_ADMISSION_SIGNING_KEY=4444444444444444444444444444444444444444444444444444444444444444'
+    printf '%s\n' 'CO_PRODUCTION_REVIEW_ADMISSION_VERIFICATION_KEYS=5555555555555555555555555555555555555555555555555555555555555555'
+    printf '%s\n' 'CO_PRODUCTION_REVIEW_ADMISSION_TRUSTED_IP_HEADER=cf-connecting-ip'
     printf '%s\n' 'CODELIVER_STORAGE_PROVIDER=ccnas'
     printf '%s\n' 'CODELIVER_STORAGE_WRITE_ENABLED=1'
     printf '%s\n' 'CODELIVER_HEALTH_REMOTE_PROBES=1'
@@ -85,6 +93,36 @@ BASE_ENV=(
 
 env "${BASE_ENV[@]}" CODELIVER_TEST_ASSUME_MOUNTED=1 /bin/bash -c \
   'source "$1"; load_runtime_env; require_storage_ready' _ "$RUNTIME_DIR/lib/runtime-common.sh"
+
+MISSING_ADMISSION_ENV="$TMP_ROOT/missing-admission-key.env"
+/usr/bin/grep -v '^CO_PRODUCTION_REVIEW_ADMISSION_SIGNING_KEY=' \
+  "$ENV_FILE" >"$MISSING_ADMISSION_ENV"
+/bin/chmod 0600 "$MISSING_ADMISSION_ENV"
+if env -u CO_PRODUCTION_REVIEW_ADMISSION_SIGNING_KEY "${BASE_ENV[@]}" \
+  CODELIVER_ENV_FILE="$MISSING_ADMISSION_ENV" /bin/bash -c \
+  'source "$1"; load_runtime_env' _ "$RUNTIME_DIR/lib/runtime-common.sh" >/dev/null 2>&1; then
+  fail_test "runtime env preflight accepted a missing review admission signing key"
+fi
+
+MALFORMED_ROTATION_ENV="$TMP_ROOT/malformed-admission-rotation.env"
+/usr/bin/sed \
+  's/^CO_PRODUCTION_REVIEW_ADMISSION_VERIFICATION_KEYS=.*/CO_PRODUCTION_REVIEW_ADMISSION_VERIFICATION_KEYS=too-short/' \
+  "$ENV_FILE" >"$MALFORMED_ROTATION_ENV"
+/bin/chmod 0600 "$MALFORMED_ROTATION_ENV"
+if env "${BASE_ENV[@]}" CODELIVER_ENV_FILE="$MALFORMED_ROTATION_ENV" /bin/bash -c \
+  'source "$1"; load_runtime_env' _ "$RUNTIME_DIR/lib/runtime-common.sh" >/dev/null 2>&1; then
+  fail_test "runtime env preflight accepted a malformed review admission rotation key"
+fi
+
+UNTRUSTED_HEADER_ENV="$TMP_ROOT/untrusted-admission-header.env"
+/usr/bin/sed \
+  's/^CO_PRODUCTION_REVIEW_ADMISSION_TRUSTED_IP_HEADER=.*/CO_PRODUCTION_REVIEW_ADMISSION_TRUSTED_IP_HEADER=x-real-ip/' \
+  "$ENV_FILE" >"$UNTRUSTED_HEADER_ENV"
+/bin/chmod 0600 "$UNTRUSTED_HEADER_ENV"
+if env "${BASE_ENV[@]}" CODELIVER_ENV_FILE="$UNTRUSTED_HEADER_ENV" /bin/bash -c \
+  'source "$1"; load_runtime_env' _ "$RUNTIME_DIR/lib/runtime-common.sh" >/dev/null 2>&1; then
+  fail_test "runtime env preflight accepted an unsupported review admission client-IP header"
+fi
 
 if env "${BASE_ENV[@]}" /bin/bash -c \
   'source "$1"; load_runtime_env; require_storage_ready' _ "$RUNTIME_DIR/lib/runtime-common.sh" >/dev/null 2>&1; then

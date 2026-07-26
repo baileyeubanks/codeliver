@@ -59,6 +59,11 @@ import {
 } from "@/lib/sharing/share-intent";
 import { usePlayerStore } from "@/lib/stores/playerStore";
 import { resolveReviewFrameRate } from "@/lib/review/frame-review";
+import {
+  loadAdmittedPublicReview,
+  renewPublicReviewAdmission,
+  REVIEW_ADMISSION_RENEWAL_INTERVAL_MS,
+} from "@/lib/review/public-admission-client";
 import { formatSmpteTimecode } from "@/components/player/timecode";
 import type {
   AnnotationData,
@@ -159,6 +164,7 @@ export default function PublicReviewPage() {
   const searchParams = useSearchParams();
   const videoRef = useRef<HTMLVideoElement>(null);
   const imageRef = useRef<HTMLImageElement>(null);
+  const admissionRenewalInFlightRef = useRef(false);
   const demoWorkspace = useDemoWorkspace();
 
   const currentTime = usePlayerStore((state) => state.currentTime);
@@ -489,16 +495,10 @@ export default function PublicReviewPage() {
           return;
         }
 
-        const response = await fetch(`/api/review/${token}`);
-        const payload = await response.json().catch(() => null);
-
-        if (!response.ok) {
-          throw new Error(payload?.error || "Invalid or expired review link.");
-        }
-
+        const payload = await loadAdmittedPublicReview(token);
         if (cancelled) return;
 
-        const review = payload as ReviewPayload;
+        const review = payload as unknown as ReviewPayload;
         const rootComments = (review.comments ?? []).filter((comment) => !comment.parent_id);
         const initialSelection =
           rootComments.find((comment) => comment.status === "open")?.id ??
@@ -589,6 +589,47 @@ export default function PublicReviewPage() {
     searchParams,
     token,
   ]);
+
+  useEffect(() => {
+    if (demoMode) return;
+    let stopped = false;
+
+    async function renewAdmission() {
+      if (stopped || admissionRenewalInFlightRef.current) return;
+      admissionRenewalInFlightRef.current = true;
+      try {
+        await renewPublicReviewAdmission(token);
+      } catch {
+        return;
+      } finally {
+        admissionRenewalInFlightRef.current = false;
+      }
+    }
+
+    function handleVisibilityChange() {
+      if (document.visibilityState === "visible") {
+        void renewAdmission();
+      }
+    }
+
+    function handleFocus() {
+      void renewAdmission();
+    }
+
+    const interval = window.setInterval(
+      () => void renewAdmission(),
+      REVIEW_ADMISSION_RENEWAL_INTERVAL_MS,
+    );
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    window.addEventListener("focus", handleFocus);
+
+    return () => {
+      stopped = true;
+      window.clearInterval(interval);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+      window.removeEventListener("focus", handleFocus);
+    };
+  }, [demoMode, token]);
 
   const canComment = permissions === "comment" || permissions === "approve";
   const rootComments = comments.filter((comment) => !comment.parent_id);
@@ -832,6 +873,9 @@ export default function PublicReviewPage() {
       const response = await fetch(`/api/review/${token}/comments`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        credentials: "same-origin",
+        cache: "no-store",
+        referrerPolicy: "no-referrer",
         body: JSON.stringify({
           body: replyBody,
           author_name: authorName,
@@ -995,6 +1039,9 @@ export default function PublicReviewPage() {
       const response = await fetch(`/api/review/${token}/edit-decisions`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        credentials: "same-origin",
+        cache: "no-store",
+        referrerPolicy: "no-referrer",
         body: JSON.stringify({
           decision_type: "cut",
           source: "keyboard",
@@ -1094,6 +1141,9 @@ export default function PublicReviewPage() {
       const response = await fetch(`/api/review/${token}/approvals`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
+        credentials: "same-origin",
+        cache: "no-store",
+        referrerPolicy: "no-referrer",
         body: JSON.stringify({
           id: approvalId,
           status: decision,

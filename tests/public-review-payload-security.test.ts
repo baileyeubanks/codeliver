@@ -10,10 +10,20 @@ function dataModule(source: string) {
   return `data:text/javascript,${encodeURIComponent(source)}`;
 }
 
-const reviewInvitesStub = dataModule(`
-  export async function getReviewInviteByToken() {
+const admissionAuthorityStub = dataModule(`
+  export async function authorizeAdmittedReviewInvite() {
     return {
       ok: true,
+      claims: {
+        admissionId: "11111111-1111-4111-8111-111111111111",
+        inviteId: "22222222-2222-4222-8222-222222222222",
+        assetId: "33333333-3333-4333-8333-333333333333",
+        versionId: "44444444-4444-4444-8444-444444444444",
+        issuedAt: 1,
+        expiresAt: 2,
+        admissionExpiresAt: 3
+      },
+      setCookie: "__Host-ccorp_review_admission_11111111111141118111111111111111=renewed; Path=/; Secure; HttpOnly; SameSite=Strict",
       invite: {
         id: "invite-a",
         asset_id: "asset-a",
@@ -25,8 +35,8 @@ const reviewInvitesStub = dataModule(`
         watermark_enabled: false,
         watermark_text: null,
         download_enabled: false,
-        view_count: 0,
-        max_views: null,
+        view_count: 1,
+        max_views: 1,
         assets: {
           id: "asset-a",
           title: "Launch film",
@@ -42,7 +52,9 @@ const reviewInvitesStub = dataModule(`
       }
     };
   }
+`);
 
+const reviewInvitesStub = dataModule(`
   export function getExternalApprovalState() {
     return {
       approvals: [],
@@ -62,7 +74,7 @@ const versionsStub = dataModule(`
         version_number: 1,
         file_url: "/api/media/versions/version-a",
         file_size: 12,
-        thumbnail_url: null,
+        thumbnail_url: "https://private-provider.example/thumb.jpg",
         duration_seconds: 2,
         resolution: "1920x1080",
         is_current: true,
@@ -170,6 +182,23 @@ registerHooks({
     if (specifier === "@/lib/review-invites") {
       return nextResolve(reviewInvitesStub, context);
     }
+    if (specifier === "@/lib/review/admission-authority") {
+      return nextResolve(admissionAuthorityStub, context);
+    }
+    if (specifier === "@/lib/review/request-boundary") {
+      return nextResolve(
+        pathToFileURL(
+          resolve(repositoryRoot, "lib/review/request-boundary.ts"),
+        ).href,
+        context,
+      );
+    }
+    if (specifier === "@/lib/review/responses") {
+      return nextResolve(
+        pathToFileURL(resolve(repositoryRoot, "lib/review/responses.ts")).href,
+        context,
+      );
+    }
     if (specifier === "@/lib/versions") {
       return nextResolve(versionsStub, context);
     }
@@ -207,12 +236,17 @@ test("anonymous review payload exposes only the external-safe asset projection",
   );
 
   assert.equal(response.status, 200);
+  assert.equal(response.headers.get("cache-control"), "private, no-store");
+  assert.equal(response.headers.get("referrer-policy"), "no-referrer");
+  assert.equal(response.headers.get("vary"), "Cookie");
+  assert.match(response.headers.get("set-cookie") ?? "", /renewed/);
   const payload = await response.json();
   assert.deepEqual(payload.asset, {
     id: "asset-a",
     title: "Launch film",
     file_type: "video",
-    file_url: "/api/media/versions/version-a",
+    file_url:
+      "/api/review/media/11111111-1111-4111-8111-111111111111",
     status: "in_review",
     projects: { id: "project-a", name: "Launch" },
   });
@@ -220,7 +254,8 @@ test("anonymous review payload exposes only the external-safe asset projection",
     id: "version-a",
     asset_id: "asset-a",
     version_number: 1,
-    file_url: "/api/media/versions/version-a",
+    file_url:
+      "/api/review/media/11111111-1111-4111-8111-111111111111",
     file_size: 12,
     thumbnail_url: null,
     duration_seconds: 2,
@@ -261,6 +296,8 @@ test("anonymous review payload exposes only the external-safe asset projection",
   }]);
   assert.doesNotMatch(
     JSON.stringify(payload),
-    /nas_path|metadata|storage_provider|private-user-id|private-resolver-id|private-request-id|review-private|invite-private|reviewer-private@example\.test|INTERNAL EDITORIAL NOTE|uploaded_by|author_email|author_id|resolved_by|resolved_at|review_invite_id|client_request_id|rich_body|mentions|storedReviewXss|onerror/,
+    /nas_path|metadata|storage_provider|private-user-id|private-resolver-id|private-request-id|review-private|invite-private|reviewer-private@example\.test|INTERNAL EDITORIAL NOTE|uploaded_by|author_email|author_id|resolved_by|resolved_at|review_invite_id|client_request_id|rich_body|mentions|storedReviewXss|onerror|private-provider\.example|\/api\/media\/versions/,
   );
+  assert.equal(payload.invite.view_count, 1);
+  assert.equal(payload.invite.max_views, 1);
 });

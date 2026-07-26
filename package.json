@@ -28,7 +28,7 @@
     "lucide-react": "^0.575.0",
     "marked": "^17.0.3",
     "nanoid": "^5.1.6",
-    "next": "16.2.10",
+    "next": "16.2.12",
     "qrcode": "^1.5.4",
     "react": "19.2.3",
     "react-dom": "19.2.3",
@@ -38,14 +38,19 @@
     "tus-js-client": "^4.3.1",
     "zustand": "^5.0.11"
   },
+  "overrides": {
+    "eslint-plugin-react-hooks": "7.0.1",
+    "postcss": "8.5.23",
+    "sharp": "0.35.3"
+  },
   "devDependencies": {
     "@playwright/test": "^1.61.1",
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20.19.16",
     "@types/react": "^19.2.2",
     "@types/react-dom": "^19.2.2",
-    "eslint": "^9.39.0",
-    "eslint-config-next": "16.2.10",
+    "eslint": "9.39.5",
+    "eslint-config-next": "16.2.12",
     "typescript": "^5.9.3"
   }
 }

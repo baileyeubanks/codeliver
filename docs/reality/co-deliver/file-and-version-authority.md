@@ -1,8 +1,8 @@
 # Co-VideoPro File And Version Authority
 
 Date: 2026-07-26
-Status: CCO-C5A source contract plus hardening at M2 application-source
-baseline `2639e8973211476649f95029d1a3d33a5fccf57d`
+Status: CCO-C5A file authority plus CCO-C6B review-admission authority in the
+M2 release-candidate tree
 
 ## One Production Writer
 
@@ -98,30 +98,33 @@ keys are absent from authenticated catalog projections.
 
 Public review payloads serialize explicit external-safe asset, version,
 comment, and invite projections rather than raw database rows. Invites must be
-active and reference an existing asset; a password hash fails closed because
-governed password verification is not implemented. Comment writes bind to the
-invite's exact version, require complete finite 0–100 pin pairs, and omit
-internal actor, provider, rich-body, mention, and resolution fields.
+active and reference an existing asset. Password-protected and
+watermark-enabled invites fail closed until their governed paths exist. A
+successful admission binds the opaque-token hash, invite, asset, exact version,
+and bounded durable session; the browser receives only a signed, host-only
+15-minute grant and a token-free exact-version media URL. Comment, approval,
+and edit-decision writes require the same admission and use separate action
+rate limits. Complete finite frame pins remain in the 0–100 percentage unit.
 
-This does not yet prove anonymous review-token playback. The public-review
-bridge must authorize the same exact version without revealing provider
-identity and then be exercised with a real file.
+This source bridge still does not prove live anonymous playback. Its migration,
+private signing configuration, trusted ingress provenance, provider receipt,
+and real-file behavior must be verified together without exposing provider
+identity or the invite token in the media URL.
 
 ## Current Evidence Boundary
 
-Source gates at application-source baseline
-`2639e8973211476649f95029d1a3d33a5fccf57d` pass:
+Source gates in the CCO-C6B release-candidate tree pass:
 
 - typecheck;
 - lint with zero errors;
-- 1,153 tests: 1,150 passing, zero failures, and three runtime skips;
-- production build; and
+- 1,211 tests: 1,208 passing, zero failures, and three runtime skips;
+- production build without a whole-project NFT trace warning; and
 - independent exact-diff review with no Critical or Important findings.
 
 Both M2 runtime ports are down. No database was started, no migration was
 applied, and no provider or real file was mutated. Therefore upload → asset →
 V1 → playback is a reviewed source contract, not an operational or
-end-to-end proof. A safely projected exact-version frame-comment write now
-exists in source, but its pin migration is unapplied and anonymous media
-playback remains open. Attributable approval, lock, and final delivery also
-remain open.
+end-to-end proof. A safely projected and admission-bound exact-version
+frame-comment write now exists in source, but its pin and admission migrations
+are unapplied and live anonymous media playback remains open. Exact-version
+approval attribution, lock, and final delivery also remain open.

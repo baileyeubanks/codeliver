@@ -148,8 +148,11 @@ export async function requireCanonicalMediaRoot(
   }
 
   try {
-    const canonicalRoot = await realpath(resolve(value));
-    const status = await lstat(canonicalRoot);
+    const requestedRoot = resolve(/* turbopackIgnore: true */ value);
+    const canonicalRoot = await realpath(
+      /* turbopackIgnore: true */ requestedRoot
+    );
+    const status = await lstat(/* turbopackIgnore: true */ canonicalRoot);
     if (!status.isDirectory()) {
       throw new SafeMediaPathError("MEDIA_ROOT_UNAVAILABLE");
     }
@@ -162,7 +165,7 @@ export async function requireCanonicalMediaRoot(
 
 async function checkedStatus(path: string) {
   try {
-    return await lstat(path);
+    return await lstat(/* turbopackIgnore: true */ path);
   } catch (error) {
     if (errnoCode(error) === "ENOENT") {
       throw new SafeMediaPathError("MEDIA_PATH_NOT_FOUND");
@@ -181,14 +184,14 @@ export async function resolveExistingMediaPath(
   let current = root;
 
   for (const segment of relativePath ? relativePath.split("/") : []) {
-    const candidate = join(current, segment);
+    const candidate = join(/* turbopackIgnore: true */ current, segment);
     const status = await checkedStatus(candidate);
     if (status.isSymbolicLink()) {
       throw new SafeMediaPathError("MEDIA_PATH_INVALID");
     }
 
     try {
-      current = await realpath(candidate);
+      current = await realpath(/* turbopackIgnore: true */ candidate);
     } catch {
       throw new SafeMediaPathError("MEDIA_PATH_INVALID");
     }
@@ -215,17 +218,17 @@ export async function ensureMediaDirectory(
   let current = root;
 
   for (const segment of relativePath ? relativePath.split("/") : []) {
-    const candidate = join(current, segment);
+    const candidate = join(/* turbopackIgnore: true */ current, segment);
     let status;
 
     try {
-      status = await lstat(candidate);
+      status = await lstat(/* turbopackIgnore: true */ candidate);
     } catch (error) {
       if (errnoCode(error) !== "ENOENT") {
         throw new SafeMediaPathError("MEDIA_PATH_INVALID");
       }
       try {
-        await mkdir(candidate, { mode: 0o750 });
+        await mkdir(/* turbopackIgnore: true */ candidate, { mode: 0o750 });
       } catch (mkdirError) {
         if (errnoCode(mkdirError) !== "EEXIST") {
           throw new SafeMediaPathError("MEDIA_PATH_INVALID");
@@ -239,7 +242,7 @@ export async function ensureMediaDirectory(
     }
 
     try {
-      current = await realpath(candidate);
+      current = await realpath(/* turbopackIgnore: true */ candidate);
     } catch {
       throw new SafeMediaPathError("MEDIA_PATH_INVALID");
     }
@@ -260,11 +263,14 @@ export async function createMediaDirectory(
     configuredRoot
   );
   const safeName = normalizeMediaDirectoryName(directoryName);
-  const candidate = join(parent.absolutePath, safeName);
+  const candidate = join(
+    /* turbopackIgnore: true */ parent.absolutePath,
+    safeName
+  );
   assertContainedPath(parent.root, candidate);
 
   try {
-    await mkdir(candidate, { mode: 0o750 });
+    await mkdir(/* turbopackIgnore: true */ candidate, { mode: 0o750 });
   } catch (error) {
     if (errnoCode(error) === "EEXIST") {
       throw new SafeMediaPathError("MEDIA_PATH_EXISTS");
@@ -279,7 +285,7 @@ export async function createMediaDirectory(
 
   let absolutePath: string;
   try {
-    absolutePath = await realpath(candidate);
+    absolutePath = await realpath(/* turbopackIgnore: true */ candidate);
   } catch {
     throw new SafeMediaPathError("MEDIA_PATH_INVALID");
   }

@@ -1,27 +1,109 @@
 import crypto from "crypto";
-import { apiError, apiJson, backendUnavailable } from "@/lib/api/responses";
 import { getAssetComment } from "@/lib/access-control";
 import { sendEmail, emailTemplates, getBaseUrl } from "@/lib/email";
 import { demoReviewPayload } from "@/lib/review/demoReview";
 import {
+  authorizeAdmittedReviewInvite,
+  reserveReviewActionRate,
+} from "@/lib/review/admission-authority";
+import {
   EXTERNAL_COMMENT_COLUMNS,
   projectExternalComment,
 } from "@/lib/review/external-comment";
-import { inviteCanComment, getReviewInviteByToken } from "@/lib/review-invites";
+import { inviteCanComment } from "@/lib/review-invites";
+import {
+  readReviewJsonObject,
+  validateReviewMutationRequest,
+} from "@/lib/review/request-boundary";
+import {
+  reviewBackendUnavailable,
+  reviewError as reviewResponseError,
+  reviewJson,
+} from "@/lib/review/responses";
 import { getSupabase } from "@/lib/supabase";
 import { resolveAssetVersion } from "@/lib/versions";
 
-function reviewError(error: string, status: number, code = "REVIEW_REQUEST_INVALID") {
-  if (status >= 500) return backendUnavailable();
-  return apiError(error, code, status);
+const COMMENT_BODY_LIMIT_BYTES = 32 * 1_024;
+
+function reviewError(
+  error: string,
+  status: number,
+  code = "REVIEW_REQUEST_INVALID",
+  headers?: HeadersInit,
+) {
+  if (status >= 500) return reviewBackendUnavailable(headers);
+  return reviewResponseError(error, code, status, headers);
 }
 
 async function postComment(req: Request, { params }: { params: Promise<{ token: string }> }) {
-  const { token } = await params;
-  const body = await req.json().catch(() => null);
-  if (!body || typeof body !== "object" || Array.isArray(body)) {
-    return reviewError("Comment request must be JSON.", 400);
+  const boundary = validateReviewMutationRequest(req, {
+    maxBytes: COMMENT_BODY_LIMIT_BYTES,
+  });
+  if (!boundary.ok) {
+    return reviewError(
+      "Review comment request is not allowed",
+      boundary.status,
+      boundary.code,
+    );
   }
+
+  const { token } = await params;
+  const demo = process.env.NODE_ENV !== "production" && token === "demo";
+  let authority:
+    | Awaited<ReturnType<typeof authorizeAdmittedReviewInvite>>
+    | null = null;
+  let responseHeaders: HeadersInit | undefined;
+
+  if (!demo) {
+    authority = await authorizeAdmittedReviewInvite(req, token);
+    if (!authority.ok) {
+      return reviewError(
+        "Review link is unavailable",
+        authority.status,
+        authority.code,
+      );
+    }
+    responseHeaders = { "Set-Cookie": authority.setCookie };
+    const rate = await reserveReviewActionRate({
+      token,
+      claims: authority.claims,
+      action: "comment",
+    });
+    if (!rate.ok) {
+      return reviewError(
+        rate.status === 429
+          ? "Review comment rate exceeded"
+          : "Review link is unavailable",
+        rate.status,
+        rate.code,
+        {
+          ...responseHeaders,
+          ...(rate.status === 429
+            ? {
+                "Retry-After": String(
+                  Math.max(1, rate.retryAfterSeconds ?? 60),
+                ),
+              }
+            : {}),
+        },
+      );
+    }
+  }
+
+  const bodyResult = await readReviewJsonObject(req, {
+    maxBytes: COMMENT_BODY_LIMIT_BYTES,
+  });
+  if (!bodyResult.ok) {
+    return reviewError(
+      bodyResult.status === 413
+        ? "Comment request is too large"
+        : "Comment request must be JSON.",
+      bodyResult.status,
+      bodyResult.code,
+      responseHeaders,
+    );
+  }
+  const body = bodyResult.value;
   const timecode = body.timecode_seconds == null ? null : body.timecode_seconds;
   const pinX = body.pin_x == null ? null : body.pin_x;
   const pinY = body.pin_y == null ? null : body.pin_y;
@@ -39,15 +121,20 @@ async function postComment(req: Request, { params }: { params: Promise<{ token: 
       pinY <= 100);
 
   if (!hasValidTimecode || !hasValidPinPair) {
-    return reviewError("Comment timing or point coordinates are invalid", 400);
+    return reviewError(
+      "Comment timing or point coordinates are invalid",
+      400,
+      "REVIEW_REQUEST_INVALID",
+      responseHeaders,
+    );
   }
 
-  if (process.env.NODE_ENV !== "production" && token === "demo") {
-    if (!body.body?.trim()) {
+  if (demo) {
+    if (typeof body.body !== "string" || !body.body.trim()) {
       return reviewError("Comment body is required", 400);
     }
 
-    return apiJson(
+    return reviewJson(
       projectExternalComment({
         id: `demo-comment-${crypto.randomUUID()}`,
         review_id: null,
@@ -56,7 +143,9 @@ async function postComment(req: Request, { params }: { params: Promise<{ token: 
         version_id: null,
         parent_id: body.parent_id ?? null,
         author_name:
-          body.author_name?.trim() ||
+          (typeof body.author_name === "string"
+            ? body.author_name.trim()
+            : "") ||
           demoReviewPayload.reviewer_name ||
           demoReviewPayload.reviewer_email ||
           "Demo reviewer",
@@ -80,19 +169,24 @@ async function postComment(req: Request, { params }: { params: Promise<{ token: 
     );
   }
 
-  const inviteLookup = await getReviewInviteByToken(token);
-
-  if (!inviteLookup.ok) {
-    return reviewError(inviteLookup.error, inviteLookup.status, "REVIEW_INVITE_UNAVAILABLE");
-  }
-
-  const { invite } = inviteLookup;
+  if (!authority?.ok) return reviewBackendUnavailable(responseHeaders);
+  const { invite } = authority;
   if (!inviteCanComment(invite)) {
-    return reviewError("This review link cannot add comments", 403, "REVIEW_COMMENT_FORBIDDEN");
+    return reviewError(
+      "This review link cannot add comments",
+      403,
+      "REVIEW_COMMENT_FORBIDDEN",
+      responseHeaders,
+    );
   }
 
-  if (!body.body?.trim()) {
-    return reviewError("Comment body is required", 400);
+  if (typeof body.body !== "string" || !body.body.trim()) {
+    return reviewError(
+      "Comment body is required",
+      400,
+      "REVIEW_REQUEST_INVALID",
+      responseHeaders,
+    );
   }
 
   const versionLookup = await resolveAssetVersion({
@@ -100,34 +194,56 @@ async function postComment(req: Request, { params }: { params: Promise<{ token: 
     versionId: invite.version_id,
   });
   if (!versionLookup.ok) {
-    return reviewError(versionLookup.error, versionLookup.status, "REVIEW_VERSION_UNAVAILABLE");
+    return reviewError(
+      versionLookup.error,
+      versionLookup.status,
+      "REVIEW_VERSION_UNAVAILABLE",
+      responseHeaders,
+    );
   }
 
-  if (body.parent_id) {
+  if (typeof body.parent_id === "string" && body.parent_id) {
     const parent = await getAssetComment(body.parent_id, invite.asset_id);
     if (!parent.ok) {
-      return reviewError(parent.error, parent.status, "REVIEW_COMMENT_UNAVAILABLE");
+      return reviewError(
+        parent.error,
+        parent.status,
+        "REVIEW_COMMENT_UNAVAILABLE",
+        responseHeaders,
+      );
     }
 
     if (parent.data.visibility !== "external") {
-      return reviewError("Replies must stay within the external review thread", 400);
+      return reviewError(
+        "Replies must stay within the external review thread",
+        400,
+        "REVIEW_REQUEST_INVALID",
+        responseHeaders,
+      );
     }
 
     if (parent.data.version_id !== versionLookup.version.id) {
-      return reviewError("Replies must stay on the same media version", 400);
+      return reviewError(
+        "Replies must stay on the same media version",
+        400,
+        "REVIEW_REQUEST_INVALID",
+        responseHeaders,
+      );
     }
   }
 
+  const requestedAuthorName =
+    typeof body.author_name === "string" ? body.author_name.trim() : "";
   const reviewerName =
-    body.author_name?.trim() ||
+    requestedAuthorName ||
     invite.reviewer_name ||
     invite.reviewer_email ||
     "Anonymous";
 
-  if (!invite.reviewer_name && body.author_name?.trim()) {
+  if (!invite.reviewer_name && requestedAuthorName) {
     await getSupabase()
       .from("review_invites")
-      .update({ reviewer_name: body.author_name.trim() })
+      .update({ reviewer_name: requestedAuthorName })
       .eq("id", invite.id);
   }
 
@@ -143,7 +259,10 @@ async function postComment(req: Request, { params }: { params: Promise<{ token: 
       timecode_seconds: timecode,
       pin_x: pinX,
       pin_y: pinY,
-      parent_id: body.parent_id ?? null,
+      parent_id:
+        typeof body.parent_id === "string" && body.parent_id
+          ? body.parent_id
+          : null,
       review_id: null,
       review_invite_id: invite.id,
       visibility: "external",
@@ -152,7 +271,7 @@ async function postComment(req: Request, { params }: { params: Promise<{ token: 
     .single();
 
   if (error) {
-    return backendUnavailable();
+    return reviewBackendUnavailable(responseHeaders);
   }
 
   const asset = await getSupabase()
@@ -198,9 +317,9 @@ async function postComment(req: Request, { params }: { params: Promise<{ token: 
     }
   }
 
-  return apiJson(
+  return reviewJson(
     data ? projectExternalComment(data) : {},
-    { status: 201 },
+    { status: 201, headers: responseHeaders },
   );
 }
 
@@ -208,6 +327,6 @@ export async function POST(req: Request, context: { params: Promise<{ token: str
   try {
     return await postComment(req, context);
   } catch {
-    return backendUnavailable();
+    return reviewBackendUnavailable();
   }
 }

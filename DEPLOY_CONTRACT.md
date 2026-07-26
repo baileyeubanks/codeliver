@@ -9,7 +9,7 @@ currently configured or healthy.
 
 - Repo: `/Users/baileyeubanks/Desktop/Projects/contentco-op/cco-videopro-definitive-20260715`
 - Branch: `codex/co-videopro-definitive-20260715`
-- Application-source baseline: `2639e8973211476649f95029d1a3d33a5fccf57d`
+- Application-source release candidate: CCO-C6B reviewed tree, pending publication
 - Framework: Next.js 16
 - Default port: `4103`
 - Health endpoint: `/api/health` (public response is exactly `{"status":"ok"}`)
@@ -40,10 +40,11 @@ currently configured or healthy.
 
 These competing legacy declarations were not externally verified during
 CCO-C1 and are not promoted to the release contract until live provenance
-selects the actual source, branch, deploy plane, and hosts. They grant no
-authority to push, deploy, change DNS, apply database migrations, select a
-provider, or perform destructive work. Each action requires Bailey's explicit
-approval and a fresh read-only preflight.
+selects the actual source, branch, deploy plane, and hosts. Bailey approved
+source push and landing for CCO-C6B on 2026-07-26. That approval does not
+authorize DNS changes, database migrations, provider selection, destructive
+work, or replacement of an unverified public runtime; those actions require a
+fresh read-only preflight and explicit scope.
 
 ## Source-Referenced Environment
 
@@ -60,6 +61,9 @@ approval and a fresh read-only preflight.
 | `CO_PRODUCTION_TOKEN_ENCRYPTION_KEY` | Required for production opaque tokens | Exact 32-byte encoded key; value must never be logged |
 | `CO_PRODUCTION_WEBHOOK_SECRET_ENCRYPTION_KEY` | Required for production webhooks | Exact 32-byte encoded key; value must never be logged |
 | `CO_PRODUCTION_ANALYTICS_HASH_KEY` | Required for production share analytics | Stable private hash key; value must never be logged |
+| `CO_PRODUCTION_REVIEW_ADMISSION_SIGNING_KEY` | Required for production anonymous review | Active exact 32-byte key for signed short-lived admission grants; value must never be logged |
+| `CO_PRODUCTION_REVIEW_ADMISSION_VERIFICATION_KEYS` | Optional during key rotation | Comma-separated prior exact 32-byte keys retained only while existing grants expire |
+| `CO_PRODUCTION_REVIEW_ADMISSION_TRUSTED_IP_HEADER` | Required for production anonymous review | M4 runtime requires `cf-connecting-ip`; the ingress must strip or overwrite any client-supplied copy |
 | `RESEND_API_KEY` | Optional | Review invite / notification email sending |
 | `RESEND_FROM_EMAIL` | Optional | From-address for review notifications |
 | `ANTHROPIC_API_KEY` | Optional | AI-assisted review routes |
@@ -123,13 +127,27 @@ cockpits. It takes an exclusive table lock and aborts before DDL if any legacy
 pin exists; existing 0–1 values require an explicit, separately approved
 remediation decision. It is source-only and unapplied.
 
+`supabase/migrations/20260726120000_review_view_admissions.sql` binds one
+anonymous admission to one token hash, invite, asset, and exact version. Its
+durable lifetime is at most eight hours; browser grants expire after 15
+minutes and can renew only inside that durable admission. The database limits
+each invite to 32 active admissions and 32 new admissions per hour, limits a
+network bucket to 120 attempts per ten minutes, and limits each admitted
+viewer per minute to 20 comments, 10 approval attempts, and 30 edit decisions.
+It is source-only and unapplied.
+
 Filesystem publication requires capacity for a full immutable copy, places
 bytes into a separate sealed inode through a deterministic crash-recovery
 path, and issues a receipt only after one read-only link remains. Public review
-uses explicit external-safe projections; invites must be active and reference
-an existing asset, password-protected invites fail closed, and frame comments
-bind to the invite's exact version with complete 0–100 pin pairs. These source
-contracts still require approved database, provider, and runtime proof.
+uses explicit external-safe projections and a token-free admitted media URL;
+invites must be active and reference an exact managed asset/version receipt.
+Password-protected and watermark-enabled invites fail closed, and frame
+comments bind to the invite's exact version with complete 0–100 pin pairs.
+Download permission controls response disposition, not DRM; playable bytes
+cannot be made non-retainable after delivery. Configuration validation cannot
+prove client-address provenance—the trusted ingress must strip or overwrite
+the configured header. These source contracts still require approved
+database, provider, ingress, and runtime proof.
 
 ## Public Runtime Rule
 
@@ -188,4 +206,8 @@ preflight, database migration applications, effective-privilege/RPC proof,
 and a fresh configured real-file runtime receipt before its source contracts
 can be called operational. The same database gate applies to the frame-pin
 migration, including a read-only inventory of legacy pin rows before its
-exclusive lock or constraint changes are allowed.
+exclusive lock or constraint changes are allowed. CCO-C6B additionally
+requires an approved admission-migration compatibility preflight and
+application, effective table/RPC grant and concurrency-limit proof, private
+signing-key readiness, verified ingress header provenance, and a real-file
+anonymous admission → exact-version playback → admitted mutation receipt.

@@ -68,7 +68,9 @@ test("public review APIs map database helper failures to the opaque backend cont
     "app/api/review/[token]/edit-decisions/route.ts",
   ]) {
     const route = source(path);
-    assert.match(route, /status >= 500\) return backendUnavailable\(\)/);
+    assert.match(route, /reviewBackendUnavailable/);
+    assert.match(route, /reviewError|reviewResponseError/);
+    assert.doesNotMatch(route, /error:\s*\w+\.message/);
   }
 });
 

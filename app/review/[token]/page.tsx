@@ -1,14 +1,22 @@
+import type { Metadata } from "next";
 import { headers } from "next/headers";
 import { notFound, permanentRedirect } from "next/navigation";
 import PublicReviewPage from "@/components/review/PublicReviewPage";
-import { BackendUnavailableError } from "@/lib/api/backend";
 import {
   DEMO_SHORT_SHARE_QUERY_FLAG,
   isKnownDemoShareRoute,
   isOpaqueRouteToken,
 } from "@/lib/dynamic-route-authority";
 import { isLocalDemoServerRequest } from "@/lib/demo/server-mode";
-import { getReviewInviteByToken } from "@/lib/review-invites";
+
+export const metadata: Metadata = {
+  referrer: "no-referrer",
+  robots: {
+    index: false,
+    follow: false,
+    nocache: true,
+  },
+};
 
 export default async function PublicReviewRoute({
   params,
@@ -48,20 +56,5 @@ export default async function PublicReviewRoute({
   }
 
   if (!isOpaqueRouteToken(token)) notFound();
-
-  let inviteLookup: Awaited<ReturnType<typeof getReviewInviteByToken>>;
-  try {
-    inviteLookup = await getReviewInviteByToken(token);
-  } catch {
-    // A misconfigured/unreachable backend must never masquerade as a
-    // missing record: surface the honest unavailable state instead.
-    throw new BackendUnavailableError("Review database");
-  }
-  // Expired or exhausted links (410) are missing records at the page layer;
-  // the API keeps the precise 410 for clients.
-  if (!inviteLookup.ok && (inviteLookup.status === 404 || inviteLookup.status === 410)) notFound();
-  if (!inviteLookup.ok && inviteLookup.status >= 500) {
-    throw new BackendUnavailableError("Review database");
-  }
   return <PublicReviewPage />;
 }

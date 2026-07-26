@@ -115,14 +115,24 @@ export async function recordApprovalDecision({
       decided_at: new Date().toISOString(),
     })
     .eq("id", approvalId)
+    .eq("asset_id", assetId)
+    .eq("status", "pending")
     .select()
-    .single();
+    .maybeSingle();
 
   if (updateError) {
     return {
       ok: false as const,
       statusCode: 500,
       error: updateError.message,
+    };
+  }
+
+  if (!updatedApproval) {
+    return {
+      ok: false as const,
+      statusCode: 409,
+      error: "This approval step has already been decided",
     };
   }
 

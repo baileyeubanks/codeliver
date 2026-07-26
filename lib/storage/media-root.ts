@@ -7,7 +7,9 @@ const UPLOAD_ID_PATTERN =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 export function resolveMediaRoot(value = process.env.NAS_MEDIA_ROOT): string {
-  return resolve(value?.trim() || DEFAULT_MEDIA_ROOT);
+  return resolve(
+    /* turbopackIgnore: true */ value?.trim() || DEFAULT_MEDIA_ROOT
+  );
 }
 
 export function requireConfiguredMediaRoot(
@@ -20,21 +22,21 @@ export function requireConfiguredMediaRoot(
   if (!isAbsolute(configured)) {
     throw new Error("NAS_MEDIA_ROOT must be an absolute path");
   }
-  return resolve(configured);
+  return resolve(/* turbopackIgnore: true */ configured);
 }
 
 export function uploadStagingDirectory(
   mediaRoot = resolveMediaRoot()
 ): string {
-  return join(mediaRoot, ".tus-uploads");
+  return join(/* turbopackIgnore: true */ mediaRoot, ".tus-uploads");
 }
 
 export function ensureUploadStagingDirectory(
   mediaRoot = requireConfiguredMediaRoot()
 ): string {
   const directory = uploadStagingDirectory(mediaRoot);
-  if (!existsSync(directory)) {
-    mkdirSync(directory, { recursive: true });
+  if (!existsSync(/* turbopackIgnore: true */ directory)) {
+    mkdirSync(/* turbopackIgnore: true */ directory, { recursive: true });
   }
   return directory;
 }
@@ -53,8 +55,8 @@ export function ensureTranscodeOutputDirectories(
 ): { proxyRoot: string; thumbnailRoot: string } {
   const directories = transcodeOutputDirectories(mediaRoot);
   for (const directory of Object.values(directories)) {
-    if (!existsSync(directory)) {
-      mkdirSync(directory, { recursive: true });
+    if (!existsSync(/* turbopackIgnore: true */ directory)) {
+      mkdirSync(/* turbopackIgnore: true */ directory, { recursive: true });
     }
   }
   return directories;
@@ -68,8 +70,8 @@ export function resolveMediaPath(
     throw new Error("Media path must be a non-empty relative path");
   }
 
-  const root = resolve(mediaRoot);
-  const target = resolve(root, relativePath);
+  const root = resolve(/* turbopackIgnore: true */ mediaRoot);
+  const target = resolve(/* turbopackIgnore: true */ root, relativePath);
   if (!target.startsWith(`${root}${sep}`)) {
     throw new Error("Media path escapes the configured storage root");
   }

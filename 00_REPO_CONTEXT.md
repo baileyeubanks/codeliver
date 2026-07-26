@@ -16,11 +16,14 @@ Standalone review and delivery product under the Content Co-op umbrella.
   packets unless Bailey explicitly transfers or closes that lane.
 
 ## Current Condition
-`PARTIAL` — exact-SHA source harness reproduced green on M2 on 2026-07-26,
-but no process currently listens on `4103` or `4115`. The real-file operating
-spine is not complete. P10–P28 have current source-and-evidence
-classifications, but none qualifies as `REAL`. Historical runtime proof and
-current blockers are separated in `STATUS.md` and `BLOCKERS.md`.
+`PARTIAL` — the exact-SHA application-source harness reproduced green on M2 on
+2026-07-26, and CCO-C2 now has a repo-owned production-mode listener plus an
+anonymous fail-closed verifier receipt on `4103` at documentation-only HEAD
+`bad8ef1`; `4115` remains unused. Authenticated/backend/media proof and the
+real-file operating spine are not complete. P10–P28 have current
+source-and-evidence classifications, but none qualifies as `REAL`. Historical
+runtime proof and current blockers are separated in `STATUS.md` and
+`BLOCKERS.md`.
 
 ## Canonical Scope
 - review UI
@@ -96,9 +99,10 @@ current blockers are separated in `STATUS.md` and `BLOCKERS.md`.
 
 ## Next Focus
 - keep the shared player-first review workspace canonical
-- commit the independently reviewed CCO-C1 truth docs and completed CCO-C3
-  source-and-current-evidence ledger, then establish CCO-C2 current runtime
-  proof, CCO-C4 private readiness, and the bounded CCO-C5 real spine
+- preserve the independently reviewed CCO-C1 truth-doc commit, completed
+  CCO-C3 source-and-current-evidence ledger, and current CCO-C2 anonymous
+  runtime receipt; next establish CCO-C4 private readiness and the bounded
+  CCO-C5 real spine
 - keep P10–P28 classifications current as route/UI/data/authority/runtime
   evidence changes
 - establish a current local production runtime receipt

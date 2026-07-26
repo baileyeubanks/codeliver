@@ -3,7 +3,8 @@
 Updated: 2026-07-26
 Machine: M2
 Branch: `codex/co-videopro-definitive-20260715`
-HEAD at reconciliation: `a7eaaab73729b8e8f591f0ea18e1ee06ae21e499`
+Application-source baseline: `a7eaaab73729b8e8f591f0ea18e1ee06ae21e499`
+HEAD at CCO-C2 runtime build: `bad8ef16e8fd041f98095f068d89140f20d74e45`
 
 ## Anti-Drift Contract
 
@@ -19,14 +20,14 @@ untracked `audit/` directory is preserved and out of scope for cleanup.
 F1–F14 source stabilization and the later P6–P28 commits are present, and the
 source harness is green at this exact SHA.
 
-The operating-system claim is **not complete**. No process currently listens
-on M2 ports `4103` or `4115`, so the 2026-07-25 runtime verifier receipt below
-is historical evidence, not current runtime proof. A real file has not yet
-been independently proved through upload → asset → V1 → playback → anonymous
-public review → frame comment → attributable approval → locked delivery.
-P10–P28 now have a source-and-current-evidence classification ledger below;
-none qualifies as `REAL` without current route, data, authority, and runtime
-proof.
+The operating-system claim is **not complete**. CCO-C2 established a
+repo-owned M2 `next start` listener on `4103` and a current anonymous
+fail-closed verifier receipt at documentation-only HEAD `bad8ef1`; `4115`
+remains unused. A real file has not yet been independently proved through
+upload → asset → V1 → playback → anonymous public review → frame comment →
+attributable approval → locked delivery. P10–P28 now have a
+source-and-current-evidence classification ledger below; none qualifies as
+`REAL` without current route, data, authority, and runtime proof.
 
 ## Harness Evidence (current source truth)
 
@@ -38,8 +39,11 @@ Command set: `git diff --check && npm run typecheck && npm run lint && npm test 
 - `npm run lint`: pass, 0 errors, 42 warnings
 - `npm test`: pass, 1,097 total / 1,094 pass / 0 fail / 3 runtime skips
 - `npm run build`: pass (one Turbopack NFT trace warning)
-- Runtime on `:4103`: **down**; no current verifier receipt
-- Runtime on `:4115`: **down**
+- CCO-C2 rebuilt successfully at documentation-only HEAD `bad8ef1`
+- Runtime on `:4103`: **up** as repo-owned `next-server` PID `83183`
+- Runtime on `:4115`: **down** and intentionally unused
+- Anonymous runtime verifier: pass; authenticated 404 check skipped because
+  `AUTH_COOKIE` is absent
 
 The phase-level harness counts below are preserved as historical receipts.
 Do not cite 664/664, 696/696, 722/722, or 741/741 as current source truth.
@@ -404,11 +408,11 @@ image optimizer SSRF, obvious project ID guessing, hardcoded secret values in ch
 | F7 | Webhook hardening | Implemented | Source tests + runtime matrix PASS |
 | F8 | Real dynamic-route 404s | Implemented | Source tests pass; authenticated 404 blocked-on-env |
 | F9 | Middleware static metadata exclusions | Implemented | Source tests + curl-verified |
-| F10 | Production runtime tooling for port 4103 | Partial | Rebuild/verifier scripts exist; the current listener is down and proof is expired |
+| F10 | Production runtime tooling for port 4103 | Implemented | Current repo-owned `next start` and anonymous verifier receipt at `bad8ef1` |
 | F11 | Fail-closed storage and retry UI | Partial | Source tests pass; provider, write-enable, CCNAS, scanner, and positive media proof remain |
 | F12 | Stable auth session JSON | Implemented | Source tests + runtime matrix PASS |
 | F13 | Error and response hygiene | Implemented | Source tests + runtime matrix PASS |
-| F14 | Contract documentation | In progress | Four truth documents reconciled in CCO-C1; independent review required |
+| F14 | Contract documentation | Implemented | Four truth documents committed at `bad8ef1`; exact-diff rereview found no Critical or Important issues |
 
 ## Blocked-on-env
 
@@ -427,6 +431,35 @@ presence-only verification commands are in `BLOCKERS.md`.
 - `npm test`
 - `scripts/verify-runtime.sh`
 - Browser proof for upload, reload, playback, login, and protected-route behavior
+
+## Current runtime proof — 2026-07-26 (CCO-C2)
+
+This receipt is current only while the exact repo-owned process remains up. It
+expires on runtime stop, rebuild, or PID/listener/cwd drift. A
+runtime-affecting application or build-input change makes the running process
+no longer evidence for the current application tree. Documentation-only
+changes do not invalidate the exact built-runtime receipt.
+
+- Runtime build HEAD: `bad8ef16e8fd041f98095f068d89140f20d74e45`
+  (documentation-only descendant of the independently tested application
+  source at `a7eaaab`).
+- `scripts/rebuild-public-runtime.sh`: build pass with the unchanged Turbopack
+  NFT trace warning; started `next-server` v16.2.10 on `:4103`.
+- Process receipt: PID `83183`; cwd is the canonical M2 repo; `:4115` has no
+  listener.
+- `scripts/verify-runtime.sh`: pass for demo-query auth boundary, structured
+  session JSON, security headers, minimal health, no editor/RSC leak,
+  server-only Stripe exclusion, and unavailable source maps across 14 served
+  scripts.
+- Authenticated unknown-project 404: skipped because `AUTH_COOKIE` is absent.
+- Public health: `200 {"status":"ok"}` with `no-store`.
+- `/api/auth/session` and `/api/storage/readiness`: structured
+  `503 BACKEND_UNAVAILABLE`; `/api/health/ready`: structured
+  `503 HEALTH_AUTH_UNAVAILABLE`.
+
+This proves current production-mode serving and anonymous fail-closed behavior.
+It does not prove a configured backend, authenticated data, writable storage,
+scanner release, derivatives, or the real-file spine.
 
 ## Historical runtime proof — 2026-07-25 (post-cutover)
 

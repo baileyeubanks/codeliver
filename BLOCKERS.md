@@ -102,8 +102,10 @@ What it blocks:
 
 - Real NAS-backed upload, reload, playback, retry, export, and transcode
   behavior (F11) cannot be end-to-end proved.
-- The positive side of the storage contract is unproven. Source tests prove
-  fail-closed behavior, but no current runtime receipt exists.
+- The positive side of the storage contract is unproven. Source tests and the
+  current CCO-C2 runtime prove fail-closed behavior; the unauthenticated
+  readiness route currently returns structured `503 BACKEND_UNAVAILABLE`
+  before provider readiness can be evaluated.
 
 Read-only readiness check once an approved provider, write flag, corresponding
 root, authenticated session, and foreground production runtime exist:
@@ -196,13 +198,22 @@ environment problems:
 These gaps require bounded source packets with tests and independent review.
 They must not be papered over with demo-store state or a false-success UI.
 
-## Current evidence gap — no local runtime
+## Current evidence boundary — local runtime proved, private readiness open
 
-No process listened on M2 port `4103` or `4115` during CCO-C1 on 2026-07-26.
-The source harness is green, but the 2026-07-25 verifier receipt expired when
-that process stopped. CCO-C2 must establish a repo-owned `next start` process
-and produce a new verifier receipt without treating fail-closed behavior as
-positive media proof.
+CCO-C2 established a repo-owned M2 `next start` listener on port `4103` at
+documentation-only HEAD `bad8ef1`; port `4115` remains unused. The anonymous
+runtime verifier passed, while the authenticated 404 check skipped because
+`AUTH_COOKIE` is absent. The current session and storage-readiness endpoints
+fail closed with structured `503 BACKEND_UNAVAILABLE`, and detailed readiness
+fails closed with `503 HEALTH_AUTH_UNAVAILABLE`.
+
+This closes the no-listener gap only. It does not establish authenticated
+database behavior, positive provider readiness, media ingestion/release,
+playable derivatives, or the real-file spine. The receipt expires if PID
+`83183` stops, the runtime is rebuilt, or its cwd/listener identity changes.
+A runtime-affecting application or build-input change makes the process stale
+evidence for the current application tree; documentation-only changes do not
+invalidate the exact built-runtime receipt.
 
 Private service configuration, deployed runtime state, M4 state, CCNAS mount
 health, database contents, provider readiness, and production DNS/Coolify
@@ -211,8 +222,8 @@ provenance remain `UNKNOWN`; absence from this shell must not be generalized.
 ## Not blockers (do not re-litigate)
 
 - Runtime tooling exists: `scripts/rebuild-public-runtime.sh` and
-  `scripts/verify-runtime.sh` remain the required local path. Their historical
-  2026-07-25 success is preserved, but it is not current runtime evidence.
+  `scripts/verify-runtime.sh` remain the required local path. Their 2026-07-25
+  success is historical; the current bounded CCO-C2 receipt is in `STATUS.md`.
 - Missing optional email/AI provider keys (`RESEND_API_KEY`,
   `ANTHROPIC_API_KEY`): dependent routes fail closed by design.
 - Bodyless TUS `HEAD` responses: intentional HTTP/TUS protocol behavior.

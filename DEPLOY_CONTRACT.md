@@ -110,8 +110,13 @@ separate gates. The current source lacks the latter two.
 
 - Do not serve public Co-Deliver from `next dev`.
 - Public review, tus uploads, HLS playback, and signed download flows should run against a production build.
-- No process listened on M2 port `4103` or `4115` during CCO-C1 on 2026-07-26.
-  The 2026-07-25 runtime receipt is historical and must be rerun.
+- No process listened on M2 port `4103` or `4115` during CCO-C1. CCO-C2 then
+  established a repo-owned `next start` listener on `4103` and reran the
+  anonymous verifier at documentation-only HEAD `bad8ef1`; `4115` remains
+  unused. The live-process receipt expires on stop, rebuild, or
+  PID/listener/cwd drift. Runtime-affecting application/build-input changes
+  make it stale evidence for the current tree; documentation-only changes do
+  not invalidate the exact built-runtime receipt.
 - Terminal A owns the foreground runtime:
 
 ```bash

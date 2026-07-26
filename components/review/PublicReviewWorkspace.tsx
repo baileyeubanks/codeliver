@@ -1,12 +1,16 @@
 "use client";
 
-import React from "react";
-
-/* ──────────────────────────────────────────────────────────────────
-   PublicReviewWorkspace — Legacy layout shell for public review
-   pages (review/[token]). This preserves the old slot-driven API
-   that the 843-line PublicReviewPage depends on.
-   ────────────────────────────────────────────────────────────────── */
+import Image from "next/image";
+import {
+  CircleAlert,
+  Clapperboard,
+  ListChecks,
+  LoaderCircle,
+  MessageSquareText,
+} from "lucide-react";
+import React, { type CSSProperties } from "react";
+import { CoProductionBrand } from "@/components/brand/CoProductionBrand";
+import styles from "./PublicReviewWorkspace.module.css";
 
 interface Filter {
   id: string;
@@ -53,161 +57,239 @@ interface RailSection {
 export interface ReviewWorkspaceProps {
   loading: boolean;
   error: string;
+  brand?: {
+    displayName: string;
+    playerLabel: string;
+    primaryColor: string;
+    logoPath: string;
+  };
   header: React.ReactNode;
   stage: StageSection;
   rail: RailSection;
 }
 
-export default function ReviewWorkspace({
+function ReviewStats({
+  stats,
+  label,
+  rail = false,
+}: {
+  stats: string[];
+  label: string;
+  rail?: boolean;
+}) {
+  if (stats.length === 0) return null;
+
+  return (
+    <ul
+      className={`${styles.stats} ${rail ? styles.railStats : ""}`}
+      aria-label={label}
+    >
+      {stats.map((stat, index) => (
+        <li key={`${stat}-${index}`}>{stat}</li>
+      ))}
+    </ul>
+  );
+}
+
+export default function PublicReviewWorkspace({
   loading,
   error,
+  brand,
   header,
   stage,
   rail,
 }: ReviewWorkspaceProps) {
   if (loading) {
     return (
-      <div className="review-shell flex items-center justify-center min-h-screen">
-        <div className="spinner" />
+      <div className={`${styles.shell} ${styles.state}`} role="status" aria-live="polite">
+        <div className={styles.stateContent}>
+          <CoProductionBrand
+            className={styles.stateLogo}
+            variant="horizontal"
+            label="Co‑ProVideo by Content Co-op"
+            priority
+          />
+          <LoaderCircle className={styles.stateSpinner} size={24} aria-hidden="true" />
+          <div>
+            <strong>Preparing your review</strong>
+            <p>Loading the latest version, comments, and approval state.</p>
+          </div>
+        </div>
       </div>
     );
   }
 
   if (error) {
     return (
-      <div className="review-shell flex items-center justify-center min-h-screen">
-        <div className="text-center max-w-md mx-auto px-6">
-          <p className="text-lg font-semibold text-[var(--ink)] mb-2">Review unavailable</p>
-          <p className="text-sm text-[var(--muted)]">{error}</p>
+      <div className={`${styles.shell} ${styles.state}`} role="alert">
+        <div className={styles.stateContent}>
+          <CoProductionBrand
+            className={styles.stateLogo}
+            variant="horizontal"
+            label="Co‑ProVideo by Content Co-op"
+            priority
+          />
+          <CircleAlert className={styles.stateErrorIcon} size={24} aria-hidden="true" />
+          <div>
+            <strong>Review unavailable</strong>
+            <p>{error}</p>
+          </div>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="review-shell min-h-screen" style={{ background: "var(--bg)" }}>
-      {/* Header area */}
-      <div className="px-6 py-6 border-b border-[var(--border)]">
-        <div className="max-w-7xl mx-auto grid xl:grid-cols-2 gap-6">
-          {header}
+    <div
+      className={styles.shell}
+      style={
+        brand
+          ? ({ "--accent": brand.primaryColor } as CSSProperties)
+          : undefined
+      }
+    >
+      <a className={styles.skipLink} href="#public-review-workspace">
+        Skip to review workspace
+      </a>
+
+      <header className={styles.header} aria-label="Review header">
+        <div
+          className={`${styles.brand} ${brand ? styles.customBrand : styles.productBrand}`}
+          aria-label={brand?.displayName ?? "Co‑ProVideo by Content Co-op"}
+        >
+          {brand ? (
+            <>
+              <Image
+                className={styles.brandImage}
+                src={brand.logoPath}
+                alt=""
+                width={44}
+                height={44}
+                priority
+              />
+              <span className={styles.brandCopy}>
+                <strong>{brand.displayName}</strong>
+                <small>{brand.playerLabel}</small>
+              </span>
+            </>
+          ) : (
+            <CoProductionBrand
+              className={styles.brandLockup}
+              variant="horizontal"
+              label="Co‑ProVideo by Content Co-op"
+              priority
+            />
+          )}
         </div>
-      </div>
+        <div className={styles.meta}>{header}</div>
+      </header>
 
-      <div className="max-w-7xl mx-auto grid xl:grid-cols-[1fr_420px] gap-6 p-6">
-        {/* Stage (left) — media + context */}
-        <div className="space-y-6">
-          <div>
-            <p className="review-kicker mb-1">{stage.kicker}</p>
-            <h2 className="text-lg font-semibold tracking-tight" style={{ fontFamily: "var(--font-display)" }}>
-              {stage.title}
-            </h2>
-            <p className="text-sm text-[var(--muted)] mt-1">{stage.description}</p>
-          </div>
-
-          {stage.stats.length > 0 && (
-            <div className="flex flex-wrap gap-2">
-              {stage.stats.map((s, i) => (
-                <span
-                  key={i}
-                  className="rounded-full border border-[var(--border)] bg-[var(--surface)] px-3 py-1 text-xs text-[var(--muted)]"
-                >
-                  {s}
-                </span>
-              ))}
-            </div>
-          )}
-
-          {/* Media player */}
-          <div className="review-ring rounded-2xl overflow-hidden">{stage.media}</div>
-
-          {/* Context (selected comment or review state) */}
-          <div className="card p-4">{stage.context}</div>
-        </div>
-
-        {/* Rail (right) — comments, approval, composer */}
-        <div className="space-y-6">
-          <div>
-            <p className="review-kicker mb-1">{rail.kicker}</p>
-            <h2 className="text-lg font-semibold tracking-tight" style={{ fontFamily: "var(--font-display)" }}>
-              {rail.title}
-            </h2>
-            <p className="text-sm text-[var(--muted)] mt-1">{rail.description}</p>
-          </div>
-
-          {rail.stats.length > 0 && (
-            <div className="flex flex-wrap gap-2">
-              {rail.stats.map((s, i) => (
-                <span
-                  key={i}
-                  className="rounded-full border border-[var(--border)] bg-[var(--surface)] px-3 py-1 text-xs text-[var(--muted)]"
-                >
-                  {s}
-                </span>
-              ))}
-            </div>
-          )}
-
-          {/* Intro steps */}
-          {rail.intro}
-
-          {/* Approval section */}
-          {rail.approval && (
-            <div className="card p-4 space-y-4">
-              {rail.approval.header}
-              {rail.approval.summary}
-              {rail.approval.error && (
-                <p className="text-sm text-[var(--red)]">{rail.approval.error}</p>
-              )}
-              <div className="space-y-3">{rail.approval.content}</div>
-              {rail.approval.footer}
-            </div>
-          )}
-
-          {/* Comments section */}
-          <div className="card overflow-hidden">
-            <div className="p-4 border-b border-[var(--border)]">
-              <div className="flex items-center justify-between mb-1">
-                <h3 className="text-sm font-semibold">{rail.comments.title}</h3>
-                <span className="text-xs text-[var(--muted)]">{rail.comments.countLabel}</span>
+      <main id="public-review-workspace" className={styles.body} tabIndex={-1}>
+        <section className={styles.stage} aria-labelledby="public-review-stage-heading">
+          <header className={styles.stageHeader}>
+            <div className={styles.sectionLead}>
+              <span className={styles.sectionIcon} aria-hidden="true">
+                <Clapperboard size={16} strokeWidth={1.9} />
+              </span>
+              <div className={styles.sectionCopy}>
+                <p className={styles.kicker}>{stage.kicker}</p>
+                <h2 id="public-review-stage-heading" className={styles.heading}>
+                  {stage.title}
+                </h2>
+                <p className={styles.description}>{stage.description}</p>
               </div>
-              <p className="text-xs text-[var(--muted)]">{rail.comments.description}</p>
             </div>
 
-            {/* Filters */}
-            <div className="flex gap-1 px-4 py-2 border-b border-[var(--border)]">
-              {rail.comments.filters.map((f) => (
+            <ReviewStats stats={stage.stats} label="Review statistics" />
+          </header>
+
+          <div className={styles.media}>{stage.media}</div>
+          <section className={styles.context} aria-label="Review context" aria-live="polite">
+            {stage.context}
+          </section>
+        </section>
+
+        <aside className={styles.rail} aria-labelledby="public-review-rail-heading">
+          <header className={styles.railHeader}>
+            <div className={styles.sectionLead}>
+              <span className={styles.sectionIcon} aria-hidden="true">
+                <MessageSquareText size={16} strokeWidth={1.9} />
+              </span>
+              <div className={styles.sectionCopy}>
+                <p className={styles.kicker}>{rail.kicker}</p>
+                <h2 id="public-review-rail-heading" className={styles.heading}>
+                  {rail.title}
+                </h2>
+                <p className={styles.description}>{rail.description}</p>
+              </div>
+            </div>
+            <ReviewStats stats={rail.stats} label="Review rail statistics" rail />
+          </header>
+
+          {rail.intro ? (
+            <section className={styles.guide} aria-labelledby="public-review-guide-heading">
+              <div className={styles.panelHeading}>
+                <ListChecks size={15} aria-hidden="true" />
+                <h3 id="public-review-guide-heading">Review flow</h3>
+              </div>
+              <div className={styles.guideContent}>{rail.intro}</div>
+            </section>
+          ) : null}
+
+          {rail.approval ? (
+            <section className={styles.approval} aria-label="Approval">
+              <div className={styles.approvalContent}>
+                {rail.approval.header}
+                {rail.approval.summary}
+                {rail.approval.error ? (
+                  <p className={styles.approvalError} role="alert">
+                    {rail.approval.error}
+                  </p>
+                ) : null}
+                <div className={styles.approvalSteps}>{rail.approval.content}</div>
+                {rail.approval.footer}
+              </div>
+            </section>
+          ) : null}
+
+          <section className={styles.comments} aria-labelledby="public-review-comments-heading">
+            <header className={styles.commentsHeader}>
+              <div className={styles.commentsTitleRow}>
+                <h3 id="public-review-comments-heading">{rail.comments.title}</h3>
+                <span>{rail.comments.countLabel}</span>
+              </div>
+              <p>{rail.comments.description}</p>
+            </header>
+
+            <div className={styles.filters} role="group" aria-label="Comment filters">
+              {rail.comments.filters.map((filter) => (
                 <button
-                  key={f.id}
-                  onClick={f.onClick}
-                  className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${
-                    f.active
-                      ? "bg-[var(--accent-dim)] text-[var(--accent)]"
-                      : "text-[var(--muted)] hover:text-[var(--ink)] hover:bg-[var(--surface-hover)]"
-                  }`}
+                  key={filter.id}
+                  type="button"
+                  onClick={filter.onClick}
+                  aria-pressed={filter.active}
+                  className={filter.active ? styles.activeFilter : undefined}
                 >
-                  {f.label}
+                  {filter.label}
                 </button>
               ))}
             </div>
 
-            <div className="p-4">
+            <div className={styles.commentList}>
               {rail.comments.hasResults ? (
                 rail.comments.content
               ) : (
-                <div className="py-6 text-center">
-                  <p className="text-sm font-medium text-[var(--muted)] mb-1">
-                    {rail.comments.emptyTitle}
-                  </p>
-                  <p className="text-xs text-[var(--dim)]">{rail.comments.emptyDescription}</p>
+                <div className={styles.emptyComments}>
+                  <p>{rail.comments.emptyTitle}</p>
+                  <span>{rail.comments.emptyDescription}</span>
                 </div>
               )}
             </div>
-          </div>
+          </section>
 
-          {/* Composer */}
-          {rail.composer}
-        </div>
-      </div>
+          <div className={styles.composer}>{rail.composer}</div>
+        </aside>
+      </main>
     </div>
   );
 }

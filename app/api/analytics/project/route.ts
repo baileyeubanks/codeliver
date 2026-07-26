@@ -1,6 +1,7 @@
-import { NextResponse } from "next/server";
+import { getProjectAccess } from "@/lib/access-control";
 import { requireAuth } from "@/lib/auth";
 import { getSupabase } from "@/lib/supabase";
+import { apiError, apiJson, backendUnavailable } from "@/lib/api/responses";
 
 interface DayCount {
   date: string;
@@ -23,9 +24,10 @@ interface ReviewerStat {
 }
 
 export async function GET(req: Request) {
+  try {
   const user = await requireAuth();
   if (!user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    return apiError("Unauthorized", "UNAUTHORIZED", 401);
   }
 
   const { searchParams } = new URL(req.url);
@@ -33,44 +35,49 @@ export async function GET(req: Request) {
   const type = searchParams.get("type");
 
   if (!projectId) {
-    return NextResponse.json({ error: "project_id required" }, { status: 400 });
+    return apiError("project_id required", "INVALID_REQUEST", 400);
   }
 
   const supabase = getSupabase();
 
-  // Verify ownership
-  const { data: project, error: projErr } = await supabase
-    .from("projects")
-    .select("id")
-    .eq("id", projectId)
-    .eq("owner_id", user.id)
-    .single();
-
-  if (projErr || !project) {
-    return NextResponse.json({ error: "Project not found" }, { status: 404 });
+  const projectAccess = await getProjectAccess(
+    projectId,
+    user.id,
+    type === "reviewers" ? "member" : "viewer",
+    supabase,
+  );
+  if (!projectAccess.ok) {
+    return apiError(projectAccess.error, "PROJECT_ACCESS_DENIED", projectAccess.status);
   }
+
+  const { data: assetRows, error: assetError } = await supabase
+    .from("assets")
+    .select("id")
+    .eq("project_id", projectId);
+  if (assetError) {
+    return apiError("Analytics data is unavailable", "BACKEND_UNAVAILABLE", 503);
+  }
+  const assetIds = (assetRows ?? []).map((asset: { id: string }) => asset.id);
 
   // Reviewer stats mode
   if (type === "reviewers") {
-    return getReviewerStats(supabase, projectId);
+    return getReviewerStats(supabase, assetIds);
   }
 
   // Default: aggregate analytics
-  return getAggregateAnalytics(supabase, projectId);
+  return getAggregateAnalytics(supabase, projectId, assetIds);
+  } catch {
+    return backendUnavailable();
+  }
 }
 
 async function getAggregateAnalytics(
   supabase: ReturnType<typeof getSupabase>,
-  projectId: string
+  projectId: string,
+  assetIds: string[],
 ) {
-  // Total assets
-  const { count: totalAssets } = await supabase
-    .from("assets")
-    .select("id", { count: "exact", head: true })
-    .eq("project_id", projectId);
-
   // Active reviews (assets with status in_review)
-  const { count: activeReviews } = await supabase
+  const { count: activeReviews, error: activeReviewsError } = await supabase
     .from("assets")
     .select("id", { count: "exact", head: true })
     .eq("project_id", projectId)
@@ -79,34 +86,23 @@ async function getAggregateAnalytics(
   // Comments this week
   const weekAgo = new Date();
   weekAgo.setDate(weekAgo.getDate() - 7);
-  const { count: commentsThisWeek } = await supabase
-    .from("comments")
-    .select("id", { count: "exact", head: true })
-    .in(
-      "asset_id",
-      (
-        await supabase
-          .from("assets")
-          .select("id")
-          .eq("project_id", projectId)
-      ).data?.map((a: { id: string }) => a.id) ?? []
-    )
-    .gte("created_at", weekAgo.toISOString());
+  const commentsThisWeekResult = assetIds.length
+    ? await supabase
+        .from("comments")
+        .select("id", { count: "exact", head: true })
+        .in("asset_id", assetIds)
+        .gte("created_at", weekAgo.toISOString())
+    : { count: 0, error: null };
 
   // Approval decisions breakdown
-  const { data: steps } = await supabase
-    .from("approval_steps")
-    .select("status, decided_at, created_at")
-    .in(
-      "asset_id",
-      (
-        await supabase
-          .from("assets")
-          .select("id")
-          .eq("project_id", projectId)
-      ).data?.map((a: { id: string }) => a.id) ?? []
-    )
-    .neq("status", "pending");
+  const stepsResult = assetIds.length
+    ? await supabase
+        .from("approvals")
+        .select("status, decided_at, created_at")
+        .in("asset_id", assetIds)
+        .neq("status", "pending")
+    : { data: [], error: null };
+  const steps = stepsResult.data;
 
   const decisions: Record<string, number> = {};
   let totalApprovalMs = 0;
@@ -132,20 +128,24 @@ async function getAggregateAnalytics(
   const thirtyDaysAgo = new Date();
   thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 
-  const { data: recentComments } = await supabase
-    .from("comments")
-    .select("created_at")
-    .in(
-      "asset_id",
-      (
-        await supabase
-          .from("assets")
-          .select("id")
-          .eq("project_id", projectId)
-      ).data?.map((a: { id: string }) => a.id) ?? []
-    )
-    .gte("created_at", thirtyDaysAgo.toISOString())
-    .order("created_at", { ascending: true });
+  const recentCommentsResult = assetIds.length
+    ? await supabase
+        .from("comments")
+        .select("created_at")
+        .in("asset_id", assetIds)
+        .gte("created_at", thirtyDaysAgo.toISOString())
+        .order("created_at", { ascending: true })
+    : { data: [], error: null };
+  const recentComments = recentCommentsResult.data;
+
+  const queryError =
+    activeReviewsError ??
+    commentsThisWeekResult.error ??
+    stepsResult.error ??
+    recentCommentsResult.error;
+  if (queryError) {
+    return apiError("Analytics data is unavailable", "BACKEND_UNAVAILABLE", 503);
+  }
 
   const commentsPerDay: DayCount[] = [];
   const dayMap = new Map<string, number>();
@@ -163,10 +163,10 @@ async function getAggregateAnalytics(
     commentsPerDay.push({ date: key, count: dayMap.get(key) || 0 });
   }
 
-  return NextResponse.json({
-    total_assets: totalAssets ?? 0,
+  return apiJson({
+    total_assets: assetIds.length,
     active_reviews: activeReviews ?? 0,
-    comments_this_week: commentsThisWeek ?? 0,
+    comments_this_week: commentsThisWeekResult.count ?? 0,
     avg_approval_hours: avgApprovalHours,
     comments_per_day: commentsPerDay,
     decisions,
@@ -175,30 +175,27 @@ async function getAggregateAnalytics(
 
 async function getReviewerStats(
   supabase: ReturnType<typeof getSupabase>,
-  projectId: string
+  ids: string[],
 ) {
-  const { data: assetIds } = await supabase
-    .from("assets")
-    .select("id")
-    .eq("project_id", projectId);
-
-  const ids = assetIds?.map((a: { id: string }) => a.id) ?? [];
-
   if (ids.length === 0) {
-    return NextResponse.json({ reviewers: [] });
+    return apiJson({ reviewers: [] });
   }
 
   // Get all approval steps for this project
-  const { data: allSteps } = await supabase
-    .from("approval_steps")
+  const { data: allSteps, error: stepsError } = await supabase
+    .from("approvals")
     .select("assignee_email, status, decided_at, created_at")
     .in("asset_id", ids);
 
   // Get all comments for this project
-  const { data: allComments } = await supabase
+  const { data: allComments, error: commentsError } = await supabase
     .from("comments")
     .select("author_email")
     .in("asset_id", ids);
+  const queryError = stepsError ?? commentsError;
+  if (queryError) {
+    return apiError("Analytics data is unavailable", "BACKEND_UNAVAILABLE", 503);
+  }
 
   const reviewerMap = new Map<string, {
     decisions: number;
@@ -271,5 +268,5 @@ async function getReviewerStats(
     });
   }
 
-  return NextResponse.json({ reviewers });
+  return apiJson({ reviewers });
 }

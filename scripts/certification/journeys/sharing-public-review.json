@@ -1,0 +1,78 @@
+{
+  "schemaVersion": 1,
+  "kind": "journey",
+  "id": "sharing-public-review",
+  "title": "Create, deliver, revoke, and audit a public review link",
+  "horizon": 1,
+  "proofTtlDays": 7,
+  "routes": [
+    "/projects/[id]/assets/[assetId]",
+    "/review/[token]",
+    "/api/assets/[id]/share",
+    "/api/review/[token]",
+    "/api/review/[token]/comments",
+    "/api/review/[token]/edit-decisions",
+    "/api/review/[token]/approvals",
+    "/api/sharing/analytics",
+    "/api/sharing/watermark",
+    "/api/approvals/notify"
+  ],
+  "states": [
+    "link configured",
+    "link delivered",
+    "password challenged",
+    "review opened",
+    "commented",
+    "approved",
+    "expired",
+    "revoked",
+    "view limit reached"
+  ],
+  "viewports": [
+    { "id": "mobile", "width": 390, "height": 844 },
+    { "id": "desktop", "width": 1440, "height": 1000 }
+  ],
+  "accessibility": [
+    "Public review works without dashboard navigation assumptions",
+    "Password, player, comment, and approval controls are keyboard operable",
+    "Permission and error states are announced and not color-only",
+    "Automated critical and serious accessibility violations equal zero"
+  ],
+  "securityInvariants": [
+    "Token rows are not publicly enumerable",
+    "Password, expiry, revocation, view limit, download, and watermark policy are server-enforced",
+    "A link binds to an immutable asset version",
+    "View-limit increments and first access are atomic and replay-safe"
+  ],
+  "persistence": [
+    "External comments and approvals persist with reviewer attribution",
+    "Revocation takes effect for existing and new sessions",
+    "Every open, download, comment, and decision has an auditable event"
+  ],
+  "concurrency": [
+    "Parallel opens cannot exceed the configured view limit",
+    "Parallel approval submissions are idempotent",
+    "A new version does not alter an already issued immutable link"
+  ],
+  "degradedDependencies": [
+    "Email failure leaves the link copyable and records delivery failure",
+    "Analytics failure does not bypass access policy",
+    "Watermark service failure fails closed when watermark is required"
+  ],
+  "rollback": [
+    "Revoked links remain revoked after application rollback",
+    "Rollback preserves password hashes and immutable version binding"
+  ],
+  "performanceBudgets": [
+    { "metric": "public-review-load-p95-ms", "operator": "<=", "value": 1000 },
+    { "metric": "media-first-playable-frame-p95-ms", "operator": "<=", "value": 2000 },
+    { "metric": "public-comment-mutation-p95-ms", "operator": "<=", "value": 750 }
+  ],
+  "checks": [
+    "evidence.sharing-public-review",
+    "security.review-link-row-privacy",
+    "security.review-link-password",
+    "security.public-file-controls",
+    "consistency.version-binding"
+  ]
+}

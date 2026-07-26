@@ -1,0 +1,137 @@
+.shell {
+  position: relative;
+}
+
+.brandLockup {
+  --co-production-brand-width: 164px;
+}
+
+.skipLink {
+  position: fixed;
+  top: 8px;
+  left: 8px;
+  z-index: 520;
+  min-height: 38px;
+  display: flex;
+  align-items: center;
+  padding: 0 12px;
+  border: 2px solid var(--accent, #156bff);
+  border-radius: 6px;
+  background: var(--surface, #fff);
+  color: var(--accent, #156bff);
+  font-size: 0.75rem;
+  font-weight: 700;
+  transform: translateY(-160%);
+  transition: transform 140ms ease;
+}
+
+.skipLink:focus {
+  transform: translateY(0);
+}
+
+.menuButton {
+  flex: 0 0 40px;
+}
+
+.searchButton {
+  letter-spacing: 0;
+}
+
+.searchButton::after {
+  content: "";
+  width: 6px;
+  height: 6px;
+  margin-left: auto;
+  border-radius: 50%;
+  background: var(--green, #26915b);
+  opacity: 0.8;
+}
+
+.shell[data-online="false"] .searchButton::after {
+  background: var(--orange, #c97b20);
+}
+
+.main {
+  position: relative;
+  scroll-padding-top: 42px;
+}
+
+.content {
+  min-width: 0;
+  min-height: 100%;
+}
+
+.offlineNotice {
+  position: sticky;
+  top: 0;
+  z-index: 90;
+  min-height: 34px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 7px 14px;
+  border-bottom: 1px solid color-mix(in srgb, var(--orange, #c97b20) 28%, var(--border, #dfe4ec));
+  background: color-mix(in srgb, var(--orange-dim, rgba(201, 123, 32, 0.13)) 68%, var(--surface, #fff));
+  color: var(--ink-secondary, #3f4962);
+  font-size: 0.68rem;
+  font-weight: 620;
+  text-align: center;
+}
+
+.accountRole {
+  display: block;
+  padding: 7px 14px 8px;
+  border-bottom: 1px solid var(--border, #dfe4ec);
+  color: var(--muted, #707b91);
+  font-size: 0.64rem;
+  font-style: normal;
+  text-transform: capitalize;
+}
+
+.shell :where(button, a, input, select):focus-visible {
+  outline: 2px solid var(--accent, #156bff);
+  outline-offset: 2px;
+}
+
+@media (max-width: 760px) {
+  .brandLockup {
+    --co-production-brand-width: 132px;
+  }
+
+  .main {
+    padding-bottom: calc(58px + env(safe-area-inset-bottom));
+  }
+
+  .searchButton::after {
+    display: none;
+  }
+}
+
+@media (max-width: 390px) {
+  .brandLockup {
+    --co-production-brand-width: 118px;
+  }
+
+  .menuButton {
+    flex-basis: 38px;
+  }
+}
+
+@media (max-width: 1120px) and (min-width: 901px) {
+  .brandLockup {
+    --co-production-brand-width: 158px;
+  }
+}
+
+@media (max-width: 900px) and (min-width: 761px) {
+  .brandLockup {
+    --co-production-brand-width: 148px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .skipLink {
+    transition: none;
+  }
+}

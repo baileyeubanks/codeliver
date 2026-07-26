@@ -1,0 +1,27 @@
+- banner:
+  - button "Menu":
+  - link "Content Co-op":
+    - /url: /projects?demo=1
+    - generic: Content Co-op
+  - navigation:
+    - link "Dashboard":
+      - /url: /?demo=1
+    - link "Projects":
+      - /url: /projects?demo=1
+    - link "Reviews":
+      - /url: /reviews?demo=1
+  - button "Help & Feedback":
+  - button "Search":
+  - button:
+- main:
+  - heading "Media Library" [level=1]
+  - paragraph: All assets across your projects
+  - textbox "Search assets..."
+  - button "all"
+  - button "video"
+  - button "image"
+  - button "audio"
+  - button "document"
+  - paragraph: No assets yet
+- button "Open Next.js Dev Tools":
+- alert

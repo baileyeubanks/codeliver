@@ -1,105 +1,84 @@
-import { NextResponse } from "next/server";
+import { apiJson } from "@/lib/api/responses";
+import { getAssetAccess } from "@/lib/access-control";
 import { requireAuth } from "@/lib/auth";
 import { getSupabase } from "@/lib/supabase";
+import { resolveAssetVersion } from "@/lib/versions";
 
-export async function GET(req: Request) {
-  const user = await requireAuth();
-  if (!user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
-  const { searchParams } = new URL(req.url);
-  const assetId = searchParams.get("asset_id");
-
-  if (!assetId) {
-    return NextResponse.json({ error: "asset_id required" }, { status: 400 });
-  }
-
-  const supabase = getSupabase();
-
-  const { data, error } = await supabase
-    .from("transcriptions")
-    .select("*")
-    .eq("asset_id", assetId)
-    .order("created_at", { ascending: false })
-    .limit(1)
-    .maybeSingle();
-
-  if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
-  }
-
-  if (!data) {
-    return NextResponse.json({ transcription: null });
-  }
-
-  return NextResponse.json({ transcription: data });
+function noStore(body: unknown, init?: ResponseInit) {
+  return apiJson(body as Record<string, unknown>, init);
 }
 
-export async function POST(req: Request) {
-  const user = await requireAuth();
-  if (!user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+export async function GET(request: Request) {
+  let user;
+  try { user = await requireAuth(); } catch { return noStore({ error: "Transcription service is unavailable", code: "BACKEND_UNAVAILABLE" }, { status: 503 }); }
+  if (!user) return noStore({ error: "Unauthorized" }, { status: 401 });
+
+  const search = new URL(request.url).searchParams;
+  const assetId = search.get("asset_id");
+  const versionId = search.get("version_id");
+  if (!assetId || !versionId) {
+    return noStore(
+      { error: "asset_id and version_id are required" },
+      { status: 400 },
+    );
   }
 
-  const body = await req.json();
-  const { asset_id } = body as { asset_id?: string };
-
-  if (!asset_id) {
-    return NextResponse.json({ error: "asset_id required" }, { status: 400 });
+  let access;
+  try { access = await getAssetAccess(assetId, user.id, "viewer"); } catch { return noStore({ error: "Transcription service is unavailable", code: "BACKEND_UNAVAILABLE" }, { status: 503 }); }
+  if (!access.ok) {
+    return noStore({ error: access.error }, { status: access.status });
+  }
+  const version = await resolveAssetVersion({ assetId, versionId });
+  if (!version.ok) {
+    return noStore({ error: version.error }, { status: version.status });
   }
 
-  const supabase = getSupabase();
-
-  // Verify asset exists
-  const { data: asset, error: assetErr } = await supabase
-    .from("assets")
-    .select("id, file_type")
-    .eq("id", asset_id)
-    .single();
-
-  if (assetErr || !asset) {
-    return NextResponse.json({ error: "Asset not found" }, { status: 404 });
-  }
-
-  // Check for existing processing transcription
-  const { data: existing } = await supabase
+  let result;
+  try { result = await getSupabase()
     .from("transcriptions")
-    .select("id, status")
-    .eq("asset_id", asset_id)
-    .in("status", ["pending", "processing"])
-    .maybeSingle();
+    .select("id, asset_id, version_id, language, status, segments, created_at")
+    .eq("asset_id", assetId)
+    .eq("version_id", versionId)
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle(); } catch { return noStore({ error: "Transcription data is temporarily unavailable", code: "BACKEND_UNAVAILABLE" }, { status: 503 }); }
+  const { data, error } = result;
 
-  if (existing) {
-    return NextResponse.json({
-      id: (existing as { id: string }).id,
-      status: (existing as { status: string }).status,
-      message: "Transcription already in progress",
-    });
+  if (error) {
+    return noStore(
+      { error: "Transcription data is temporarily unavailable" },
+      { status: 503 },
+    );
+  }
+  return noStore({ transcription: data ?? null, version: version.version });
+}
+
+export async function POST(request: Request) {
+  let user;
+  try { user = await requireAuth(); } catch { return noStore({ error: "Transcription service is unavailable", code: "BACKEND_UNAVAILABLE" }, { status: 503 }); }
+  if (!user) return noStore({ error: "Unauthorized" }, { status: 401 });
+
+  const body = await request.json().catch(() => null);
+  const assetId =
+    body && typeof body === "object" && !Array.isArray(body) &&
+    typeof body.asset_id === "string"
+      ? body.asset_id
+      : null;
+  if (!assetId) {
+    return noStore({ error: "asset_id is required" }, { status: 400 });
+  }
+  let access;
+  try { access = await getAssetAccess(assetId, user.id, "editor"); } catch { return noStore({ error: "Transcription service is unavailable", code: "BACKEND_UNAVAILABLE" }, { status: 503 }); }
+  if (!access.ok) {
+    return noStore({ error: access.error }, { status: access.status });
   }
 
-  // Create placeholder transcription record
-  // In production, this would trigger a Whisper API call
-  const { data: transcription, error: insertErr } = await supabase
-    .from("transcriptions")
-    .insert({
-      asset_id,
-      status: "processing",
-      segments: [],
-      language: "en",
-    })
-    .select("id, status")
-    .single();
-
-  if (insertErr) {
-    return NextResponse.json({ error: insertErr.message }, { status: 500 });
-  }
-
-  const result = transcription as { id: string; status: string };
-
-  return NextResponse.json({
-    id: result.id,
-    status: result.status,
-    message: "Transcription job started",
-  });
+  return noStore(
+    {
+      error: "The legacy transcription starter is disabled because it has no durable worker",
+      next_endpoint: `/api/assets/${encodeURIComponent(assetId)}/transcript`,
+      persistence: "not_written",
+    },
+    { status: 503 },
+  );
 }

@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import {
+  AlertCircle,
   Check,
   Clock,
   Copy,
@@ -10,6 +11,7 @@ import {
   ExternalLink,
   Eye,
   MessageSquare,
+  RotateCw,
   Shield,
   Trash2,
 } from "lucide-react";
@@ -19,6 +21,7 @@ import {
   formatShareIntentMeta,
   type ShareIntent,
 } from "@/lib/sharing/share-intent";
+import { toClientSiteUrl } from "@/lib/surface-origins";
 import type { ShareLink, SharePermission } from "@/lib/types/codeliver";
 
 interface ShareLinkListProps {
@@ -28,6 +31,13 @@ interface ShareLinkListProps {
 
 type ShareLinkWithIntent = ShareLink & {
   share_intent?: ShareIntent;
+  authority_status?: "active" | "revoked_or_expired" | "view_limit_reached";
+  version?: {
+    id: string;
+    version_number: number;
+    is_current: boolean;
+  } | null;
+  version_binding_error?: string | null;
 };
 
 function capabilityLabel(permission: SharePermission) {
@@ -36,20 +46,79 @@ function capabilityLabel(permission: SharePermission) {
   return "View only";
 }
 
+function resolveReviewUrl(token: string): string | null {
+  if (!token) return null;
+
+  try {
+    const runtimeOrigin = typeof window === "undefined" ? undefined : window.location.origin;
+    return toClientSiteUrl(`/review/${encodeURIComponent(token)}`, runtimeOrigin);
+  } catch {
+    return null;
+  }
+}
+
+function newRotationRequestId(): string {
+  if (typeof globalThis.crypto?.randomUUID === "function") {
+    return globalThis.crypto.randomUUID();
+  }
+
+  return `rotation-${Date.now()}-${Math.random().toString(36).slice(2, 12)}`;
+}
+
 export default function ShareLinkList({ assetId, refreshKey = 0 }: ShareLinkListProps) {
   const [links, setLinks] = useState<ShareLinkWithIntent[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loadedKey, setLoadedKey] = useState("");
+  const [loadError, setLoadError] = useState<{
+    requestKey: string;
+    message: string;
+  } | null>(null);
   const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [localRefresh, setLocalRefresh] = useState(0);
+  const [rotatingId, setRotatingId] = useState<string | null>(null);
+  const requestKey = `${assetId}:${refreshKey}:${localRefresh}`;
+  const loading = loadedKey !== requestKey;
+  const activeLoadError = loadError?.requestKey === requestKey ? loadError.message : null;
 
   useEffect(() => {
-    setLoading(true);
+    let cancelled = false;
+    const controller = new AbortController();
 
-    fetch(`/api/assets/${assetId}/share`)
-      .then((r) => r.json())
-      .then((data) => setLinks(data.items ?? []))
-      .catch(() => {})
-      .finally(() => setLoading(false));
-  }, [assetId, refreshKey]);
+    fetch(`/api/assets/${assetId}/share`, { signal: controller.signal })
+      .then(async (response) => {
+        if (!response.ok) throw new Error("Share links request failed");
+
+        const data: unknown = await response.json();
+        if (
+          !data ||
+          typeof data !== "object" ||
+          !("items" in data) ||
+          !Array.isArray(data.items)
+        ) {
+          throw new Error("Share links response was invalid");
+        }
+
+        if (!cancelled) {
+          setLinks(data.items as ShareLinkWithIntent[]);
+          setLoadError(null);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setLoadError({
+            requestKey,
+            message: "Check your connection and try loading the handoffs again.",
+          });
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setLoadedKey(requestKey);
+      });
+
+    return () => {
+      cancelled = true;
+      controller.abort();
+    };
+  }, [assetId, requestKey]);
 
   const orderedLinks = useMemo(
     () =>
@@ -59,8 +128,8 @@ export default function ShareLinkList({ assetId, refreshKey = 0 }: ShareLinkList
     [links],
   );
 
-  function copyLink(token: string, id: string) {
-    navigator.clipboard.writeText(`${window.location.origin}/review/${token}`);
+  function copyLink(publicUrl: string, id: string) {
+    navigator.clipboard.writeText(publicUrl);
     setCopiedId(id);
     setTimeout(() => setCopiedId(null), 2000);
   }
@@ -73,12 +142,65 @@ export default function ShareLinkList({ assetId, refreshKey = 0 }: ShareLinkList
     });
 
     if (res.ok) {
-      setLinks((prev) => prev.filter((link) => link.id !== id));
+      setLinks((prev) =>
+        prev.map((link) =>
+          link.id === id
+            ? { ...link, expires_at: new Date().toISOString(), authority_status: "revoked_or_expired" }
+            : link,
+        ),
+      );
     }
   }
 
+  async function rotateLink(id: string) {
+    setRotatingId(id);
+    const requestId = newRotationRequestId();
+    const res = await fetch(`/api/assets/${assetId}/share`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "rotate", id, request_id: requestId }),
+    });
+    if (res.ok) setLocalRefresh((current) => current + 1);
+    setRotatingId(null);
+  }
+
+  function retryLoad() {
+    setLocalRefresh((current) => current + 1);
+  }
+
   if (loading) {
-    return <div className="skeleton h-24 rounded-[var(--radius)]" />;
+    return (
+      <div role="status" aria-live="polite">
+        <span className="sr-only">Loading handoffs</span>
+        <div aria-hidden="true" className="skeleton h-24 rounded-[var(--radius)]" />
+      </div>
+    );
+  }
+
+  if (activeLoadError) {
+    return (
+      <div
+        role="alert"
+        aria-atomic="true"
+        className="rounded-[var(--radius)] border border-[var(--red)]/30 bg-[var(--red)]/5 px-4 py-4"
+      >
+        <div className="flex items-start gap-3">
+          <AlertCircle aria-hidden="true" className="mt-0.5 shrink-0 text-[var(--red)]" size={18} />
+          <div>
+            <p className="text-sm font-medium text-[var(--ink)]">Unable to load handoffs</p>
+            <p className="mt-1 text-sm text-[var(--muted)]">{activeLoadError}</p>
+          </div>
+        </div>
+        <button
+          type="button"
+          onClick={retryLoad}
+          className="mt-3 inline-flex items-center gap-1.5 text-sm font-medium text-[var(--accent)] transition-colors hover:text-[var(--accent-hover)]"
+        >
+          <RotateCw aria-hidden="true" size={14} />
+          Retry
+        </button>
+      </div>
+    );
   }
 
   if (orderedLinks.length === 0) {
@@ -95,7 +217,7 @@ export default function ShareLinkList({ assetId, refreshKey = 0 }: ShareLinkList
   return (
     <div className="space-y-3">
       <h4 className="text-xs font-semibold uppercase tracking-[0.14em] text-[var(--muted)]">
-        Active handoffs ({orderedLinks.length})
+        Handoffs ({orderedLinks.length})
       </h4>
 
       {orderedLinks.map((link) => {
@@ -110,6 +232,7 @@ export default function ShareLinkList({ assetId, refreshKey = 0 }: ShareLinkList
             watermarkEnabled: link.watermark_enabled,
           });
         const meta = formatShareIntentMeta(shareIntent);
+        const publicUrl = resolveReviewUrl(link.token);
 
         return (
           <div
@@ -137,6 +260,15 @@ export default function ShareLinkList({ assetId, refreshKey = 0 }: ShareLinkList
                   <span className="rounded-full bg-[var(--surface-2)] px-3 py-1 text-[11px] text-[var(--muted)]">
                     {capabilityLabel(link.permissions)}
                   </span>
+                  {link.version ? (
+                    <span className="rounded-full bg-[var(--surface-2)] px-3 py-1 text-[11px] text-[var(--muted)]">
+                      v{link.version.version_number}
+                    </span>
+                  ) : (
+                    <span className="rounded-full bg-[var(--red)]/10 px-3 py-1 text-[11px] text-[var(--red)]">
+                      Version unbound
+                    </span>
+                  )}
                   {disabled ? (
                     <span className="rounded-full bg-[var(--red)]/10 px-3 py-1 text-[11px] font-medium text-[var(--red)]">
                       {isExpired ? "Expired" : "View limit reached"}
@@ -193,7 +325,7 @@ export default function ShareLinkList({ assetId, refreshKey = 0 }: ShareLinkList
             <div className="mt-3 flex flex-wrap items-center gap-3 text-sm">
               {link.reviewer_name || link.reviewer_email ? (
                 <span className="text-[var(--muted)]">
-                  Sent to <span className="font-medium text-[var(--ink)]">{link.reviewer_name || link.reviewer_email}</span>
+                  Recipient <span className="font-medium text-[var(--ink)]">{link.reviewer_name || link.reviewer_email}</span>
                 </span>
               ) : (
                 <span className="text-[var(--dim)]">Link can be shared manually</span>
@@ -206,29 +338,49 @@ export default function ShareLinkList({ assetId, refreshKey = 0 }: ShareLinkList
             </div>
 
             <div className="mt-4 flex flex-wrap items-center gap-4 text-xs">
-              <button
-                onClick={() => copyLink(link.token, link.id)}
-                className="inline-flex items-center gap-1 text-[var(--accent)] transition-colors hover:text-[var(--accent-hover)]"
-              >
-                {copiedId === link.id ? <Check size={12} /> : <Copy size={12} />}
-                {copiedId === link.id ? "Copied" : "Copy link"}
-              </button>
-              <a
-                href={`/review/${link.token}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center gap-1 text-[var(--muted)] transition-colors hover:text-[var(--ink)]"
-              >
-                <ExternalLink size={12} />
-                Open page
-              </a>
-              <button
-                onClick={() => revokeLink(link.id)}
-                className="ml-auto inline-flex items-center gap-1 text-[var(--red)] transition-colors hover:underline"
-              >
-                <Trash2 size={12} />
-                Revoke
-              </button>
+              {!disabled ? (
+                <>
+                  {publicUrl ? (
+                    <>
+                      <button
+                        onClick={() => copyLink(publicUrl, link.id)}
+                        className="inline-flex items-center gap-1 text-[var(--accent)] transition-colors hover:text-[var(--accent-hover)]"
+                      >
+                        {copiedId === link.id ? <Check size={12} /> : <Copy size={12} />}
+                        {copiedId === link.id ? "Copied" : "Copy link"}
+                      </button>
+                      <a
+                        href={publicUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1 text-[var(--muted)] transition-colors hover:text-[var(--ink)]"
+                      >
+                        <ExternalLink size={12} />
+                        Open page
+                      </a>
+                    </>
+                  ) : (
+                    <span className="text-[var(--red)]">Link origin unavailable</span>
+                  )}
+                  <button
+                    onClick={() => rotateLink(link.id)}
+                    disabled={rotatingId === link.id}
+                    className="inline-flex items-center gap-1 text-[var(--muted)] transition-colors hover:text-[var(--ink)] disabled:opacity-50"
+                  >
+                    <RotateCw size={12} className={rotatingId === link.id ? "animate-spin" : ""} />
+                    Rotate
+                  </button>
+                  <button
+                    onClick={() => revokeLink(link.id)}
+                    className="ml-auto inline-flex items-center gap-1 text-[var(--red)] transition-colors hover:underline"
+                  >
+                    <Trash2 size={12} />
+                    Revoke
+                  </button>
+                </>
+              ) : (
+                <span className="ml-auto text-[var(--dim)]">Retained audit record</span>
+              )}
             </div>
           </div>
         );

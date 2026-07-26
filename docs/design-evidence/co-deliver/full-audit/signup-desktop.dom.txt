@@ -1,0 +1,17 @@
+- main:
+  - link "← Back to sign in":
+    - /url: /login
+  - generic: Co-Deliver
+  - heading "Create account" [level=1]
+  - paragraph: Create a standalone Co-Deliver account for internal review operations.
+  - generic: Name
+  - textbox "Your name"
+  - generic: Email *
+  - textbox "you@company.com"
+  - generic: Password *
+  - textbox "At least 6 characters"
+  - generic: Confirm password *
+  - textbox "Confirm password"
+  - button "Create account"
+- button "Open Next.js Dev Tools":
+- alert

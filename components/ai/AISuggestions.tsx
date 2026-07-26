@@ -11,6 +11,7 @@ import {
 
 interface AISuggestionsProps {
   assetId: string;
+  versionId: string;
   comments: Array<{
     body: string;
     author_name: string;
@@ -52,6 +53,7 @@ function formatTimecode(seconds: number): string {
 
 export default function AISuggestions({
   assetId,
+  versionId,
   comments,
 }: AISuggestionsProps) {
   const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
@@ -68,7 +70,7 @@ export default function AISuggestions({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           asset_id: assetId,
-          comments,
+          version_id: versionId,
           mode: "suggestions",
         }),
       });

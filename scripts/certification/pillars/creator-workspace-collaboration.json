@@ -1,0 +1,54 @@
+{
+  "schemaVersion": 1,
+  "kind": "pillar",
+  "id": "creator-workspace-collaboration",
+  "title": "Creator workspace, mobile review, desktop cockpit, and collaboration",
+  "horizons": [1, 2, 3],
+  "owner": "Product experience",
+  "objective": "Keep the mobile review path simple and the desktop cockpit powerful without sacrificing accessibility, authority, or performance.",
+  "authorityDomains": ["identity", "tenant", "project", "version", "permission", "audit"],
+  "surfaces": [
+    { "kind": "page", "pattern": "/" },
+    { "kind": "page", "pattern": "/projects" },
+    { "kind": "page", "pattern": "/projects/**" },
+    { "kind": "page", "pattern": "/reviews" },
+    { "kind": "page", "pattern": "/library" },
+    { "kind": "page", "pattern": "/activity" }
+  ],
+  "obligations": [
+    {
+      "id": "workspace.h1.complete-interaction",
+      "title": "Every current journey is production-backed, responsive, keyboard-operable, and WCAG 2.2 AA-oriented",
+      "category": "experience-core",
+      "severity": "high",
+      "horizon": 1,
+      "proofTtlDays": 14,
+      "checks": ["inventory.journey-route-coverage", "consistency.api-consumers", "evidence.viewport-proof", "evidence.accessibility-proof"],
+      "residualRisk": "Strong demo visuals can conceal dead controls, mobile overflow, keyboard conflicts, or inaccessible review state."
+    },
+    {
+      "id": "workspace.h2.large-projects",
+      "title": "Large projects, long transcripts, collaboration fan-out, and cockpit interaction stay within measured budgets",
+      "category": "experience-scale",
+      "severity": "high",
+      "horizon": 2,
+      "proofTtlDays": 7,
+      "checks": ["performance.runtime-budgets", "performance.load-scenarios", "operations.synthetic-monitoring", "resilience.degraded-dependencies"],
+      "residualRisk": "The cockpit can become unusable as assets, comments, transcript tokens, and collaborators grow."
+    },
+    {
+      "id": "workspace.h3.policy-aware-collaboration",
+      "title": "Global collaboration obeys tenant policy, accessibility, retention, and complete attribution",
+      "category": "experience-governance",
+      "severity": "high",
+      "horizon": 3,
+      "proofTtlDays": 30,
+      "checks": ["security.cross-tenant-attack-proof", "governance.data-lifecycle", "governance.immutable-audit-ledger"],
+      "residualRisk": "Cross-region or external collaboration can violate policy even when the interface behaves correctly."
+    }
+  ],
+  "slos": [
+    { "id": "dashboard-availability", "indicator": "Successful authenticated page loads", "target": 0.999, "windowDays": 30, "errorBudgetMinutes": 43.2 },
+    { "id": "interaction-delay", "indicator": "p75 critical player and annotation input delay", "targetMs": 100, "windowDays": 28 }
+  ]
+}

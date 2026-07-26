@@ -1,0 +1,834 @@
+/**
+ * P24 Project Workspace tabs — shared styles for the tab bar and every
+ * panel. Brand canon: Primary Blue #156BFF, Deep Blue #0A1D3D, Cool Gray
+ * #E6E9EF, White, Inter.
+ */
+
+.tabBar {
+  display: flex;
+  align-items: stretch;
+  gap: 2px;
+  padding: 0 16px;
+  background: #ffffff;
+  border-bottom: 1px solid #e6e9ef;
+  overflow-x: auto;
+}
+
+.tab {
+  appearance: none;
+  border: 0;
+  border-bottom: 3px solid transparent;
+  background: transparent;
+  min-height: 44px;
+  padding: 0 14px;
+  font: inherit;
+  font-size: 0.86rem;
+  font-weight: 600;
+  color: #43506b;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.tab:hover {
+  color: #0a1d3d;
+  background: #f4f6f9;
+}
+
+.tab:focus-visible {
+  outline: 2px solid #156bff;
+  outline-offset: -2px;
+}
+
+.tabActive {
+  composes: tab;
+  color: #0a1d3d;
+  border-bottom-color: #156bff;
+}
+
+.tabLink {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 44px;
+  padding: 0 14px;
+  margin-left: auto;
+  font-size: 0.86rem;
+  font-weight: 600;
+  color: #156bff;
+  text-decoration: none;
+  white-space: nowrap;
+  border-bottom: 3px solid transparent;
+}
+
+.tabLink:hover {
+  background: #f4f6f9;
+}
+
+.tabLink:focus-visible {
+  outline: 2px solid #156bff;
+  outline-offset: -2px;
+}
+
+.panel {
+  min-height: 60svh;
+}
+
+.panelInner {
+  max-width: 1080px;
+  margin: 0 auto;
+  padding: 24px 20px 64px;
+}
+
+.panelHeader {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 18px;
+}
+
+.panelTitle {
+  margin: 0 0 4px;
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: #0a1d3d;
+}
+
+.panelSubtitle {
+  margin: 0;
+  font-size: 0.86rem;
+  color: #43506b;
+}
+
+.primaryButton {
+  appearance: none;
+  border: 0;
+  border-radius: 8px;
+  background: #156bff;
+  color: #ffffff;
+  min-height: 44px;
+  padding: 0 18px;
+  font: inherit;
+  font-size: 0.86rem;
+  font-weight: 700;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.primaryButton:hover {
+  background: #0d56d6;
+}
+
+.secondaryButton {
+  appearance: none;
+  border: 1px solid #c9d1de;
+  border-radius: 8px;
+  background: #ffffff;
+  color: #0a1d3d;
+  min-height: 44px;
+  padding: 0 18px;
+  font: inherit;
+  font-size: 0.86rem;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.secondaryButton:hover {
+  background: #f4f6f9;
+}
+
+.card {
+  background: #ffffff;
+  border: 1px solid #e6e9ef;
+  border-radius: 12px;
+  padding: 18px 20px;
+  margin-bottom: 16px;
+}
+
+.cardTitle {
+  margin: 0 0 8px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #43506b;
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  min-height: 24px;
+  padding: 0 10px;
+  border-radius: 999px;
+  background: #e6e9ef;
+  color: #0a1d3d;
+  font-size: 0.74rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.chipAccent {
+  composes: chip;
+  background: rgba(21, 107, 255, 0.12);
+  color: #0d56d6;
+}
+
+.chipSuccess {
+  composes: chip;
+  background: #e2f4e5;
+  color: #166534;
+}
+
+.chipWarning {
+  composes: chip;
+  background: #fdf0dc;
+  color: #92580a;
+}
+
+.muted {
+  color: #6b768e;
+  font-size: 0.84rem;
+}
+
+.emptyState {
+  border: 1px dashed #c9d1de;
+  border-radius: 12px;
+  padding: 32px 20px;
+  text-align: center;
+  color: #6b768e;
+  font-size: 0.9rem;
+}
+
+/* ------------------------------ Brief ------------------------------------ */
+
+.versionRail {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.versionButton {
+  appearance: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid #c9d1de;
+  border-radius: 8px;
+  background: #ffffff;
+  min-height: 44px;
+  padding: 0 14px;
+  font: inherit;
+  font-size: 0.84rem;
+  font-weight: 600;
+  color: #0a1d3d;
+  cursor: pointer;
+}
+
+.versionButton:hover {
+  background: #f4f6f9;
+}
+
+.versionButtonActive {
+  composes: versionButton;
+  border-color: #156bff;
+  box-shadow: 0 0 0 1px #156bff inset;
+}
+
+.versionMeta {
+  display: block;
+  font-size: 0.72rem;
+  font-weight: 500;
+  color: #6b768e;
+}
+
+.viewingBanner {
+  border: 1px solid rgba(21, 107, 255, 0.4);
+  background: rgba(21, 107, 255, 0.08);
+  border-radius: 8px;
+  padding: 10px 14px;
+  margin-bottom: 16px;
+  font-size: 0.84rem;
+  color: #0a1d3d;
+}
+
+.briefField {
+  margin: 0 0 14px;
+  font-size: 0.92rem;
+  line-height: 1.55;
+  color: #0a1d3d;
+}
+
+.briefFieldLabel {
+  margin: 0 0 4px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #43506b;
+}
+
+.diffAdded {
+  background: rgba(21, 107, 255, 0.16);
+  border-radius: 3px;
+  padding: 0 2px;
+}
+
+.diffRemoved {
+  color: #8b93a7;
+  text-decoration: line-through;
+}
+
+.referenceList {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.guardrailList {
+  margin: 0;
+  padding-left: 18px;
+  font-size: 0.9rem;
+  line-height: 1.6;
+  color: #0a1d3d;
+}
+
+.editForm {
+  display: grid;
+  gap: 14px;
+}
+
+.editLabel {
+  display: grid;
+  gap: 6px;
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #43506b;
+}
+
+.editInput {
+  font: inherit;
+  font-size: 0.92rem;
+  font-weight: 400;
+  letter-spacing: normal;
+  text-transform: none;
+  color: #0a1d3d;
+  border: 1px solid #c9d1de;
+  border-radius: 8px;
+  padding: 10px 12px;
+  background: #ffffff;
+}
+
+.editInput:focus {
+  outline: 2px solid #156bff;
+  outline-offset: -1px;
+  border-color: #156bff;
+}
+
+.editActions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.editNote {
+  font-size: 0.78rem;
+  color: #6b768e;
+}
+
+/* ---------------------------- Milestones ---------------------------------- */
+
+.milestoneList {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.milestoneItem {
+  display: grid;
+  grid-template-columns: 18px minmax(0, 1fr);
+  gap: 12px;
+  padding: 14px 0;
+  border-bottom: 1px solid #e6e9ef;
+}
+
+.milestoneItem:last-child {
+  border-bottom: 0;
+}
+
+.milestoneDot {
+  width: 12px;
+  height: 12px;
+  margin-top: 5px;
+  border-radius: 50%;
+  background: #c9d1de;
+}
+
+.milestoneDotDone {
+  composes: milestoneDot;
+  background: #156bff;
+}
+
+.milestoneDotCurrent {
+  composes: milestoneDot;
+  background: #ffffff;
+  border: 3px solid #156bff;
+}
+
+.milestoneDotAtRisk {
+  composes: milestoneDot;
+  background: #d97706;
+}
+
+.milestoneHeading {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 2px;
+}
+
+.milestoneLabel {
+  font-size: 0.98rem;
+  font-weight: 700;
+  color: #0a1d3d;
+}
+
+.milestoneDate {
+  font-size: 0.8rem;
+  color: #6b768e;
+}
+
+/* --------------------------- Deliverables --------------------------------- */
+
+.rollupRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.tableWrap {
+  overflow-x: auto;
+  border: 1px solid #e6e9ef;
+  border-radius: 12px;
+  background: #ffffff;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.88rem;
+}
+
+.table th {
+  text-align: left;
+  font-size: 0.74rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #43506b;
+  padding: 12px 14px;
+  border-bottom: 1px solid #e6e9ef;
+  background: #f8f9fb;
+}
+
+.table td {
+  padding: 12px 14px;
+  border-bottom: 1px solid #eef1f5;
+  color: #0a1d3d;
+  vertical-align: top;
+}
+
+.table tr:last-child td {
+  border-bottom: 0;
+}
+
+.reviewLink {
+  color: #156bff;
+  font-weight: 600;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.reviewLink:hover {
+  text-decoration: underline;
+}
+
+/* ------------------------------- Team ------------------------------------- */
+
+.teamGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 12px;
+}
+
+.personCard {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  border: 1px solid #e6e9ef;
+  border-radius: 12px;
+  padding: 14px;
+  background: #ffffff;
+}
+
+.avatar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  flex: none;
+  border-radius: 50%;
+  background: #0a1d3d;
+  color: #ffffff;
+  font-size: 0.86rem;
+  font-weight: 700;
+}
+
+.personName {
+  margin: 0;
+  font-size: 0.94rem;
+  font-weight: 700;
+  color: #0a1d3d;
+}
+
+.personRole {
+  margin: 0;
+  font-size: 0.8rem;
+  color: #43506b;
+}
+
+.personContact {
+  margin: 2px 0 0;
+  font-size: 0.8rem;
+}
+
+.personContact a {
+  color: #156bff;
+  text-decoration: none;
+}
+
+.personContact a:hover {
+  text-decoration: underline;
+}
+
+.sectionHeading {
+  margin: 24px 0 12px;
+  font-size: 1.02rem;
+  font-weight: 700;
+  color: #0a1d3d;
+}
+
+.sectionHeading:first-child {
+  margin-top: 0;
+}
+
+/* ------------------------------- Files ------------------------------------ */
+
+.fileGroup {
+  margin-bottom: 20px;
+}
+
+.fileRows {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  border: 1px solid #e6e9ef;
+  border-radius: 12px;
+  background: #ffffff;
+  overflow: hidden;
+}
+
+.fileRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 16px;
+  border-bottom: 1px solid #eef1f5;
+}
+
+.fileRow:last-child {
+  border-bottom: 0;
+}
+
+.fileName {
+  margin: 0;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #0a1d3d;
+}
+
+.fileDetail {
+  margin: 0;
+  font-size: 0.78rem;
+  color: #6b768e;
+}
+
+.downloadLink {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 44px;
+  padding: 0 12px;
+  color: #156bff;
+  font-size: 0.84rem;
+  font-weight: 700;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.downloadLink:hover {
+  text-decoration: underline;
+}
+
+.onRequest {
+  font-size: 0.8rem;
+  color: #6b768e;
+  font-style: italic;
+  white-space: nowrap;
+}
+
+/* ------------------------------- Comms ------------------------------------ */
+
+.decisionItem {
+  border: 1px solid #e6e9ef;
+  border-left: 4px solid #156bff;
+  border-radius: 10px;
+  background: #ffffff;
+  padding: 14px 16px;
+  margin-bottom: 12px;
+}
+
+.decisionSubject {
+  margin: 0 0 4px;
+  font-size: 0.96rem;
+  font-weight: 700;
+  color: #0a1d3d;
+}
+
+.decisionMeta {
+  margin: 0 0 8px;
+  font-size: 0.78rem;
+  color: #6b768e;
+}
+
+.decisionBody {
+  margin: 0;
+  font-size: 0.88rem;
+  line-height: 1.5;
+  color: #0a1d3d;
+}
+
+.threadCard {
+  border: 1px solid #e6e9ef;
+  border-radius: 12px;
+  background: #ffffff;
+  margin-bottom: 14px;
+  overflow: hidden;
+}
+
+.threadHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 12px 16px;
+  background: #f8f9fb;
+  border-bottom: 1px solid #e6e9ef;
+}
+
+.threadTitle {
+  margin: 0;
+  font-size: 0.92rem;
+  font-weight: 700;
+  color: #0a1d3d;
+}
+
+.commentItem {
+  padding: 12px 16px;
+  border-bottom: 1px solid #eef1f5;
+}
+
+.commentItem:last-child {
+  border-bottom: 0;
+}
+
+.commentMeta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 4px;
+  font-size: 0.78rem;
+  color: #6b768e;
+}
+
+.commentAuthor {
+  font-weight: 700;
+  color: #0a1d3d;
+}
+
+.commentBody {
+  margin: 0;
+  font-size: 0.88rem;
+  line-height: 1.5;
+  color: #0a1d3d;
+}
+
+/* ------------------------------ Calendar ---------------------------------- */
+
+.calendarHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.calendarTitle {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: #0a1d3d;
+}
+
+.calendarNav {
+  appearance: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 44px;
+  min-height: 44px;
+  border: 1px solid #c9d1de;
+  border-radius: 8px;
+  background: #ffffff;
+  color: #0a1d3d;
+  cursor: pointer;
+}
+
+.calendarNav:hover {
+  background: #f4f6f9;
+}
+
+.calendarGrid {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 4px;
+}
+
+.calendarWeekday {
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #43506b;
+  text-align: center;
+  padding: 6px 0;
+}
+
+.calendarCell {
+  min-height: 88px;
+  border: 1px solid #e6e9ef;
+  border-radius: 8px;
+  background: #ffffff;
+  padding: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.calendarCellOutside {
+  composes: calendarCell;
+  background: #f8f9fb;
+}
+
+.calendarCellToday {
+  composes: calendarCell;
+  border-color: #156bff;
+  box-shadow: 0 0 0 1px #156bff inset;
+}
+
+.calendarDay {
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: #0a1d3d;
+}
+
+.calendarDayOutside {
+  composes: calendarDay;
+  color: #a6aec0;
+  font-weight: 500;
+}
+
+.eventChip {
+  display: block;
+  border-radius: 5px;
+  padding: 2px 6px;
+  font-size: 0.68rem;
+  font-weight: 600;
+  line-height: 1.35;
+  color: #0a1d3d;
+  background: #e6e9ef;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.eventChipShoot {
+  composes: eventChip;
+  background: rgba(21, 107, 255, 0.16);
+  color: #0d56d6;
+}
+
+.eventChipReview {
+  composes: eventChip;
+  background: #fdf0dc;
+  color: #92580a;
+}
+
+.eventChipDelivery {
+  composes: eventChip;
+  background: #e2f4e5;
+  color: #166534;
+}
+
+.eventChipMilestone {
+  composes: eventChip;
+  background: #e6e9ef;
+  color: #0a1d3d;
+}
+
+.eventChipTask {
+  composes: eventChip;
+  background: #eef1f5;
+  color: #43506b;
+}
+
+.eventChipMeeting {
+  composes: eventChip;
+  background: #eae6f7;
+  color: #5b4a9e;
+}
+
+.legendRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.legendItem {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.76rem;
+  color: #43506b;
+}

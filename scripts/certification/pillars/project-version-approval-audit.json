@@ -1,0 +1,57 @@
+{
+  "schemaVersion": 1,
+  "kind": "pillar",
+  "id": "project-version-approval-audit",
+  "title": "Project, asset, version, comment, approval, and audit authority",
+  "horizons": [1, 2, 3],
+  "owner": "Workflow platform",
+  "objective": "Make project media decisions durable, version-specific, permissioned, and fully attributable.",
+  "authorityDomains": ["identity", "tenant", "project", "version", "permission", "audit"],
+  "surfaces": [
+    { "kind": "api", "pattern": "/api/projects" },
+    { "kind": "api", "pattern": "/api/projects/**" },
+    { "kind": "api", "pattern": "/api/assets" },
+    { "kind": "api", "pattern": "/api/assets/**" },
+    { "kind": "api", "pattern": "/api/comments/**" },
+    { "kind": "api", "pattern": "/api/approvals/**" },
+    { "kind": "api", "pattern": "/api/versions/**" },
+    { "kind": "api", "pattern": "/api/activity" },
+    { "kind": "api", "pattern": "/api/folders" }
+  ],
+  "obligations": [
+    {
+      "id": "workflow.h1.versioned-core",
+      "title": "Comments, edit decisions, versions, and approvals persist against an exact source version",
+      "category": "workflow-integrity",
+      "severity": "critical",
+      "horizon": 1,
+      "proofTtlDays": 7,
+      "checks": ["consistency.approval-status-contract", "consistency.version-binding", "resilience.version-transaction", "evidence.ingest-review-approval"],
+      "residualRisk": "Partial or ambiguous version writes can produce contradictory reviewer and producer records."
+    },
+    {
+      "id": "workflow.h2.scale-integrity",
+      "title": "Workflow contracts remain race-safe, idempotent, and schema-compatible at enterprise scale",
+      "category": "scale-integrity",
+      "severity": "critical",
+      "horizon": 2,
+      "proofTtlDays": 7,
+      "checks": ["consistency.schema-contract", "resilience.concurrency-idempotency", "performance.load-scenarios"],
+      "residualRisk": "Concurrent versions, approvals, and comments can duplicate, reorder, or partially persist."
+    },
+    {
+      "id": "workflow.h3.deterministic-history",
+      "title": "Every material decision is immutable, replayable, retained, and recoverable",
+      "category": "governed-history",
+      "severity": "critical",
+      "horizon": 3,
+      "proofTtlDays": 30,
+      "checks": ["governance.immutable-audit-ledger", "governance.data-lifecycle", "resilience.dr-restore-proof"],
+      "residualRisk": "Mutable or incomplete decision history cannot prove what was approved, changed, or delivered."
+    }
+  ],
+  "slos": [
+    { "id": "durable-mutation-loss", "indicator": "Acknowledged workflow mutations without a durable record", "target": 0, "windowDays": 30, "errorBudgetMinutes": 0 },
+    { "id": "mutation-latency", "indicator": "p95 synchronous workflow mutation latency", "targetMs": 750, "windowDays": 28 }
+  ]
+}

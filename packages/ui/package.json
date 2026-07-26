@@ -1,0 +1,16 @@
+{
+  "name": "@contentco-op/ui",
+  "version": "0.1.0",
+  "private": true,
+  "main": "src/index.tsx",
+  "types": "src/index.tsx",
+  "scripts": {
+    "build": "echo \"ui package: transpiled by app\"",
+    "lint": "echo \"ui lint\"",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@contentco-op/brand": "0.1.0",
+    "react": "^19.2.0"
+  }
+}

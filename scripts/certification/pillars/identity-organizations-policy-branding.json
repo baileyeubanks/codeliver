@@ -1,0 +1,55 @@
+{
+  "schemaVersion": 1,
+  "kind": "pillar",
+  "id": "identity-organizations-policy-branding",
+  "title": "Identity, organizations, policy, preferences, and white-label branding",
+  "horizons": [1, 2, 3],
+  "owner": "Identity and product platform",
+  "objective": "Keep user, organization, policy, preference, and brand authority coherent from first sign-in through enterprise identity governance.",
+  "authorityDomains": ["identity", "tenant", "permission", "audit"],
+  "surfaces": [
+    { "kind": "page", "pattern": "/login" },
+    { "kind": "page", "pattern": "/signup" },
+    { "kind": "page", "pattern": "/settings" },
+    { "kind": "api", "pattern": "/auth/callback" },
+    { "kind": "api", "pattern": "/api/auth/**" },
+    { "kind": "api", "pattern": "/api/teams" },
+    { "kind": "api", "pattern": "/api/teams/**" },
+    { "kind": "api", "pattern": "/api/notifications/preferences" }
+  ],
+  "obligations": [
+    {
+      "id": "identity.h1.coherent-core",
+      "title": "Production auth, session, preferences, and branding are server-authoritative",
+      "category": "identity-core",
+      "severity": "critical",
+      "horizon": 1,
+      "proofTtlDays": 7,
+      "checks": ["evidence.auth-lifecycle", "security.auth-redirect-boundary", "product.production-settings-authority", "evidence.settings-brand-notifications"],
+      "residualRisk": "Demo-local identity or preferences can misstate who is acting and which policy is saved."
+    },
+    {
+      "id": "identity.h2.delegated-policy",
+      "title": "Organizations, delegated administration, and policy changes are tenant-safe under concurrency",
+      "category": "enterprise-policy",
+      "severity": "critical",
+      "horizon": 2,
+      "proofTtlDays": 7,
+      "checks": ["security.cross-tenant-attack-proof", "security.notification-recipient-authorization", "resilience.concurrency-idempotency"],
+      "residualRisk": "Delegated administration can cross tenant boundaries or lose concurrent preference updates."
+    },
+    {
+      "id": "identity.h3.assurance",
+      "title": "Enterprise identity, policy decisions, and brand changes are strongly authenticated and auditable",
+      "category": "identity-governance",
+      "severity": "high",
+      "horizon": 3,
+      "proofTtlDays": 14,
+      "checks": ["security.enterprise-identity-proof", "governance.immutable-audit-ledger", "governance.proof-binding"],
+      "residualRisk": "Password-only access and incomplete audit attribution cannot satisfy higher-assurance tenants."
+    }
+  ],
+  "slos": [
+    { "id": "auth-availability", "indicator": "Successful valid authentication attempts", "target": 0.9995, "windowDays": 30, "errorBudgetMinutes": 21.6 }
+  ]
+}

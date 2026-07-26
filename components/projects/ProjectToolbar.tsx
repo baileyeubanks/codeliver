@@ -3,8 +3,6 @@
 import { useState } from "react";
 import {
   Search,
-  ArrowDownAZ,
-  CheckSquare,
   FolderPlus,
   Upload,
   ChevronDown,
@@ -12,7 +10,6 @@ import {
   Table2,
   LayoutGrid,
   SlidersHorizontal,
-  CloudDownload,
 } from "lucide-react";
 
 export type ViewMode = "masonry" | "grid" | "table";
@@ -30,6 +27,8 @@ interface ProjectToolbarProps {
   onNewFolder: () => void;
   thumbnailSize: number;
   onThumbnailSize: (v: number) => void;
+  onUpload: () => void;
+  uploading?: boolean;
 }
 
 export default function ProjectToolbar({
@@ -44,9 +43,10 @@ export default function ProjectToolbar({
   onNewFolder,
   thumbnailSize,
   onThumbnailSize,
+  onUpload,
+  uploading = false,
 }: ProjectToolbarProps) {
   const [viewMenuOpen, setViewMenuOpen] = useState(false);
-  const [uploadMenuOpen, setUploadMenuOpen] = useState(false);
 
   return (
     <div className="flex items-center gap-3 flex-wrap px-1 py-3">
@@ -84,44 +84,19 @@ export default function ProjectToolbar({
         Select all
       </label>
 
-      {/* Batch action */}
-      <button className="btn-icon" title="Batch actions">
-        <CheckSquare size={16} />
-      </button>
-
       <div className="flex-1" />
 
       {/* New folder */}
-      <button onClick={onNewFolder} className="btn btn-secondary" title="New folder">
+      <button onClick={onNewFolder} className="btn btn-secondary" title="New production workspace">
         <FolderPlus size={14} />
-        New Folder
+        New workspace
       </button>
 
-      {/* Upload split button */}
-      <div className="relative flex">
-        <button className="btn-upload" style={{ borderRadius: "var(--radius-sm) 0 0 var(--radius-sm)" }}>
-          <Upload size={14} />
-          Upload
-        </button>
-        <button
-          onClick={() => setUploadMenuOpen(!uploadMenuOpen)}
-          className="btn-upload"
-          style={{
-            borderRadius: "0 var(--radius-sm) var(--radius-sm) 0",
-            borderLeft: "1px solid rgba(255,255,255,0.2)",
-            padding: "7px 8px",
-          }}
-        >
-          <ChevronDown size={13} />
-        </button>
-        {uploadMenuOpen && (
-          <div className="dropdown" style={{ right: 0, top: "calc(100% + 4px)" }}>
-            <button className="dropdown-item" onClick={() => setUploadMenuOpen(false)}>
-              <CloudDownload size={14} /> Import from cloud
-            </button>
-          </div>
-        )}
-      </div>
+      {/* Upload */}
+      <button className="btn-upload" onClick={onUpload} disabled={uploading}>
+        <Upload size={14} />
+        {uploading ? "Uploading" : "Upload"}
+      </button>
 
       {/* View toggle */}
       <div className="relative">

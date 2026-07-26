@@ -1,35 +1,83 @@
-import { NextResponse } from "next/server";
+import {
+  ADMIN_SURFACE_HOST,
+  CLIENT_SURFACE_HOST,
+} from "@/lib/auth/host-surface";
 import { createSupabaseAuth } from "@/lib/supabase-auth";
+import { apiError, apiJson } from "@/lib/api/responses";
+
+const PENDING_ACCESS_RESPONSE = {
+  success: true,
+  access: {
+    state: "pending",
+    authorityGranted: false,
+  },
+  message: "Account created. Access is pending approval.",
+} as const;
+
+function signupBody(value: unknown): Record<string, unknown> | null {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  return value as Record<string, unknown>;
+}
+
+function confirmationRedirect(request: Request): string | undefined {
+  const requestUrl = new URL(request.url);
+  const allowedHost =
+    requestUrl.hostname === ADMIN_SURFACE_HOST ||
+    requestUrl.hostname === CLIENT_SURFACE_HOST ||
+    requestUrl.hostname === "localhost" ||
+    requestUrl.hostname === "127.0.0.1";
+
+  return allowedHost
+    ? new URL("/auth/callback", requestUrl.origin).toString()
+    : undefined;
+}
 
 export async function POST(req: Request) {
-  let body: Record<string, string>;
+  let body: Record<string, unknown> | null;
   try {
-    body = await req.json();
+    body = signupBody(await req.json());
   } catch {
-    return NextResponse.json({ error: "Invalid request" }, { status: 400 });
+    return apiError("Invalid request", "AUTH_INVALID_REQUEST", 400);
   }
 
-  const { email, password, display_name } = body;
+  if (!body) {
+    return apiError("Invalid request", "AUTH_INVALID_REQUEST", 400);
+  }
+
+  const email = typeof body.email === "string" ? body.email.trim().toLowerCase() : "";
+  const password = typeof body.password === "string" ? body.password : "";
+  const requestedDisplayName =
+    typeof body.display_name === "string" ? body.display_name.trim() : "";
   if (!email || !password) {
-    return NextResponse.json({ error: "Email and password required" }, { status: 400 });
+    return apiError("Email and password required", "AUTH_CREDENTIALS_REQUIRED", 400);
   }
 
   if (password.length < 6) {
-    return NextResponse.json({ error: "Password must be at least 6 characters" }, { status: 400 });
+    return apiError("Password must be at least 6 characters", "AUTH_PASSWORD_INVALID", 400);
   }
 
-  const supabase = await createSupabaseAuth();
-  const { error } = await supabase.auth.signUp({
-    email: email.toLowerCase(),
-    password,
-    options: {
-      data: { display_name: display_name || email.split("@")[0] },
-    },
-  });
+  const emailRedirectTo = confirmationRedirect(req);
 
-  if (error) {
-    return NextResponse.json({ error: error.message }, { status: 400 });
+  try {
+    const supabase = await createSupabaseAuth();
+    const { error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: {
+        data: { display_name: requestedDisplayName || email.split("@")[0] },
+        ...(emailRedirectTo ? { emailRedirectTo } : {}),
+      },
+    });
+
+    if (error) {
+      // User-facing errors stay generic on purpose (no account enumeration).
+      return apiError("Account creation could not be completed.", "AUTH_SIGNUP_REJECTED", 400);
+    }
+  } catch {
+    // The auth backend itself is missing or unreachable — say so honestly
+    // instead of implying the request was at fault.
+    return apiError("Account service is unavailable.", "AUTH_UNAVAILABLE", 503);
   }
 
-  return NextResponse.json({ success: true });
+  return apiJson(PENDING_ACCESS_RESPONSE, { status: 202 });
 }

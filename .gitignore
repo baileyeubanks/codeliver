@@ -8,3 +8,6 @@ out/
 *.tsbuildinfo
 next-env.d.ts
 .playwright-cli/
+test-results/
+.next-covideopro-*.log
+.next-covideopro-*.pid

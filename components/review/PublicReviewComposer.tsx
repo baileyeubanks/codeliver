@@ -2,12 +2,15 @@
 
 import { useState } from "react";
 import { AlertCircle, LoaderCircle, MapPin, Send, X } from "lucide-react";
+import { submitReviewComment } from "@/lib/review/submit-review-comment";
 import type { ShareIntent } from "@/lib/sharing/share-intent";
 import { formatTimeLong } from "@/lib/stores/playerStore";
 import type { Comment } from "@/lib/types/codeliver";
 
 interface PublicReviewComposerProps {
   token: string;
+  demoMode?: boolean;
+  assetId: string;
   assetType: string;
   shareIntent: ShareIntent;
   canComment: boolean;
@@ -23,6 +26,8 @@ interface PublicReviewComposerProps {
 
 export default function PublicReviewComposer({
   token,
+  demoMode = false,
+  assetId,
   assetType,
   shareIntent,
   canComment,
@@ -39,7 +44,7 @@ export default function PublicReviewComposer({
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState("");
 
-  const supportsPins = assetType === "video" || assetType === "image";
+  const supportsPins = assetType === "image";
   const heading =
     shareIntent === "internal_review"
       ? "Internal feedback"
@@ -50,10 +55,10 @@ export default function PublicReviewComposer({
           : "Client feedback";
   const helperText = canComment
     ? shareIntent === "internal_review"
-      ? "Capture working-session notes tied to the current frame or timestamp."
+      ? "Internal notes stay with this version."
       : shareIntent === "approval_needed"
-        ? "Use comments for blockers or context. Approval should record your decision on this version, not replace feedback."
-        : "Leave clear client-facing notes tied to the current frame or timestamp."
+        ? "Feedback stays attached to this approval round."
+        : "Feedback stays attached to this version and timestamp."
     : shareIntent === "final_delivery"
       ? "This link is a final delivery handoff. Feedback is closed."
       : "This review link is view only.";
@@ -71,28 +76,16 @@ export default function PublicReviewComposer({
     setSubmitError("");
 
     try {
-      const response = await fetch(`/api/review/${token}/comments`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          body: body.trim(),
-          author_name: reviewerName.trim(),
-          timecode_seconds: assetType === "video" ? timecode : null,
-          pin_x: pin?.x ?? null,
-          pin_y: pin?.y ?? null,
-        }),
+      const comment = await submitReviewComment({
+        token,
+        demoMode,
+        assetId,
+        assetType,
+        reviewerName,
+        body,
+        timecode,
+        pin,
       });
-
-      if (!response.ok) {
-        throw new Error("Could not post your comment.");
-      }
-
-      const payload = await response.json().catch(() => null);
-      const comment = (payload?.comment ?? payload) as Comment | null;
-
-      if (!comment?.id) {
-        throw new Error("Comment saved, but the response was invalid.");
-      }
 
       onCommentCreated(comment);
       setBody("");
@@ -117,7 +110,7 @@ export default function PublicReviewComposer({
           <button
             type="button"
             onClick={onTogglePinMode}
-            className={`inline-flex items-center gap-1 rounded-full px-3 py-1.5 text-xs font-medium transition-colors ${
+            className={`inline-flex items-center gap-1 rounded-[var(--radius-sm)] px-3 py-1.5 text-xs font-medium transition-colors ${
               pinMode || pin
                 ? "bg-[var(--accent)] text-white hover:bg-[var(--accent-hover)]"
                 : "bg-[var(--surface-2)] text-[var(--ink)] hover:bg-[var(--surface-2)]/80"
@@ -143,25 +136,25 @@ export default function PublicReviewComposer({
 
           <div className="mt-3 flex flex-wrap items-center gap-2">
             {assetType === "video" && (
-              <span className="rounded-full bg-[var(--surface-2)] px-2.5 py-1 text-xs text-[var(--muted)]">
+              <span className="rounded-[var(--radius-sm)] bg-[var(--surface-2)] px-2.5 py-1 text-xs text-[var(--muted)]">
                 Timestamp {formatTimeLong(timecode)}
               </span>
             )}
 
             {pinMode && !pin && (
-              <span className="rounded-full bg-[var(--accent)]/10 px-2.5 py-1 text-xs text-[var(--accent)]">
+              <span className="rounded-[var(--radius-sm)] bg-[var(--accent)]/10 px-2.5 py-1 text-xs text-[var(--accent)]">
                 Click the frame to drop your pin.
               </span>
             )}
 
             {pin && (
-              <span className="inline-flex items-center gap-1 rounded-full bg-[var(--orange)]/10 px-2.5 py-1 text-xs text-[var(--orange)]">
+              <span className="inline-flex items-center gap-1 rounded-[var(--radius-sm)] bg-[var(--orange)]/10 px-2.5 py-1 text-xs text-[var(--orange)]">
                 <MapPin size={10} />
                 Pin locked
                 <button
                   type="button"
                   onClick={onClearPin}
-                  className="rounded-full p-0.5 transition-colors hover:bg-[var(--orange)]/15"
+                  className="rounded p-0.5 transition-colors hover:bg-[var(--orange)]/15"
                   aria-label="Clear pin"
                 >
                   <X size={10} />
@@ -192,7 +185,7 @@ export default function PublicReviewComposer({
           )}
 
           <div className="mt-3 flex items-center justify-between gap-3">
-            <p className="text-xs text-[var(--dim)]">Use Cmd/Ctrl + Enter to send.</p>
+            <p className="text-xs text-[var(--dim)]">Attached to this version</p>
 
             <button
               type="button"

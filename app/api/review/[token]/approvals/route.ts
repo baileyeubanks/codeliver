@@ -1,12 +1,23 @@
-import { NextResponse } from "next/server";
 import { recordApprovalDecision } from "@/lib/approval-decisions";
+import {
+  authorizeAdmittedReviewInvite,
+  reserveReviewActionRate,
+} from "@/lib/review/admission-authority";
 import { demoReviewPayload } from "@/lib/review/demoReview";
 import {
   canInviteDecideApproval,
   getExternalApprovalState,
   inviteCanApprove,
-  getReviewInviteByToken,
 } from "@/lib/review-invites";
+import {
+  readReviewJsonObject,
+  validateReviewMutationRequest,
+} from "@/lib/review/request-boundary";
+import {
+  reviewBackendUnavailable,
+  reviewError as reviewResponseError,
+  reviewJson,
+} from "@/lib/review/responses";
 import type { ApprovalDecision } from "@/lib/types/codeliver";
 import { getSupabase } from "@/lib/supabase";
 
@@ -21,49 +32,146 @@ const BLOCKING_DECISIONS = new Set<ApprovalDecision>([
   "changes_requested",
   "rejected",
 ]);
+const APPROVAL_BODY_LIMIT_BYTES = 8 * 1_024;
 
-export async function PATCH(req: Request, { params }: { params: Promise<{ token: string }> }) {
+function reviewError(
+  error: string,
+  status: number,
+  code = "REVIEW_REQUEST_INVALID",
+  headers?: HeadersInit,
+) {
+  if (status >= 500) return reviewBackendUnavailable(headers);
+  return reviewResponseError(error, code, status, headers);
+}
+
+async function patchApproval(req: Request, { params }: { params: Promise<{ token: string }> }) {
+  const boundary = validateReviewMutationRequest(req, {
+    maxBytes: APPROVAL_BODY_LIMIT_BYTES,
+  });
+  if (!boundary.ok) {
+    return reviewError(
+      "Review approval request is not allowed",
+      boundary.status,
+      boundary.code,
+    );
+  }
+
   const { token } = await params;
-  const body = await req.json();
+  const demo = process.env.NODE_ENV !== "production" && token === "demo";
+  let authority:
+    | Awaited<ReturnType<typeof authorizeAdmittedReviewInvite>>
+    | null = null;
+  let responseHeaders: HeadersInit | undefined;
 
-  if (process.env.NODE_ENV !== "production" && token === "demo") {
-    if (!body.id || !ALLOWED_DECISIONS.has(body.status)) {
-      return NextResponse.json({ error: "Invalid approval decision" }, { status: 400 });
+  if (!demo) {
+    authority = await authorizeAdmittedReviewInvite(req, token);
+    if (!authority.ok) {
+      return reviewError(
+        "Review link is unavailable",
+        authority.status,
+        authority.code,
+      );
+    }
+    responseHeaders = { "Set-Cookie": authority.setCookie };
+    const rate = await reserveReviewActionRate({
+      token,
+      claims: authority.claims,
+      action: "approval",
+    });
+    if (!rate.ok) {
+      return reviewError(
+        rate.status === 429
+          ? "Review approval rate exceeded"
+          : "Review link is unavailable",
+        rate.status,
+        rate.code,
+        {
+          ...responseHeaders,
+          ...(rate.status === 429
+            ? {
+                "Retry-After": String(
+                  Math.max(1, rate.retryAfterSeconds ?? 60),
+                ),
+              }
+            : {}),
+        },
+      );
+    }
+  }
+
+  const bodyResult = await readReviewJsonObject(req, {
+    maxBytes: APPROVAL_BODY_LIMIT_BYTES,
+  });
+  if (!bodyResult.ok) {
+    return reviewError(
+      bodyResult.status === 413
+        ? "Approval request is too large"
+        : "Approval request must be JSON.",
+      bodyResult.status,
+      bodyResult.code,
+      responseHeaders,
+    );
+  }
+  const body = bodyResult.value;
+  const approvalId =
+    typeof body.id === "string" && body.id ? body.id : null;
+  const requestedStatus =
+    typeof body.status === "string" &&
+    ALLOWED_DECISIONS.has(body.status as ApprovalDecision)
+      ? (body.status as ApprovalDecision)
+      : null;
+
+  if (demo) {
+    if (!approvalId || !requestedStatus) {
+      return reviewError("Invalid approval decision", 400);
     }
 
-    const approval = demoReviewPayload.approvals.find((item) => item.id === body.id);
-    if (!approval) {
-      return NextResponse.json({ error: "Approval step not found" }, { status: 404 });
+    const demoInvite = {
+      ...demoReviewPayload.invite,
+      asset_id: demoReviewPayload.asset.id,
+      version_id: null,
+      token,
+      reviewer_name: demoReviewPayload.reviewer_name,
+      reviewer_email: demoReviewPayload.reviewer_email,
+      permissions: demoReviewPayload.permissions,
+      password_hash: null,
+      expires_at: demoReviewPayload.expires_at,
+      watermark_enabled: demoReviewPayload.watermark_enabled,
+      watermark_text: demoReviewPayload.watermark_text,
+      download_enabled: demoReviewPayload.download_enabled,
+      view_count: demoReviewPayload.invite.view_count,
+      max_views: demoReviewPayload.invite.max_views,
+      last_viewed_at: null,
+    };
+    const approvalAccess = canInviteDecideApproval({
+      approvalId,
+      approvals: demoReviewPayload.approvals,
+      invite: demoInvite,
+      workflowMode: demoReviewPayload.workflow_mode,
+    });
+
+    if (!approvalAccess.ok) {
+      return reviewError(approvalAccess.error, approvalAccess.statusCode, "REVIEW_APPROVAL_FORBIDDEN");
     }
 
+    const approval = approvalAccess.approval;
+    const decidedAt = new Date().toISOString();
     const updatedApprovals = demoReviewPayload.approvals.map((item) =>
-      item.id === body.id
+      item.id === approvalId
         ? {
             ...item,
-            status: body.status,
-            decision_note: body.decision_note || null,
-            decided_at: new Date().toISOString(),
+            status: requestedStatus,
+            decision_note:
+              typeof body.decision_note === "string"
+                ? body.decision_note
+                : null,
+            decided_at: decidedAt,
           }
         : item,
     );
     const approvalState = getExternalApprovalState({
       approvals: updatedApprovals,
-      invite: {
-        ...demoReviewPayload.invite,
-        asset_id: demoReviewPayload.asset.id,
-        token,
-        reviewer_name: demoReviewPayload.reviewer_name,
-        reviewer_email: demoReviewPayload.reviewer_email,
-        permissions: demoReviewPayload.permissions,
-        password_hash: null,
-        expires_at: demoReviewPayload.expires_at,
-        watermark_enabled: demoReviewPayload.watermark_enabled,
-        watermark_text: demoReviewPayload.watermark_text,
-        download_enabled: demoReviewPayload.download_enabled,
-        view_count: demoReviewPayload.invite.view_count,
-        max_views: demoReviewPayload.invite.max_views,
-        last_viewed_at: null,
-      },
+      invite: demoInvite,
       workflowMode: demoReviewPayload.workflow_mode,
     });
     const assetStatus =
@@ -72,16 +180,19 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ token:
         (item) => item.status === "approved" || item.status === "approved_with_changes",
       )
         ? "approved"
-        : BLOCKING_DECISIONS.has(body.status)
+        : BLOCKING_DECISIONS.has(requestedStatus)
           ? "needs_changes"
           : demoReviewPayload.asset.status;
 
-    return NextResponse.json({
+    return reviewJson({
       approval: {
         ...approval,
-        status: body.status,
-        decision_note: body.decision_note || null,
-        decided_at: new Date().toISOString(),
+        status: requestedStatus,
+        decision_note:
+          typeof body.decision_note === "string"
+            ? body.decision_note
+            : null,
+        decided_at: decidedAt,
       },
       asset_status: assetStatus,
       active_approval_ids: approvalState.activeApprovalIds,
@@ -89,22 +200,24 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ token:
     });
   }
 
-  const inviteLookup = await getReviewInviteByToken(token);
-
-  if (!inviteLookup.ok) {
-    return NextResponse.json(
-      { error: inviteLookup.error },
-      { status: inviteLookup.status }
+  if (!authority?.ok) return reviewBackendUnavailable(responseHeaders);
+  const { invite } = authority;
+  if (!inviteCanApprove(invite)) {
+    return reviewError(
+      "This review link cannot approve",
+      403,
+      "REVIEW_APPROVAL_FORBIDDEN",
+      responseHeaders,
     );
   }
 
-  const { invite } = inviteLookup;
-  if (!inviteCanApprove(invite)) {
-    return NextResponse.json({ error: "This review link cannot approve" }, { status: 403 });
-  }
-
-  if (!body.id || !ALLOWED_DECISIONS.has(body.status)) {
-    return NextResponse.json({ error: "Invalid approval decision" }, { status: 400 });
+  if (!approvalId || !requestedStatus) {
+    return reviewError(
+      "Invalid approval decision",
+      400,
+      "REVIEW_REQUEST_INVALID",
+      responseHeaders,
+    );
   }
 
   const supabase = getSupabase();
@@ -123,42 +236,54 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ token:
   ]);
 
   if (approvalsResult.error) {
-    return NextResponse.json({ error: approvalsResult.error.message }, { status: 500 });
+    return reviewBackendUnavailable(responseHeaders);
   }
 
   if (workflowResult.error) {
-    return NextResponse.json({ error: workflowResult.error.message }, { status: 500 });
+    return reviewBackendUnavailable(responseHeaders);
   }
 
   const approvalAccess = canInviteDecideApproval({
-    approvalId: body.id,
+    approvalId,
     approvals: approvalsResult.data ?? [],
     invite,
     workflowMode: workflowResult.data?.mode ?? null,
   });
 
   if (!approvalAccess.ok) {
-    return NextResponse.json({ error: approvalAccess.error }, { status: approvalAccess.statusCode });
+    return reviewError(
+      approvalAccess.error,
+      approvalAccess.statusCode,
+      "REVIEW_APPROVAL_FORBIDDEN",
+      responseHeaders,
+    );
   }
 
+  const requestedReviewerName =
+    typeof body.reviewer_name === "string"
+      ? body.reviewer_name.trim()
+      : "";
   const reviewerName =
-    body.reviewer_name?.trim() ||
+    requestedReviewerName ||
     invite.reviewer_name ||
     invite.reviewer_email ||
     "External reviewer";
 
-  if (!invite.reviewer_name && body.reviewer_name?.trim()) {
+  if (!invite.reviewer_name && requestedReviewerName) {
     await supabase
       .from("review_invites")
-      .update({ reviewer_name: body.reviewer_name.trim() })
+      .update({ reviewer_name: requestedReviewerName })
       .eq("id", invite.id);
   }
 
   const decision = await recordApprovalDecision({
     assetId: invite.asset_id,
-    approvalId: body.id,
-    status: body.status,
-    decisionNote: body.decision_note,
+    approvalId,
+    status: requestedStatus,
+    decisionNote:
+      typeof body.decision_note === "string"
+        ? body.decision_note
+        : null,
     actor: {
       id: null,
       name: reviewerName,
@@ -166,7 +291,12 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ token:
   });
 
   if (!decision.ok) {
-    return NextResponse.json({ error: decision.error }, { status: decision.statusCode });
+    return reviewError(
+      decision.error,
+      decision.statusCode,
+      "REVIEW_APPROVAL_UNAVAILABLE",
+      responseHeaders,
+    );
   }
 
   const { data: updatedApprovals, error: updatedApprovalsError } = await supabase
@@ -176,22 +306,31 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ token:
     .order("step_order", { ascending: true });
 
   if (updatedApprovalsError) {
-    return NextResponse.json({ error: updatedApprovalsError.message }, { status: 500 });
+    return reviewBackendUnavailable(responseHeaders);
   }
 
   const approvalState = getExternalApprovalState({
     approvals: updatedApprovals ?? [],
     invite: {
       ...invite,
-      reviewer_name: invite.reviewer_name || body.reviewer_name?.trim() || null,
+      reviewer_name:
+        invite.reviewer_name || requestedReviewerName || null,
     },
     workflowMode: workflowResult.data?.mode ?? null,
   });
 
-  return NextResponse.json({
+  return reviewJson({
     approval: decision.data,
     asset_status: decision.assetStatus,
     active_approval_ids: approvalState.activeApprovalIds,
     approval_access_message: approvalState.approvalAccessMessage,
-  });
+  }, { headers: responseHeaders });
+}
+
+export async function PATCH(req: Request, context: { params: Promise<{ token: string }> }) {
+  try {
+    return await patchApproval(req, context);
+  } catch {
+    return reviewBackendUnavailable();
+  }
 }

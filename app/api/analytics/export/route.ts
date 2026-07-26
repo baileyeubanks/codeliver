@@ -1,10 +1,12 @@
 import { NextResponse } from "next/server";
+import { getProjectAccess } from "@/lib/access-control";
 import { requireAuth } from "@/lib/auth";
 import { getSupabase } from "@/lib/supabase";
+import { API_NO_STORE_HEADERS, apiError, backendUnavailable } from "@/lib/api/responses";
 
 interface AssetRow {
   id: string;
-  name: string;
+  title: string;
   status: string;
   file_type: string;
   created_at: string;
@@ -31,9 +33,10 @@ interface StepRow {
 }
 
 export async function GET(req: Request) {
+  try {
   const user = await requireAuth();
   if (!user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    return apiError("Unauthorized", "UNAUTHORIZED", 401);
   }
 
   const { searchParams } = new URL(req.url);
@@ -41,49 +44,53 @@ export async function GET(req: Request) {
   const format = searchParams.get("format") || "csv";
 
   if (!projectId) {
-    return NextResponse.json({ error: "project_id required" }, { status: 400 });
+    return apiError("project_id required", "INVALID_REQUEST", 400);
   }
 
   const supabase = getSupabase();
 
-  // Verify ownership
-  const { data: project, error: projErr } = await supabase
-    .from("projects")
-    .select("id, name")
-    .eq("id", projectId)
-    .eq("owner_id", user.id)
-    .single();
-
-  if (projErr || !project) {
-    return NextResponse.json({ error: "Project not found" }, { status: 404 });
+  const projectAccess = await getProjectAccess(
+    projectId,
+    user.id,
+    "member",
+    supabase,
+  );
+  if (!projectAccess.ok) {
+    return apiError(projectAccess.error, "PROJECT_ACCESS_DENIED", projectAccess.status);
   }
 
   // Fetch all project data
-  const { data: assets } = await supabase
+  const { data: assets, error: assetsError } = await supabase
     .from("assets")
-    .select("id, name, status, file_type, created_at")
+    .select("id, title, status, file_type, created_at")
     .eq("project_id", projectId)
     .order("created_at", { ascending: true });
 
   const assetIds = (assets ?? []).map((a: AssetRow) => a.id);
 
-  const { data: comments } = assetIds.length > 0
+  const { data: comments, error: commentsError } = assetIds.length > 0
     ? await supabase
         .from("comments")
         .select("id, asset_id, author_name, author_email, body, status, created_at")
         .in("asset_id", assetIds)
         .order("created_at", { ascending: true })
-    : { data: [] };
+    : { data: [], error: null };
 
-  const { data: approvalSteps } = assetIds.length > 0
+  const { data: approvalSteps, error: approvalsError } = assetIds.length > 0
     ? await supabase
-        .from("approval_steps")
+        .from("approvals")
         .select("id, asset_id, assignee_email, role_label, status, decided_at, created_at")
         .in("asset_id", assetIds)
         .order("created_at", { ascending: true })
-    : { data: [] };
+    : { data: [], error: null };
 
-  const projectName = (project as { name: string }).name;
+  const queryError = assetsError ?? commentsError ?? approvalsError;
+  if (queryError) {
+    return apiError("Analytics export is unavailable", "BACKEND_UNAVAILABLE", 503);
+  }
+
+  const projectName = projectAccess.data.name;
+  const fileName = safeFileName(projectName);
 
   if (format === "json") {
     const jsonData = {
@@ -96,8 +103,9 @@ export async function GET(req: Request) {
 
     return new NextResponse(JSON.stringify(jsonData, null, 2), {
       headers: {
+        ...API_NO_STORE_HEADERS,
         "Content-Type": "application/json",
-        "Content-Disposition": `attachment; filename="${projectName}_report.json"`,
+        "Content-Disposition": `attachment; filename="${fileName}_report.json"`,
       },
     });
   }
@@ -110,7 +118,7 @@ export async function GET(req: Request) {
   lines.push("ID,Name,Status,Type,Created");
   for (const a of (assets ?? []) as AssetRow[]) {
     lines.push(
-      [a.id, csvEscape(a.name), a.status, a.file_type, a.created_at].join(",")
+      [a.id, csvEscape(a.title), a.status, a.file_type, a.created_at].join(",")
     );
   }
 
@@ -152,15 +160,28 @@ export async function GET(req: Request) {
 
   return new NextResponse(csv, {
     headers: {
+      ...API_NO_STORE_HEADERS,
       "Content-Type": "text/csv",
-      "Content-Disposition": `attachment; filename="${projectName}_report.csv"`,
+      "Content-Disposition": `attachment; filename="${fileName}_report.csv"`,
     },
   });
+  } catch {
+    return backendUnavailable();
+  }
 }
 
 function csvEscape(value: string): string {
-  if (value.includes(",") || value.includes('"') || value.includes("\n")) {
-    return `"${value.replace(/"/g, '""')}"`;
+  const formulaSafe = /^[=+\-@]/.test(value) ? `'${value}` : value;
+  if (
+    formulaSafe.includes(",") ||
+    formulaSafe.includes('"') ||
+    formulaSafe.includes("\n")
+  ) {
+    return `"${formulaSafe.replace(/"/g, '""')}"`;
   }
-  return value;
+  return formulaSafe;
+}
+
+function safeFileName(value: string) {
+  return value.replace(/[^A-Za-z0-9._-]+/g, "_").replace(/^_+|_+$/g, "") || "project";
 }

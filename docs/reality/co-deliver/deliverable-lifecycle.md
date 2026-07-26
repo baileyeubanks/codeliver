@@ -1,7 +1,8 @@
 # Co-VideoPro Deliverable Lifecycle
 
 Date: 2026-07-26
-Status: CCO-C5A source map plus hardening at M2 local commit `2639e89`
+Status: CCO-C5A source map plus hardening at M2 application-source baseline
+`2639e8973211476649f95029d1a3d33a5fccf57d`
 
 ## Canonical Lifecycle Expected By Directive
 
@@ -31,7 +32,7 @@ Status: CCO-C5A source map plus hardening at M2 local commit `2639e89`
 | review_link_created | `/api/assets/[id]/share`, `review_invites` |
 | client_notified | `sendEmail` in share and approval routes, no durable send status on invite |
 | client_viewed | `/api/review/[token]` increments `review_invites.view_count` and `last_viewed_at` |
-| feedback_requested | Exact-version public comment writes and safe response projections exist in source; the frame-pin repair migration is unapplied |
+| feedback_requested | An active valid invite can create an exact-version, safely projected public frame comment with a complete 0–100 pin pair in source; database and runtime proof remain absent |
 | revision_required | `assets.status = needs_changes`, approval decisions, comments |
 | revision_uploaded | Not implemented as a governed writer. Arbitrary `POST /api/assets/[id]/versions` is intentionally `410 Gone` |
 | approval_requested | `approval_workflows`, `approvals`, `/api/approvals/notify` |
@@ -43,7 +44,7 @@ Status: CCO-C5A source map plus hardening at M2 local commit `2639e89`
 
 ## Lifecycle Gaps
 
-- The CCO-C5A migration is unapplied; no live database, RPC, privilege,
+- The CCO-C5A catalog migration is unapplied; no live database, RPC, privilege,
   provider, or real-file runtime receipt exists.
 - The frame-pin migration is unapplied and deliberately aborts if any legacy
   pin exists; legacy coordinate remediation requires a separate approved

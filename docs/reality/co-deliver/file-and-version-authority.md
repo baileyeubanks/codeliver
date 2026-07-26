@@ -1,7 +1,8 @@
 # Co-VideoPro File And Version Authority
 
 Date: 2026-07-26
-Status: CCO-C5A source contract plus hardening at M2 local commit `2639e89`
+Status: CCO-C5A source contract plus hardening at M2 application-source
+baseline `2639e8973211476649f95029d1a3d33a5fccf57d`
 
 ## One Production Writer
 
@@ -60,6 +61,25 @@ syntax, existing-data compatibility, grants/policies, effective RPC authority,
 or rollback behavior. Applying it requires Bailey's explicit database approval
 after a read-only duplicate and compatibility preflight.
 
+Migration `20260726113000_comment_pin_percentage_contract.sql` aligns comment
+pins to the UI's 0–100 percentage unit and enforces complete coordinate pairs.
+It takes an exclusive lock and aborts before DDL if any existing pin is found,
+so ambiguous legacy 0–1 data cannot be reinterpreted silently. It is also
+**unapplied** and requires a Bailey-approved read-only legacy-pin inventory and
+an explicit remediation decision before application.
+
+## Immutable Filesystem Publication
+
+Filesystem publication preflights capacity for the complete immutable copy,
+copies the completed staging object into a separate deterministic placement
+inode, validates and seals it through held no-follow handles, verifies the
+final hard link before directory sync, removes placement and staging entries
+durably, and issues a receipt only at `nlink = 1`. Reconciliation removes crash
+orphans and aliases, can inspect sealed staging read-only at the exact durable
+offset, and rejects writable objects or legacy staging aliases. This is
+application-level immutability, not WORM; CCNAS filesystem semantics still
+require isolated runtime proof.
+
 ## Exact-Version Playback
 
 Authenticated playback uses `/api/media/versions/[versionId]`. The route:
@@ -74,13 +94,14 @@ Authenticated playback uses `/api/media/versions/[versionId]`. The route:
 Active content is forced to download. Provider receipt columns and storage
 keys are absent from authenticated catalog projections.
 
-Filesystem publication copies the completed staging object into a separate
-deterministic placement inode, validates and seals it through held no-follow
-handles, verifies the final hard link before directory sync, removes placement
-and staging entries durably, and issues a receipt only at `nlink = 1`.
-Reconciliation removes crash orphans and aliases and rejects writable objects
-or legacy staging aliases. This is application-level immutability, not WORM;
-CCNAS filesystem semantics still require isolated runtime proof.
+## Public Review Authority
+
+Public review payloads serialize explicit external-safe asset, version,
+comment, and invite projections rather than raw database rows. Invites must be
+active and reference an existing asset; a password hash fails closed because
+governed password verification is not implemented. Comment writes bind to the
+invite's exact version, require complete finite 0–100 pin pairs, and omit
+internal actor, provider, rich-body, mention, and resolution fields.
 
 This does not yet prove anonymous review-token playback. The public-review
 bridge must authorize the same exact version without revealing provider
@@ -88,11 +109,12 @@ identity and then be exercised with a real file.
 
 ## Current Evidence Boundary
 
-Source gates at `2639e89` pass:
+Source gates at application-source baseline
+`2639e8973211476649f95029d1a3d33a5fccf57d` pass:
 
 - typecheck;
 - lint with zero errors;
-- 1,150 passing tests, zero failures, and three runtime skips;
+- 1,153 tests: 1,150 passing, zero failures, and three runtime skips;
 - production build; and
 - independent exact-diff review with no Critical or Important findings.
 

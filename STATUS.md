@@ -97,10 +97,10 @@ FFmpeg and FFprobe themselves currently resolve from M2's `PATH`.
 
 ## P10–P28 Capability Ledger (CCO-C3 source classification)
 
-Classification is anchored to committed HEAD `2639e89` and current M2 evidence
-on 2026-07-26. `REAL` requires current route, UI, data, authority, and runtime
-proof; source presence or a unit test alone is insufficient. A phase can be
-upgraded only by new evidence.
+Classification is anchored to application-source baseline `2639e89` and
+current M2 evidence on 2026-07-26. `REAL` requires current route, UI, data,
+authority, and runtime proof; source presence or a unit test alone is
+insufficient. A phase can be upgraded only by new evidence.
 
 | Phase | Classification | Current evidence |
 | --- | --- | --- |

@@ -31,7 +31,10 @@ test("protected media and approval routes do not expose provider error messages"
     "app/api/approvals/workflow/route.ts",
   ]) {
     const route = source(path);
-    assert.match(route, /apiError\(|backendUnavailable\(/);
+    assert.match(
+      route,
+      /apiError\(|backendUnavailable\(|legacyUploadRetiredResponse\(/,
+    );
     assert.doesNotMatch(route, /error:\s*\w+\.message/);
     if (path.startsWith("app/api/media/")) {
       assert.doesNotMatch(route, /NextResponse\.json\(/);
@@ -39,13 +42,13 @@ test("protected media and approval routes do not expose provider error messages"
   }
 });
 
-test("legacy media upload never reports success after its asset record fails", () => {
+test("legacy multipart is a bodyless tombstone and cannot create catalog rows", () => {
   const route = source("app/api/media/upload/route.ts");
-  assert.match(
-    route,
-    /if \(error\) \{[\s\S]*?unlink\(created\.absolutePath\)[\s\S]*?return backendUnavailable\(\)/,
-  );
-  assert.match(route, /return apiJson\(\{\s*success: true,/);
+  const retirement = source("lib/tus/legacy-retirement.ts");
+  assert.match(route, /legacyUploadRetiredResponse\(\)/);
+  assert.match(retirement, /LEGACY_UPLOAD_RETIRED/);
+  assert.match(retirement, /canonicalUploadUrl: "\/api\/upload\/tus"/);
+  assert.doesNotMatch(route, /\.from\(["']assets["']\)|arrayBuffer\(|formData\(/);
 });
 
 test("approval workflow validates bodies and cannot report a stale update as success", () => {

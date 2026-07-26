@@ -320,7 +320,10 @@ test("catalog reconciliation serializes retries after immutable placement", asyn
 
     const reconcile = (session: { assetId: string | null }) => {
       if (!session.assetId) catalogWrites += 1;
-      return Promise.resolve({ id: session.assetId || "asset-a" });
+      return Promise.resolve({
+        id: session.assetId || "asset-a",
+        version_id: "version-a",
+      });
     };
     const raced = await Promise.allSettled([
       orchestrator.reconcileCatalog(created.session.id, "tenant-a", reconcile),
@@ -341,8 +344,50 @@ test("catalog reconciliation serializes retries after immutable placement", asyn
 
     const session = await orchestrator.getSession(created.session.id, "tenant-a");
     assert.equal(session?.assetId, "asset-a");
+    assert.equal(session?.versionId, "version-a");
     assert.equal(session?.catalog.state, "attached");
     assert.equal(session?.catalog.attempts, 2);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("asset-only catalog results fail closed and an exact-pair retry self-repairs", async () => {
+  const root = mkdtempSync(join(tmpdir(), "codeliver-session-catalog-pair-"));
+  const orchestrator = createOrchestrator(root);
+  try {
+    const created = await orchestrator.createSession(createInput());
+    await orchestrator.appendPart({
+      uploadId: created.session.id,
+      tenantId: "tenant-a",
+      offset: 0,
+      chunks: chunks("payload"),
+    });
+
+    await assert.rejects(
+      () =>
+        orchestrator.reconcileCatalog(
+          created.session.id,
+          "tenant-a",
+          async () => ({ id: "asset-a" }) as never,
+        ),
+      /Version id must be between 1 and 256 printable characters/,
+    );
+    const failed = await orchestrator.getSession(created.session.id, "tenant-a");
+    assert.equal(failed?.assetId, null);
+    assert.equal(failed?.versionId, null);
+    assert.equal(failed?.catalog.state, "error");
+
+    const repaired = await orchestrator.reconcileCatalog(
+      created.session.id,
+      "tenant-a",
+      async () => ({ id: "asset-a", version_id: "version-a" }),
+    );
+    assert.deepEqual(repaired, { id: "asset-a", version_id: "version-a" });
+    const attached = await orchestrator.getSession(created.session.id, "tenant-a");
+    assert.equal(attached?.assetId, "asset-a");
+    assert.equal(attached?.versionId, "version-a");
+    assert.equal(attached?.catalog.state, "attached");
   } finally {
     rmSync(root, { recursive: true, force: true });
   }
@@ -862,6 +907,7 @@ test("prepared creation journal recovers session and idempotency index after res
     partCount: 0,
     lastPartSha256: null,
     assetId: null,
+    versionId: null,
     catalog: {
       state: "pending",
       attempts: 0,

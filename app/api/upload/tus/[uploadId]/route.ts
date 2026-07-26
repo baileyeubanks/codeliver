@@ -44,8 +44,14 @@ function sessionHeaders(
     "Upload-Original-Ready": String(release.originalReady),
     "Upload-Signed-Delivery-Ready": String(release.signedDeliveryReady),
     ...(session.computedSha256 ? { "Upload-SHA256": session.computedSha256 } : {}),
-    ...(session.assetId
-      ? { "Upload-Asset": JSON.stringify({ id: session.assetId }) }
+    ...(session.assetId && session.versionId
+      ? {
+          "Upload-Asset": JSON.stringify({ id: session.assetId }),
+          "Upload-Version": JSON.stringify({
+            id: session.versionId,
+            number: session.version,
+          }),
+        }
       : {}),
   });
 }
@@ -56,13 +62,8 @@ async function attachCatalogIfCommitted(
   userId: string
 ): Promise<UploadSession> {
   if (session.state !== "committed") return session;
-  try {
-    await ensureCatalogAsset(orchestrator, session, userId);
-    return (await orchestrator.getSession(session.id, userId)) ?? session;
-  } catch (error) {
-    console.error("[upload] Asset catalog attachment pending:", error);
-    return session;
-  }
+  await ensureCatalogAsset(orchestrator, session, userId);
+  return (await orchestrator.getSession(session.id, userId)) ?? session;
 }
 
 export async function OPTIONS() {

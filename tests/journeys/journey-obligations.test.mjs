@@ -26,7 +26,7 @@ test("journeys cover login through sign-out and every requested workflow family"
     "/signup",
     "/api/auth/logout",
     "/projects/new",
-    "/api/media/upload",
+    "/api/upload/tus",
     "/projects/[id]/assets/[assetId]",
     "/api/assets/[id]/comments",
     "/api/assets/[id]/approvals",

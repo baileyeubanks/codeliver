@@ -71,7 +71,7 @@ export function tusHeaders(
     "Tus-Max-Size": maxUploadBytes.toString(),
     "Cache-Control": "no-store",
     "Access-Control-Expose-Headers":
-      "Location, Upload-Offset, Upload-Length, Upload-State, Upload-SHA256, Upload-Asset, Tus-Resumable, Tus-Version, Tus-Extension, Tus-Max-Size, Tus-Checksum-Algorithm",
+      "Location, Upload-Offset, Upload-Length, Upload-State, Upload-Derivative-State, Upload-Original-Ready, Upload-Signed-Delivery-Ready, Upload-SHA256, Upload-Asset, Upload-Version, Tus-Resumable, Tus-Version, Tus-Extension, Tus-Max-Size, Tus-Checksum-Algorithm",
     "Access-Control-Allow-Headers":
       "Content-Type, Content-Length, Upload-Offset, Upload-Length, Upload-Metadata, Upload-Checksum, Tus-Resumable, X-Requested-With",
     "Access-Control-Allow-Methods": "POST, HEAD, PATCH, DELETE, OPTIONS",

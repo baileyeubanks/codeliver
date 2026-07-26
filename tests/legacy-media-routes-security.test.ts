@@ -3,7 +3,6 @@ import {
   existsSync,
   mkdirSync,
   mkdtempSync,
-  readFileSync,
   rmSync,
   symlinkSync,
   writeFileSync,
@@ -96,30 +95,6 @@ function jsonRequest(url: string, body: unknown): NextRequest {
   });
 }
 
-async function multipartRequest(
-  filename: string,
-  contents: string | Uint8Array,
-  folder = ""
-): Promise<NextRequest> {
-  const formData = new FormData();
-  formData.set("file", new File([contents], filename, { type: "video/mp4" }));
-  if (folder) formData.set("folder", folder);
-
-  const serialized = new Request("https://admin.contentco-op.com/api/media/upload", {
-    method: "POST",
-    body: formData,
-  });
-  const body = Buffer.from(await serialized.arrayBuffer());
-  const headers = new Headers(serialized.headers);
-  headers.set("content-length", String(body.length));
-
-  return new NextRequest("https://admin.contentco-op.com/api/media/upload", {
-    method: "POST",
-    headers,
-    body,
-  });
-}
-
 function setRoot(root: string | undefined): string | undefined {
   const previous = process.env.NAS_MEDIA_ROOT;
   if (root === undefined) delete process.env.NAS_MEDIA_ROOT;
@@ -205,7 +180,7 @@ test("client and unclassified identities cannot use raw NAS operations", async (
 
       assert.deepEqual(
         responses.map((response) => response.status),
-        [403, 403, 403, 403]
+        [403, 403, 403, 410]
       );
     }
   } finally {
@@ -242,8 +217,11 @@ test("all raw NAS operations fail closed when NAS_MEDIA_ROOT is absent", async (
       ),
     ]);
 
+    assert.deepEqual(
+      responses.map((response) => response.status),
+      [503, 503, 503, 410],
+    );
     for (const response of responses) {
-      assert.equal(response.status, 503);
       const body = await response.text();
       assert.doesNotMatch(body, /\/volume1\/media|NAS_MEDIA_ROOT|\/Users\//);
     }
@@ -253,7 +231,7 @@ test("all raw NAS operations fail closed when NAS_MEDIA_ROOT is absent", async (
   }
 });
 
-test("oversized legacy uploads are rejected before multipart buffering", async () => {
+test("legacy multipart is retired before size checks or body buffering", async () => {
   const root = mkdtempSync(join(tmpdir(), "legacy-media-limit-"));
   const previousRoot = setRoot(root);
   state.__legacyMediaRouteUser = {
@@ -267,12 +245,12 @@ test("oversized legacy uploads are rejected before multipart buffering", async (
         headers: { "content-length": String(27 * 1024 * 1024) },
       })
     );
-    assert.equal(response.status, 413);
+    assert.equal(response.status, 410);
     assert.deepEqual(await response.json(), {
-      error: "Legacy upload is limited to 25 MiB. Use the resumable upload endpoint.",
-      code: "LEGACY_UPLOAD_TOO_LARGE",
-      maxBytes: 25 * 1024 * 1024,
-      resumableUploadUrl: "/api/media/tus",
+      error:
+        "This legacy upload endpoint is retired. Use the canonical resumable upload endpoint.",
+      code: "LEGACY_UPLOAD_RETIRED",
+      canonicalUploadUrl: "/api/upload/tus",
     });
 
     const forgedLengthResponse = await uploadPost(
@@ -285,48 +263,10 @@ test("oversized legacy uploads are rejected before multipart buffering", async (
         body: Buffer.alloc(26 * 1024 * 1024 + 1),
       })
     );
-    assert.equal(forgedLengthResponse.status, 413);
+    assert.equal(forgedLengthResponse.status, 410);
     const forgedLengthBody = await forgedLengthResponse.json();
-    assert.equal(forgedLengthBody.code, "LEGACY_UPLOAD_TOO_LARGE");
-    assert.equal(forgedLengthBody.resumableUploadUrl, "/api/media/tus");
-  } finally {
-    restoreRoot(previousRoot);
-    state.__legacyMediaRouteUser = null;
-    rmSync(root, { recursive: true, force: true });
-  }
-});
-
-test("legacy uploads sanitize traversal names and never overwrite on races", async () => {
-  const root = mkdtempSync(join(tmpdir(), "legacy-media-upload-"));
-  const previousRoot = setRoot(root);
-  state.__legacyMediaRouteUser = {
-    app_metadata: { content_coop_role: "staff" },
-  };
-  writeFileSync(join(root, "client-cut.mp4"), "original");
-
-  try {
-    const requests = await Promise.all([
-      multipartRequest("../../client-cut.mp4", "first"),
-      multipartRequest("..\\..\\client-cut.mp4", "second"),
-    ]);
-    const responses = await Promise.all(requests.map((request) => uploadPost(request)));
-    assert.deepEqual(
-      responses.map((response) => response.status),
-      [200, 200]
-    );
-
-    const payloads = await Promise.all(responses.map((response) => response.json()));
-    const uploadedNames = payloads.map((payload) => payload.fileName as string);
-    assert.equal(new Set(uploadedNames).size, 2);
-    assert.ok(uploadedNames.every((name) => !name.includes("/") && !name.includes("\\")));
-    assert.ok(uploadedNames.every((name) => name !== "client-cut.mp4"));
-    assert.equal(readFileSync(join(root, "client-cut.mp4"), "utf8"), "original");
-
-    for (const payload of payloads) {
-      assert.equal(payload.relativePath, payload.fileName);
-      assert.ok(existsSync(join(root, payload.fileName)));
-      assert.doesNotMatch(JSON.stringify(payload), /\/Users\/|legacy-media-upload-/);
-    }
+    assert.equal(forgedLengthBody.code, "LEGACY_UPLOAD_RETIRED");
+    assert.equal(forgedLengthBody.canonicalUploadUrl, "/api/upload/tus");
   } finally {
     restoreRoot(previousRoot);
     state.__legacyMediaRouteUser = null;

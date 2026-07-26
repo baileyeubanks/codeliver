@@ -1,4 +1,3 @@
-import { NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth";
 import {
   getAssetAccess,
@@ -6,6 +5,9 @@ import {
 } from "@/lib/access-control";
 import { getSupabase } from "@/lib/supabase";
 import { apiError, apiJson, backendUnavailable } from "@/lib/api/responses";
+
+const SAFE_ASSET_COLUMNS =
+  "id, project_id, folder_id, title, file_type, file_url, thumbnail_url, proxy_url, file_size, duration_seconds, status, position, uploaded_by, created_at, updated_at";
 
 const ASSET_STATUSES = new Set([
   "draft",
@@ -44,9 +46,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
   let result;
   try { result = await getSupabase()
     .from("assets")
-    .select(
-      "id, project_id, folder_id, title, file_type, file_url, thumbnail_url, proxy_url, file_size, duration_seconds, status, metadata, position, uploaded_by, created_at, updated_at",
-    )
+    .select(SAFE_ASSET_COLUMNS)
     .eq("id", id)
     .single(); } catch { return backendUnavailable(); }
   const { data, error } = result;
@@ -85,7 +85,18 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
   if (!body) {
     return apiError("Request body must be a JSON object", "INVALID_REQUEST", 400);
   }
-  const assetAccess = await getAssetAccess(id, user.id, "editor");
+  let supabase;
+  try {
+    supabase = getSupabase();
+  } catch {
+    return backendUnavailable();
+  }
+  let assetAccess;
+  try {
+    assetAccess = await getAssetAccess(id, user.id, "editor", supabase);
+  } catch {
+    return backendUnavailable();
+  }
   if (!assetAccess.ok) {
     if (assetAccess.status >= 500) return backendUnavailable();
     return apiError("Asset not found", "ASSET_ACCESS_DENIED", assetAccess.status);
@@ -99,8 +110,30 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
     updates.title = body.title.trim();
   }
   if (body.folder_id !== undefined) {
-    if (body.folder_id !== null && typeof body.folder_id !== "string") {
+    if (
+      body.folder_id !== null &&
+      (typeof body.folder_id !== "string" ||
+        body.folder_id.length < 1 ||
+        body.folder_id.length > 200)
+    ) {
       return apiError("folder_id is invalid", "INVALID_REQUEST", 400);
+    }
+    if (typeof body.folder_id === "string") {
+      let folderResult;
+      try {
+        folderResult = await supabase
+          .from("folders")
+          .select("id")
+          .eq("id", body.folder_id)
+          .eq("project_id", assetAccess.data.project_id)
+          .maybeSingle();
+      } catch {
+        return backendUnavailable();
+      }
+      if (folderResult.error) return backendUnavailable();
+      if (!folderResult.data) {
+        return apiError("Folder not found", "FOLDER_NOT_FOUND", 404);
+      }
     }
     updates.folder_id = body.folder_id;
   }
@@ -109,17 +142,6 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
       return apiError("position is invalid", "INVALID_REQUEST", 400);
     }
     updates.position = body.position;
-  }
-  if (body.metadata !== undefined) {
-    if (
-      !body.metadata ||
-      typeof body.metadata !== "object" ||
-      Array.isArray(body.metadata) ||
-      JSON.stringify(body.metadata).length > 65_536
-    ) {
-      return apiError("metadata is invalid", "INVALID_REQUEST", 400);
-    }
-    updates.metadata = body.metadata;
   }
   if (body.status !== undefined) {
     if (
@@ -139,11 +161,12 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
   updates.updated_at = new Date().toISOString();
 
   let result;
-  try { result = await getSupabase()
+  try { result = await supabase
     .from("assets")
     .update(updates)
     .eq("id", id)
-    .select()
+    .eq("project_id", assetAccess.data.project_id)
+    .select(SAFE_ASSET_COLUMNS)
     .single(); } catch { return backendUnavailable(); }
   const { data, error } = result;
 

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 
 import { getProjectAccess } from "@/lib/access-control";
+import { getSupabaseDataSchema } from "@/lib/data-authority";
 import { getSupabase } from "@/lib/supabase";
 import { detectFileType } from "@/lib/utils/media";
 import {
@@ -184,6 +185,38 @@ export async function requireOwnedUploadTarget(
   }
 }
 
+function uploadCatalogRpcFailure(error: unknown): Error {
+  const code =
+    error && typeof error === "object" && "code" in error
+      ? (error as { code?: unknown }).code
+      : null;
+  switch (code) {
+    case "42501":
+      return new UploadOrchestrationError(
+        "UPLOAD_FORBIDDEN",
+        "Upload catalog authority denied",
+      );
+    case "22023":
+      return new UploadOrchestrationError(
+        "UPLOAD_STATE",
+        "Committed upload is not valid for V1 catalog attachment",
+      );
+    case "23505":
+      return new UploadOrchestrationError(
+        "UPLOAD_CONFLICT",
+        "Committed upload conflicts with existing catalog state",
+      );
+    default:
+      return new BackendUnavailableError("Upload catalog transaction");
+  }
+}
+
+function catalogTitleFromFilename(filename: string): string {
+  const stem = filename.replace(/\.[^.]+$/, "").trim();
+  const fallback = filename.trim() || "Untitled upload";
+  return (stem || fallback).slice(0, 500).trim() || "Untitled upload";
+}
+
 export async function ensureCatalogAsset(
   orchestrator: UploadOrchestrator,
   session: UploadSession,
@@ -192,49 +225,69 @@ export async function ensureCatalogAsset(
   if (session.state !== "committed" || !session.objectKey) return null;
   const supabase = getSupabase();
   return orchestrator.reconcileCatalog(session.id, userId, async (current) => {
-    if (current.assetId) {
-      const { data } = await supabase
-        .from("assets")
-        .select("*")
-        .eq("id", current.assetId)
-        .eq("project_id", current.projectId)
-        .maybeSingle();
-      if (data) return data as Record<string, unknown> & { id: string };
+    if (getSupabaseDataSchema() !== "co_production") {
+      throw new BackendUnavailableError("Canonical upload catalog");
+    }
+    const receipt = current.receipt;
+    if (
+      current.scan?.verdict !== "clean" ||
+      current.version !== 1 ||
+      !current.objectKey ||
+      !current.computedSha256 ||
+      !receipt ||
+      receipt.provider !== current.provider ||
+      receipt.objectKey !== current.objectKey ||
+      receipt.size !== current.size ||
+      receipt.sha256 !== current.computedSha256 ||
+      typeof receipt.providerVersionId !== "string" ||
+      !receipt.providerVersionId
+    ) {
+      throw new UploadOrchestrationError(
+        "UPLOAD_STATE",
+        "Committed upload is not clean and receipt-bound for V1 catalog attachment",
+      );
     }
 
-    const { data: existing } = await supabase
-      .from("assets")
-      .select("*")
-      .eq("project_id", current.projectId)
-      .eq("nas_path", current.objectKey)
-      .limit(1)
-      .maybeSingle();
-    if (existing) return existing as Record<string, unknown> & { id: string };
-
-    const fileType = detectFileType(current.filename);
-    const fileUrl =
-      current.provider === "ccnas"
-        ? `/api/media/stream?path=${encodeURIComponent(current.objectKey!)}`
-        : null;
     const { data, error } = await supabase
-      .from("assets")
-      .insert({
-        title: current.filename.replace(/\.[^.]+$/, ""),
-        file_type: fileType,
-        file_url: fileUrl,
-        project_id: current.projectId,
-        folder_id: current.folderId,
-        status: "ready",
-        nas_path: current.objectKey,
-        file_size: current.size,
-        uploaded_by: userId,
-      })
-      .select()
-      .single();
-    if (error || !data) {
-      throw new Error(error?.message || "Asset catalog write failed");
+      .rpc("attach_committed_upload_v1", {
+        p_actor_id: userId,
+        p_upload_id: current.id,
+        p_project_id: current.projectId,
+        p_folder_id: current.folderId,
+        p_title: catalogTitleFromFilename(current.filename),
+        p_file_type: detectFileType(current.filename),
+        p_original_filename: current.filename,
+        p_mime_type: current.mimeType,
+        p_file_size: current.size,
+        p_storage_provider: current.provider,
+        p_storage_object_key: current.objectKey,
+        p_storage_sha256: current.computedSha256,
+        p_storage_provider_version_id: receipt.providerVersionId,
+        p_storage_committed_at: receipt.committedAt,
+      });
+    if (error) {
+      throw uploadCatalogRpcFailure(error);
     }
-    return data as Record<string, unknown> & { id: string };
+
+    const rows = Array.isArray(data) ? data : [];
+    const record = rows.length === 1 ? rows[0] : null;
+    if (
+      !record ||
+      typeof record !== "object" ||
+      typeof record.id !== "string" ||
+      !record.id ||
+      typeof record.version_id !== "string" ||
+      !record.version_id ||
+      record.version_number !== 1 ||
+      typeof record.file_url !== "string" ||
+      record.file_url !== `/api/media/versions/${record.version_id}`
+    ) {
+      throw new BackendUnavailableError("Upload catalog transaction");
+    }
+    return record as Record<string, unknown> & {
+      id: string;
+      version_id: string;
+    };
   });
 }
 

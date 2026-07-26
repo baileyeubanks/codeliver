@@ -100,6 +100,16 @@ export interface StoredObjectReceipt {
   committedAt: string;
 }
 
+export interface StoredObjectReadRange {
+  start: number;
+  end: number;
+}
+
+export interface StoredObjectReadExpectation {
+  size: number;
+  providerVersionId: string;
+}
+
 export interface StorageAdapter {
   readonly kind: StorageProviderKind;
   readonly label: string;
@@ -119,7 +129,11 @@ export interface StorageAdapter {
   ): Promise<MultipartCommitReconciliation>;
   openMultipartReadStream(handle: MultipartHandle): Promise<Readable>;
   inspectStoredObject(objectKey: string): Promise<MultipartInspection | null>;
-  openStoredObjectReadStream(objectKey: string): Promise<Readable>;
+  openStoredObjectReadStream(
+    objectKey: string,
+    range?: StoredObjectReadRange,
+    expectation?: StoredObjectReadExpectation
+  ): Promise<Readable>;
   commitMultipart(input: CommitMultipartInput): Promise<StoredObjectReceipt>;
   abortMultipart(handle: MultipartHandle): Promise<void>;
 }

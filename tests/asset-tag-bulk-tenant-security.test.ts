@@ -14,6 +14,16 @@ const authStubUrl = `data:text/javascript,${encodeURIComponent(`
 `)}`;
 
 const accessStubUrl = `data:text/javascript,${encodeURIComponent(`
+  export const PROJECT_ROLE_RANK = {
+    viewer: 10,
+    commenter: 20,
+    reviewer: 30,
+    editor: 40,
+    producer: 50,
+    admin: 60,
+    owner: 70,
+  };
+
   export async function getProjectAccess(projectId, userId, minimumRole, client) {
     globalThis.__ccoTenantProjectAccessCalls.push({ projectId, userId, minimumRole, client });
     return globalThis.__ccoTenantProjectAccess({ projectId, userId, minimumRole, client });
@@ -319,7 +329,17 @@ async function bulkRoute() {
   );
 }
 
-function jsonRequest(path: string, method: "POST" | "DELETE", body: unknown) {
+async function assetDetailRoute() {
+  return import(
+    pathToFileURL(resolve(repositoryRoot, "app/api/assets/[id]/route.ts")).href
+  );
+}
+
+function jsonRequest(
+  path: string,
+  method: "POST" | "PATCH" | "DELETE",
+  body: unknown,
+) {
   return new NextRequest(`https://admin.contentco-op.com${path}`, {
     method,
     headers: { "content-type": "application/json" },
@@ -333,6 +353,28 @@ const assetA = "asset-a";
 const assetB = "asset-b";
 const tagA = "tag-a";
 const tagB = "tag-b";
+
+test("single-asset move rejects a destination folder from another project", async () => {
+  const supabase = configure({
+    assets: [{ id: assetA, project_id: projectA, folder_id: null }],
+    folders: [{ id: "folder-b", project_id: projectB }],
+  });
+  const { PATCH } = await assetDetailRoute();
+
+  const response = await PATCH(
+    jsonRequest(`/api/assets/${assetA}`, "PATCH", {
+      folder_id: "folder-b",
+    }),
+    { params: Promise.resolve({ id: assetA }) },
+  );
+
+  assert.equal(response.status, 404);
+  assert.deepEqual(supabase.reads[0]?.filters, [
+    { operator: "eq", column: "id", value: "folder-b" },
+    { operator: "eq", column: "project_id", value: projectA },
+  ]);
+  assert.equal(supabase.writes.length, 0);
+});
 
 test("tag reads require project viewer access before querying", async () => {
   const supabase = configure({

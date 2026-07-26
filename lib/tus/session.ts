@@ -61,6 +61,7 @@ export interface UploadSession {
   partCount: number;
   lastPartSha256: string | null;
   assetId: string | null;
+  versionId: string | null;
   catalog: {
     state: "pending" | "attached" | "error";
     attempts: number;

@@ -103,6 +103,10 @@ function normalizeUploadSession(session: UploadSession): UploadSession {
   const recovery = session.recovery;
   return {
     ...session,
+    versionId:
+      typeof session.versionId === "string" && session.versionId.length > 0
+        ? session.versionId
+        : null,
     derivatives:
       derivatives &&
       ["blocked", "pending", "ready", "error"].includes(derivatives.state) &&

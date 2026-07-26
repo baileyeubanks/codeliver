@@ -6,6 +6,7 @@ import {
   readFileSync,
   rmSync,
   symlinkSync,
+  writeFileSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -216,6 +217,64 @@ test("committed placement can be reconciled after staging receipt loss", async (
       size: payload.length,
       sha256: checksum,
     });
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("stored-object reads use one receipt-bound handle for an inclusive byte range", async () => {
+  const root = mkdtempSync(join(tmpdir(), "codeliver-range-read-"));
+  const adapter = localAdapter(root);
+  const payload = "0123456789";
+  const handle = await adapter.beginMultipart(randomUUID());
+  const objectKey = buildVersionedObjectKey({
+    tenantId: "tenant-a",
+    projectId: "project-a",
+    objectId: handle.uploadId,
+    version: 1,
+    filename: "master.mov",
+  });
+  try {
+    await adapter.appendMultipart({
+      handle,
+      offset: 0,
+      chunks: chunks(payload),
+      maxBytes: 1024,
+      expectedSize: payload.length,
+    });
+    const receipt = await adapter.commitMultipart({
+      handle,
+      objectKey,
+      size: payload.length,
+      sha256: createHash("sha256").update(payload).digest("hex"),
+    });
+    assert.match(receipt.providerVersionId ?? "", /^fs-v1:[0-9a-f]{64}$/);
+
+    const stream = await adapter.openStoredObjectReadStream(
+      objectKey,
+      { start: 2, end: 5 },
+      {
+        size: receipt.size,
+        providerVersionId: receipt.providerVersionId!,
+      },
+    );
+    const received: Buffer[] = [];
+    for await (const chunk of stream) received.push(Buffer.from(chunk));
+    assert.equal(Buffer.concat(received).toString("utf8"), "2345");
+
+    writeFileSync(join(root, objectKey), "abcdefghij");
+    await assert.rejects(
+      () =>
+        adapter.openStoredObjectReadStream(
+          objectKey,
+          { start: 2, end: 5 },
+          {
+            size: receipt.size,
+            providerVersionId: receipt.providerVersionId!,
+          },
+        ),
+      /identity/i,
+    );
   } finally {
     rmSync(root, { recursive: true, force: true });
   }

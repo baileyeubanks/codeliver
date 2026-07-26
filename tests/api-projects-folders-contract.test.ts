@@ -22,15 +22,19 @@ test("projects and folders routes use stable no-store API responses", () => {
   }
 });
 
-test("folder mutations and scoped asset routes authorize before mutation", () => {
+test("folder mutations authorize and scoped asset reads preserve JWT authority", () => {
   const folders = readFileSync(resolve(repositoryRoot, routes[0]), "utf8");
   const assets = readFileSync(resolve(repositoryRoot, routes[2]), "utf8");
 
   assert.match(folders, /getProjectAccess\(project_id, user\.id, "editor", supabase\)/);
   assert.match(folders, /select\("project_id"\)/);
   assert.match(folders, /select\("parent_id, project_id"\)/);
-  assert.match(assets, /getProjectAccess\(id, user\.id, "viewer", supabase\)/);
-  assert.match(assets, /getProjectAccess\(id, user\.id, "editor", supabase\)/);
+  assert.match(
+    assets,
+    /getProjectAccess\(\s*id,\s*user\.id,\s*"viewer",\s*authSupabase,\s*\)/,
+  );
+  assert.match(assets, /legacyUploadRetiredResponse\(\)/);
+  assert.doesNotMatch(assets, /\.from\("assets"\)\s*\.insert\(/);
 });
 
 test("confirmed missing records remain 404 while database failures are 503", () => {

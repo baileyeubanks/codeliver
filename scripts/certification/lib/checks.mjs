@@ -213,47 +213,92 @@ function journeyObligations(registry) {
 }
 
 function uploadBoundaryChecks(repoRoot) {
-  const uploadFile = "app/api/media/upload/route.ts";
-  const tusFile = "lib/tus/store.ts";
+  const uploadFile = "app/api/upload/tus/route.ts";
+  const sharedFile = "app/api/upload/_shared.ts";
+  const orchestratorFile = "lib/tus/orchestrator.ts";
+  const objectKeyFile = "lib/storage/object-key.ts";
+  const migrationFile =
+    "supabase/migrations/20260726084644_atomic_upload_catalog_v1.sql";
   const upload = readSource(repoRoot, uploadFile);
-  const tus = readSource(repoRoot, tusFile);
-  const guard = /sanitizeObjectFilename|normalizeObjectFilename|assertSafeObjectKey|assertSafeFilename|basename\s*\(/;
-  const guarded = guard.test(upload) && guard.test(tus);
+  const shared = readSource(repoRoot, sharedFile);
+  const orchestrator = readSource(repoRoot, orchestratorFile);
+  const objectKey = readSource(repoRoot, objectKeyFile);
+  const migration = readSource(repoRoot, migrationFile);
+  const guarded =
+    /buildVersionedObjectKey/.test(orchestrator) &&
+    /sanitizeObjectFilename/.test(objectKey) &&
+    /assertSafeObjectKey/.test(objectKey);
   const filenameCheck = result(
     "security.upload-filename-boundary",
     "Every ingest path constrains client filenames and object keys",
     guarded ? "pass" : "fail",
     {
       severity: "critical",
-      summary: guarded ? "Multipart and resumable paths contain explicit path guards" : "One or more active ingest paths join an untrusted filename without an explicit boundary guard",
+      summary: guarded
+        ? "Canonical resumable ingest builds one sanitized, canonical object key"
+        : "Canonical resumable ingest lacks an explicit filename or object-key boundary",
       evidence: [
-        sourceEvidence(uploadFile, upload, /file\.name|fileName|filename/, "multipart filename flow"),
-        sourceEvidence(tusFile, tus, /fileName|filename/, "resumable filename flow"),
+        sourceEvidence(uploadFile, upload, /filename/, "canonical upload filename"),
+        sourceEvidence(
+          orchestratorFile,
+          orchestrator,
+          /buildVersionedObjectKey/,
+          "versioned object identity",
+        ),
+        sourceEvidence(
+          objectKeyFile,
+          objectKey,
+          /sanitizeObjectFilename|assertSafeObjectKey/,
+          "object-key boundary",
+        ),
       ],
       residualRisk: guarded ? null : "A crafted filename may escape the intended media root or overwrite another object.",
     }
   );
 
-  const tusRouteFile = "app/api/media/tus/route.ts";
-  const tusRoute = readSource(repoRoot, tusRouteFile);
-  const authority = /getOwnedProject|requireProjectAccess|assertProjectAccess|resolveProjectAuthority|authorizeProject/;
-  const uploadAuthorized = authority.test(upload);
-  const tusAuthorized = authority.test(tusRoute);
+  const routeAuthorized = /requireOwnedUploadTarget/.test(upload);
+  const sharedAuthorized =
+    /getProjectAccess/.test(shared) &&
+    /\.eq\("project_id", projectId\)/.test(shared);
+  const transactionAuthorized =
+    /p_actor_id/.test(migration) &&
+    /co_production\.project_members/.test(migration) &&
+    /co_production\.team_members/.test(migration);
+  const uploadAuthorized =
+    routeAuthorized && sharedAuthorized && transactionAuthorized;
   const tenantCheck = result(
     "security.upload-tenant-authority",
-    "Upload project authority is verified before service-role persistence",
-    uploadAuthorized && tusAuthorized ? "pass" : "fail",
+    "Canonical upload verifies project authority before bytes and inside catalog persistence",
+    uploadAuthorized ? "pass" : "fail",
     {
       severity: "critical",
       summary:
-        uploadAuthorized && tusAuthorized
-          ? "Multipart and resumable initiation verify project authority"
-          : `Missing project authority in ${[!uploadAuthorized && uploadFile, !tusAuthorized && tusRouteFile].filter(Boolean).join(", ")}`,
+        uploadAuthorized
+          ? "Canonical initiation and atomic asset-plus-V1 attachment both verify project authority"
+          : "Canonical upload is missing route, folder, or transaction authority",
       evidence: [
-        sourceEvidence(uploadFile, upload, /projectId|project_id/, "multipart project id"),
-        sourceEvidence(tusRouteFile, tusRoute, /projectId|project_id/, "resumable project id"),
+        sourceEvidence(
+          uploadFile,
+          upload,
+          /requireOwnedUploadTarget/,
+          "pre-ingest project authority",
+        ),
+        sourceEvidence(
+          sharedFile,
+          shared,
+          /getProjectAccess/,
+          "project and folder authority",
+        ),
+        sourceEvidence(
+          migrationFile,
+          migration,
+          /p_actor_id/,
+          "atomic catalog authority",
+        ),
       ],
-      residualRisk: uploadAuthorized && tusAuthorized ? null : "An authenticated user may attach media to a project outside their tenant.",
+      residualRisk: uploadAuthorized
+        ? null
+        : "An authenticated user may attach media to a project outside their tenant.",
     }
   );
   return [filenameCheck, tenantCheck];

@@ -23,6 +23,8 @@ import type {
   StorageCapability,
   StorageDiagnosticCheck,
   StorageReadiness,
+  StoredObjectReadExpectation,
+  StoredObjectReadRange,
   StoredObjectReceipt,
 } from "./contracts";
 import type { StorageRuntimeConfig } from "./config";
@@ -40,6 +42,23 @@ function normalizeSha256(value: string, label: string): string {
     throw new StorageError("STORAGE_CHECKSUM", `${label} must be a SHA-256 hex digest`);
   }
   return normalized;
+}
+
+function filesystemProviderVersionId(status: {
+  dev: bigint;
+  ino: bigint;
+  size: bigint;
+  mtimeNs: bigint;
+  ctimeNs: bigint;
+}): string {
+  const identity = [
+    status.dev,
+    status.ino,
+    status.size,
+    status.mtimeNs,
+    status.ctimeNs,
+  ].join(":");
+  return `fs-v1:${createHash("sha256").update(identity).digest("hex")}`;
 }
 
 export class FilesystemStorageAdapter implements StorageAdapter {
@@ -390,10 +409,69 @@ export class FilesystemStorageAdapter implements StorageAdapter {
     }
   }
 
-  async openStoredObjectReadStream(objectKey: string): Promise<Readable> {
+  async openStoredObjectReadStream(
+    objectKey: string,
+    range?: StoredObjectReadRange,
+    expectation?: StoredObjectReadExpectation
+  ): Promise<Readable> {
+    if (
+      range &&
+      (
+        !Number.isSafeInteger(range.start) ||
+        !Number.isSafeInteger(range.end) ||
+        range.start < 0 ||
+        range.end < range.start
+      )
+    ) {
+      throw new StorageError(
+        "STORAGE_PATH_INVALID",
+        "Stored object byte range is invalid"
+      );
+    }
     const path = await this.storedObjectPath(objectKey);
     await assertSafeRegularFile(path);
-    return createReadStream(path);
+    const file = await open(path, constants.O_RDONLY | constants.O_NOFOLLOW);
+    try {
+      const status = await file.stat({ bigint: true });
+      if (!status.isFile()) {
+        throw new StorageError(
+          "STORAGE_PATH_INVALID",
+          "Stored object is not a regular file"
+        );
+      }
+      const size = Number(status.size);
+      if (!Number.isSafeInteger(size) || size <= 0) {
+        throw new StorageError(
+          "STORAGE_PATH_INVALID",
+          "Stored object size is invalid"
+        );
+      }
+      if (range && (range.start >= size || range.end >= size)) {
+        throw new StorageError(
+          "STORAGE_PATH_INVALID",
+          "Stored object byte range exceeds the object"
+        );
+      }
+      if (
+        expectation &&
+        (
+          expectation.size !== size ||
+          expectation.providerVersionId !== filesystemProviderVersionId(status)
+        )
+      ) {
+        throw new StorageError(
+          "STORAGE_CHECKSUM",
+          "Stored object identity does not match its committed receipt"
+        );
+      }
+      return file.createReadStream({
+        autoClose: true,
+        ...(range ? { start: range.start, end: range.end } : {}),
+      });
+    } catch (error) {
+      await file.close().catch(() => undefined);
+      throw error;
+    }
   }
 
   async reconcileMultipartCommit(
@@ -438,10 +516,16 @@ export class FilesystemStorageAdapter implements StorageAdapter {
       if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
     }
 
-    const status = await open(destinationPath, "r");
+    const status = await open(
+      destinationPath,
+      constants.O_RDONLY | constants.O_NOFOLLOW
+    );
     let committedAt: string;
+    let providerVersionId: string;
     try {
-      committedAt = (await status.stat()).mtime.toISOString();
+      const fileStatus = await status.stat({ bigint: true });
+      committedAt = new Date(Number(fileStatus.mtimeMs)).toISOString();
+      providerVersionId = filesystemProviderVersionId(fileStatus);
     } finally {
       await status.close();
     }
@@ -452,7 +536,7 @@ export class FilesystemStorageAdapter implements StorageAdapter {
         objectKey,
         size: input.size,
         sha256: expectedSha256,
-        providerVersionId: expectedSha256,
+        providerVersionId,
         committedAt,
       },
     };
@@ -489,13 +573,27 @@ export class FilesystemStorageAdapter implements StorageAdapter {
     await unlink(stagingPath);
     await syncDurableDirectory(dirname(stagingPath));
 
+    const destination = await open(
+      destinationPath,
+      constants.O_RDONLY | constants.O_NOFOLLOW
+    );
+    let providerVersionId: string;
+    let committedAt: string;
+    try {
+      const status = await destination.stat({ bigint: true });
+      providerVersionId = filesystemProviderVersionId(status);
+      committedAt = new Date(Number(status.mtimeMs)).toISOString();
+    } finally {
+      await destination.close();
+    }
+
     return {
       provider: this.kind,
       objectKey,
       size: input.size,
       sha256: expectedSha256,
-      providerVersionId: expectedSha256,
-      committedAt: new Date().toISOString(),
+      providerVersionId,
+      committedAt,
     };
   }
 

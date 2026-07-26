@@ -60,6 +60,14 @@ export async function POST(request: NextRequest) {
     if (!projectId || !idempotencyKey) {
       return tusError("projectId and idempotencyKey metadata are required", "INVALID_UPLOAD_METADATA", 400, responseHeaders);
     }
+    if (metadata.version !== undefined && metadata.version !== "1") {
+      return tusError(
+        "Initial uploads must create V1",
+        "INVALID_UPLOAD_METADATA",
+        400,
+        responseHeaders,
+      );
+    }
     await requireOwnedUploadTarget(user.id, projectId, metadata.folderId);
 
     const orchestrator = createDefaultUploadOrchestrator();
@@ -71,7 +79,7 @@ export async function POST(request: NextRequest) {
       filename: metadata.filename || "upload.bin",
       mimeType: metadata.filetype || "application/octet-stream",
       size: uploadLength,
-      version: metadata.version ? Number(metadata.version) : 1,
+      version: 1,
       expectedSha256: metadata.sha256,
     });
 

@@ -1,6 +1,13 @@
 "use client";
 
-import { useEffect, useState, useMemo, useRef, useSyncExternalStore } from "react";
+import {
+  useCallback,
+  useEffect,
+  useState,
+  useMemo,
+  useRef,
+  useSyncExternalStore,
+} from "react";
 import {
   CheckCircle2,
   Clock3,
@@ -14,12 +21,12 @@ import {
   Shield,
   Upload,
 } from "lucide-react";
-import FolderTree, { type FolderNode } from "@/components/projects/FolderTree";
+import FolderTree from "@/components/projects/FolderTree";
 import ProjectToolbar, { type ViewMode, type SortMode } from "@/components/projects/ProjectToolbar";
 import MediaCard, { type MediaAsset } from "@/components/projects/MediaCard";
 import MediaTable from "@/components/projects/MediaTable";
+import AssetUpload from "@/components/assets/AssetUpload";
 import Link from "next/link";
-import { createSupabaseBrowser } from "@/lib/supabase-browser";
 import DemoShareModal from "@/components/demo/DemoShareModal";
 import {
   addDemoAssets,
@@ -38,6 +45,7 @@ interface Project {
 }
 
 const MOBILE_PROJECTS_QUERY = "(max-width: 768px)";
+const AUTHORITATIVE_UPLOAD_INPUT_ID = "projects-authoritative-upload-input";
 
 const lifecyclePath = [
   {
@@ -90,11 +98,12 @@ export default function ProjectsPage() {
   const [selectAll, setSelectAll] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [thumbnailSize, setThumbnailSize] = useState(220);
-  const [remoteFolders, setRemoteFolders] = useState<FolderNode[]>([]);
   const [remoteAssets, setRemoteAssets] = useState<MediaAsset[]>([]);
   const [remoteProjects, setRemoteProjects] = useState<Project[]>([]);
   const demoWorkspace = useDemoWorkspace();
-  const [activeProject, setActiveProject] = useState<string | null>("ica");
+  const [activeProject, setActiveProject] = useState<string | null>(() =>
+    demoMode ? "ica" : null,
+  );
   const [remoteLoading, setRemoteLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
   const [showNewProject, setShowNewProject] = useState(false);
@@ -102,24 +111,46 @@ export default function ProjectsPage() {
   const [shareOpen, setShareOpen] = useState(false);
   const [notice, setNotice] = useState("");
 
-  const folders = demoMode ? demoWorkspace.folders : remoteFolders;
+  const folders = demoMode
+    ? demoWorkspace.folders
+    : remoteProjects.map((project) => ({
+        id: project.id,
+        name: project.name,
+        children: [],
+      }));
   const assets = demoMode ? demoWorkspace.assets : remoteAssets;
   const projects = demoMode ? demoWorkspace.projects : remoteProjects;
   const loading = demoMode ? false : remoteLoading;
+  const canonicalProjectId =
+    !demoMode &&
+    activeProject &&
+    activeProject !== "all" &&
+    remoteProjects.some((project) => project.id === activeProject)
+      ? activeProject
+      : null;
+
+  const refreshRemoteAssets = useCallback(() => {
+    if (demoMode) return;
+    void fetch("/api/assets", { cache: "no-store" })
+      .then(async (response) => {
+        if (!response.ok) return;
+        const payload = (await response.json()) as { items?: MediaAsset[] };
+        setRemoteAssets(Array.isArray(payload.items) ? payload.items : []);
+      })
+      .catch(() => undefined);
+  }, [demoMode]);
 
   useEffect(() => {
     if (demoMode) return;
 
-    // Fetch projects list, then folders and assets
+    // The project rail and asset list share one project identity source.
     Promise.all([
       fetch("/api/projects").then((r) => r.ok ? r.json() : { items: [] }),
-      fetch("/api/folders").then((r) => r.ok ? r.json() : { items: [] }),
       fetch("/api/assets").then((r) => r.ok ? r.json() : { items: [] }),
     ])
-      .then(([p, f, a]) => {
+      .then(([p, a]) => {
         const projectList = p.items ?? p ?? [];
         setRemoteProjects(Array.isArray(projectList) ? projectList : []);
-        setRemoteFolders(f.items ?? []);
         setRemoteAssets(a.items ?? []);
         // Select first project if available
         if (Array.isArray(projectList) && projectList.length > 0) {
@@ -267,111 +298,48 @@ export default function ProjectsPage() {
     } catch {}
   }
 
-  async function handleUpload(files: FileList | null) {
-    if (!files || files.length === 0) return;
+  async function handleDemoUpload(files: FileList | null) {
+    if (!demoMode || !files || files.length === 0) return;
+    const projectId =
+      activeProject && activeProject !== "all" ? activeProject : "ica";
+    setUploading(true);
+    const uploadStartedAt = Date.now();
+    const added: MediaAsset[] = Array.from(files).map((file, index) => {
+      const assetId = `local-upload-${uploadStartedAt}-${index}`;
+      return {
+        id: assetId,
+        project_id: projectId,
+        title: file.name.replace(/\.[^.]+$/, ""),
+        thumbnail_url: "/demo/refinery-sunset.jpg",
+        file_type: file.type.startsWith("image/") ? "image" : "video",
+        duration_seconds: file.type.startsWith("video/") ? 64 : undefined,
+        status: "draft",
+        version_count: 1,
+        reviewer_count: 0,
+        reviewer_done: 0,
+        comment_count: 0,
+        created_at: new Date().toISOString(),
+        href: buildInternalDemoAssetHref(projectId, assetId),
+      };
+    });
+    addDemoAssets(added);
+    setUploading(false);
+    setNotice(
+      `${added.length} ${added.length === 1 ? "file" : "files"} added locally`,
+    );
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  }
 
+  function triggerUpload() {
     if (demoMode) {
-      const projectId = activeProject && activeProject !== "all" ? activeProject : "ica";
-      setUploading(true);
-      const uploadStartedAt = Date.now();
-      const added: MediaAsset[] = Array.from(files).map((file, index) => {
-        const assetId = `local-upload-${uploadStartedAt}-${index}`;
-        return {
-          id: assetId,
-          project_id: projectId,
-          title: file.name.replace(/\.[^.]+$/, ""),
-          thumbnail_url: "/demo/refinery-sunset.jpg",
-          file_type: file.type.startsWith("image/") ? "image" : "video",
-          duration_seconds: file.type.startsWith("video/") ? 64 : undefined,
-          status: "draft",
-          version_count: 1,
-          reviewer_count: 0,
-          reviewer_done: 0,
-          comment_count: 0,
-          created_at: new Date().toISOString(),
-          href: buildInternalDemoAssetHref(projectId, assetId),
-        };
-      });
-      addDemoAssets(added);
-      setUploading(false);
-      setNotice(`${added.length} ${added.length === 1 ? "file" : "files"} added locally`);
-      if (fileInputRef.current) fileInputRef.current.value = "";
+      fileInputRef.current?.click();
       return;
     }
-
-    // If no project, create one first
-    let projectId = activeProject;
-    if (!projectId) {
-      try {
-        const res = await fetch("/api/projects", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ name: "My First Project" }),
-        });
-        if (res.ok) {
-          const project = await res.json();
-          setRemoteProjects([project]);
-          setActiveProject(project.id);
-          projectId = project.id;
-        }
-      } catch {}
+    if (!canonicalProjectId) {
+      setNotice("Choose or create a workspace before uploading media");
+      return;
     }
-
-    if (!projectId) return;
-    setUploading(true);
-
-    const supabase = createSupabaseBrowser();
-
-    for (const file of Array.from(files)) {
-      const ext = file.name.split(".").pop() ?? "";
-      const fileType = file.type.startsWith("video/")
-        ? "video"
-        : file.type.startsWith("image/")
-        ? "image"
-        : file.type.startsWith("audio/")
-        ? "audio"
-        : "document";
-
-      // Upload to Supabase Storage
-      const path = `${projectId}/${Date.now()}-${file.name}`;
-      const { error: uploadError } = await supabase.storage
-        .from("deliverables")
-        .upload(path, file);
-
-      if (uploadError) {
-        console.error("Upload failed:", uploadError);
-        continue;
-      }
-
-      const { data: urlData } = supabase.storage
-        .from("deliverables")
-        .getPublicUrl(path);
-
-      // Create asset record
-      try {
-        const res = await fetch(`/api/projects/${projectId}/assets`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            title: file.name.replace(`.${ext}`, ""),
-            file_type: fileType,
-            file_url: urlData.publicUrl,
-            file_size: file.size,
-          }),
-        });
-
-        if (res.ok) {
-          const asset = await res.json();
-          setRemoteAssets((prev) => [asset, ...prev]);
-        }
-      } catch (e) {
-        console.error("Asset creation failed:", e);
-      }
-    }
-
-    setUploading(false);
-    // Reset file input
-    if (fileInputRef.current) fileInputRef.current.value = "";
+    document.getElementById(AUTHORITATIVE_UPLOAD_INPUT_ID)?.click();
   }
 
   return (
@@ -425,7 +393,7 @@ export default function ProjectsPage() {
               </Link>
               <button
                 className="inline-flex h-9 items-center gap-2 rounded-md bg-[var(--accent)] px-3 text-sm font-semibold text-white shadow-sm"
-                onClick={() => fileInputRef.current?.click()}
+                onClick={triggerUpload}
                 disabled={uploading}
               >
                 <Upload size={15} />
@@ -442,15 +410,23 @@ export default function ProjectsPage() {
           </div>
         </header>
 
-        {/* Hidden file input */}
-        <input
-          ref={fileInputRef}
-          type="file"
-          multiple
-          accept="video/*,image/*,audio/*,.pdf,.doc,.docx,.srt,.vtt"
-          className="hidden"
-          onChange={(e) => handleUpload(e.target.files)}
-        />
+        {demoMode ? (
+          <input
+            ref={fileInputRef}
+            type="file"
+            multiple
+            accept="video/*,image/*,audio/*,.pdf,.doc,.docx,.srt,.vtt"
+            className="hidden"
+            onChange={(event) => handleDemoUpload(event.target.files)}
+          />
+        ) : canonicalProjectId ? (
+          <AssetUpload
+            projectId={canonicalProjectId}
+            inputId={AUTHORITATIVE_UPLOAD_INPUT_ID}
+            variant="cockpit"
+            onUploadComplete={refreshRemoteAssets}
+          />
+        ) : null}
 
         <section
           aria-label="Project readiness"
@@ -548,7 +524,7 @@ export default function ProjectsPage() {
           onNewFolder={() => setShowNewProject(true)}
           thumbnailSize={thumbnailSize}
           onThumbnailSize={setThumbnailSize}
-          onUpload={() => fileInputRef.current?.click()}
+          onUpload={triggerUpload}
           uploading={uploading}
         />
 
@@ -608,7 +584,7 @@ export default function ProjectsPage() {
                 )}
                 <button
                   className="page-upload-btn"
-                  onClick={() => fileInputRef.current?.click()}
+                  onClick={triggerUpload}
                 >
                   <Upload size={14} /> Upload Media
                 </button>

@@ -112,8 +112,8 @@ function failClosedScanResult(
   };
 }
 
-function requireText(value: string, label: string, maxLength: number): string {
-  const normalized = value.trim();
+function requireText(value: unknown, label: string, maxLength: number): string {
+  const normalized = typeof value === "string" ? value.trim() : "";
   if (
     !normalized ||
     normalized.length > maxLength ||
@@ -428,6 +428,7 @@ export class UploadOrchestrator {
         partCount: 0,
         lastPartSha256: null,
         assetId: null,
+        versionId: null,
         catalog: {
           state: "pending",
           attempts: 0,
@@ -1084,7 +1085,12 @@ export class UploadOrchestrator {
     });
   }
 
-  async attachAsset(uploadId: string, tenantId: string, assetId: string): Promise<void> {
+  async attachAsset(
+    uploadId: string,
+    tenantId: string,
+    assetId: string,
+    versionId: string
+  ): Promise<void> {
     await this.sessions.withLock(uploadId, async () => {
       const session = await this.sessions.get(uploadId);
       if (!session) {
@@ -1098,6 +1104,7 @@ export class UploadOrchestrator {
         );
       }
       session.assetId = requireText(assetId, "Asset id", 256);
+      session.versionId = requireText(versionId, "Version id", 256);
       session.catalog = {
         state: "attached",
         attempts: session.catalog.attempts + 1,
@@ -1105,11 +1112,14 @@ export class UploadOrchestrator {
         updatedAt: this.now().toISOString(),
       };
       await this.save(session);
-      await this.event(session, "asset-attached", { assetId: session.assetId });
+      await this.event(session, "asset-version-attached", {
+        assetId: session.assetId,
+        versionId: session.versionId,
+      });
     });
   }
 
-  async reconcileCatalog<T extends { id: string }>(
+  async reconcileCatalog<T extends { id: string; version_id: string }>(
     uploadId: string,
     tenantId: string,
     reconcile: (session: UploadSession) => Promise<T>
@@ -1133,7 +1143,10 @@ export class UploadOrchestrator {
       await this.save(session);
       try {
         const record = await reconcile(session);
-        session.assetId = requireText(record.id, "Asset id", 256);
+        const assetId = requireText(record.id, "Asset id", 256);
+        const versionId = requireText(record.version_id, "Version id", 256);
+        session.assetId = assetId;
+        session.versionId = versionId;
         session.catalog = {
           state: "attached",
           attempts: session.catalog.attempts,
@@ -1141,7 +1154,10 @@ export class UploadOrchestrator {
           updatedAt: this.now().toISOString(),
         };
         await this.save(session);
-        await this.event(session, "asset-attached", { assetId: session.assetId });
+        await this.event(session, "asset-version-attached", {
+          assetId: session.assetId,
+          versionId: session.versionId,
+        });
         return record;
       } catch (error) {
         session.catalog = {

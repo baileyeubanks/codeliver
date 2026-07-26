@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { ArrowLeft, CheckCircle2, Eye, EyeOff, LoaderCircle, UserPlus } from "lucide-react";
 import AuthShell, { authStyles as styles } from "@/components/auth/AuthShell";
 import {
@@ -19,10 +20,14 @@ export default function SignupPage() {
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
   const [showPasswords, setShowPasswords] = useState(false);
+  const [submittedEmail, setSubmittedEmail] = useState("");
+  const [resending, setResending] = useState(false);
+  const [resendMessage, setResendMessage] = useState("");
   const [invalidField, setInvalidField] = useState<SignupValidationField | null>(null);
   const alertRef = useRef<HTMLDivElement>(null);
   const successHeadingRef = useRef<HTMLHeadingElement>(null);
   const demoMode = useDemoMode();
+  const router = useRouter();
   const returnTarget = useAuthReturnTarget();
   const loginHref = buildAuthPageHref("/login", returnTarget, demoMode);
 
@@ -86,6 +91,7 @@ export default function SignupPage() {
           email: validation.email,
           password: formData.get("password"),
           display_name: formData.get("display_name"),
+          next: returnTarget,
         }),
       });
       if (!response.ok) {
@@ -96,10 +102,46 @@ export default function SignupPage() {
         );
         return;
       }
+      const payload = await response.json().catch(() => null) as {
+        confirmation_required?: unknown;
+        destination?: unknown;
+      } | null;
+      if (
+        payload?.confirmation_required === false &&
+        typeof payload.destination === "string" &&
+        (payload.destination === "/onboarding" || payload.destination.startsWith("/onboarding?"))
+      ) {
+        router.replace(payload.destination);
+        router.refresh();
+        return;
+      }
+      setSubmittedEmail(validation.email);
       setSuccess(true);
       setLoading(false);
     } catch {
       showError("Account creation is temporarily unavailable.");
+    }
+  }
+
+  async function resendConfirmation() {
+    if (!submittedEmail || resending) return;
+    setResending(true);
+    setResendMessage("");
+    try {
+      const response = await fetch("/api/auth/resend", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: submittedEmail, next: returnTarget }),
+      });
+      setResendMessage(
+        response.ok
+          ? "If confirmation is still required, a new email is on its way."
+          : "Confirmation email could not be sent right now.",
+      );
+    } catch {
+      setResendMessage("Confirmation email could not be sent right now.");
+    } finally {
+      setResending(false);
     }
   }
 
@@ -112,7 +154,7 @@ export default function SignupPage() {
               <CheckCircle2 size={25} aria-hidden="true" />
             </span>
             <p className={styles.successKicker}>
-              {demoMode ? "Local account ready" : "Account request received"}
+              {demoMode ? "Local account ready" : "One more step"}
             </p>
             <h1 id="signup-title" ref={successHeadingRef} tabIndex={-1}>
               {demoMode ? "Your workspace is ready" : "Verify your account"}
@@ -120,8 +162,26 @@ export default function SignupPage() {
             <p className={styles.successCopy}>
               {demoMode
                 ? "Sign in with the local demo identity to continue."
-                : "Follow any verification instructions sent by the identity provider, then sign in."}
+                : `We sent a confirmation link to ${submittedEmail}. Open it to verify your email and continue onboarding.`}
             </p>
+            {!demoMode ? (
+              <>
+                <button
+                  className={styles.secondaryAction}
+                  type="button"
+                  disabled={resending}
+                  onClick={() => void resendConfirmation()}
+                >
+                  {resending ? <LoaderCircle size={16} aria-hidden="true" /> : null}
+                  {resending ? "Sending..." : "Resend confirmation email"}
+                </button>
+                {resendMessage ? (
+                  <p className={styles.inlineStatus} role="status" aria-live="polite">
+                    {resendMessage}
+                  </p>
+                ) : null}
+              </>
+            ) : null}
             <Link className={styles.submit} href={loginHref}>
               Sign in to Co‑ProVideo
             </Link>

@@ -15,6 +15,7 @@ export interface ResolveSurfaceOriginOptions {
 
 export const ADMIN_PRODUCTION_ORIGIN = "https://admin.contentco-op.com";
 export const CLIENT_PRODUCTION_ORIGIN = "https://client.contentco-op.com";
+export const LEGACY_UNIFIED_PRODUCTION_ORIGIN = "https://co-videopro.com";
 export const DEFAULT_LOCAL_ORIGIN = "http://localhost:4103";
 
 const CONTROL_OR_BACKSLASH = /[\\\u0000-\u001f\u007f]/;
@@ -97,15 +98,20 @@ function assertOriginMatchesSurface({
   name: string;
 }) {
   const canonicalOrigin = productionOrigin(surface);
+  const productionOrigins = [canonicalOrigin, LEGACY_UNIFIED_PRODUCTION_ORIGIN];
   if (environment === "production") {
-    if (origin !== canonicalOrigin) {
-      throw new Error(`${name} must be ${canonicalOrigin} in production`);
+    if (!productionOrigins.includes(origin)) {
+      throw new Error(
+        `${name} must be ${canonicalOrigin} or ${LEGACY_UNIFIED_PRODUCTION_ORIGIN} in production`,
+      );
     }
     return;
   }
 
-  if (origin !== canonicalOrigin && !isLocalOrigin(origin)) {
-    throw new Error(`${name} must use ${canonicalOrigin} or a loopback origin`);
+  if (!productionOrigins.includes(origin) && !isLocalOrigin(origin)) {
+    throw new Error(
+      `${name} must use ${canonicalOrigin}, ${LEGACY_UNIFIED_PRODUCTION_ORIGIN}, or a loopback origin`,
+    );
   }
 }
 

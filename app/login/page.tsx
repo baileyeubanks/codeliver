@@ -23,6 +23,8 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [surfaceMismatch, setSurfaceMismatch] = useState<SurfaceMismatchNotice | null>(null);
+  const [notice, setNotice] = useState("");
+  const [linkError, setLinkError] = useState("");
   const alertRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
   const demoMode = useDemoMode();
@@ -30,10 +32,23 @@ export default function LoginPage() {
   const requestedPath = resolveSafeReturnPath(returnTarget, "/projects");
   const loginHref = buildAuthPageHref("/login", returnTarget, demoMode);
   const signupHref = buildAuthPageHref("/signup", returnTarget, demoMode);
+  const forgotPasswordHref = buildAuthPageHref("/forgot-password", returnTarget, demoMode);
 
   useEffect(() => {
     function syncSurfaceMismatch() {
-      setSurfaceMismatch(resolveSurfaceMismatchNotice(window.location.search));
+      const search = window.location.search;
+      const params = new URLSearchParams(search);
+      setSurfaceMismatch(resolveSurfaceMismatchNotice(search));
+      if (params.get("status") === "password_updated") {
+        setNotice("Password updated. Sign in with your new password.");
+        setLinkError("");
+      } else if (params.has("auth_error")) {
+        setNotice("");
+        setLinkError("That account link is invalid or has expired. Request a new one and try again.");
+      } else {
+        setNotice("");
+        setLinkError("");
+      }
     }
 
     syncSurfaceMismatch();
@@ -69,13 +84,41 @@ export default function LoginPage() {
       const response = await fetch("/api/auth/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: normalizedEmail, password: formData.get("password") }),
+        body: JSON.stringify({
+          email: normalizedEmail,
+          password: formData.get("password"),
+          next: requestedPath,
+        }),
       });
+      const payload = await response.json().catch(() => null) as {
+        destination?: unknown;
+        required_surface?: unknown;
+      } | null;
+      if (
+        response.status === 403 &&
+        (payload?.required_surface === "admin" || payload?.required_surface === "client")
+      ) {
+        const params = new URLSearchParams({
+          access: "surface_mismatch",
+          required_surface: payload.required_surface,
+          next: requestedPath,
+        });
+        router.replace(`/login?${params.toString()}`);
+        setLoading(false);
+        return;
+      }
       if (!response.ok) {
         showError(authFailureMessage(response.status));
         return;
       }
-      router.replace(requestedPath);
+      const destination = typeof payload?.destination === "string"
+        ? payload.destination
+        : requestedPath;
+      const safeDestination =
+        destination === "/onboarding" || destination.startsWith("/onboarding?")
+          ? destination
+          : resolveSafeReturnPath(destination, requestedPath);
+      router.replace(safeDestination);
       router.refresh();
     } catch {
       showError("Authentication is temporarily unavailable.");
@@ -104,6 +147,18 @@ export default function LoginPage() {
             <a className={styles.backLink} href={surfaceMismatch.portalHref}>
               Sign in to the {surfaceMismatch.portalLabel}
             </a>
+          </div>
+        ) : null}
+
+        {notice && !surfaceMismatch && !demoMode ? (
+          <div className={styles.notice} role="status" aria-live="polite">
+            {notice}
+          </div>
+        ) : null}
+
+        {linkError && !surfaceMismatch && !demoMode ? (
+          <div className={styles.alert} role="alert">
+            {linkError}
           </div>
         ) : null}
 
@@ -144,7 +199,10 @@ export default function LoginPage() {
           </label>
 
           <div className={styles.field}>
-            <label htmlFor="login-password">Password</label>
+            <div className={styles.fieldLabelRow}>
+              <label htmlFor="login-password">Password</label>
+              {!demoMode ? <Link href={forgotPasswordHref}>Forgot password?</Link> : null}
+            </div>
             <div className={styles.passwordField}>
               <input
                 className={styles.input}

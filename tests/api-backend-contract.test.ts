@@ -116,6 +116,11 @@ test("session returns the authenticated identity with no-store", async (t) => {
     id: "user-1",
     display_name: null,
     workspace_role: "viewer",
+    access: {
+      state: "pending",
+      email_confirmed: false,
+      required_surface: null,
+    },
   });
 });
 

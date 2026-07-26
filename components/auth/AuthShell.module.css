@@ -255,6 +255,17 @@
   margin-top: 1px;
 }
 
+.notice {
+  margin-top: 18px;
+  border: 1px solid rgba(38, 117, 83, 0.32);
+  border-radius: 6px;
+  background: var(--cvp-green-tint, #e5f6ec);
+  padding: 10px 12px;
+  color: var(--auth-positive);
+  font-size: 11px;
+  line-height: 1.5;
+}
+
 .form {
   display: grid;
   gap: 15px;
@@ -281,6 +292,22 @@
   color: var(--auth-copy);
   font-size: 11px;
   font-weight: 650;
+}
+
+.fieldLabelRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  color: var(--auth-copy);
+  font-size: 11px;
+  font-weight: 650;
+}
+
+.fieldLabelRow a {
+  color: var(--auth-accent);
+  font-size: 10px;
+  font-weight: 700;
 }
 
 .input {
@@ -452,6 +479,18 @@
   margin-top: 22px;
 }
 
+.success .secondaryAction {
+  width: 100%;
+  margin-top: 16px;
+}
+
+.inlineStatus {
+  margin: 9px 0 0;
+  color: var(--auth-muted);
+  font-size: 10px;
+  line-height: 1.5;
+}
+
 .loadingRow {
   min-height: 50px;
   display: inline-flex;
@@ -551,6 +590,65 @@
 .secondaryAction:disabled {
   cursor: progress;
   opacity: 0.65;
+}
+
+.panel > .submit,
+.panel > .secondaryAction {
+  width: 100%;
+  margin-top: 16px;
+}
+
+.onboardingSteps {
+  display: grid;
+  gap: 10px;
+  margin: 22px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.onboardingSteps li {
+  display: grid;
+  grid-template-columns: 34px minmax(0, 1fr);
+  align-items: center;
+  gap: 10px;
+  min-height: 58px;
+  border: 1px solid var(--auth-border);
+  border-radius: 8px;
+  padding: 9px 11px;
+}
+
+.onboardingSteps li > span {
+  width: 32px;
+  height: 32px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: var(--auth-accent-soft);
+  color: var(--auth-accent);
+}
+
+.onboardingSteps li[data-state="complete"] > span {
+  background: var(--cvp-green-tint, #e5f6ec);
+  color: var(--auth-positive);
+}
+
+.onboardingSteps li div {
+  min-width: 0;
+  display: grid;
+  gap: 3px;
+}
+
+.onboardingSteps strong {
+  color: var(--auth-copy);
+  font-size: 12px;
+}
+
+.onboardingSteps small {
+  overflow-wrap: anywhere;
+  color: var(--auth-muted);
+  font-size: 10px;
+  line-height: 1.4;
 }
 
 .assurance {

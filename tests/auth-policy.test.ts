@@ -37,25 +37,25 @@ test("signup validation normalizes identity without weakening the server passwor
   assert.deepEqual(
     validateSignupCredentials({
       email: " Owner@Example.com ",
-      password: "secret",
-      confirmation: "secret",
+      password: "secret12",
+      confirmation: "secret12",
     }),
     { email: "owner@example.com", error: null, field: null },
   );
   assert.match(
-    validateSignupCredentials({ email: "invalid", password: "secret", confirmation: "secret" }).error ?? "",
+    validateSignupCredentials({ email: "invalid", password: "secret12", confirmation: "secret12" }).error ?? "",
     /valid email/i,
   );
   assert.match(
     validateSignupCredentials({ email: "a@example.com", password: "short", confirmation: "short" }).error ?? "",
-    /at least 6/i,
+    /at least 8/i,
   );
   assert.match(
-    validateSignupCredentials({ email: "a@example.com", password: "secret", confirmation: "different" }).error ?? "",
+    validateSignupCredentials({ email: "a@example.com", password: "secret12", confirmation: "different" }).error ?? "",
     /do not match/i,
   );
   assert.equal(
-    validateSignupCredentials({ email: "a@example.com", password: "secret", confirmation: "different" }).field,
+    validateSignupCredentials({ email: "a@example.com", password: "secret12", confirmation: "different" }).field,
     "confirmation",
   );
 });

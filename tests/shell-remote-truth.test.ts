@@ -28,7 +28,8 @@ test("the session route maps provisioned auth roles onto workspace roles fail-cl
   assert.match(sessionRouteSource, /resolveProvisionedRole/);
   assert.match(sessionRouteSource, /staff: "owner"/);
   assert.match(sessionRouteSource, /client: "viewer"/);
-  assert.match(sessionRouteSource, /: "viewer",?\s*\}\);/);
+  assert.match(sessionRouteSource, /workspace_role: provisioned \? [^\n]+ : "viewer"/);
+  assert.match(sessionRouteSource, /state: provisioned \? "provisioned" : "pending"/);
   assert.match(sessionRouteSource, /display_name/);
 });
 

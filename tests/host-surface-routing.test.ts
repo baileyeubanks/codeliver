@@ -12,7 +12,9 @@ import {
   buildProtectedReturnPath,
   buildSurfaceUrl,
   CLIENT_SURFACE_HOST,
+  LEGACY_ADMIN_SURFACE_HOST,
   LOGIN_PATH,
+  resolveApprovedSurfaceHost,
   resolveHostSurface,
   resolveTrustedSurfaceRole,
   roleCanAccessSurface,
@@ -66,6 +68,11 @@ test("managed hosts are recognized exactly without suffix or credential confusio
   assert.equal(resolveHostSurface(ADMIN_SURFACE_HOST), "admin");
   assert.equal(resolveHostSurface(`${ADMIN_SURFACE_HOST}:443`), "admin");
   assert.equal(resolveHostSurface(CLIENT_SURFACE_HOST.toUpperCase()), "client");
+  assert.equal(resolveHostSurface(LEGACY_ADMIN_SURFACE_HOST), "admin");
+  assert.equal(
+    resolveApprovedSurfaceHost(LEGACY_ADMIN_SURFACE_HOST.toUpperCase()),
+    LEGACY_ADMIN_SURFACE_HOST,
+  );
 
   for (const host of [
     `attacker.${ADMIN_SURFACE_HOST}`,
@@ -73,6 +80,10 @@ test("managed hosts are recognized exactly without suffix or credential confusio
     `${ADMIN_SURFACE_HOST}@attacker.example`,
     `${ADMIN_SURFACE_HOST}.`,
     `${ADMIN_SURFACE_HOST}:8443`,
+    `attacker.${LEGACY_ADMIN_SURFACE_HOST}`,
+    `${LEGACY_ADMIN_SURFACE_HOST}.attacker.example`,
+    `${LEGACY_ADMIN_SURFACE_HOST}.`,
+    `${LEGACY_ADMIN_SURFACE_HOST}:8443`,
     "deliver.contentco-op.com",
     "",
   ]) {
@@ -190,6 +201,14 @@ test("proxy routes verified identities and denies untrusted managed-surface acce
     assert.equal(allowed.headers.get("x-middleware-next"), "1");
     assert.equal(runtimeState.__ccoHostSurfaceGetUserCalls, 1);
 
+    const legacyAllowed = await proxy(
+      new NextRequest(`https://${LEGACY_ADMIN_SURFACE_HOST}/projects`, {
+        headers: { host: LEGACY_ADMIN_SURFACE_HOST },
+      }),
+    );
+    assert.equal(legacyAllowed.status, 200);
+    assert.equal(legacyAllowed.headers.get("x-middleware-next"), "1");
+
     runtimeState.__ccoHostSurfaceUser = {
       app_metadata: { content_coop_role: "client" },
     };
@@ -206,12 +225,11 @@ test("proxy routes verified identities and denies untrusted managed-surface acce
         headers: { host: ADMIN_SURFACE_HOST },
       }),
     );
-    assert.equal(mismatch.status, 403);
-    assert.equal(mismatch.headers.get("location"), null);
-    assert.match(
-      await mismatch.text(),
-      /signed-in account is not authorized for this Content Co-op surface/i,
-    );
+    assert.equal(mismatch.status, 307);
+    const mismatchLocation = new URL(mismatch.headers.get("location") ?? "");
+    assert.equal(mismatchLocation.pathname, "/login");
+    assert.equal(mismatchLocation.searchParams.get("access"), "surface_mismatch");
+    assert.equal(mismatchLocation.searchParams.get("required_surface"), "client");
 
     runtimeState.__ccoHostSurfaceUser = {
       app_metadata: {},
@@ -222,7 +240,10 @@ test("proxy routes verified identities and denies untrusted managed-surface acce
         headers: { host: ADMIN_SURFACE_HOST },
       }),
     );
-    assert.equal(denied.status, 403);
+    assert.equal(denied.status, 307);
+    const deniedLocation = new URL(denied.headers.get("location") ?? "");
+    assert.equal(deniedLocation.pathname, "/onboarding");
+    assert.equal(deniedLocation.searchParams.get("next"), "/projects");
 
     runtimeState.__ccoHostSurfaceUser = {
       app_metadata: { content_coop_role: "staff" },
@@ -245,7 +266,11 @@ test("proxy routes verified identities and denies untrusted managed-surface acce
         headers: { host: ADMIN_SURFACE_HOST },
       }),
     );
-    assert.equal(legacyClaimDenied.status, 403);
+    assert.equal(legacyClaimDenied.status, 307);
+    assert.equal(
+      new URL(legacyClaimDenied.headers.get("location") ?? "").pathname,
+      "/onboarding",
+    );
 
     const callsBeforeUnknownHost = runtimeState.__ccoHostSurfaceGetUserCalls;
     const unknownHost = await proxy(
@@ -261,8 +286,15 @@ test("proxy routes verified identities and denies untrusted managed-surface acce
     const publicAndAssetPaths = [
       "/login",
       "/signup",
+      "/forgot-password",
+      "/reset-password",
+      "/onboarding",
       "/auth/callback?code=secret",
+      "/auth/confirm?token_hash=secret&type=signup",
       "/api/auth/signup",
+      "/api/auth/resend",
+      "/api/auth/password/forgot",
+      "/api/auth/password/reset",
       "/api/health/live",
       "/api/review/public-token",
       "/review/public-token",
@@ -341,7 +373,11 @@ test("proxy routes verified identities and denies untrusted managed-surface acce
     );
     assert.equal(missingHost.status, 403);
 
-    for (const surfaceHost of [ADMIN_SURFACE_HOST, CLIENT_SURFACE_HOST]) {
+    for (const surfaceHost of [
+      ADMIN_SURFACE_HOST,
+      CLIENT_SURFACE_HOST,
+      LEGACY_ADMIN_SURFACE_HOST,
+    ]) {
       for (const path of ["/login", "/api/auth/signup", "/demo/cco-lockup.png", "/brand/co-production-pro-horizontal.png"]) {
         const response = await proxy(
           new NextRequest(`https://${surfaceHost}${path}`, {
@@ -387,6 +423,16 @@ test("proxy routes verified identities and denies untrusted managed-surface acce
     assert.equal(loginLocation.origin, `https://${ADMIN_SURFACE_HOST}`);
     assert.equal(loginLocation.pathname, LOGIN_PATH);
     assert.equal(loginLocation.searchParams.get("next"), "/projects/ica?view=review");
+
+    const legacyLogin = await proxy(
+      new NextRequest(`https://${LEGACY_ADMIN_SURFACE_HOST}/projects/ica`, {
+        headers: { host: LEGACY_ADMIN_SURFACE_HOST },
+      }),
+    );
+    const legacyLoginLocation = new URL(legacyLogin.headers.get("location") ?? "");
+    assert.equal(legacyLogin.status, 307);
+    assert.equal(legacyLoginLocation.origin, `https://${LEGACY_ADMIN_SURFACE_HOST}`);
+    assert.equal(legacyLoginLocation.pathname, LOGIN_PATH);
   } finally {
     runtimeState.__ccoHostSurfaceGetUserCalls = undefined;
     runtimeState.__ccoHostSurfaceUser = undefined;

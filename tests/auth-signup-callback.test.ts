@@ -18,6 +18,13 @@ const authStubUrl = `data:text/javascript,${encodeURIComponent(`
           globalThis.__ccoExchangeCodes.push(code);
           return globalThis.__ccoExchangeResult;
         },
+        async getUser() {
+          const data = globalThis.__ccoExchangeResult?.data;
+          return {
+            data: { user: data?.user ?? data?.session?.user ?? null },
+            error: null,
+          };
+        },
         async signOut(options) {
           globalThis.__ccoSignOutCalls.push(options);
           return { error: null };
@@ -78,14 +85,16 @@ test("public signup returns pending access and cannot self-grant authority", asy
   assert.deepEqual(await response.json(), {
     success: true,
     access: { state: "pending", authorityGranted: false },
-    message: "Account created. Access is pending approval.",
+    confirmation_required: true,
+    destination: null,
+    message: "Check your email to confirm your account.",
   });
   assert.deepEqual(state.__ccoSignupInput, {
     email: "staff@contentco-op.com",
     password: "secret-password",
     options: {
       data: { display_name: "Content Producer" },
-      emailRedirectTo: "https://client.contentco-op.com/auth/callback",
+      emailRedirectTo: "https://client.contentco-op.com/auth/callback?flow=signup&next=%2Fprojects",
     },
   });
 });
@@ -130,8 +139,7 @@ test("unclassified callbacks stay on the current host with an explicit pending s
   ));
   const location = new URL(response.headers.get("location") ?? "");
   assert.equal(location.origin, "https://admin.contentco-op.com");
-  assert.equal(location.pathname, "/login");
-  assert.equal(location.searchParams.get("access"), "pending");
+  assert.equal(location.pathname, "/onboarding");
   assert.equal(location.searchParams.get("next"), "/projects/ica?view=review");
   assert.equal(response.headers.get("cache-control"), "no-store");
   assert.deepEqual(state.__ccoSignOutCalls, []);

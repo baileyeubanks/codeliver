@@ -1,4 +1,9 @@
-export const AUTH_PASSWORD_MIN_LENGTH = 6;
+import {
+  AUTH_PASSWORD_MIN_LENGTH,
+  normalizeCredentialEmail,
+} from "../../lib/auth/credentials.ts";
+
+export { AUTH_PASSWORD_MIN_LENGTH };
 
 export interface SignupCredentials {
   email: string;
@@ -13,7 +18,7 @@ export interface SignupValidationResult {
 }
 
 export type SignupValidationField = "email" | "password" | "confirmation";
-export type AuthPagePath = "/login" | "/signup";
+export type AuthPagePath = "/login" | "/signup" | "/forgot-password";
 export type AuthPortalSurface = "admin" | "client";
 
 export interface SurfaceMismatchNotice {
@@ -53,7 +58,7 @@ function decodedReturnPathname(pathname: string): string | null {
 }
 
 export function normalizeAuthEmail(value: string): string {
-  return value.trim().toLowerCase();
+  return normalizeCredentialEmail(value);
 }
 
 export function validateSignupCredentials(
@@ -102,7 +107,7 @@ export function resolveSafeReturnPath(
       !decodedPathname ||
       decodedPathname.startsWith("//") ||
       /\\|[\u0000-\u001f\u007f]/.test(decodedPathname) ||
-      /^\/(?:login|signup|auth|api\/auth)(?:\/|$)/i.test(decodedPathname)
+      /^\/(?:login|signup|forgot-password|reset-password|onboarding|auth|api\/auth)(?:\/|$)/i.test(decodedPathname)
     ) {
       return fallback;
     }

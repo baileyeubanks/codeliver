@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
+import { existsSync } from "node:fs";
 import { registerHooks } from "node:module";
-import { dirname, resolve } from "node:path";
+import { dirname, extname, resolve } from "node:path";
 import test from "node:test";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
@@ -13,6 +14,13 @@ const authStubUrl = `data:text/javascript,${encodeURIComponent(`
           globalThis.__ccoLoginInput = input;
           if (globalThis.__ccoLoginThrown) throw globalThis.__ccoLoginThrown;
           return globalThis.__ccoLoginResult;
+        },
+        async getUser() {
+          return globalThis.__ccoLoginIdentity;
+        },
+        async signOut(options) {
+          globalThis.__ccoLoginSignOut = options;
+          return { error: null };
         }
       }
     };
@@ -23,8 +31,14 @@ registerHooks({
   resolve(specifier, context, nextResolve) {
     if (specifier === "next/server") return nextResolve("next/server.js", context);
     if (specifier === "@/lib/supabase-auth") return nextResolve(authStubUrl, context);
-    if (specifier === "@/lib/api/responses") {
-      return nextResolve(pathToFileURL(resolve(repositoryRoot, "lib/api/responses.ts")).href, context);
+    if (specifier.startsWith("@/")) {
+      const base = resolve(repositoryRoot, specifier.slice(2));
+      const path = extname(base)
+        ? base
+        : existsSync(`${base}.ts`)
+          ? `${base}.ts`
+          : `${base}.tsx`;
+      return nextResolve(pathToFileURL(path).href, context);
     }
     return nextResolve(specifier, context);
   },
@@ -34,9 +48,24 @@ type LoginState = typeof globalThis & {
   __ccoLoginInput?: { email: string; password: string };
   __ccoLoginResult?: { error: null | { message: string } };
   __ccoLoginThrown?: Error;
+  __ccoLoginIdentity?: {
+    data: { user: { app_metadata: Record<string, unknown> } | null };
+    error: null | { message: string };
+  };
+  __ccoLoginSignOut?: { scope: "local" };
 };
 
 const state = globalThis as LoginState;
+
+test.beforeEach(() => {
+  state.__ccoLoginThrown = undefined;
+  state.__ccoLoginResult = { error: null };
+  state.__ccoLoginIdentity = {
+    data: { user: { app_metadata: { content_coop_role: "client" } } },
+    error: null,
+  };
+  state.__ccoLoginSignOut = undefined;
+});
 
 async function login(body: unknown): Promise<Response> {
   const { POST } = await import(
@@ -99,5 +128,24 @@ test("login API gives malformed credentials a stable validation code", async () 
   assert.deepEqual(await response.json(), {
     error: "Email and password are required.",
     code: "AUTH_CREDENTIALS_REQUIRED",
+  });
+});
+
+test("login routes a verified but unprovisioned identity into onboarding", async () => {
+  state.__ccoLoginIdentity = {
+    data: { user: { app_metadata: {} } },
+    error: null,
+  };
+
+  const response = await login({
+    email: "new@example.com",
+    password: "secret-password",
+    next: "/projects/ica?view=review",
+  });
+  assert.equal(response.status, 200);
+  assert.deepEqual(await response.json(), {
+    success: true,
+    access: { state: "pending" },
+    destination: "/onboarding?next=%2Fprojects%2Fica%3Fview%3Dreview",
   });
 });

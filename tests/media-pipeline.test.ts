@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { execFile } from "node:child_process";
 import { createHash } from "node:crypto";
-import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { chmodSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { mkdir, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
@@ -180,7 +180,13 @@ function replacePipelineManifest(
   payload: unknown
 ): void {
   const bytes = Buffer.from(JSON.stringify(payload, null, 2));
-  writeFileSync(join(root, artifacts.pipelineManifest.objectKey), bytes);
+  const manifestPath = join(root, artifacts.pipelineManifest.objectKey);
+  chmodSync(manifestPath, 0o600);
+  try {
+    writeFileSync(manifestPath, bytes);
+  } finally {
+    chmodSync(manifestPath, 0o400);
+  }
   artifacts.pipelineManifest = {
     ...artifacts.pipelineManifest,
     size: bytes.length,

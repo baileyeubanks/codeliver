@@ -1,5 +1,9 @@
 import { apiError, apiJson, backendUnavailable } from "@/lib/api/responses";
 import { getExternalApprovalState, getReviewInviteByToken } from "@/lib/review-invites";
+import {
+  EXTERNAL_COMMENT_COLUMNS,
+  projectExternalComment,
+} from "@/lib/review/external-comment";
 import { deriveShareIntent } from "@/lib/sharing/share-intent";
 import { getSupabase } from "@/lib/supabase";
 import type { ApprovalStep, SharePermission } from "@/lib/types/codeliver";
@@ -29,7 +33,7 @@ async function getReview(_req: Request, { params }: { params: Promise<{ token: s
   const [commentsResult, approvalsResult, workflowResult, editDecisionsResult] = await Promise.all([
     supabase
       .from("comments")
-      .select("*")
+      .select(EXTERNAL_COMMENT_COLUMNS)
       .eq("asset_id", invite.asset_id)
       .eq("version_id", versionLookup.version.id)
       .eq("visibility", "external")
@@ -90,16 +94,47 @@ async function getReview(_req: Request, { params }: { params: Promise<{ token: s
   return apiJson({
     asset: invite.assets
       ? {
-          ...invite.assets,
+          id: invite.assets.id,
+          title: invite.assets.title,
+          file_type: invite.assets.file_type,
           file_url: versionLookup.version.file_url,
+          status: invite.assets.status,
+          projects: invite.assets.projects,
         }
       : null,
-    version: versionLookup.version,
-    edit_decisions: editDecisionsResult.data ?? [],
+    version: {
+      id: versionLookup.version.id,
+      asset_id: versionLookup.version.asset_id,
+      version_number: versionLookup.version.version_number,
+      file_url: versionLookup.version.file_url,
+      file_size: versionLookup.version.file_size,
+      thumbnail_url: versionLookup.version.thumbnail_url,
+      duration_seconds: versionLookup.version.duration_seconds,
+      resolution: versionLookup.version.resolution,
+      is_current: versionLookup.version.is_current,
+      created_at: versionLookup.version.created_at,
+    },
+    edit_decisions: (editDecisionsResult.data ?? []).map((decision) => ({
+      id: decision.id,
+      asset_id: decision.asset_id,
+      version_id: decision.version_id,
+      created_by_name: decision.created_by_name,
+      decision_type: decision.decision_type,
+      source: decision.source,
+      status: decision.status,
+      start_seconds: decision.start_seconds,
+      end_seconds: decision.end_seconds,
+      label: decision.label,
+      confidence: decision.confidence,
+      created_at: decision.created_at,
+      updated_at: decision.updated_at,
+    })),
     approvals: approvalState.approvals,
     active_approval_ids: approvalState.activeApprovalIds,
     approval_access_message: approvalState.approvalAccessMessage,
-    comments: commentsResult.data ?? [],
+    comments: (commentsResult.data ?? []).map((comment) =>
+      projectExternalComment(comment)
+    ),
     permissions: invite.permissions,
     share_intent: deriveShareIntent({
       permissions: invite.permissions as SharePermission,

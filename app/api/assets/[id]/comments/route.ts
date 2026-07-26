@@ -85,15 +85,23 @@ async function POSTHandler(req: Request, { params }: { params: Promise<{ id: str
   ) {
     return NextResponse.json({ error: "timecode_seconds is invalid" }, { status: 400 });
   }
-  for (const field of ["pin_x", "pin_y"] as const) {
-    const value = body[field];
-    if (
-      value !== undefined &&
-      value !== null &&
-      (typeof value !== "number" || !Number.isFinite(value) || value < 0 || value > 1)
-    ) {
-      return NextResponse.json({ error: `${field} is invalid` }, { status: 400 });
-    }
+  const pinX = body.pin_x ?? null;
+  const pinY = body.pin_y ?? null;
+  const hasValidPinPair =
+    (pinX === null && pinY === null) ||
+    (typeof pinX === "number" &&
+      Number.isFinite(pinX) &&
+      pinX >= 0 &&
+      pinX <= 100 &&
+      typeof pinY === "number" &&
+      Number.isFinite(pinY) &&
+      pinY >= 0 &&
+      pinY <= 100);
+  if (!hasValidPinPair) {
+    return NextResponse.json(
+      { error: "pin_x and pin_y must be a complete 0-100 percentage pair" },
+      { status: 400 },
+    );
   }
   if (body.parent_id !== undefined && body.parent_id !== null && typeof body.parent_id !== "string") {
     return NextResponse.json({ error: "parent_id is invalid" }, { status: 400 });
@@ -139,8 +147,8 @@ async function POSTHandler(req: Request, { params }: { params: Promise<{ id: str
       author_email: user.email || null,
       author_id: user.id,
       timecode_seconds: body.timecode_seconds ?? null,
-      pin_x: body.pin_x ?? null,
-      pin_y: body.pin_y ?? null,
+      pin_x: pinX,
+      pin_y: pinY,
       parent_id: body.parent_id ?? null,
       review_id: null,
       review_invite_id: null,

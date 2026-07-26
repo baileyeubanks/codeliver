@@ -336,6 +336,10 @@ test(
     assert.equal(comment.asset_id, "demo-asset");
     assert.equal(comment.timecode_seconds, 4.25);
     assert.deepEqual([comment.pin_x, comment.pin_y], [25, 75]);
+    assert.doesNotMatch(
+      JSON.stringify(comment),
+      /author_email|author_id|review_invite_id|review_id|rich_body|resolved_by|resolved_at|mentions/,
+    );
   },
 );
 
@@ -376,6 +380,8 @@ test("public recipient reads and mutations remain bound to invite, asset, versio
   assert.match(commentRoute, /parent\.data\.version_id !== versionLookup\.version\.id/);
   assert.match(commentRoute, /review_invite_id: invite\.id/);
   assert.match(commentRoute, /visibility: "external"/);
+  assert.match(commentRoute, /\.select\(EXTERNAL_COMMENT_COLUMNS\)/);
+  assert.match(commentRoute, /projectExternalComment\(data\)/);
   assert.match(cutRoute, /\.eq\("review_invite_id", invite\.id\)/);
   assert.match(cutRoute, /\.eq\("version_id", versionLookup\.version\.id\)/);
   assert.match(cutRoute, /status: "proposed"/);

@@ -1,4 +1,5 @@
-import { constants, createReadStream } from "node:fs";
+import { constants } from "node:fs";
+import type { BigIntStats } from "node:fs";
 import {
   access,
   link,
@@ -7,6 +8,7 @@ import {
   statfs,
   unlink,
 } from "node:fs/promises";
+import type { FileHandle } from "node:fs/promises";
 import { createHash } from "node:crypto";
 import { dirname } from "node:path";
 import type { Readable } from "node:stream";
@@ -35,6 +37,8 @@ import { assertSafeRegularFile, ensureSafeDirectoryTree, resolveExistingRoot, re
 
 const UPLOAD_ID_PATTERN =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+const COMMITTED_FILE_MODE = 0o400;
+const FILE_HASH_BUFFER_BYTES = 1024 * 1024;
 
 function normalizeSha256(value: string, label: string): string {
   const normalized = value.trim().toLowerCase();
@@ -59,6 +63,42 @@ function filesystemProviderVersionId(status: {
     status.ctimeNs,
   ].join(":");
   return `fs-v1:${createHash("sha256").update(identity).digest("hex")}`;
+}
+
+function hasWriteBits(status: BigIntStats): boolean {
+  return (status.mode & BigInt(0o222)) !== 0n;
+}
+
+function isFilesystemCapacityError(error: unknown): boolean {
+  const code = (error as NodeJS.ErrnoException).code;
+  return code === "ENOSPC" || code === "EDQUOT";
+}
+
+function hasStableFileIdentity(before: BigIntStats, after: BigIntStats): boolean {
+  return (
+    before.dev === after.dev &&
+    before.ino === after.ino &&
+    before.size === after.size &&
+    before.mode === after.mode &&
+    before.mtimeNs === after.mtimeNs &&
+    before.ctimeNs === after.ctimeNs &&
+    before.nlink === after.nlink
+  );
+}
+
+function hasPostUnlinkFileIdentity(
+  before: BigIntStats,
+  after: BigIntStats
+): boolean {
+  return (
+    before.dev === after.dev &&
+    before.ino === after.ino &&
+    before.size === after.size &&
+    before.mode === after.mode &&
+    before.mtimeNs === after.mtimeNs &&
+    before.nlink === 2n &&
+    after.nlink === 1n
+  );
 }
 
 export class FilesystemStorageAdapter implements StorageAdapter {
@@ -213,6 +253,37 @@ export class FilesystemStorageAdapter implements StorageAdapter {
     return this.canonicalRoot();
   }
 
+  private async requirePlacementCapacity(
+    root: string,
+    size: number
+  ): Promise<void> {
+    if (!Number.isSafeInteger(size) || size < 0) {
+      throw new StorageError(
+        "STORAGE_CHECKSUM",
+        "Immutable placement size is invalid"
+      );
+    }
+    let availableBytes: bigint;
+    try {
+      const stats = await statfs(root, { bigint: true });
+      availableBytes = stats.bavail * stats.bsize;
+    } catch {
+      throw new StorageError(
+        "STORAGE_NOT_READY",
+        "Storage capacity could not be verified before immutable placement",
+        true
+      );
+    }
+    const requiredBytes = this.config.reservedBytes + BigInt(size);
+    if (availableBytes < requiredBytes) {
+      throw new StorageError(
+        "STORAGE_CAPACITY",
+        "Storage cannot retain its reserve while creating the immutable placement",
+        true
+      );
+    }
+  }
+
   private assertHandle(handle: MultipartHandle): void {
     if (
       handle.provider !== this.kind ||
@@ -252,7 +323,10 @@ export class FilesystemStorageAdapter implements StorageAdapter {
     await this.requireWriteReady();
     const path = await this.stagingPath(input.handle);
     await assertSafeRegularFile(path);
-    const file = await open(path, "r+");
+    const file = await open(
+      path,
+      constants.O_RDWR | constants.O_NOFOLLOW
+    );
     let bytesWritten = 0;
     const hash = createHash("sha256");
 
@@ -324,18 +398,178 @@ export class FilesystemStorageAdapter implements StorageAdapter {
     return this.inspectRegularFile(path);
   }
 
+  private async hashStableFileHandle(
+    file: FileHandle,
+    options: { requireImmutable: boolean }
+  ): Promise<MultipartInspection & { status: BigIntStats }> {
+    const before = await file.stat({ bigint: true });
+    if (!before.isFile()) {
+      throw new StorageError(
+        "STORAGE_PATH_INVALID",
+        "Storage object is not a regular file"
+      );
+    }
+    if (options.requireImmutable && hasWriteBits(before)) {
+      throw new StorageError(
+        "STORAGE_CHECKSUM",
+        "Stored object identity is writable and not immutable"
+      );
+    }
+    const size = Number(before.size);
+    if (!Number.isSafeInteger(size) || size < 0) {
+      throw new StorageError(
+        "STORAGE_PATH_INVALID",
+        "Storage object size is invalid"
+      );
+    }
+
+    const hash = createHash("sha256");
+    const buffer = Buffer.allocUnsafe(FILE_HASH_BUFFER_BYTES);
+    let position = 0;
+    while (position < size) {
+      const length = Math.min(buffer.length, size - position);
+      const { bytesRead } = await file.read(buffer, 0, length, position);
+      if (bytesRead <= 0) {
+        throw new StorageError(
+          "STORAGE_CHECKSUM",
+          "Storage object changed during checksum verification"
+        );
+      }
+      hash.update(buffer.subarray(0, bytesRead));
+      position += bytesRead;
+    }
+
+    const after = await file.stat({ bigint: true });
+    if (
+      !hasStableFileIdentity(before, after) ||
+      (options.requireImmutable && hasWriteBits(after))
+    ) {
+      throw new StorageError(
+        "STORAGE_CHECKSUM",
+        "Storage object identity changed during checksum verification"
+      );
+    }
+    return { size, sha256: hash.digest("hex"), status: after };
+  }
+
+  private async copyExactFileBytes(
+    source: FileHandle,
+    destination: FileHandle,
+    size: number
+  ): Promise<void> {
+    const buffer = Buffer.allocUnsafe(FILE_HASH_BUFFER_BYTES);
+    let position = 0;
+    while (position < size) {
+      const length = Math.min(buffer.length, size - position);
+      const { bytesRead } = await source.read(
+        buffer,
+        0,
+        length,
+        position
+      );
+      if (bytesRead <= 0) {
+        throw new StorageError(
+          "STORAGE_CHECKSUM",
+          "Multipart object changed while creating its immutable placement"
+        );
+      }
+      let bytesWritten = 0;
+      while (bytesWritten < bytesRead) {
+        const result = await destination.write(
+          buffer,
+          bytesWritten,
+          bytesRead - bytesWritten,
+          position + bytesWritten
+        );
+        if (result.bytesWritten <= 0) {
+          throw new StorageError(
+            "STORAGE_NOT_READY",
+            "Immutable placement write made no progress",
+            true
+          );
+        }
+        bytesWritten += result.bytesWritten;
+      }
+      position += bytesRead;
+    }
+    await destination.truncate(size);
+    await destination.sync();
+  }
+
+  private async sealCommittedFileHandle(file: FileHandle): Promise<BigIntStats> {
+    const before = await file.stat({ bigint: true });
+    if (!before.isFile()) {
+      throw new StorageError(
+        "STORAGE_PATH_INVALID",
+        "Stored object is not a regular file"
+      );
+    }
+    if (hasWriteBits(before)) {
+      await file.chmod(COMMITTED_FILE_MODE);
+      await file.sync();
+    }
+    const sealed = hasWriteBits(before)
+      ? await file.stat({ bigint: true })
+      : before;
+    if (!sealed.isFile() || hasWriteBits(sealed)) {
+      throw new StorageError(
+        "STORAGE_CHECKSUM",
+        "Stored object could not be sealed read-only"
+      );
+    }
+    return sealed;
+  }
+
+  private async validateCommittedFileHandle(
+    file: FileHandle,
+    input: {
+      size: number;
+      sha256: string;
+    }
+  ): Promise<BigIntStats> {
+    const inspection = await this.hashStableFileHandle(file, {
+      requireImmutable: true,
+    });
+    if (
+      inspection.size !== input.size ||
+      inspection.sha256 !== input.sha256
+    ) {
+      throw new StorageError(
+        "STORAGE_CHECKSUM",
+        "Committed object does not match its durable placement intent"
+      );
+    }
+    return inspection.status;
+  }
+
+  private committedReceipt(
+    status: BigIntStats,
+    input: {
+      objectKey: string;
+      size: number;
+      sha256: string;
+    }
+  ): StoredObjectReceipt {
+    return {
+      provider: this.kind,
+      objectKey: input.objectKey,
+      size: input.size,
+      sha256: input.sha256,
+      providerVersionId: filesystemProviderVersionId(status),
+      committedAt: new Date(Number(status.mtimeMs)).toISOString(),
+    };
+  }
+
   private async inspectRegularFile(path: string): Promise<MultipartInspection> {
     await assertSafeRegularFile(path);
-    const status = await open(path, "r");
-    const hash = createHash("sha256");
+    const file = await open(path, constants.O_RDONLY | constants.O_NOFOLLOW);
     try {
-      const fileStatus = await status.stat();
-      for await (const chunk of status.createReadStream({ autoClose: false })) {
-        hash.update(chunk);
-      }
-      return { size: fileStatus.size, sha256: hash.digest("hex") };
+      const { size, sha256 } = await this.hashStableFileHandle(file, {
+        requireImmutable: false,
+      });
+      return { size, sha256 };
     } finally {
-      await status.close();
+      await file.close();
     }
   }
 
@@ -349,29 +583,61 @@ export class FilesystemStorageAdapter implements StorageAdapter {
     await this.requireWriteReady();
     const path = await this.stagingPath(handle);
     await assertSafeRegularFile(path);
-    const file = await open(path, "r+");
+    const file = await open(path, constants.O_RDONLY | constants.O_NOFOLLOW);
     try {
-      const status = await file.stat();
-      if (status.size < committedOffset) {
+      const status = await file.stat({ bigint: true });
+      if (!status.isFile()) {
+        throw new StorageError(
+          "STORAGE_PATH_INVALID",
+          "Multipart object is not a regular file"
+        );
+      }
+      const observedOffset = Number(status.size);
+      if (!Number.isSafeInteger(observedOffset) || observedOffset < 0) {
+        throw new StorageError(
+          "STORAGE_OFFSET",
+          "Staged multipart size is outside the supported range"
+        );
+      }
+      if (observedOffset < committedOffset) {
         throw new StorageError(
           "STORAGE_OFFSET",
           "Staged multipart bytes are behind durable session state"
         );
       }
-      if (status.size === committedOffset) {
+      if (observedOffset === committedOffset) {
         return {
           action: "unchanged",
           committedOffset,
-          observedOffset: status.size,
+          observedOffset,
         };
       }
-      await file.truncate(committedOffset);
-      await file.sync();
-      return {
-        action: "rolled-back",
-        committedOffset,
-        observedOffset: status.size,
-      };
+
+      const writable = await open(
+        path,
+        constants.O_RDWR | constants.O_NOFOLLOW
+      );
+      try {
+        const writableStatus = await writable.stat({ bigint: true });
+        if (
+          !writableStatus.isFile() ||
+          !hasStableFileIdentity(status, writableStatus)
+        ) {
+          throw new StorageError(
+            "STORAGE_CHECKSUM",
+            "Multipart object identity changed during reconciliation"
+          );
+        }
+        await writable.truncate(committedOffset);
+        await writable.sync();
+        return {
+          action: "rolled-back",
+          committedOffset,
+          observedOffset,
+        };
+      } finally {
+        await writable.close();
+      }
     } finally {
       await file.close();
     }
@@ -380,7 +646,20 @@ export class FilesystemStorageAdapter implements StorageAdapter {
   async openMultipartReadStream(handle: MultipartHandle): Promise<Readable> {
     const path = await this.stagingPath(handle);
     await assertSafeRegularFile(path);
-    return createReadStream(path);
+    const file = await open(path, constants.O_RDONLY | constants.O_NOFOLLOW);
+    try {
+      const status = await file.stat({ bigint: true });
+      if (!status.isFile()) {
+        throw new StorageError(
+          "STORAGE_PATH_INVALID",
+          "Multipart object is not a regular file"
+        );
+      }
+      return file.createReadStream({ autoClose: true, start: 0 });
+    } catch (error) {
+      await file.close().catch(() => undefined);
+      throw error;
+    }
   }
 
   private async storedObjectPath(objectKey: string): Promise<string> {
@@ -396,6 +675,61 @@ export class FilesystemStorageAdapter implements StorageAdapter {
       );
     }
     return path;
+  }
+
+  private commitPlacementPath(
+    root: string,
+    objectKey: string,
+    handle: MultipartHandle
+  ): string {
+    this.assertHandle(handle);
+    const objectParent = dirname(objectKey);
+    const placementName =
+      `.codeliver-commit-${handle.uploadId}.tmp`;
+    const placementKey =
+      objectParent === "."
+        ? placementName
+        : `${objectParent}/${placementName}`;
+    return resolvePathInsideRoot(root, placementKey);
+  }
+
+  private async removeCommitPlacement(path: string): Promise<BigIntStats | null> {
+    let placement: FileHandle;
+    try {
+      placement = await open(
+        path,
+        constants.O_RDONLY | constants.O_NOFOLLOW
+      );
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code === "ENOENT") return null;
+      throw error;
+    }
+
+    try {
+      const before = await placement.stat({ bigint: true });
+      if (!before.isFile()) {
+        throw new StorageError(
+          "STORAGE_PATH_INVALID",
+          "Commit placement is not a regular file"
+        );
+      }
+      await unlink(path);
+      await syncDurableDirectory(dirname(path));
+      const after = await placement.stat({ bigint: true });
+      if (
+        before.dev !== after.dev ||
+        before.ino !== after.ino ||
+        before.nlink !== after.nlink + 1n
+      ) {
+        throw new StorageError(
+          "STORAGE_CHECKSUM",
+          "Commit placement identity changed during recovery"
+        );
+      }
+      return before;
+    } finally {
+      await placement.close();
+    }
   }
 
   async inspectStoredObject(objectKey: string): Promise<MultipartInspection | null> {
@@ -437,6 +771,12 @@ export class FilesystemStorageAdapter implements StorageAdapter {
         throw new StorageError(
           "STORAGE_PATH_INVALID",
           "Stored object is not a regular file"
+        );
+      }
+      if (hasWriteBits(status)) {
+        throw new StorageError(
+          "STORAGE_CHECKSUM",
+          "Stored object identity is writable and not immutable"
         );
       }
       const size = Number(status.size);
@@ -482,119 +822,271 @@ export class FilesystemStorageAdapter implements StorageAdapter {
     const expectedSha256 = normalizeSha256(input.sha256, "Object checksum");
     await ensureSafeDirectoryTree(root, dirname(objectKey));
     const destinationPath = resolvePathInsideRoot(root, objectKey);
+    const stagingPath = await this.stagingPath(input.handle);
+    const placementPath = this.commitPlacementPath(
+      root,
+      objectKey,
+      input.handle
+    );
 
-    let destination: MultipartInspection;
+    let destination: FileHandle;
     try {
-      destination = await this.inspectRegularFile(destinationPath);
+      destination = await open(
+        destinationPath,
+        constants.O_RDONLY | constants.O_NOFOLLOW
+      );
     } catch (error) {
       if ((error as NodeJS.ErrnoException).code === "ENOENT") {
+        await this.removeCommitPlacement(placementPath);
         return { action: "not-committed", receipt: null };
       }
       throw error;
     }
-    if (destination.size !== input.size || destination.sha256 !== expectedSha256) {
-      throw new StorageError(
-        "STORAGE_CHECKSUM",
-        "Recovered object does not match its durable placement intent"
-      );
-    }
 
-    const stagingPath = await this.stagingPath(input.handle);
-    let action: MultipartCommitReconciliation["action"] = "committed";
     try {
-      const staging = await this.inspectRegularFile(stagingPath);
-      if (staging.size !== input.size || staging.sha256 !== expectedSha256) {
+      let verifiedStatus = await this.validateCommittedFileHandle(
+        destination,
+        {
+          size: input.size,
+          sha256: expectedSha256,
+        }
+      );
+      let action: MultipartCommitReconciliation["action"] = "committed";
+      const removedPlacement =
+        await this.removeCommitPlacement(placementPath);
+      if (removedPlacement) {
+        verifiedStatus = await this.validateCommittedFileHandle(
+          destination,
+          {
+            size: input.size,
+            sha256: expectedSha256,
+          }
+        );
+        action = "staging-cleaned";
+      }
+      try {
+        const staging = await open(
+          stagingPath,
+          constants.O_RDONLY | constants.O_NOFOLLOW
+        );
+        try {
+          const stagingStatus = await staging.stat({ bigint: true });
+          if (!stagingStatus.isFile()) {
+            throw new StorageError(
+              "STORAGE_PATH_INVALID",
+              "Staging object is not a regular file"
+            );
+          }
+          if (
+            stagingStatus.dev === verifiedStatus.dev &&
+            stagingStatus.ino === verifiedStatus.ino
+          ) {
+            throw new StorageError(
+              "STORAGE_CHECKSUM",
+              "Recovered destination aliases staging instead of using a separate inode"
+            );
+          }
+          const stagingInspection = await this.hashStableFileHandle(staging, {
+            requireImmutable: false,
+          });
+          if (
+            stagingInspection.size !== input.size ||
+            stagingInspection.sha256 !== expectedSha256
+          ) {
+            throw new StorageError(
+              "STORAGE_CHECKSUM",
+              "Staging bytes diverged from the recovered committed object"
+            );
+          }
+        } finally {
+          await staging.close();
+        }
+        await unlink(stagingPath);
+        await syncDurableDirectory(dirname(stagingPath));
+        action = "staging-cleaned";
+      } catch (error) {
+        if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
+      }
+
+      await destination.sync();
+      const finalStatus = await destination.stat({ bigint: true });
+      if (
+        !hasStableFileIdentity(verifiedStatus, finalStatus) ||
+        hasWriteBits(finalStatus) ||
+        finalStatus.nlink !== 1n
+      ) {
         throw new StorageError(
           "STORAGE_CHECKSUM",
-          "Staging bytes diverged from the recovered committed object"
+          "Recovered committed object identity changed during reconciliation"
         );
       }
-      await unlink(stagingPath);
-      await syncDurableDirectory(dirname(stagingPath));
-      action = "staging-cleaned";
-    } catch (error) {
-      if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
-    }
-
-    const status = await open(
-      destinationPath,
-      constants.O_RDONLY | constants.O_NOFOLLOW
-    );
-    let committedAt: string;
-    let providerVersionId: string;
-    try {
-      const fileStatus = await status.stat({ bigint: true });
-      committedAt = new Date(Number(fileStatus.mtimeMs)).toISOString();
-      providerVersionId = filesystemProviderVersionId(fileStatus);
-    } finally {
-      await status.close();
-    }
-    return {
-      action,
-      receipt: {
-        provider: this.kind,
+      await syncDurableDirectory(dirname(destinationPath));
+      const receipt = this.committedReceipt(finalStatus, {
         objectKey,
         size: input.size,
         sha256: expectedSha256,
-        providerVersionId,
-        committedAt,
-      },
-    };
+      });
+      return { action, receipt };
+    } finally {
+      await destination.close();
+    }
   }
 
   async commitMultipart(input: CommitMultipartInput): Promise<StoredObjectReceipt> {
     const root = await this.requireWriteReady();
+    await this.requirePlacementCapacity(root, input.size);
     const objectKey = assertSafeObjectKey(input.objectKey);
     const expectedSha256 = normalizeSha256(input.sha256, "Object checksum");
-    const inspection = await this.inspectMultipart(input.handle);
-    if (inspection.size !== input.size || inspection.sha256 !== expectedSha256) {
-      throw new StorageError(
-        "STORAGE_CHECKSUM",
-        "Multipart object changed after verification"
-      );
-    }
-
     await ensureSafeDirectoryTree(root, dirname(objectKey));
     const stagingPath = await this.stagingPath(input.handle);
     const destinationPath = resolvePathInsideRoot(root, objectKey);
+    const placementPath = this.commitPlacementPath(
+      root,
+      objectKey,
+      input.handle
+    );
+    const staging = await open(
+      stagingPath,
+      constants.O_RDONLY | constants.O_NOFOLLOW
+    );
+    let placement: FileHandle | null = null;
+    let destination: FileHandle | null = null;
+    let placementCreated = false;
+    let placementRemoved = false;
+    let destinationLinked = false;
+    let stagingRemoved = false;
     try {
-      await link(stagingPath, destinationPath);
+      const stagedStatus = await staging.stat({ bigint: true });
+      if (
+        !stagedStatus.isFile() ||
+        stagedStatus.size < 0n ||
+        stagedStatus.size > BigInt(Number.MAX_SAFE_INTEGER) ||
+        Number(stagedStatus.size) !== input.size
+      ) {
+        throw new StorageError(
+          "STORAGE_CHECKSUM",
+          "Multipart object changed before immutable placement"
+        );
+      }
+      const sealedStagingStatus =
+        await this.sealCommittedFileHandle(staging);
+
+      placement = await open(
+        placementPath,
+        constants.O_CREAT |
+          constants.O_EXCL |
+          constants.O_RDWR |
+          constants.O_NOFOLLOW,
+        0o600
+      );
+      placementCreated = true;
+      await this.copyExactFileBytes(staging, placement, input.size);
+      const copiedStagingStatus = await staging.stat({ bigint: true });
+      if (!hasStableFileIdentity(sealedStagingStatus, copiedStagingStatus)) {
+        throw new StorageError(
+          "STORAGE_CHECKSUM",
+          "Multipart object identity changed while creating immutable placement"
+        );
+      }
+      await this.sealCommittedFileHandle(placement);
+      const verifiedPlacementStatus =
+        await this.validateCommittedFileHandle(placement, {
+          size: input.size,
+          sha256: expectedSha256,
+        });
+
+      await link(placementPath, destinationPath);
+      destinationLinked = true;
+
+      destination = await open(
+        destinationPath,
+        constants.O_RDONLY | constants.O_NOFOLLOW
+      );
+      const publishedStatus = await destination.stat({ bigint: true });
+      if (
+        !publishedStatus.isFile() ||
+        publishedStatus.dev !== verifiedPlacementStatus.dev ||
+        publishedStatus.ino !== verifiedPlacementStatus.ino ||
+        hasWriteBits(publishedStatus)
+      ) {
+        throw new StorageError(
+          "STORAGE_CHECKSUM",
+          "Immutable destination does not match the sealed placement object"
+        );
+      }
       await syncDurableDirectory(dirname(destinationPath));
+
+      await unlink(placementPath);
+      placementRemoved = true;
+      await syncDurableDirectory(dirname(placementPath));
+      await destination.sync();
+      const placedStatus = await destination.stat({ bigint: true });
+      if (
+        !hasPostUnlinkFileIdentity(publishedStatus, placedStatus) ||
+        hasWriteBits(placedStatus)
+      ) {
+        throw new StorageError(
+          "STORAGE_CHECKSUM",
+          "Committed object identity changed during immutable publication"
+        );
+      }
+
+      await unlink(stagingPath);
+      stagingRemoved = true;
+      await syncDurableDirectory(dirname(stagingPath));
+      await destination.sync();
+      const finalStatus = await destination.stat({ bigint: true });
+      if (
+        !hasStableFileIdentity(placedStatus, finalStatus) ||
+        hasWriteBits(finalStatus)
+      ) {
+        throw new StorageError(
+          "STORAGE_CHECKSUM",
+          "Committed object identity changed during placement"
+        );
+      }
+      await syncDurableDirectory(dirname(destinationPath));
+      return this.committedReceipt(finalStatus, {
+        objectKey,
+        size: input.size,
+        sha256: expectedSha256,
+      });
     } catch (error) {
-      if ((error as NodeJS.ErrnoException).code === "EEXIST") {
+      if (
+        (error as NodeJS.ErrnoException).code === "EEXIST" &&
+        !destinationLinked
+      ) {
         throw new StorageError(
           "STORAGE_CONFLICT",
           "Versioned object key already exists; overwrite refused"
         );
       }
+      const capacityError = isFilesystemCapacityError(error);
+      if (destinationLinked && !stagingRemoved) {
+        await unlink(destinationPath).catch(() => undefined);
+        await syncDurableDirectory(dirname(destinationPath)).catch(
+          () => undefined
+        );
+      }
+      if (capacityError) {
+        throw new StorageError(
+          "STORAGE_CAPACITY",
+          "Storage ran out of capacity while creating immutable placement",
+          true
+        );
+      }
       throw error;
-    }
-    await assertSafeRegularFile(destinationPath);
-    await unlink(stagingPath);
-    await syncDurableDirectory(dirname(stagingPath));
-
-    const destination = await open(
-      destinationPath,
-      constants.O_RDONLY | constants.O_NOFOLLOW
-    );
-    let providerVersionId: string;
-    let committedAt: string;
-    try {
-      const status = await destination.stat({ bigint: true });
-      providerVersionId = filesystemProviderVersionId(status);
-      committedAt = new Date(Number(status.mtimeMs)).toISOString();
     } finally {
-      await destination.close();
+      await destination?.close().catch(() => undefined);
+      await placement?.close().catch(() => undefined);
+      await staging.close();
+      if (placementCreated && !placementRemoved) {
+        await unlink(placementPath).catch(() => undefined);
+        await syncDurableDirectory(dirname(placementPath)).catch(
+          () => undefined
+        );
+      }
     }
-
-    return {
-      provider: this.kind,
-      objectKey,
-      size: input.size,
-      sha256: expectedSha256,
-      providerVersionId,
-      committedAt,
-    };
   }
 
   async abortMultipart(handle: MultipartHandle): Promise<void> {

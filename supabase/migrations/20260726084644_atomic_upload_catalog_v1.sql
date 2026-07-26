@@ -146,6 +146,7 @@ GRANT SELECT (
 CREATE OR REPLACE FUNCTION co_production.attach_committed_upload_v1(
   p_actor_id uuid,
   p_upload_id uuid,
+  p_expected_asset_id uuid,
   p_project_id uuid,
   p_folder_id uuid,
   p_title text,
@@ -317,6 +318,10 @@ BEGIN
   IF v_existing.version_id IS NOT NULL THEN
     v_file_url := '/api/media/versions/' || v_existing.version_id::text;
     IF v_partial_asset_count IS DISTINCT FROM 1
+       OR (
+         p_expected_asset_id IS NOT NULL
+         AND v_existing.asset_id IS DISTINCT FROM p_expected_asset_id
+       )
        OR v_existing.project_id IS DISTINCT FROM p_project_id
        OR v_existing.asset_uploaded_by IS DISTINCT FROM p_actor_id
        OR v_existing.asset_file_url IS DISTINCT FROM v_file_url
@@ -358,7 +363,10 @@ BEGIN
     WHERE asset.nas_path = p_storage_object_key
     FOR UPDATE;
 
-    IF v_partial_asset_project_id IS DISTINCT FROM p_project_id
+    IF (
+      p_expected_asset_id IS NOT NULL
+      AND v_asset_id IS DISTINCT FROM p_expected_asset_id
+    ) OR v_partial_asset_project_id IS DISTINCT FROM p_project_id
        OR EXISTS (
       SELECT 1
       FROM co_production.assets AS asset
@@ -370,12 +378,71 @@ BEGIN
           OR asset.uploaded_by IS DISTINCT FROM p_actor_id
           OR asset.nas_path IS DISTINCT FROM p_storage_object_key
           OR asset.file_size IS DISTINCT FROM p_file_size
+          OR asset.status IS DISTINCT FROM 'ready'
+          OR asset.metadata IS DISTINCT FROM '{}'::jsonb
+          OR asset.thumbnail_url IS NOT NULL
+          OR asset.proxy_url IS NOT NULL
+          OR asset.duration_seconds IS NOT NULL
+          OR asset.position IS DISTINCT FROM 0
+          OR asset.created_at IS DISTINCT FROM asset.updated_at
           OR asset.deleted_at IS NOT NULL
+          OR p_storage_provider NOT IN ('local', 'ccnas')
+          OR (
+            p_storage_provider = 'local'
+            AND asset.file_url IS NOT NULL
+          )
+          OR (
+            p_storage_provider = 'ccnas'
+            AND asset.file_url IS DISTINCT FROM (
+              '/api/media/stream?path=' ||
+              pg_catalog.replace(p_storage_object_key, '/', '%2F')
+            )
+          )
         )
     ) OR EXISTS (
       SELECT 1
       FROM co_production.versions AS version
       WHERE version.asset_id = v_asset_id
+    ) OR EXISTS (
+      SELECT 1
+      FROM co_production.reviews AS review
+      WHERE review.asset_id = v_asset_id
+    ) OR EXISTS (
+      SELECT 1
+      FROM co_production.approval_workflows AS workflow
+      WHERE workflow.asset_id = v_asset_id
+    ) OR EXISTS (
+      SELECT 1
+      FROM co_production.approvals AS approval
+      WHERE approval.asset_id = v_asset_id
+    ) OR EXISTS (
+      SELECT 1
+      FROM co_production.activity_log AS activity
+      WHERE activity.asset_id = v_asset_id
+    ) OR EXISTS (
+      SELECT 1
+      FROM co_production.asset_tags AS tag_link
+      WHERE tag_link.asset_id = v_asset_id
+    ) OR EXISTS (
+      SELECT 1
+      FROM co_production.brand_checks AS brand_check
+      WHERE brand_check.asset_id = v_asset_id
+    ) OR EXISTS (
+      SELECT 1
+      FROM co_production.transcode_jobs AS transcode_job
+      WHERE transcode_job.asset_id = v_asset_id
+    ) OR EXISTS (
+      SELECT 1
+      FROM co_production.selects AS selected
+      WHERE selected.asset_id = v_asset_id
+    ) OR EXISTS (
+      SELECT 1
+      FROM co_production.sequence_clips AS sequence_clip
+      WHERE sequence_clip.asset_id = v_asset_id
+    ) OR EXISTS (
+      SELECT 1
+      FROM co_production.revision_requests AS revision_request
+      WHERE revision_request.asset_id = v_asset_id
     ) THEN
       RAISE EXCEPTION 'partial committed upload asset conflicts with V1 authority'
         USING ERRCODE = '23505';
@@ -385,7 +452,6 @@ BEGIN
     SET file_url = v_file_url,
         file_type = p_file_type,
         file_size = p_file_size,
-        status = 'ready',
         metadata = metadata || pg_catalog.jsonb_build_object(
           'upload',
           pg_catalog.jsonb_build_object(
@@ -397,6 +463,11 @@ BEGIN
         updated_at = now()
     WHERE assets.id = v_asset_id;
   ELSE
+    IF p_expected_asset_id IS NOT NULL THEN
+      RAISE EXCEPTION 'remembered upload asset is missing from catalog state'
+        USING ERRCODE = '23505';
+    END IF;
+
     INSERT INTO co_production.assets (
       project_id,
       folder_id,
@@ -476,6 +547,7 @@ REVOKE ALL ON FUNCTION co_production.attach_committed_upload_v1(
   uuid,
   uuid,
   uuid,
+  uuid,
   text,
   text,
   text,
@@ -489,6 +561,7 @@ REVOKE ALL ON FUNCTION co_production.attach_committed_upload_v1(
 ) FROM PUBLIC, anon, authenticated;
 
 GRANT EXECUTE ON FUNCTION co_production.attach_committed_upload_v1(
+  uuid,
   uuid,
   uuid,
   uuid,

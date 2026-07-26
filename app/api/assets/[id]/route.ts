@@ -9,6 +9,8 @@ import { apiError, apiJson, backendUnavailable } from "@/lib/api/responses";
 const SAFE_ASSET_COLUMNS =
   "id, project_id, folder_id, title, file_type, file_url, thumbnail_url, proxy_url, file_size, duration_seconds, status, position, uploaded_by, created_at, updated_at";
 
+const GOVERNED_ASSET_STATUSES = new Set(["approved", "final"]);
+
 const ASSET_STATUSES = new Set([
   "draft",
   "in_review",
@@ -150,6 +152,16 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
     ) {
       return apiError("status is invalid", "INVALID_REQUEST", 400);
     }
+    if (
+      GOVERNED_ASSET_STATUSES.has(body.status) ||
+      GOVERNED_ASSET_STATUSES.has(assetAccess.data.status)
+    ) {
+      return apiError(
+        "Approved and final statuses require the governed approval and delivery workflow",
+        "GOVERNED_STATUS_TRANSITION",
+        409,
+      );
+    }
     if (assetAccess.data.access_rank < PROJECT_ROLE_RANK.producer) {
       return apiError("Asset not found", "ASSET_NOT_FOUND", 404);
     }
@@ -161,17 +173,32 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
   updates.updated_at = new Date().toISOString();
 
   let result;
-  try { result = await supabase
-    .from("assets")
-    .update(updates)
-    .eq("id", id)
-    .eq("project_id", assetAccess.data.project_id)
-    .select(SAFE_ASSET_COLUMNS)
-    .single(); } catch { return backendUnavailable(); }
+  try {
+    let updateQuery = supabase
+      .from("assets")
+      .update(updates)
+      .eq("id", id)
+      .eq("project_id", assetAccess.data.project_id);
+    if (body.status !== undefined) {
+      updateQuery = updateQuery.eq("status", assetAccess.data.status);
+    }
+    result = await updateQuery
+      .select(SAFE_ASSET_COLUMNS)
+      .maybeSingle();
+  } catch { return backendUnavailable(); }
   const { data, error } = result;
 
   if (error) return apiError("Asset could not be updated", "BACKEND_UNAVAILABLE", 503);
-  if (!data) return apiError("Asset not found", "ASSET_NOT_FOUND", 404);
+  if (!data) {
+    if (body.status !== undefined) {
+      return apiError(
+        "Asset status changed; reload before retrying",
+        "ASSET_STATUS_CONFLICT",
+        409,
+      );
+    }
+    return apiError("Asset not found", "ASSET_NOT_FOUND", 404);
+  }
   return apiJson(data);
 }
 

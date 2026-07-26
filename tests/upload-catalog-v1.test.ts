@@ -186,6 +186,7 @@ test("a committed upload reconciles its asset and exact V1 through one atomic RP
     args: {
       p_actor_id: userId,
       p_upload_id: uploadId,
+      p_expected_asset_id: null,
       p_project_id: projectId,
       p_folder_id: null,
       p_title: "master",
@@ -200,6 +201,41 @@ test("a committed upload reconciles its asset and exact V1 through one atomic RP
       p_storage_committed_at: committedAt,
     },
   }]);
+});
+
+test("catalog reconciliation binds a remembered legacy asset id inside the RPC", async () => {
+  state.__ccoUploadCatalogDataSchema = "co_production";
+  state.__ccoUploadCatalogRpcCalls = [];
+  state.__ccoUploadCatalogRpcResult = {
+    data: [{
+      id: assetId,
+      version_id: versionId,
+      version_number: 1,
+      file_url: `/api/media/versions/${versionId}`,
+    }],
+    error: null,
+  };
+  const session = committedSession();
+  session.assetId = assetId;
+  const orchestrator = {
+    async reconcileCatalog(
+      _requestedUploadId: string,
+      _requestedTenantId: string,
+      reconcile: (current: UploadSession) => Promise<Record<string, unknown>>,
+    ) {
+      return reconcile(session);
+    },
+  };
+  const { ensureCatalogAsset } = await import(
+    pathToFileURL(resolve(repositoryRoot, "app/api/upload/_shared.ts")).href
+  );
+
+  await ensureCatalogAsset(orchestrator as never, session, userId);
+
+  assert.equal(
+    state.__ccoUploadCatalogRpcCalls[0]?.args.p_expected_asset_id,
+    assetId,
+  );
 });
 
 test("legacy public data schema fails closed instead of using sequential catalog writes", async () => {
@@ -516,6 +552,7 @@ test("the catalog RPC owns one atomic, idempotent, service-only asset plus V1 tr
     migration,
     /CREATE OR REPLACE FUNCTION co_production\.attach_committed_upload_v1/,
   );
+  assert.match(migration, /p_expected_asset_id uuid/);
   assert.match(migration, /SECURITY INVOKER/);
   assert.doesNotMatch(migration, /SECURITY DEFINER/);
   assert.match(migration, /pg_advisory_xact_lock/);
@@ -619,11 +656,65 @@ test("the catalog RPC owns one atomic, idempotent, service-only asset plus V1 tr
   );
   assert.match(
     migration,
+    /IF v_existing\.version_id IS NOT NULL THEN[\s\S]*p_expected_asset_id IS NOT NULL[\s\S]*v_existing\.asset_id IS DISTINCT FROM p_expected_asset_id/,
+    "idempotent retries must stay bound to a remembered asset id",
+  );
+  assert.match(
+    migration,
     /v_partial_asset_project_id IS DISTINCT FROM p_project_id/,
   );
   assert.match(
     migration,
+    /IF v_partial_asset_count = 1 THEN[\s\S]*p_expected_asset_id IS NOT NULL[\s\S]*v_asset_id IS DISTINCT FROM p_expected_asset_id/,
+    "legacy partial adoption must not rebind a remembered asset id",
+  );
+  assert.match(
+    migration,
+    /ELSE[\s\S]*IF p_expected_asset_id IS NOT NULL THEN[\s\S]*USING ERRCODE = '23505';[\s\S]*INSERT INTO co_production\.assets/,
+    "a missing remembered asset must conflict instead of creating a replacement",
+  );
+  assert.match(
+    migration,
     /asset\.folder_id IS DISTINCT FROM p_folder_id[\s\S]*asset\.title IS DISTINCT FROM btrim\(p_title\)[\s\S]*asset\.file_type IS DISTINCT FROM p_file_type[\s\S]*asset\.deleted_at IS NOT NULL/,
+  );
+  assert.match(
+    migration,
+    /asset\.status IS DISTINCT FROM 'ready'[\s\S]*asset\.metadata IS DISTINCT FROM '\{\}'::jsonb[\s\S]*asset\.created_at IS DISTINCT FROM asset\.updated_at/,
+    "only the exact untouched legacy partial state may be adopted",
+  );
+  assert.match(
+    migration,
+    /p_storage_provider NOT IN \('local', 'ccnas'\)[\s\S]*p_storage_provider = 'local'[\s\S]*asset\.file_url IS NOT NULL[\s\S]*p_storage_provider = 'ccnas'[\s\S]*asset\.file_url IS DISTINCT FROM[\s\S]*pg_catalog\.replace\(p_storage_object_key, '\/', '%2F'\)/,
+    "legacy adoption must prove the provider-specific URL written by the retired canonical writer",
+  );
+  for (const dependentTable of [
+    "reviews",
+    "approval_workflows",
+    "approvals",
+    "activity_log",
+    "asset_tags",
+    "brand_checks",
+    "transcode_jobs",
+    "selects",
+    "sequence_clips",
+    "revision_requests",
+  ]) {
+    assert.match(
+      migration,
+      new RegExp(
+        `FROM co_production\\.${dependentTable} AS [a-z_]+[\\s\\S]*?\\.asset_id = v_asset_id`,
+      ),
+      `${dependentTable} must block adoption of an evolved legacy asset`,
+    );
+  }
+  const partialAdoptionUpdate = migration.match(
+    /UPDATE co_production\.assets\s+SET([\s\S]*?)WHERE assets\.id = v_asset_id;/,
+  )?.[1];
+  assert.ok(partialAdoptionUpdate, "legacy adoption update must remain inspectable");
+  assert.doesNotMatch(
+    partialAdoptionUpdate,
+    /\bstatus\s*=/,
+    "legacy adoption must never reset an evolved asset status",
   );
   assert.match(migration, /\bCOMMIT;/);
   assert.doesNotMatch(migration, /\bpublic\.(?:assets|versions)\b/);

@@ -252,6 +252,7 @@ export async function ensureCatalogAsset(
       .rpc("attach_committed_upload_v1", {
         p_actor_id: userId,
         p_upload_id: current.id,
+        p_expected_asset_id: current.assetId,
         p_project_id: current.projectId,
         p_folder_id: current.folderId,
         p_title: catalogTitleFromFilename(current.filename),

@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { createHash, randomUUID } from "node:crypto";
-import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { chmodSync, existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
@@ -605,6 +605,74 @@ test("restart recovery reconciles placement created before its receipt", async (
     assert.equal(recovered?.state, "committed");
     assert.equal(recovered?.receipt?.sha256, checksum);
     assert.equal(recovered?.recovery.lastAction, "placement-recovered");
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("restart recovery resumes a sealed staging object at its unchanged durable offset", async () => {
+  const root = mkdtempSync(join(tmpdir(), "codeliver-session-sealed-recovery-"));
+  const runtime = createStorageRuntime(environment(root));
+  const repository = new FileUploadSessionRepository(root, 60_000);
+  const checksum = createHash("sha256").update("payload").digest("hex");
+  try {
+    const orchestrator = new UploadOrchestrator({
+      adapter: runtime.adapter,
+      config: runtime.config,
+      sessions: repository,
+      scanner: CLEAN_SCANNER,
+    });
+    const created = await orchestrator.createSession(createInput());
+    await runtime.adapter.appendMultipart({
+      handle: created.session.providerHandle,
+      offset: 0,
+      chunks: chunks("payload"),
+      maxBytes: 1024,
+      expectedSize: 7,
+    });
+    const objectKey = buildVersionedObjectKey({
+      tenantId: created.session.tenantKey,
+      projectId: created.session.projectId,
+      objectId: created.session.id,
+      version: created.session.version,
+      filename: created.session.filename,
+    });
+    await repository.withLock(created.session.id, async () => {
+      const session = await repository.get(created.session.id);
+      assert.ok(session);
+      const expectedRevision = session.revision;
+      session.offset = 7;
+      session.state = "verifying";
+      session.computedSha256 = checksum;
+      session.objectKey = objectKey;
+      session.scan = {
+        verdict: "clean",
+        engine: "test-scanner",
+        signature: null,
+        detail: "Test payload is clean",
+        scannedAt: new Date().toISOString(),
+      };
+      session.revision += 1;
+      session.updatedAt = new Date().toISOString();
+      await repository.save(session, expectedRevision);
+    });
+    chmodSync(
+      join(
+        root,
+        ".codeliver-ingest",
+        "staging",
+        created.session.providerHandle.opaqueId,
+      ),
+      0o400,
+    );
+
+    const recovered = await createOrchestrator(root).recoverSession(
+      created.session.id,
+      "tenant-a",
+    );
+    assert.equal(recovered?.state, "committed");
+    assert.equal(recovered?.receipt?.sha256, checksum);
+    assert.equal(recovered?.recovery.lastAction, "verification-resumed");
   } finally {
     rmSync(root, { recursive: true, force: true });
   }

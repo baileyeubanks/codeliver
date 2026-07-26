@@ -16,12 +16,12 @@ const authStubUrl = `data:text/javascript,${encodeURIComponent(`
 const accessStubUrl = `data:text/javascript,${encodeURIComponent(`
   export const PROJECT_ROLE_RANK = {
     viewer: 10,
-    commenter: 20,
     reviewer: 30,
-    editor: 40,
-    producer: 50,
-    admin: 60,
-    owner: 70,
+    member: 50,
+    editor: 60,
+    producer: 70,
+    admin: 80,
+    owner: 100,
   };
 
   export async function getProjectAccess(projectId, userId, minimumRole, client) {
@@ -232,7 +232,14 @@ class FakeQuery {
       // PostgREST returns the updated rows when .select() is chained after
       // .update(); the harness mirrors that so handlers can verify counts.
       const rows = [...matches].map((row) => ({ ...row }));
-      return { data: this.selectRequested ? rows : null, error: null };
+      return {
+        data: this.selectRequested
+          ? single
+            ? (rows[0] ?? null)
+            : rows
+          : null,
+        error: null,
+      };
     }
     this.database.tables[this.table] = (
       this.database.tables[this.table] ?? []
@@ -374,6 +381,103 @@ test("single-asset move rejects a destination folder from another project", asyn
     { operator: "eq", column: "project_id", value: projectA },
   ]);
   assert.equal(supabase.writes.length, 0);
+});
+
+test("generic asset updates cannot enter approval or final-delivery authority", async () => {
+  const supabase = configure({
+    assets: [{ id: assetA, project_id: projectA, status: "in_review" }],
+  });
+  state.__ccoTenantAssetAccess = ({ assetId }) => ({
+    ok: true,
+    data: {
+      id: assetId,
+      project_id: projectA,
+      status: "in_review",
+      access_role: "producer",
+      access_rank: 70,
+    },
+  });
+  const { PATCH } = await assetDetailRoute();
+
+  for (const [status, body] of [
+    ["approved", { status: "approved", title: "must not partially update" }],
+    ["final", { status: "final" }],
+  ] as const) {
+    const response = await PATCH(
+      jsonRequest(`/api/assets/${assetA}`, "PATCH", body),
+      { params: Promise.resolve({ id: assetA }) },
+    );
+
+    assert.equal(response.status, 409, status);
+    assert.deepEqual(await response.json(), {
+      error:
+        "Approved and final statuses require the governed approval and delivery workflow",
+      code: "GOVERNED_STATUS_TRANSITION",
+    });
+  }
+  assert.equal(supabase.writes.length, 0);
+  assert.equal(supabase.tables.assets[0]?.title, undefined);
+});
+
+test("generic asset updates cannot move an approved or final asset backward", async () => {
+  const supabase = configure({
+    assets: [{ id: assetA, project_id: projectA, status: "approved" }],
+  });
+  state.__ccoTenantAssetAccess = ({ assetId }) => ({
+    ok: true,
+    data: {
+      id: assetId,
+      project_id: projectA,
+      status: "approved",
+      access_role: "producer",
+      access_rank: 70,
+    },
+  });
+  const { PATCH } = await assetDetailRoute();
+
+  const response = await PATCH(
+    jsonRequest(`/api/assets/${assetA}`, "PATCH", { status: "in_review" }),
+    { params: Promise.resolve({ id: assetA }) },
+  );
+
+  assert.equal(response.status, 409);
+  assert.equal(supabase.writes.length, 0);
+  assert.equal(supabase.tables.assets[0]?.status, "approved");
+});
+
+test("generic status updates cannot overwrite a concurrent governed transition", async () => {
+  const supabase = configure({
+    assets: [{ id: assetA, project_id: projectA, status: "in_review" }],
+  });
+  state.__ccoTenantAssetAccess = ({ assetId }) => {
+    const observed = {
+      id: assetId,
+      project_id: projectA,
+      status: "in_review",
+      access_role: "producer",
+      access_rank: 70,
+    };
+    supabase.tables.assets[0]!.status = "approved";
+    return { ok: true, data: observed };
+  };
+  const { PATCH } = await assetDetailRoute();
+
+  const response = await PATCH(
+    jsonRequest(`/api/assets/${assetA}`, "PATCH", { status: "ready" }),
+    { params: Promise.resolve({ id: assetA }) },
+  );
+
+  assert.equal(response.status, 409);
+  assert.deepEqual(await response.json(), {
+    error: "Asset status changed; reload before retrying",
+    code: "ASSET_STATUS_CONFLICT",
+  });
+  assert.equal(supabase.tables.assets[0]?.status, "approved");
+  assert.deepEqual(supabase.writes[0]?.filters, [
+    { operator: "eq", column: "id", value: assetA },
+    { operator: "eq", column: "project_id", value: projectA },
+    { operator: "eq", column: "status", value: "in_review" },
+  ]);
 });
 
 test("tag reads require project viewer access before querying", async () => {

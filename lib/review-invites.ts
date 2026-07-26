@@ -4,6 +4,10 @@ import type {
   SharePermission,
   WorkflowMode,
 } from "@/lib/types/codeliver";
+import {
+  CO_PRODUCTION_DATA_SCHEMA,
+  getSupabaseDataSchema,
+} from "@/lib/data-authority";
 import { getSupabase } from "@/lib/supabase";
 import {
   opaqueTokenLookup,
@@ -18,6 +22,7 @@ interface ReviewInviteAsset {
   file_type: string;
   file_url: string | null;
   status: string;
+  deleted_at: string | null;
   projects: { id: string; name: string } | null;
 }
 
@@ -39,6 +44,7 @@ export interface ReviewInviteRecord {
   view_count: number | null;
   max_views: number | null;
   last_viewed_at: string | null;
+  active?: boolean;
   assets?: ReviewInviteAsset | null;
 }
 
@@ -55,9 +61,14 @@ export function normalizeReviewerEmail(value?: string | null) {
 
 export async function getReviewInviteByToken(token: string) {
   const lookup = opaqueTokenLookup(token);
+  const dataSchema = getSupabaseDataSchema();
+  const projection =
+    dataSchema === CO_PRODUCTION_DATA_SCHEMA
+      ? "id, asset_id, version_id, reviewer_name, reviewer_email, permissions, password_hash, expires_at, watermark_enabled, watermark_text, download_enabled, view_count, max_views, last_viewed_at, active, assets(id, title, file_type, file_url, status, deleted_at, projects(id, name))"
+      : "id, asset_id, version_id, reviewer_name, reviewer_email, permissions, password_hash, expires_at, watermark_enabled, watermark_text, download_enabled, view_count, max_views, last_viewed_at, assets(id, title, file_type, file_url, status, deleted_at, projects(id, name))";
   const { data, error } = await getSupabase()
     .from("review_invites")
-    .select("*, assets(*, projects(id, name))")
+    .select(projection)
     .eq(lookup.column, lookup.value)
     .maybeSingle();
 
@@ -78,8 +89,27 @@ export async function getReviewInviteByToken(token: string) {
   }
 
   const invite = withoutPersistedTokenSecrets(
-    data as Record<string, unknown>,
+    data as unknown as Record<string, unknown>,
   ) as unknown as ReviewInviteRecord;
+
+  if (!invite.assets || invite.assets.deleted_at) {
+    return {
+      ok: false as const,
+      status: 410,
+      error: "Invalid or expired review link",
+    };
+  }
+
+  if (
+    dataSchema === CO_PRODUCTION_DATA_SCHEMA &&
+    invite.active !== true
+  ) {
+    return {
+      ok: false as const,
+      status: 410,
+      error: "Invalid or expired review link",
+    };
+  }
 
   if (invite.expires_at && new Date(invite.expires_at) < new Date()) {
     return {
@@ -100,6 +130,16 @@ export async function getReviewInviteByToken(token: string) {
       error: "This review link has reached its view limit",
     };
   }
+
+  if (invite.password_hash !== null && invite.password_hash !== undefined) {
+    return {
+      ok: false as const,
+      status: 403,
+      error: "Password verification is required for this review link",
+    };
+  }
+
+  invite.password_hash = null;
 
   return {
     ok: true as const,

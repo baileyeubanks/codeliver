@@ -3,6 +3,10 @@ import { apiError, apiJson, backendUnavailable } from "@/lib/api/responses";
 import { getAssetComment } from "@/lib/access-control";
 import { sendEmail, emailTemplates, getBaseUrl } from "@/lib/email";
 import { demoReviewPayload } from "@/lib/review/demoReview";
+import {
+  EXTERNAL_COMMENT_COLUMNS,
+  projectExternalComment,
+} from "@/lib/review/external-comment";
 import { inviteCanComment, getReviewInviteByToken } from "@/lib/review-invites";
 import { getSupabase } from "@/lib/supabase";
 import { resolveAssetVersion } from "@/lib/versions";
@@ -44,7 +48,7 @@ async function postComment(req: Request, { params }: { params: Promise<{ token: 
     }
 
     return apiJson(
-      {
+      projectExternalComment({
         id: `demo-comment-${crypto.randomUUID()}`,
         review_id: null,
         review_invite_id: demoReviewPayload.invite.id,
@@ -71,7 +75,7 @@ async function postComment(req: Request, { params }: { params: Promise<{ token: 
         resolved_at: null,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
-      },
+      }),
       { status: 201 },
     );
   }
@@ -144,7 +148,7 @@ async function postComment(req: Request, { params }: { params: Promise<{ token: 
       review_invite_id: invite.id,
       visibility: "external",
     })
-    .select()
+    .select(EXTERNAL_COMMENT_COLUMNS)
     .single();
 
   if (error) {
@@ -194,7 +198,10 @@ async function postComment(req: Request, { params }: { params: Promise<{ token: 
     }
   }
 
-  return apiJson(data ?? {}, { status: 201 });
+  return apiJson(
+    data ? projectExternalComment(data) : {},
+    { status: 201 },
+  );
 }
 
 export async function POST(req: Request, context: { params: Promise<{ token: string }> }) {

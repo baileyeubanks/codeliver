@@ -334,8 +334,12 @@ CREATE TABLE co_production.comments (
     timecode_seconds IS NULL OR timecode_seconds >= 0
   ),
   frame_number integer CHECK (frame_number IS NULL OR frame_number >= 0),
-  pin_x double precision CHECK (pin_x IS NULL OR (pin_x >= 0 AND pin_x <= 1)),
-  pin_y double precision CHECK (pin_y IS NULL OR (pin_y >= 0 AND pin_y <= 1)),
+  pin_x double precision CONSTRAINT comments_pin_x_check
+    CHECK (pin_x IS NULL OR (pin_x >= 0 AND pin_x <= 100)),
+  pin_y double precision CONSTRAINT comments_pin_y_check
+    CHECK (pin_y IS NULL OR (pin_y >= 0 AND pin_y <= 100)),
+  CONSTRAINT comments_pin_pair_check
+    CHECK ((pin_x IS NULL) = (pin_y IS NULL)),
   status text NOT NULL DEFAULT 'open' CHECK (
     status IN ('open', 'resolved', 'archived')
   ),

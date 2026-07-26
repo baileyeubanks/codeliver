@@ -331,6 +331,46 @@ test("POST requires reviewer privilege and always creates an internal version-bo
   assert.equal(write?.payload.review_invite_id, null);
 });
 
+test("POST persists complete 0-100 percentage pins and rejects malformed coordinates", async () => {
+  const { POST } = await routeModule();
+
+  const accepted = await POST(
+    request("POST", {
+      body: "Pin this frame",
+      version_id: "version-a",
+      pin_x: 25,
+      pin_y: 75,
+    }),
+    context,
+  );
+  assert.equal(accepted.status, 201);
+  assert.deepEqual(
+    [
+      state.__ccoCommentSupabase?.inserts[0]?.payload.pin_x,
+      state.__ccoCommentSupabase?.inserts[0]?.payload.pin_y,
+    ],
+    [25, 75],
+  );
+
+  for (const coordinates of [
+    { pin_x: 50, pin_y: null },
+    { pin_x: -0.01, pin_y: 50 },
+    { pin_x: 50, pin_y: 100.01 },
+  ]) {
+    configure();
+    const response = await POST(
+      request("POST", {
+        body: "Invalid pin",
+        version_id: "version-a",
+        ...coordinates,
+      }),
+      context,
+    );
+    assert.equal(response.status, 400);
+    assert.equal(state.__ccoCommentSupabase?.inserts.length, 0);
+  }
+});
+
 test("POST cannot join an external thread or cross the parent version boundary", async () => {
   const { POST } = await routeModule();
   state.__ccoCommentParent = {

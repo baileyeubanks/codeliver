@@ -1,0 +1,28 @@
+- banner:
+  - button "Menu":
+  - link "Content Co-op":
+    - /url: /projects?demo=1
+    - generic: Content Co-op
+  - navigation:
+    - link "Dashboard":
+      - /url: /?demo=1
+    - link "Projects":
+      - /url: /projects?demo=1
+    - link "Reviews":
+      - /url: /reviews?demo=1
+  - button "Help & Feedback":
+  - button "Search":
+  - button:
+- main:
+  - link "Back to Projects":
+    - /url: /projects
+    - text: Back to Projects
+  - heading "New Project" [level=1]
+  - paragraph: Create a new project to organize your content for review and delivery.
+  - generic: Project Name
+  - textbox "e.g., Q1 Campaign Deliverables"
+  - generic: Description
+  - textbox "Brief description of this project..."
+  - button "Create Project"
+- button "Open Next.js Dev Tools":
+- alert

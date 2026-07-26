@@ -1,0 +1,51 @@
+{
+  "schemaVersion": 1,
+  "kind": "pillar",
+  "id": "transcript-waveform-reversible-editing",
+  "title": "Transcript, waveform, captions, analysis candidates, and reversible editing",
+  "horizons": [1, 2, 3],
+  "owner": "Media intelligence",
+  "objective": "Preserve immutable source truth while derived transcript, analysis, composition, edit, render, and published-version states evolve reversibly.",
+  "authorityDomains": ["identity", "tenant", "project", "version", "permission", "billing", "audit"],
+  "surfaces": [
+    { "kind": "api", "pattern": "/api/ai/**" },
+    { "kind": "api", "pattern": "/api/assets/*/edit-decisions" },
+    { "kind": "api", "pattern": "/api/review/*/edit-decisions" }
+  ],
+  "obligations": [
+    {
+      "id": "media-intelligence.h1.source-truth",
+      "title": "Source artifact, tokens, transcript revisions, candidates, compositions, edits, renders, and published versions remain distinct",
+      "category": "reversible-editing",
+      "severity": "critical",
+      "horizon": 1,
+      "proofTtlDays": 7,
+      "checks": ["media.source-truth-contract", "media.source-checksum-invariant", "media.draft-publication-boundary", "resilience.version-transaction", "evidence.ingest-review-approval"],
+      "residualRisk": "Transcript cleanup or AI editing can overwrite source truth or make a destructive change appear reversible."
+    },
+    {
+      "id": "media-intelligence.h2.analysis-scale",
+      "title": "Transcription, waveform, VAD, silence, candidate fusion, and rendering are queued, metered, portable, and backpressured",
+      "category": "analysis-scale",
+      "severity": "critical",
+      "horizon": 2,
+      "proofTtlDays": 7,
+      "checks": ["media.analysis-lineage-proof", "resilience.queue-backpressure", "resilience.provider-portability", "billing.budget-enforcement", "performance.load-scenarios"],
+      "residualRisk": "Expensive analysis can exceed budget, provider, or capacity limits and produce untraceable candidates."
+    },
+    {
+      "id": "media-intelligence.h3.deterministic-intelligence",
+      "title": "Models, prompts, thresholds, source checksums, decisions, and renders support calibrated evaluation and deterministic replay",
+      "category": "governed-intelligence",
+      "severity": "critical",
+      "horizon": 3,
+      "proofTtlDays": 30,
+      "checks": ["governance.model-prompt-lineage", "media.deterministic-replay-proof", "media.av-sync-proof", "governance.immutable-audit-ledger"],
+      "residualRisk": "An AI edit cannot be explained, reproduced, calibrated, or safely rolled back without complete lineage."
+    }
+  ],
+  "slos": [
+    { "id": "candidate-provenance", "indicator": "Analysis candidates with complete source and pipeline lineage", "target": 1, "windowDays": 30, "errorBudgetMinutes": 0 },
+    { "id": "high-confidence-precision", "indicator": "Precision required before a detector may claim high confidence", "target": 0.95, "windowDays": 90 }
+  ]
+}

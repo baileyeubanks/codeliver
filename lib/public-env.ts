@@ -13,3 +13,9 @@ export function getSupabasePublicUrl(): string {
 export function getSupabaseAnonKey(): string {
   return requireValue(process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY, "NEXT_PUBLIC_SUPABASE_ANON_KEY");
 }
+
+export function hasSupabasePublicConfig(): boolean {
+  return Boolean(
+    process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
+  );
+}

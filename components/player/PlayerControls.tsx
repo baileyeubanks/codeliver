@@ -1,24 +1,28 @@
 "use client";
 
-import { useCallback, useRef, useState, type RefObject } from "react";
+import { useCallback, useEffect, useRef, useState, type RefObject } from "react";
+import { useOverlay } from "@/components/overlay/useOverlay";
 import {
   Play,
   Pause,
+  Repeat,
   SkipBack,
   SkipForward,
   Volume2,
   VolumeX,
   Maximize,
-  ChevronLeft,
-  ChevronRight,
 } from "lucide-react";
-import { usePlayerStore, formatTime } from "@/lib/stores/playerStore";
+import { usePlayerStore } from "@/lib/stores/playerStore";
+import { nextLoopRegion } from "@/lib/review/frame-review";
+import { formatSmpteTimecode } from "@/components/player/timecode";
 
 interface PlayerControlsProps {
   videoRef: RefObject<HTMLVideoElement | null>;
 }
 
 const PLAYBACK_RATES = [0.25, 0.5, 0.75, 1, 1.25, 1.5, 2];
+const SEEK_INTERVALS = [1, 2, 5, 10];
+const SEEK_INTERVAL_STORAGE_KEY = "codeliver.review.seek-interval";
 
 export default function PlayerControls({ videoRef }: PlayerControlsProps) {
   const {
@@ -29,18 +33,57 @@ export default function PlayerControls({ videoRef }: PlayerControlsProps) {
     volume,
     playbackRate,
     frameRate,
-    togglePlay,
+    seekStepSeconds,
+    loopIn,
+    loopOut,
     toggleMute,
+    setMuted,
     setVolume,
     setPlaybackRate,
+    setSeekStepSeconds,
+    setLoopRegion,
   } = usePlayerStore();
 
   const [showRateMenu, setShowRateMenu] = useState(false);
+  const [bufferedPct, setBufferedPct] = useState(0);
+  const rateButtonRef = useRef<HTMLButtonElement>(null);
+  const [rateMenuOverlayRef, rateMenuOverlayStyle] = useOverlay({
+    open: showRateMenu,
+    onClose: () => setShowRateMenu(false),
+    anchorRef: rateButtonRef,
+    side: "top",
+    align: "end",
+    offset: 8,
+  });
   const progressRef = useRef<HTMLDivElement>(null);
   const volumeRef = useRef<HTMLDivElement>(null);
 
   const progress = duration > 0 ? (currentTime / duration) * 100 : 0;
-  const frameDuration = 1 / frameRate;
+  const loopClosed = loopIn != null && loopOut != null && loopOut > loopIn && duration > 0;
+  const loopLabel = loopClosed
+    ? "Loop A-B set — press again to clear"
+    : loopIn != null
+      ? "Loop in point set — press at the out point"
+      : "Loop — set in point at the playhead";
+
+  const handleLoopCycle = useCallback(() => {
+    const next = nextLoopRegion({ inPoint: loopIn, outPoint: loopOut }, currentTime);
+    setLoopRegion(next.inPoint, next.outPoint);
+  }, [loopIn, loopOut, currentTime, setLoopRegion]);
+  const handleTogglePlayback = useCallback(() => {
+    const video = videoRef.current;
+    if (!video) return;
+
+    if (video.paused) {
+      void video.play().catch(() => {
+        video.muted = true;
+        setMuted(true);
+        void video.play().catch(() => undefined);
+      });
+    } else {
+      video.pause();
+    }
+  }, [setMuted, videoRef]);
 
   const seekTo = useCallback(
     (time: number) => {
@@ -84,12 +127,32 @@ export default function PlayerControls({ videoRef }: PlayerControlsProps) {
     }
   }, [videoRef]);
 
-  // Buffered range (first range)
-  const video = videoRef.current;
-  let bufferedPct = 0;
-  if (video && video.buffered.length > 0 && duration > 0) {
-    bufferedPct = (video.buffered.end(video.buffered.length - 1) / duration) * 100;
-  }
+  useEffect(() => {
+    const storedInterval = Number(window.localStorage.getItem(SEEK_INTERVAL_STORAGE_KEY));
+    if (SEEK_INTERVALS.includes(storedInterval)) setSeekStepSeconds(storedInterval);
+  }, [setSeekStepSeconds]);
+
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video) return;
+
+    function updateBufferedRange(event: Event) {
+      const media = event.currentTarget as HTMLVideoElement;
+      if (media.buffered.length === 0 || media.duration <= 0) {
+        setBufferedPct(0);
+        return;
+      }
+      const end = media.buffered.end(media.buffered.length - 1);
+      setBufferedPct(Math.min(100, (end / media.duration) * 100));
+    }
+
+    video.addEventListener("progress", updateBufferedRange);
+    video.addEventListener("loadedmetadata", updateBufferedRange);
+    return () => {
+      video.removeEventListener("progress", updateBufferedRange);
+      video.removeEventListener("loadedmetadata", updateBufferedRange);
+    };
+  }, [videoRef]);
 
   return (
     <div className="flex flex-col gap-3 rounded-b-[var(--radius)] bg-[var(--surface)] px-3 py-3 sm:px-4">
@@ -104,6 +167,17 @@ export default function PlayerControls({ videoRef }: PlayerControlsProps) {
           className="absolute left-0 top-0 h-full rounded-full bg-[var(--dim)] opacity-40"
           style={{ width: `${bufferedPct}%` }}
         />
+        {/* A/B loop region */}
+        {loopClosed ? (
+          <div
+            data-loop-region
+            className="absolute top-0 h-full rounded-full bg-[var(--accent)]/25"
+            style={{
+              left: `${((loopIn as number) / duration) * 100}%`,
+              width: `${(((loopOut as number) - (loopIn as number)) / duration) * 100}%`,
+            }}
+          />
+        ) : null}
         {/* Progress */}
         <div
           className="absolute left-0 top-0 h-full rounded-full bg-[var(--accent)]"
@@ -111,7 +185,7 @@ export default function PlayerControls({ videoRef }: PlayerControlsProps) {
         />
         {/* Thumb */}
         <div
-          className="absolute top-1/2 h-3.5 w-3.5 -translate-y-1/2 rounded-full border-2 border-[var(--accent)] bg-white opacity-0 transition-opacity group-hover:opacity-100"
+          className="absolute top-1/2 h-3.5 w-3.5 -translate-y-1/2 rounded-full border-2 border-[var(--accent)] bg-[var(--surface)] opacity-0 transition-opacity group-hover:opacity-100"
           style={{ left: `calc(${progress}% - 7px)` }}
         />
       </div>
@@ -121,59 +195,70 @@ export default function PlayerControls({ videoRef }: PlayerControlsProps) {
         {/* Transport */}
         <div className="flex items-center gap-1">
           <button
-            onClick={() => seekTo(currentTime - 10)}
-            className="rounded-[var(--radius-sm)] p-1.5 text-[var(--muted)] transition-colors hover:bg-[var(--surface-2)] hover:text-[var(--ink)]"
-            title="Skip back 10s (J)"
+            type="button"
+            onClick={() => seekTo(currentTime - seekStepSeconds)}
+            className="grid h-11 w-11 place-items-center rounded-[var(--radius-sm)] text-[var(--muted)] transition-colors hover:bg-[var(--surface-2)] hover:text-[var(--ink)] sm:h-8 sm:w-8"
+            title={`Seek back ${seekStepSeconds}s (Arrow Left)`}
+            aria-label={`Seek back ${seekStepSeconds} seconds`}
           >
             <SkipBack size={18} />
           </button>
 
           <button
-            onClick={() => seekTo(currentTime - frameDuration)}
-            className="rounded-[var(--radius-sm)] p-1.5 text-[var(--muted)] transition-colors hover:bg-[var(--surface-2)] hover:text-[var(--ink)]"
-            title="Frame back (ArrowLeft)"
-          >
-            <ChevronLeft size={18} />
-          </button>
-
-          <button
-            onClick={togglePlay}
-            className="rounded-[var(--radius-sm)] p-2 text-[var(--ink)] transition-colors hover:bg-[var(--surface-2)]"
+            type="button"
+            onClick={handleTogglePlayback}
+            className="grid h-11 w-11 place-items-center rounded-[var(--radius-sm)] text-[var(--ink)] transition-colors hover:bg-[var(--surface-2)] sm:h-9 sm:w-9"
             title={playing ? "Pause (Space)" : "Play (Space)"}
           >
             {playing ? <Pause size={20} /> : <Play size={20} />}
           </button>
 
           <button
-            onClick={() => seekTo(currentTime + frameDuration)}
-            className="rounded-[var(--radius-sm)] p-1.5 text-[var(--muted)] transition-colors hover:bg-[var(--surface-2)] hover:text-[var(--ink)]"
-            title="Frame forward (ArrowRight)"
-          >
-            <ChevronRight size={18} />
-          </button>
-
-          <button
-            onClick={() => seekTo(currentTime + 10)}
-            className="rounded-[var(--radius-sm)] p-1.5 text-[var(--muted)] transition-colors hover:bg-[var(--surface-2)] hover:text-[var(--ink)]"
-            title="Skip forward 10s (L)"
+            type="button"
+            onClick={() => seekTo(currentTime + seekStepSeconds)}
+            className="grid h-11 w-11 place-items-center rounded-[var(--radius-sm)] text-[var(--muted)] transition-colors hover:bg-[var(--surface-2)] hover:text-[var(--ink)] sm:h-8 sm:w-8"
+            title={`Seek forward ${seekStepSeconds}s (Arrow Right)`}
+            aria-label={`Seek forward ${seekStepSeconds} seconds`}
           >
             <SkipForward size={18} />
           </button>
         </div>
 
         {/* Time display */}
-        <span className="order-last w-full text-xs tabular-nums text-[var(--muted)] sm:order-none sm:w-auto sm:min-w-[80px]">
-          {formatTime(currentTime)} / {formatTime(duration)}
+        <span
+          data-transport-timecode
+          className="order-last w-full font-mono text-xs tabular-nums text-[var(--muted)] sm:order-none sm:w-auto sm:min-w-[80px]"
+        >
+          {formatSmpteTimecode(currentTime, frameRate)} / {formatSmpteTimecode(duration, frameRate)}
         </span>
 
         <div className="hidden flex-1 sm:block" />
 
+        <select
+          aria-label="Keyboard seek interval"
+          title="Arrow key seek interval"
+          value={seekStepSeconds}
+          onChange={(event) => {
+            const seconds = Number(event.target.value);
+            setSeekStepSeconds(seconds);
+            window.localStorage.setItem(SEEK_INTERVAL_STORAGE_KEY, String(seconds));
+          }}
+          className="h-11 rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--surface-2)] px-2 text-xs font-medium text-[var(--muted)] outline-none transition-colors hover:text-[var(--ink)] focus:border-[var(--accent)] sm:h-8"
+        >
+          {SEEK_INTERVALS.map((seconds) => (
+            <option key={seconds} value={seconds}>
+              {seconds}s
+            </option>
+          ))}
+        </select>
+
         {/* Volume */}
         <div className="hidden items-center gap-2 sm:flex">
           <button
+            type="button"
             onClick={toggleMute}
             className="rounded-[var(--radius-sm)] p-1.5 text-[var(--muted)] transition-colors hover:bg-[var(--surface-2)] hover:text-[var(--ink)]"
-            title="Toggle mute (M)"
+            title={muted || volume === 0 ? "Unmute (M)" : "Mute (M)"}
           >
             {muted || volume === 0 ? <VolumeX size={18} /> : <Volume2 size={18} />}
           </button>
@@ -192,15 +277,24 @@ export default function PlayerControls({ videoRef }: PlayerControlsProps) {
         {/* Playback rate */}
         <div className="relative">
           <button
+            ref={rateButtonRef}
+            type="button"
+            aria-expanded={showRateMenu}
+            aria-label="Playback speed"
             onClick={() => setShowRateMenu(!showRateMenu)}
-            className="rounded-[var(--radius-sm)] px-2 py-1 text-xs font-medium text-[var(--muted)] transition-colors hover:bg-[var(--surface-2)] hover:text-[var(--ink)]"
+            className="h-11 min-w-11 rounded-[var(--radius-sm)] px-2 text-xs font-medium text-[var(--muted)] transition-colors hover:bg-[var(--surface-2)] hover:text-[var(--ink)] sm:h-8"
           >
             {playbackRate}x
           </button>
           {showRateMenu && (
-            <div className="absolute bottom-full right-0 mb-2 overflow-hidden rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--surface)] shadow-lg">
+            <div
+              ref={rateMenuOverlayRef}
+              style={rateMenuOverlayStyle}
+              className="z-[60] overflow-hidden rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--surface)] shadow-lg"
+            >
               {PLAYBACK_RATES.map((rate) => (
                 <button
+                  type="button"
                   key={rate}
                   onClick={() => {
                     setPlaybackRate(rate);
@@ -217,10 +311,24 @@ export default function PlayerControls({ videoRef }: PlayerControlsProps) {
           )}
         </div>
 
+        {/* A/B loop */}
+        <button
+          type="button"
+          onClick={handleLoopCycle}
+          aria-label={loopLabel}
+          title={loopLabel}
+          className={`grid h-11 w-11 place-items-center rounded-[var(--radius-sm)] transition-colors hover:bg-[var(--surface-2)] sm:h-8 sm:w-8 ${
+            loopIn != null ? "text-[var(--accent)]" : "text-[var(--muted)] hover:text-[var(--ink)]"
+          }`}
+        >
+          <Repeat size={18} />
+        </button>
+
         {/* Fullscreen */}
         <button
+          type="button"
           onClick={handleFullscreen}
-          className="rounded-[var(--radius-sm)] p-1.5 text-[var(--muted)] transition-colors hover:bg-[var(--surface-2)] hover:text-[var(--ink)]"
+          className="grid h-11 w-11 place-items-center rounded-[var(--radius-sm)] text-[var(--muted)] transition-colors hover:bg-[var(--surface-2)] hover:text-[var(--ink)] sm:h-8 sm:w-8"
           title="Fullscreen (F)"
         >
           <Maximize size={18} />

@@ -1,0 +1,35 @@
+:root {
+  /* Atlantis-inspired tokens */
+  --at-blue: hsl(213, 100%, 40%);
+  --at-blue-light: hsl(213, 80%, 55%);
+  --at-blue-lightest: hsl(213, 60%, 92%);
+  --at-green: hsl(145, 63%, 42%);
+  --at-green-light: hsl(145, 50%, 55%);
+  --at-green-lightest: hsl(145, 40%, 92%);
+  --at-red: hsl(0, 72%, 51%);
+  --at-red-light: hsl(0, 60%, 92%);
+  --at-yellow: hsl(45, 93%, 47%);
+  --at-yellow-light: hsl(45, 80%, 92%);
+  --at-grey-100: hsl(0, 0%, 97%);
+  --at-grey-200: hsl(0, 0%, 93%);
+  --at-grey-300: hsl(0, 0%, 87%);
+  --at-grey-400: hsl(0, 0%, 72%);
+  --at-grey-500: hsl(0, 0%, 58%);
+  --at-grey-700: hsl(0, 0%, 35%);
+  --at-grey-900: hsl(0, 0%, 15%);
+  --at-surface: hsl(35, 20%, 97%);
+  --at-border: hsl(40, 9%, 85%);
+  --at-text: hsl(0, 0%, 15%);
+  --at-text-secondary: hsl(0, 0%, 47%);
+  --at-font: Inter, Helvetica, Arial, sans-serif;
+  --at-font-display: Poppins, Helvetica, Arial, sans-serif;
+  --at-radius-sm: 4px;
+  --at-radius: 8px;
+  --at-radius-lg: 16px;
+  --at-space-xs: 4px;
+  --at-space-sm: 8px;
+  --at-space-md: 16px;
+  --at-space-lg: 24px;
+  --at-space-xl: 32px;
+  --at-space-2xl: 48px;
+}

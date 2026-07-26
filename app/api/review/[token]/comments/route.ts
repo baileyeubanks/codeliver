@@ -1,29 +1,151 @@
 import crypto from "crypto";
-import { NextResponse } from "next/server";
 import { getAssetComment } from "@/lib/access-control";
 import { sendEmail, emailTemplates, getBaseUrl } from "@/lib/email";
 import { demoReviewPayload } from "@/lib/review/demoReview";
-import { inviteCanComment, getReviewInviteByToken } from "@/lib/review-invites";
+import {
+  authorizeAdmittedReviewInvite,
+  reserveReviewActionRate,
+} from "@/lib/review/admission-authority";
+import {
+  EXTERNAL_COMMENT_COLUMNS,
+  projectExternalComment,
+} from "@/lib/review/external-comment";
+import { inviteCanComment } from "@/lib/review-invites";
+import {
+  readReviewJsonObject,
+  validateReviewMutationRequest,
+} from "@/lib/review/request-boundary";
+import {
+  reviewBackendUnavailable,
+  reviewError as reviewResponseError,
+  reviewJson,
+} from "@/lib/review/responses";
 import { getSupabase } from "@/lib/supabase";
+import { resolveAssetVersion } from "@/lib/versions";
 
-export async function POST(req: Request, { params }: { params: Promise<{ token: string }> }) {
+const COMMENT_BODY_LIMIT_BYTES = 32 * 1_024;
+
+function reviewError(
+  error: string,
+  status: number,
+  code = "REVIEW_REQUEST_INVALID",
+  headers?: HeadersInit,
+) {
+  if (status >= 500) return reviewBackendUnavailable(headers);
+  return reviewResponseError(error, code, status, headers);
+}
+
+async function postComment(req: Request, { params }: { params: Promise<{ token: string }> }) {
+  const boundary = validateReviewMutationRequest(req, {
+    maxBytes: COMMENT_BODY_LIMIT_BYTES,
+  });
+  if (!boundary.ok) {
+    return reviewError(
+      "Review comment request is not allowed",
+      boundary.status,
+      boundary.code,
+    );
+  }
+
   const { token } = await params;
-  const body = await req.json();
+  const demo = process.env.NODE_ENV !== "production" && token === "demo";
+  let authority:
+    | Awaited<ReturnType<typeof authorizeAdmittedReviewInvite>>
+    | null = null;
+  let responseHeaders: HeadersInit | undefined;
 
-  if (process.env.NODE_ENV !== "production" && token === "demo") {
-    if (!body.body?.trim()) {
-      return NextResponse.json({ error: "Comment body is required" }, { status: 400 });
+  if (!demo) {
+    authority = await authorizeAdmittedReviewInvite(req, token);
+    if (!authority.ok) {
+      return reviewError(
+        "Review link is unavailable",
+        authority.status,
+        authority.code,
+      );
+    }
+    responseHeaders = { "Set-Cookie": authority.setCookie };
+    const rate = await reserveReviewActionRate({
+      token,
+      claims: authority.claims,
+      action: "comment",
+    });
+    if (!rate.ok) {
+      return reviewError(
+        rate.status === 429
+          ? "Review comment rate exceeded"
+          : "Review link is unavailable",
+        rate.status,
+        rate.code,
+        {
+          ...responseHeaders,
+          ...(rate.status === 429
+            ? {
+                "Retry-After": String(
+                  Math.max(1, rate.retryAfterSeconds ?? 60),
+                ),
+              }
+            : {}),
+        },
+      );
+    }
+  }
+
+  const bodyResult = await readReviewJsonObject(req, {
+    maxBytes: COMMENT_BODY_LIMIT_BYTES,
+  });
+  if (!bodyResult.ok) {
+    return reviewError(
+      bodyResult.status === 413
+        ? "Comment request is too large"
+        : "Comment request must be JSON.",
+      bodyResult.status,
+      bodyResult.code,
+      responseHeaders,
+    );
+  }
+  const body = bodyResult.value;
+  const timecode = body.timecode_seconds == null ? null : body.timecode_seconds;
+  const pinX = body.pin_x == null ? null : body.pin_x;
+  const pinY = body.pin_y == null ? null : body.pin_y;
+  const hasValidTimecode =
+    timecode == null || (typeof timecode === "number" && Number.isFinite(timecode) && timecode >= 0);
+  const hasValidPinPair =
+    (pinX == null && pinY == null) ||
+    (typeof pinX === "number" &&
+      Number.isFinite(pinX) &&
+      pinX >= 0 &&
+      pinX <= 100 &&
+      typeof pinY === "number" &&
+      Number.isFinite(pinY) &&
+      pinY >= 0 &&
+      pinY <= 100);
+
+  if (!hasValidTimecode || !hasValidPinPair) {
+    return reviewError(
+      "Comment timing or point coordinates are invalid",
+      400,
+      "REVIEW_REQUEST_INVALID",
+      responseHeaders,
+    );
+  }
+
+  if (demo) {
+    if (typeof body.body !== "string" || !body.body.trim()) {
+      return reviewError("Comment body is required", 400);
     }
 
-    return NextResponse.json(
-      {
+    return reviewJson(
+      projectExternalComment({
         id: `demo-comment-${crypto.randomUUID()}`,
         review_id: null,
         review_invite_id: demoReviewPayload.invite.id,
         asset_id: demoReviewPayload.asset.id,
+        version_id: null,
         parent_id: body.parent_id ?? null,
         author_name:
-          body.author_name?.trim() ||
+          (typeof body.author_name === "string"
+            ? body.author_name.trim()
+            : "") ||
           demoReviewPayload.reviewer_name ||
           demoReviewPayload.reviewer_email ||
           "Demo reviewer",
@@ -31,10 +153,10 @@ export async function POST(req: Request, { params }: { params: Promise<{ token: 
         author_id: null,
         body: body.body.trim(),
         rich_body: null,
-        timecode_seconds: body.timecode_seconds ?? null,
+        timecode_seconds: timecode,
         frame_number: null,
-        pin_x: body.pin_x ?? null,
-        pin_y: body.pin_y ?? null,
+        pin_x: pinX,
+        pin_y: pinY,
         mentions: [],
         status: "open",
         visibility: "external",
@@ -42,53 +164,86 @@ export async function POST(req: Request, { params }: { params: Promise<{ token: 
         resolved_at: null,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
-      },
+      }),
       { status: 201 },
     );
   }
 
-  const inviteLookup = await getReviewInviteByToken(token);
-
-  if (!inviteLookup.ok) {
-    return NextResponse.json(
-      { error: inviteLookup.error },
-      { status: inviteLookup.status }
+  if (!authority?.ok) return reviewBackendUnavailable(responseHeaders);
+  const { invite } = authority;
+  if (!inviteCanComment(invite)) {
+    return reviewError(
+      "This review link cannot add comments",
+      403,
+      "REVIEW_COMMENT_FORBIDDEN",
+      responseHeaders,
     );
   }
 
-  const { invite } = inviteLookup;
-  if (!inviteCanComment(invite)) {
-    return NextResponse.json({ error: "This review link cannot add comments" }, { status: 403 });
+  if (typeof body.body !== "string" || !body.body.trim()) {
+    return reviewError(
+      "Comment body is required",
+      400,
+      "REVIEW_REQUEST_INVALID",
+      responseHeaders,
+    );
   }
 
-  if (!body.body?.trim()) {
-    return NextResponse.json({ error: "Comment body is required" }, { status: 400 });
+  const versionLookup = await resolveAssetVersion({
+    assetId: invite.asset_id,
+    versionId: invite.version_id,
+  });
+  if (!versionLookup.ok) {
+    return reviewError(
+      versionLookup.error,
+      versionLookup.status,
+      "REVIEW_VERSION_UNAVAILABLE",
+      responseHeaders,
+    );
   }
 
-  if (body.parent_id) {
+  if (typeof body.parent_id === "string" && body.parent_id) {
     const parent = await getAssetComment(body.parent_id, invite.asset_id);
     if (!parent.ok) {
-      return NextResponse.json({ error: parent.error }, { status: parent.status });
+      return reviewError(
+        parent.error,
+        parent.status,
+        "REVIEW_COMMENT_UNAVAILABLE",
+        responseHeaders,
+      );
     }
 
     if (parent.data.visibility !== "external") {
-      return NextResponse.json(
-        { error: "Replies must stay within the external review thread" },
-        { status: 400 },
+      return reviewError(
+        "Replies must stay within the external review thread",
+        400,
+        "REVIEW_REQUEST_INVALID",
+        responseHeaders,
+      );
+    }
+
+    if (parent.data.version_id !== versionLookup.version.id) {
+      return reviewError(
+        "Replies must stay on the same media version",
+        400,
+        "REVIEW_REQUEST_INVALID",
+        responseHeaders,
       );
     }
   }
 
+  const requestedAuthorName =
+    typeof body.author_name === "string" ? body.author_name.trim() : "";
   const reviewerName =
-    body.author_name?.trim() ||
+    requestedAuthorName ||
     invite.reviewer_name ||
     invite.reviewer_email ||
     "Anonymous";
 
-  if (!invite.reviewer_name && body.author_name?.trim()) {
+  if (!invite.reviewer_name && requestedAuthorName) {
     await getSupabase()
       .from("review_invites")
-      .update({ reviewer_name: body.author_name.trim() })
+      .update({ reviewer_name: requestedAuthorName })
       .eq("id", invite.id);
   }
 
@@ -96,23 +251,27 @@ export async function POST(req: Request, { params }: { params: Promise<{ token: 
     .from("comments")
     .insert({
       asset_id: invite.asset_id,
+      version_id: versionLookup.version.id,
       body: body.body.trim(),
       author_name: reviewerName,
       author_email: invite.reviewer_email || null,
       author_id: null,
-      timecode_seconds: body.timecode_seconds ?? null,
-      pin_x: body.pin_x ?? null,
-      pin_y: body.pin_y ?? null,
-      parent_id: body.parent_id ?? null,
+      timecode_seconds: timecode,
+      pin_x: pinX,
+      pin_y: pinY,
+      parent_id:
+        typeof body.parent_id === "string" && body.parent_id
+          ? body.parent_id
+          : null,
       review_id: null,
       review_invite_id: invite.id,
       visibility: "external",
     })
-    .select()
+    .select(EXTERNAL_COMMENT_COLUMNS)
     .single();
 
   if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return reviewBackendUnavailable(responseHeaders);
   }
 
   const asset = await getSupabase()
@@ -132,6 +291,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ token: 
         asset_title: asset.data.title,
         body: body.body.slice(0, 100),
         via: "review_link",
+        version_id: versionLookup.version.id,
       },
     });
 
@@ -157,5 +317,16 @@ export async function POST(req: Request, { params }: { params: Promise<{ token: 
     }
   }
 
-  return NextResponse.json(data, { status: 201 });
+  return reviewJson(
+    data ? projectExternalComment(data) : {},
+    { status: 201, headers: responseHeaders },
+  );
+}
+
+export async function POST(req: Request, context: { params: Promise<{ token: string }> }) {
+  try {
+    return await postComment(req, context);
+  } catch {
+    return reviewBackendUnavailable();
+  }
 }

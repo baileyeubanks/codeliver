@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { Loader2, Save } from "lucide-react";
+import { Loader2, Mail, MessageSquareText, Save, Smartphone } from "lucide-react";
 import type { NotificationType } from "@/lib/types/codeliver";
 
 interface EventPreference {
@@ -32,7 +32,7 @@ const FREQUENCY_OPTIONS = [
 ];
 
 function defaultPreference(): EventPreference {
-  return { email_enabled: true, in_app_enabled: true, email_frequency: "instant" };
+  return { email_enabled: false, in_app_enabled: true, email_frequency: "off" };
 }
 
 export default function NotificationPreferences() {
@@ -40,6 +40,8 @@ export default function NotificationPreferences() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [saveError, setSaveError] = useState("");
+  const [channels, setChannels] = useState<Record<string, { configured?: boolean; preview_only?: boolean }>>({});
 
   useEffect(() => {
     async function load() {
@@ -53,6 +55,7 @@ export default function NotificationPreferences() {
             merged[evt.type] = data.preferences?.[evt.type] ?? defaultPreference();
           }
           setPreferences(merged);
+          setChannels(data.channels ?? {});
         }
       } finally {
         setLoading(false);
@@ -77,6 +80,7 @@ export default function NotificationPreferences() {
 
   async function handleSave() {
     setSaving(true);
+    setSaveError("");
     try {
       const res = await fetch("/api/notifications/preferences", {
         method: "PUT",
@@ -85,6 +89,9 @@ export default function NotificationPreferences() {
       });
       if (res.ok) {
         setSaved(true);
+      } else {
+        const data = await res.json().catch(() => null);
+        setSaveError(data?.error || "Preferences could not be saved.");
       }
     } finally {
       setSaving(false);
@@ -126,8 +133,30 @@ export default function NotificationPreferences() {
         </button>
       </div>
 
+      <div className="grid gap-2 sm:grid-cols-3">
+        {[
+          { id: "email", label: "Email", icon: Mail },
+          { id: "sms", label: "SMS", icon: Smartphone },
+          { id: "imessage", label: "iMessage", icon: MessageSquareText },
+        ].map(({ id, label, icon: Icon }) => (
+          <div
+            key={id}
+            className="flex min-h-11 items-center gap-2 border-b border-[var(--border)] px-1 py-2 text-sm"
+          >
+            <Icon size={14} className="text-[var(--muted)]" />
+            <span className="text-[var(--ink)]">{label}</span>
+            <span className="ml-auto text-xs text-[var(--dim)]">
+              {channels[id]?.configured ? "Ready" : channels[id]?.preview_only ? "Preview only" : "Not configured"}
+            </span>
+          </div>
+        ))}
+      </div>
+
+      {saveError ? <p className="text-sm text-[var(--red)]">{saveError}</p> : null}
+
       {/* Table */}
-      <div className="overflow-hidden rounded-[var(--radius)] border border-[var(--border)]">
+      <div className="overflow-x-auto rounded-[var(--radius)] border border-[var(--border)]">
+        <div className="min-w-[620px]">
         {/* Column headers */}
         <div className="grid grid-cols-[1fr_80px_80px_140px] gap-4 border-b border-[var(--border)] bg-[var(--bg)] px-4 py-2.5">
           <span className="text-xs font-medium uppercase tracking-wider text-[var(--dim)]">
@@ -174,7 +203,7 @@ export default function NotificationPreferences() {
                   }`}
                 >
                   <span
-                    className={`absolute left-0.5 top-0.5 h-4 w-4 rounded-full bg-white transition-transform ${
+                    className={`absolute left-0.5 top-0.5 h-4 w-4 rounded-full bg-[var(--surface)] transition-transform ${
                       pref.in_app_enabled ? "translate-x-4" : "translate-x-0"
                     }`}
                   />
@@ -187,13 +216,21 @@ export default function NotificationPreferences() {
                   type="button"
                   role="switch"
                   aria-checked={pref.email_enabled}
-                  onClick={() =>
-                    updatePreference(
-                      evt.type,
-                      "email_enabled",
-                      !pref.email_enabled
-                    )
-                  }
+                  onClick={() => {
+                    setSaved(false);
+                    setPreferences((prev) => ({
+                      ...prev,
+                      [evt.type]: {
+                        ...pref,
+                        email_enabled: !pref.email_enabled,
+                        email_frequency: pref.email_enabled
+                          ? "off"
+                          : pref.email_frequency === "off"
+                            ? "instant"
+                            : pref.email_frequency,
+                      },
+                    }));
+                  }}
                   className={`relative h-5 w-9 rounded-full transition-colors ${
                     pref.email_enabled
                       ? "bg-[var(--accent)]"
@@ -201,7 +238,7 @@ export default function NotificationPreferences() {
                   }`}
                 >
                   <span
-                    className={`absolute left-0.5 top-0.5 h-4 w-4 rounded-full bg-white transition-transform ${
+                    className={`absolute left-0.5 top-0.5 h-4 w-4 rounded-full bg-[var(--surface)] transition-transform ${
                       pref.email_enabled ? "translate-x-4" : "translate-x-0"
                     }`}
                   />
@@ -226,6 +263,7 @@ export default function NotificationPreferences() {
             </div>
           );
         })}
+        </div>
       </div>
     </div>
   );

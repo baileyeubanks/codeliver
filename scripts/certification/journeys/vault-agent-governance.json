@@ -1,0 +1,61 @@
+{
+  "schemaVersion": 1,
+  "kind": "journey",
+  "id": "vault-agent-governance",
+  "title": "Project vault retrieval, governed agent run, human decision, and replay",
+  "horizon": 3,
+  "proofTtlDays": 14,
+  "routes": [
+    "/api/vault/records",
+    "/api/vault/retrieve",
+    "/api/vault/agent-runs",
+    "/api/vault/agent-runs/[id]/output",
+    "/api/vault/agent-runs/[id]/decision",
+    "/api/vault/agent-runs/[id]/replay",
+    "/api/vault/audit"
+  ],
+  "states": ["source captured", "retrieval planned", "proposal generated", "validation failed", "awaiting human", "accepted", "rejected", "replayed"],
+  "viewports": [
+    { "id": "mobile", "width": 390, "height": 844 },
+    { "id": "desktop", "width": 1440, "height": 1000 }
+  ],
+  "accessibility": [
+    "Evidence, confidence, assumptions, cost, and human decision are semantically navigable",
+    "Citation and approval controls are keyboard and screen-reader operable",
+    "Automated critical and serious accessibility violations equal zero"
+  ],
+  "securityInvariants": [
+    "Retrieval cannot cross project, permission, residency, retention, or rights boundaries",
+    "Agent capability and budget are server-resolved and fail closed",
+    "Output cannot mutate approved work before accountable human acceptance"
+  ],
+  "persistence": [
+    "Source checksums, exact evidence spans, prompt, model, policy, output, reviewer, and usage receipt persist",
+    "Supersession preserves prior knowledge and agent artifacts"
+  ],
+  "concurrency": [
+    "Stale source or policy revisions invalidate the run",
+    "Duplicate decisions and replay requests are idempotent"
+  ],
+  "degradedDependencies": [
+    "Missing source authority, model drift, provider outage, and budget exhaustion fail closed",
+    "Audit or receipt failure prevents publication"
+  ],
+  "rollback": [
+    "Agent proposals are versioned artifacts and never overwrite accepted work",
+    "Replay uses retained inputs without silently substituting providers or prompts"
+  ],
+  "performanceBudgets": [
+    { "metric": "vault-retrieval-p95-ms", "operator": "<=", "value": 1000 },
+    { "metric": "agent-plan-p95-ms", "operator": "<=", "value": 1500 }
+  ],
+  "checks": [
+    "vault.provenance-contract",
+    "vault.agent-scope-policy",
+    "vault.human-approval",
+    "vault.cross-project-retrieval-proof",
+    "governance.model-prompt-lineage",
+    "media.deterministic-replay-proof",
+    "governance.immutable-audit-ledger"
+  ]
+}

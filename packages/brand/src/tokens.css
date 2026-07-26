@@ -1,0 +1,180 @@
+/* ─── Content Co-op Shared Tokens CSS ─── */
+/* Imported by each app's layout to establish baseline */
+
+/* ─── Palette: Home (light) ─── */
+:root,
+[data-surface="home"] {
+  --bg: #edf1f4;
+  --ink: #121d2a;
+  --muted: #4a5e71;
+  --line: #c3ced8;
+  --accent: #8ba4c4;
+  --cta: #132642;
+  --cta-line: #395b89;
+  --cta-ink: #eaf2ff;
+
+  --success: #3ec983;
+  --warning: #e4ad5b;
+  --danger: #de7676;
+  --ring: #6889a78f;
+}
+
+/* ─── Palette: Product (dark) ─── */
+[data-surface="product"] {
+  --bg: #0c1322;
+  --surface: #101926;
+  --elevated: #15202f;
+  --ink: #edf3ff;
+  --muted: #9cadc8;
+  --line: #243248;
+  --accent: #8ba4c4;
+  --cta: #102641;
+  --cta-line: #3f618f;
+  --cta-ink: #e8f1ff;
+}
+
+/* ─── Reset ─── */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  background: var(--bg);
+  color: var(--ink);
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+h1, h2, h3, h4 {
+  margin: 0;
+  letter-spacing: -0.03em;
+}
+
+p { margin: 0; }
+
+/* ─── Typography scale ─── */
+h1 {
+  font-size: clamp(3rem, 7.8vw, 7.2rem);
+  line-height: 0.89;
+}
+
+h2 {
+  font-size: clamp(1.5rem, 3vw, 3.4rem);
+  line-height: 0.98;
+}
+
+h3 {
+  font-size: clamp(1rem, 1.7vw, 1.35rem);
+  line-height: 1.2;
+}
+
+/* ─── Buttons ─── */
+.button {
+  appearance: none;
+  border: 1px solid var(--cta-line);
+  border-radius: 999px;
+  background: var(--cta);
+  color: var(--cta-ink);
+  padding: 0.58rem 0.95rem;
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  text-decoration: none;
+  transition:
+    transform 140ms ease,
+    background-color 140ms ease,
+    border-color 140ms ease,
+    color 140ms ease,
+    box-shadow 170ms ease;
+}
+
+.button:hover { transform: translateY(-1px); }
+.button:active { transform: translateY(0); }
+
+.button.light {
+  background: #edf3ff;
+  border-color: #edf3ff;
+  color: #101a2d;
+}
+
+.button.small {
+  padding: 0.52rem 0.9rem;
+  font-size: 0.72rem;
+}
+
+.button:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+}
+
+/* ─── Labels / Kickers ─── */
+.kicker {
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+/* ─── Chips / Badges ─── */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  padding: 0.22rem 0.52rem;
+  font-size: 0.72rem;
+  font-weight: 620;
+  letter-spacing: 0.03em;
+  white-space: nowrap;
+}
+
+/* ─── Status indicators ─── */
+.status {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  padding: 0.22rem 0.48rem;
+  font-size: 0.74rem;
+}
+
+.status::before {
+  content: "";
+  width: 0.46rem;
+  height: 0.46rem;
+  border-radius: 999px;
+  background: var(--muted);
+}
+
+.status.ok::before { background: var(--success); }
+.status.warn::before { background: var(--warning); }
+.status.error::before { background: var(--danger); }
+
+/* ─── Focus ─── */
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible,
+summary:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+}

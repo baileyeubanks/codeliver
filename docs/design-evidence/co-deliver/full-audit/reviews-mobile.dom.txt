@@ -1,0 +1,22 @@
+- banner:
+  - button "Menu":
+  - link:
+    - /url: /projects?demo=1
+  - navigation:
+    - link "Dashboard":
+      - /url: /?demo=1
+    - link "Projects":
+      - /url: /projects?demo=1
+    - link "Reviews":
+      - /url: /reviews?demo=1
+  - button "Help & Feedback":
+  - button "Search":
+  - button:
+- main:
+  - heading "Reviews" [level=1]
+  - button "All"
+  - button "Created by me"
+  - heading "No share links yet" [level=3]
+  - paragraph: Share links will appear here when you share media for review
+- button "Open Next.js Dev Tools":
+- alert

@@ -1,0 +1,25 @@
+# Dedicated locally managed tunnel for the Co-Deliver admin hostname.
+# The tunnel UUID and credential path are identifiers, not credential contents.
+tunnel: 5195d10d-ec77-4921-876d-496e50b406a1
+credentials-file: /etc/cloudflared/5195d10d-ec77-4921-876d-496e50b406a1.json
+
+# Keep connector observability local and distinct from the client connector.
+metrics: 127.0.0.1:20241
+protocol: auto
+grace-period: 30s
+retries: 5
+loglevel: info
+
+originRequest:
+  connectTimeout: 10s
+  keepAliveTimeout: 1m30s
+  keepAliveConnections: 100
+  tcpKeepAlive: 30s
+
+ingress:
+  - hostname: admin.contentco-op.com
+    service: http://127.0.0.1:4103
+    originRequest:
+      httpHostHeader: admin.contentco-op.com
+  # Cloudflare requires a terminal rule. This denies every unlisted hostname.
+  - service: http_status:404

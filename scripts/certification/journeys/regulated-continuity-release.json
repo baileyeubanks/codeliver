@@ -1,0 +1,61 @@
+{
+  "schemaVersion": 1,
+  "kind": "journey",
+  "id": "regulated-continuity-release",
+  "title": "Regulated release, audit export, dependency loss, restore, and continuity grant",
+  "horizon": 3,
+  "proofTtlDays": 30,
+  "routes": [
+    "/api/health/dependencies",
+    "/api/teams/audit",
+    "/api/analytics/export",
+    "/api/analytics/export/pdf",
+    "/api/usage/audit",
+    "/api/vault/audit",
+    "/review/[token]"
+  ],
+  "states": ["release candidate", "policy checked", "released", "dependency lost", "failed over", "restored", "audited", "continuity exported"],
+  "viewports": [
+    { "id": "mobile", "width": 390, "height": 844 },
+    { "id": "desktop", "width": 1440, "height": 1000 }
+  ],
+  "accessibility": [
+    "Continuity and audit exports have accessible alternatives to visual-only reports",
+    "Public approved-final access remains keyboard and screen-reader operable",
+    "Automated critical and serious accessibility violations equal zero"
+  ],
+  "securityInvariants": [
+    "Audit export is tenant-scoped, attributable, integrity-verifiable, and redacted",
+    "Residency, legal hold, and retention survive failover and restore",
+    "Producer billing state cannot revoke a commissioned approved final"
+  ],
+  "persistence": [
+    "Database, media manifest, checksums, delivery record, and licensing/source manifest restore coherently",
+    "Append-only audit and usage receipts preserve chain integrity after restore"
+  ],
+  "concurrency": [
+    "Writes during failover have a defined fencing and reconciliation policy",
+    "Restore rehearsal does not overwrite newer production state"
+  ],
+  "degradedDependencies": [
+    "Regional database, storage, queue, provider, and notification loss are rehearsed",
+    "Synthetics distinguish liveness, readiness, degraded service, and policy failure"
+  ],
+  "rollback": [
+    "Application and schema rollback meet the current RTO without losing retained authority",
+    "A Continuity Pack remains verifiable independent of the live SaaS"
+  ],
+  "performanceBudgets": [
+    { "metric": "recovery-point-minutes", "operator": "<=", "value": 15 },
+    { "metric": "recovery-time-minutes", "operator": "<=", "value": 240 }
+  ],
+  "checks": [
+    "governance.immutable-audit-ledger",
+    "governance.data-lifecycle",
+    "governance.residency-encryption",
+    "governance.backup-integrity",
+    "resilience.dr-restore-proof",
+    "billing.client-grant-continuity",
+    "operations.synthetic-monitoring"
+  ]
+}

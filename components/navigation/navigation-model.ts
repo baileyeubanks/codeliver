@@ -1,0 +1,320 @@
+export type WorkspaceRole = "owner" | "producer" | "editor" | "reviewer" | "viewer";
+
+export type WorkspaceCapability =
+  | "home:read"
+  | "projects:read"
+  | "projects:create"
+  | "opportunities:read"
+  | "opportunities:write"
+  | "media:read"
+  | "media:write"
+  | "reviews:read"
+  | "reviews:comment"
+  | "reviews:approve"
+  | "activity:read"
+  | "workspace:manage";
+
+export type NavigationIconName =
+  | "activity"
+  | "archive"
+  | "field"
+  | "folder"
+  | "home"
+  | "library"
+  | "opportunities"
+  | "plus"
+  | "requests"
+  | "reviews"
+  | "settings"
+  | "trash";
+
+export interface WorkspaceNavigationItem {
+  id: string;
+  label: string;
+  shortLabel: string;
+  description: string;
+  href: string;
+  icon: NavigationIconName;
+  capability: WorkspaceCapability;
+  primary?: boolean;
+  mobile?: boolean;
+}
+
+export interface WorkspaceNavigationSection {
+  id: string;
+  label: string;
+  items: WorkspaceNavigationItem[];
+}
+
+const ROLE_CAPABILITIES: Record<WorkspaceRole, ReadonlySet<WorkspaceCapability>> = {
+  owner: new Set<WorkspaceCapability>([
+    "home:read",
+    "projects:read",
+    "projects:create",
+    "opportunities:read",
+    "opportunities:write",
+    "media:read",
+    "media:write",
+    "reviews:read",
+    "reviews:comment",
+    "reviews:approve",
+    "activity:read",
+    "workspace:manage",
+  ]),
+  producer: new Set<WorkspaceCapability>([
+    "home:read",
+    "projects:read",
+    "projects:create",
+    "opportunities:read",
+    "opportunities:write",
+    "media:read",
+    "media:write",
+    "reviews:read",
+    "reviews:comment",
+    "reviews:approve",
+    "activity:read",
+  ]),
+  editor: new Set<WorkspaceCapability>([
+    "home:read",
+    "projects:read",
+    "opportunities:read",
+    "media:read",
+    "media:write",
+    "reviews:read",
+    "reviews:comment",
+    "activity:read",
+  ]),
+  reviewer: new Set<WorkspaceCapability>([
+    "home:read",
+    "projects:read",
+    "media:read",
+    "reviews:read",
+    "reviews:comment",
+    "reviews:approve",
+  ]),
+  viewer: new Set<WorkspaceCapability>([
+    "home:read",
+    "projects:read",
+    "media:read",
+    "reviews:read",
+  ]),
+};
+
+export const WORKSPACE_NAVIGATION: WorkspaceNavigationSection[] = [
+  {
+    id: "workspace",
+    label: "Workspace",
+    items: [
+      {
+        id: "home",
+        label: "Overview",
+        shortLabel: "Home",
+        description: "What needs your attention across every production",
+        href: "/",
+        icon: "home",
+        capability: "home:read",
+        primary: true,
+        mobile: true,
+      },
+      {
+        id: "projects",
+        label: "Projects",
+        shortLabel: "Projects",
+        description: "Browse active productions and deliveries",
+        href: "/projects",
+        icon: "folder",
+        capability: "projects:read",
+        primary: true,
+        mobile: true,
+      },
+      {
+        id: "opportunities",
+        label: "Opportunities",
+        shortLabel: "Pipeline",
+        description: "Inquiries, leads, clients, and proposal pipeline",
+        href: "/opportunities",
+        icon: "opportunities",
+        capability: "opportunities:read",
+        primary: true,
+        mobile: true,
+      },
+      {
+        id: "requests",
+        label: "Requests",
+        shortLabel: "Requests",
+        description: "Client request intake, triage, and work orders",
+        href: "/requests",
+        icon: "requests",
+        capability: "reviews:read",
+        primary: true,
+      },
+      {
+        id: "reviews",
+        label: "Reviews",
+        shortLabel: "Reviews",
+        description: "Track active review and approval work",
+        href: "/reviews",
+        icon: "reviews",
+        capability: "reviews:read",
+        primary: true,
+      },
+      {
+        id: "activity",
+        label: "Activity",
+        shortLabel: "Activity",
+        description: "Review workspace and delivery history",
+        href: "/activity",
+        icon: "activity",
+        capability: "activity:read",
+        primary: true,
+      },
+    ],
+  },
+  {
+    id: "production",
+    label: "Production",
+    items: [
+      {
+        id: "field",
+        label: "Field",
+        shortLabel: "Field",
+        description: "The shoot day in your pocket — shots, releases, clearances",
+        href: "/field",
+        icon: "field",
+        capability: "projects:read",
+      },
+    ],
+  },
+  {
+    id: "library",
+    label: "Library",
+    items: [
+      {
+        id: "library",
+        label: "Media library",
+        shortLabel: "Library",
+        description: "Search media across every project",
+        href: "/library",
+        icon: "library",
+        capability: "media:read",
+        primary: true,
+      },
+    ],
+  },
+  {
+    id: "admin",
+    label: "Admin",
+    items: [
+      {
+        id: "archive",
+        label: "Archive",
+        shortLabel: "Archive",
+        description: "Find completed and archived projects",
+        href: "/projects/archive",
+        icon: "archive",
+        capability: "projects:read",
+      },
+      {
+        id: "trash",
+        label: "Trash",
+        shortLabel: "Trash",
+        description: "Restore or review removed project media",
+        href: "/projects/trash",
+        icon: "trash",
+        capability: "projects:read",
+      },
+      {
+        id: "settings",
+        label: "Workspace settings",
+        shortLabel: "Settings",
+        description: "Manage profile, brand, team, and preferences",
+        href: "/settings",
+        icon: "settings",
+        capability: "workspace:manage",
+      },
+    ],
+  },
+];
+
+export interface SearchableCommand {
+  id: string;
+  label: string;
+  description?: string;
+  keywords?: readonly string[];
+  section?: string;
+}
+
+export function roleCan(role: WorkspaceRole, capability: WorkspaceCapability) {
+  return ROLE_CAPABILITIES[role].has(capability);
+}
+
+export function visibleNavigation(role: WorkspaceRole) {
+  return WORKSPACE_NAVIGATION.map((section) => ({
+    ...section,
+    items: section.items.filter((item) => roleCan(role, item.capability)),
+  })).filter((section) => section.items.length > 0);
+}
+
+export function primaryNavigation(role: WorkspaceRole) {
+  return visibleNavigation(role)
+    .flatMap((section) => section.items)
+    .filter((item) => item.primary);
+}
+
+export function mobileNavigation(role: WorkspaceRole) {
+  return visibleNavigation(role)
+    .flatMap((section) => section.items)
+    .filter((item) => item.mobile);
+}
+
+export function activeNavigationId(pathname: string, role: WorkspaceRole) {
+  const matches = visibleNavigation(role)
+    .flatMap((section) => section.items)
+    .filter((item) => pathname === item.href || pathname.startsWith(`${item.href}/`))
+    .sort((left, right) => right.href.length - left.href.length);
+
+  return matches[0]?.id ?? null;
+}
+
+export function withWorkspaceQuery(href: string, querySuffix: string) {
+  if (!querySuffix || !href.startsWith("/")) return href;
+
+  const [pathAndQuery, hash] = href.split("#", 2);
+  const normalizedSuffix = querySuffix.replace(/^\?/, "");
+  const separator = pathAndQuery.includes("?") ? "&" : "?";
+  return `${pathAndQuery}${separator}${normalizedSuffix}${hash ? `#${hash}` : ""}`;
+}
+
+function commandScore(command: SearchableCommand, terms: string[]) {
+  const label = command.label.toLocaleLowerCase();
+  const description = command.description?.toLocaleLowerCase() ?? "";
+  const keywords = command.keywords?.join(" ").toLocaleLowerCase() ?? "";
+  const haystack = `${label} ${description} ${keywords}`;
+
+  let score = 0;
+  for (const term of terms) {
+    if (!haystack.includes(term)) return -1;
+    if (label === term) score += 100;
+    else if (label.startsWith(term)) score += 50;
+    else if (label.includes(term)) score += 25;
+    else if (keywords.includes(term)) score += 12;
+    else score += 5;
+  }
+  return score;
+}
+
+export function rankCommands<T extends SearchableCommand>(
+  commands: readonly T[],
+  query: string,
+  limit = 18,
+) {
+  const terms = query.trim().toLocaleLowerCase().split(/\s+/).filter(Boolean);
+  if (terms.length === 0) return commands.slice(0, limit);
+
+  return commands
+    .map((command, index) => ({ command, index, score: commandScore(command, terms) }))
+    .filter((candidate) => candidate.score >= 0)
+    .sort((left, right) => right.score - left.score || left.index - right.index)
+    .slice(0, limit)
+    .map((candidate) => candidate.command);
+}

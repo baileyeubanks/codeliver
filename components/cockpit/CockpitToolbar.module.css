@@ -1,0 +1,415 @@
+.toolbar {
+  position: relative;
+  min-width: 0;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 14px;
+  border-bottom: 1px solid var(--cockpit-border, #dfe4ec);
+  background: rgba(255, 255, 255, 0.97);
+  color: var(--cockpit-copy, #3f4962);
+  backdrop-filter: blur(10px);
+}
+
+.modes {
+  flex: 0 0 auto;
+  height: 32px;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  padding: 2px;
+  border: 1px solid var(--cockpit-border, #dfe4ec);
+  border-radius: 7px;
+  background: #f4f7fb;
+}
+
+.modes button {
+  min-width: 78px;
+  height: 26px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 0 8px;
+  border: 0;
+  border-radius: 5px;
+  background: transparent;
+  color: var(--cockpit-muted, #707b91);
+  font: inherit;
+  font-size: 0.65rem;
+  font-weight: 650;
+  cursor: pointer;
+}
+
+.modes button:hover {
+  color: var(--cockpit-ink, #18223e);
+}
+
+.modes button:focus-visible {
+  color: var(--cockpit-ink, #18223e);
+  outline: 2px solid var(--cockpit-accent, #156bff);
+  outline-offset: 1px;
+}
+
+.modes button[aria-pressed="true"] {
+  background: #fff;
+  color: var(--cockpit-accent, #156bff);
+  box-shadow: 0 1px 4px rgba(18, 35, 62, 0.12);
+}
+
+.divider {
+  width: 1px;
+  height: 22px;
+  background: var(--cockpit-border, #dfe4ec);
+}
+
+.desktopControls {
+  display: contents;
+}
+
+.lifecycle {
+  min-width: 0;
+  display: inline-flex;
+  align-items: center;
+}
+
+.lifecycle:empty {
+  display: none;
+}
+
+.iconButton,
+.commandButton {
+  height: 32px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--cockpit-muted, #707b91);
+  font: inherit;
+  cursor: pointer;
+}
+
+.iconButton {
+  width: 34px;
+  flex: 0 0 34px;
+}
+
+.commandButton {
+  gap: 7px;
+  padding: 0 9px;
+  font-size: 0.65rem;
+  font-weight: 650;
+}
+
+.iconButton:hover,
+.iconButton[aria-pressed="true"],
+.commandButton:hover {
+  background: var(--cockpit-accent-soft, #edf4ff);
+  color: var(--cockpit-accent, #156bff);
+}
+
+.iconButton:focus-visible,
+.commandButton:focus-visible {
+  background: var(--cockpit-accent-soft, #edf4ff);
+  color: var(--cockpit-accent, #156bff);
+  outline: 2px solid var(--cockpit-accent, #156bff);
+  outline-offset: 1px;
+}
+
+.overflow {
+  position: relative;
+  display: none;
+}
+
+.overflowButton {
+  width: 42px;
+  height: 42px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--cockpit-muted, #707b91);
+  cursor: pointer;
+}
+
+.overflowButton:hover,
+.overflowButton[aria-expanded="true"] {
+  background: var(--cockpit-accent-soft, #edf4ff);
+  color: var(--cockpit-accent, #156bff);
+}
+
+.overflowButton:focus-visible {
+  background: var(--cockpit-accent-soft, #edf4ff);
+  color: var(--cockpit-accent, #156bff);
+  outline: 2px solid var(--cockpit-accent, #156bff);
+  outline-offset: 1px;
+}
+
+.overflowMenu {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  z-index: 120;
+  width: min(244px, calc(100vw - 16px));
+  padding: 6px;
+  border: 1px solid var(--cockpit-border, #dfe4ec);
+  border-radius: 7px;
+  background: var(--cockpit-panel, #fff);
+  box-shadow: 0 14px 34px rgba(18, 35, 62, 0.16);
+  color: var(--cockpit-copy, #3f4962);
+}
+
+.menuLabel {
+  display: block;
+  padding: 4px 8px 6px;
+  color: var(--cockpit-muted, #707b91);
+  font-size: 0.54rem;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.menuItem {
+  width: 100%;
+  min-height: 42px;
+  display: grid;
+  grid-template-columns: 22px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 7px;
+  padding: 6px 8px;
+  border: 0;
+  border-radius: 5px;
+  background: transparent;
+  color: var(--cockpit-copy, #3f4962);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.menuItem:hover,
+.menuItem:focus-visible {
+  background: var(--cockpit-accent-soft, #edf4ff);
+  color: var(--cockpit-accent, #156bff);
+}
+
+.menuItemCopy {
+  min-width: 0;
+  display: grid;
+  gap: 1px;
+}
+
+.menuItemCopy strong {
+  color: inherit;
+  font-size: 0.64rem;
+  font-weight: 680;
+  line-height: 1.25;
+}
+
+.menuItemCopy small {
+  overflow: hidden;
+  color: var(--cockpit-muted, #707b91);
+  font-size: 0.54rem;
+  line-height: 1.25;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.menuItemState {
+  color: var(--cockpit-muted, #707b91);
+  font-size: 0.54rem;
+  font-weight: 700;
+}
+
+.menuStatus {
+  min-height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 5px;
+  padding: 6px 8px 1px;
+  border-top: 1px solid var(--cockpit-border, #dfe4ec);
+  color: var(--cockpit-muted, #707b91);
+  font-size: 0.55rem;
+  font-weight: 620;
+}
+
+.menuStatus > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  white-space: nowrap;
+}
+
+.menuStatus > span[role="status"] {
+  color: #267553;
+}
+
+.presence {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
+}
+
+.avatars {
+  display: flex;
+  align-items: center;
+}
+
+.avatars span {
+  width: 26px;
+  height: 26px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-left: -5px;
+  border: 2px solid #fff;
+  border-radius: 50%;
+  background: #dbeafa;
+  color: #2e64a8;
+  font-size: 0.52rem;
+  font-weight: 700;
+}
+
+.avatars span:first-child {
+  margin-left: 0;
+  background: var(--cockpit-accent, #156bff);
+  color: #fff;
+}
+
+.presenceLabel,
+.offline {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--cockpit-muted, #707b91);
+  font-size: 0.62rem;
+  white-space: nowrap;
+}
+
+.offline {
+  color: #9a641b;
+}
+
+.saved {
+  min-width: 46px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: #267553;
+  font-size: 0.61rem;
+  font-weight: 650;
+}
+
+@media (max-width: 1180px) {
+  .presenceLabel {
+    display: none;
+  }
+
+  .commandButton span {
+    display: none;
+  }
+
+  .commandButton {
+    width: 34px;
+    padding: 0;
+  }
+}
+
+@media (max-width: 900px) {
+  .toolbar {
+    height: 46px;
+    gap: 6px;
+    padding: 0 8px;
+  }
+
+  .modes {
+    height: 44px;
+    grid-template-columns: repeat(3, minmax(58px, 1fr));
+    width: min(56vw, 210px);
+    margin-right: auto;
+    padding: 1px;
+  }
+
+  .modes button {
+    width: auto;
+    min-width: 58px;
+    height: 40px;
+    gap: 4px;
+    padding: 0 5px;
+  }
+
+  .modes button span {
+    display: inline;
+    font-size: 0.57rem;
+  }
+
+  .desktopControls,
+  .presence {
+    display: none;
+  }
+
+  .lifecycle {
+    width: 42px;
+    height: 42px;
+    flex: 0 0 42px;
+  }
+
+  .lifecycle > * {
+    width: 100%;
+    height: 100%;
+  }
+
+  .lifecycle > button,
+  .lifecycle > * > button {
+    width: 42px;
+    min-width: 42px;
+    height: 42px;
+    padding: 0;
+  }
+
+  .lifecycle > button > span,
+  .lifecycle > * > button > span {
+    display: none;
+  }
+
+  .overflow {
+    width: 42px;
+    height: 42px;
+    flex: 0 0 42px;
+    display: block;
+  }
+}
+
+@media (max-width: 390px) {
+  .toolbar {
+    gap: 4px;
+    padding-inline: 4px;
+  }
+
+  .modes {
+    width: min(55vw, 186px);
+    grid-template-columns: repeat(3, minmax(50px, 1fr));
+  }
+
+  .modes button {
+    min-width: 50px;
+    padding-inline: 3px;
+  }
+
+  .modes button span {
+    font-size: 0.52rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .toolbar {
+    backdrop-filter: none;
+  }
+}

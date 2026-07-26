@@ -1,0 +1,14 @@
+/* P28: print-friendly recap. Activated only while the "Print recap" flow has
+ * tagged <body> with .printingRecap — hides app chrome (header + rail) so the
+ * printed page is the recap itself. In-page chrome uses the global .no-print. */
+@media print {
+  :global(body).printingRecap :global(.workspace-header),
+  :global(body).printingRecap :global(nav[aria-label="Workspace rail"]) {
+    display: none !important;
+  }
+
+  :global(body).printingRecap :global(.workspace-main) {
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+}

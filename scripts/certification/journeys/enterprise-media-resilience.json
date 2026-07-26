@@ -1,0 +1,64 @@
+{
+  "schemaVersion": 1,
+  "kind": "journey",
+  "id": "enterprise-media-resilience",
+  "title": "Large-media ingest, processing, dependency degradation, and recovery",
+  "horizon": 2,
+  "proofTtlDays": 7,
+  "routes": [
+    "/projects/[id]",
+    "/api/upload/tus",
+    "/api/upload/tus/[uploadId]",
+    "/api/transcode",
+    "/api/transcode/jobs/[id]",
+    "/api/transcode/worker",
+    "/api/storage/readiness",
+    "/api/health/ready",
+    "/api/health/dependencies"
+  ],
+  "states": ["capacity available", "uploading", "backpressured", "processing", "provider degraded", "reconciling", "recovered", "rolled back"],
+  "viewports": [
+    { "id": "mobile", "width": 390, "height": 844 },
+    { "id": "desktop", "width": 1440, "height": 1000 }
+  ],
+  "accessibility": [
+    "Progress, queue, retry, and failure states are announced without focus loss",
+    "Mobile and desktop operators can cancel or retry without pointer-only controls",
+    "Automated critical and serious accessibility violations equal zero"
+  ],
+  "securityInvariants": [
+    "Storage, job, and health detail never disclose credentials or another tenant",
+    "Worker and reconciliation endpoints require explicit machine authority",
+    "Provider failover cannot change project, version, checksum, or billing scope"
+  ],
+  "persistence": [
+    "Upload and job checkpoints survive restart",
+    "Catalog and object placement reconcile after partial dependency recovery"
+  ],
+  "concurrency": [
+    "Tenant and global limits enforce bounded parallelism",
+    "Duplicate chunks, workers, and reconciliation attempts are idempotent"
+  ],
+  "degradedDependencies": [
+    "Database, storage, transcode, notification, and network failures are fault-injected",
+    "Readiness withdraws traffic while liveness remains available",
+    "Backpressure rejects before memory, disk, or provider exhaustion"
+  ],
+  "rollback": [
+    "In-flight jobs survive or terminate safely across application rollback",
+    "Failed provider migration preserves source and catalog authority"
+  ],
+  "performanceBudgets": [
+    { "metric": "upload-control-p95-ms", "operator": "<=", "value": 750 },
+    { "metric": "readiness-p95-ms", "operator": "<=", "value": 1500 },
+    { "metric": "worker-queue-saturation", "operator": "<=", "value": 0.8 }
+  ],
+  "checks": [
+    "resilience.health-contract",
+    "resilience.degraded-dependencies",
+    "resilience.queue-backpressure",
+    "resilience.provider-portability",
+    "performance.load-scenarios",
+    "resilience.rollback-proof"
+  ]
+}

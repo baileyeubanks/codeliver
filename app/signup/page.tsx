@@ -1,352 +1,254 @@
 "use client";
 
-import { useState, FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
+import Link from "next/link";
+import { ArrowLeft, CheckCircle2, Eye, EyeOff, LoaderCircle, UserPlus } from "lucide-react";
+import AuthShell, { authStyles as styles } from "@/components/auth/AuthShell";
+import {
+  AUTH_PASSWORD_MIN_LENGTH,
+  buildAuthPageHref,
+  validateSignupCredentials,
+  type SignupValidationField,
+} from "@/components/auth/auth-policy";
+import useAuthReturnTarget from "@/components/auth/useAuthReturnTarget";
+import { useDemoMode } from "@/lib/demo/mode";
+import { registerDemoAccount } from "@/lib/demo/workspace-store";
 
 export default function SignupPage() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
+  const [showPasswords, setShowPasswords] = useState(false);
+  const [invalidField, setInvalidField] = useState<SignupValidationField | null>(null);
+  const alertRef = useRef<HTMLDivElement>(null);
+  const successHeadingRef = useRef<HTMLHeadingElement>(null);
+  const demoMode = useDemoMode();
+  const returnTarget = useAuthReturnTarget();
+  const loginHref = buildAuthPageHref("/login", returnTarget, demoMode);
 
-  async function handleSubmit(e: FormEvent<HTMLFormElement>) {
-    e.preventDefault();
+  useEffect(() => {
+    if (success) successHeadingRef.current?.focus();
+  }, [success]);
+
+  function clearFieldError(field: SignupValidationField) {
+    if (invalidField !== field) return;
+    setInvalidField(null);
     setError("");
-    setLoading(true);
-    const fd = new FormData(e.currentTarget);
-    const password = fd.get("password") as string;
-    const confirm = fd.get("confirm_password") as string;
+  }
 
-    if (password !== confirm) {
-      setError("Passwords do not match");
+  function showError(message: string, field: SignupValidationField | null = null) {
+    setError(message);
+    setInvalidField(field);
+    setLoading(false);
+    window.requestAnimationFrame(() => {
+      if (field) {
+        document.getElementById(`signup-${field === "confirmation" ? "confirm-password" : field}`)?.focus();
+        return;
+      }
+      alertRef.current?.focus();
+    });
+  }
+
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (loading) return;
+
+    setError("");
+    setInvalidField(null);
+    setLoading(true);
+    const formData = new FormData(event.currentTarget);
+    const validation = validateSignupCredentials({
+      email: String(formData.get("email") ?? ""),
+      password: String(formData.get("password") ?? ""),
+      confirmation: String(formData.get("confirm_password") ?? ""),
+    });
+
+    if (validation.error) {
+      showError(validation.error, validation.field);
+      return;
+    }
+
+    if (demoMode) {
+      registerDemoAccount(
+        validation.email,
+        String(formData.get("display_name") ?? ""),
+      );
+      setSuccess(true);
       setLoading(false);
       return;
     }
 
     try {
-      const res = await fetch("/api/auth/signup", {
+      const response = await fetch("/api/auth/signup", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          email: fd.get("email"),
-          password,
-          display_name: fd.get("display_name"),
+          email: validation.email,
+          password: formData.get("password"),
+          display_name: formData.get("display_name"),
         }),
       });
-      if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
-        setError(data.error || "Sign up failed");
-        setLoading(false);
+      if (!response.ok) {
+        showError(
+          response.status === 503
+            ? "Account service is temporarily unavailable — the sign-in backend cannot be reached from this environment."
+            : "Account creation could not be completed.",
+        );
         return;
       }
       setSuccess(true);
-    } catch {
-      setError("Connection error. Try again.");
       setLoading(false);
+    } catch {
+      showError("Account creation is temporarily unavailable.");
     }
   }
 
-  const inputStyle = {
-    border: "1px solid #325276",
-    borderRadius: 10,
-    background: "#0d1a2e",
-    color: "#e9f0ff",
-    padding: ".65rem .75rem",
-    fontSize: ".88rem",
-    fontFamily: "inherit",
-    outline: "none",
-    transition: "border-color 140ms ease",
-    width: "100%",
-    boxSizing: "border-box" as const,
-  };
-
   return (
-    <main
-      style={{
-        minHeight: "100vh",
-        background: "#0c1322",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        padding: "2rem 1rem",
-        fontFamily: "Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
-      }}
-    >
-      <div style={{ width: "100%", maxWidth: 440 }}>
-        <a
-          href="/login"
-          style={{
-            display: "inline-flex",
-            alignItems: "center",
-            gap: ".4rem",
-            fontSize: ".72rem",
-            letterSpacing: ".1em",
-            textTransform: "uppercase" as const,
-            fontWeight: 600,
-            color: "#5a7ea8",
-            textDecoration: "none",
-            marginBottom: "1.2rem",
-          }}
-        >
-          &larr; Back to sign in
-        </a>
-
-        <section
-          style={{
-            border: "1px solid #2b4263",
-            borderRadius: 18,
-            background: "linear-gradient(160deg, #101b2e, #0d1828)",
-            padding: "2rem 1.6rem",
-          }}
-        >
-          <div
-            style={{
-              fontSize: ".72rem",
-              letterSpacing: ".18em",
-              textTransform: "uppercase" as const,
-              color: "#6b9fd4",
-              fontWeight: 700,
-            }}
-          >
-            Co-Deliver
+    <AuthShell demoMode={demoMode} loginHref={loginHref}>
+      <section className={styles.panel} aria-labelledby="signup-title">
+        {success ? (
+          <div className={styles.success} role="status" aria-live="polite">
+            <span className={styles.successIcon}>
+              <CheckCircle2 size={25} aria-hidden="true" />
+            </span>
+            <p className={styles.successKicker}>
+              {demoMode ? "Local account ready" : "Account request received"}
+            </p>
+            <h1 id="signup-title" ref={successHeadingRef} tabIndex={-1}>
+              {demoMode ? "Your workspace is ready" : "Verify your account"}
+            </h1>
+            <p className={styles.successCopy}>
+              {demoMode
+                ? "Sign in with the local demo identity to continue."
+                : "Follow any verification instructions sent by the identity provider, then sign in."}
+            </p>
+            <Link className={styles.submit} href={loginHref}>
+              Sign in to Co‑ProVideo
+            </Link>
           </div>
-          <h1
-            style={{
-              margin: ".3rem 0 .4rem",
-              fontSize: "1.4rem",
-              color: "#edf3ff",
-              letterSpacing: "-.02em",
-              fontWeight: 700,
-            }}
-          >
-            Create account
-          </h1>
-          <p
-            style={{
-              margin: "0 0 1.2rem",
-              color: "#7a9bc4",
-              fontSize: ".82rem",
-              lineHeight: 1.5,
-            }}
-          >
-            Create a standalone Co-Deliver account for internal review operations.
-          </p>
+        ) : (
+          <>
+            <Link className={styles.backLink} href={loginHref}>
+              <ArrowLeft size={15} aria-hidden="true" /> Back to sign in
+            </Link>
 
-          {success ? (
-            <div
-              style={{
-                textAlign: "center",
-                padding: "1rem 0",
-              }}
-            >
+            <header className={styles.heading}>
+              <h1 id="signup-title">Create your account</h1>
+              <p>Use one identity for comments, approvals, and delivery activity.</p>
+            </header>
+
+            {error ? (
               <div
-                style={{
-                  width: 48,
-                  height: 48,
-                  borderRadius: "50%",
-                  background: "rgba(107, 159, 212, 0.12)",
-                  border: "1px solid rgba(107, 159, 212, 0.35)",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  margin: "0 auto 1rem",
-                  fontSize: "1.2rem",
-                  color: "#6b9fd4",
-                }}
+                id="signup-error"
+                ref={alertRef}
+                className={styles.alert}
+                role="alert"
+                aria-live="assertive"
+                tabIndex={-1}
               >
-                &#10003;
+                {error}
               </div>
-              <h2
-                style={{
-                  fontSize: "1.1rem",
-                  color: "#edf3ff",
-                  fontWeight: 700,
-                  margin: "0 0 .4rem",
-                }}
-              >
-                Account created
-              </h2>
-              <p
-                style={{
-                  color: "#7a9bc4",
-                  fontSize: ".82rem",
-                  margin: "0 0 1rem",
-                  lineHeight: 1.5,
-                }}
-              >
-                You can now sign in with your email and password.
-              </p>
-              <a
-                href="/login"
-                style={{
-                  display: "inline-block",
-                  background: "#6b9fd4",
-                  color: "#0c1322",
-                  borderRadius: 999,
-                  padding: ".65rem 1.6rem",
-                  fontSize: ".74rem",
-                  fontWeight: 700,
-                  letterSpacing: ".1em",
-                  textTransform: "uppercase" as const,
-                  textDecoration: "none",
-                }}
-              >
-                Sign in
-              </a>
-            </div>
-          ) : (
-            <>
-              {error && (
-                <div
-                  style={{
-                    color: "#de7676",
-                    fontSize: ".82rem",
-                    marginBottom: ".8rem",
-                    padding: ".5rem .75rem",
-                    borderRadius: 8,
-                    background: "rgba(222, 118, 118, 0.08)",
-                    border: "1px solid rgba(222, 118, 118, 0.2)",
-                  }}
-                >
-                  {error}
-                </div>
-              )}
+            ) : null}
 
-              <form
-                onSubmit={handleSubmit}
-                style={{ display: "grid", gap: ".7rem" }}
-              >
-                <div style={{ display: "flex", flexDirection: "column", gap: ".28rem" }}>
-                  <label
-                    style={{
-                      fontSize: ".68rem",
-                      letterSpacing: ".1em",
-                      textTransform: "uppercase" as const,
-                      color: "#7a9bc4",
-                      fontWeight: 700,
-                    }}
-                  >
-                    Name
-                  </label>
-                  <input
-                    name="display_name"
-                    type="text"
-                    placeholder="Your name"
-                    autoComplete="name"
-                    style={inputStyle}
-                    onFocus={(e) => (e.currentTarget.style.borderColor = "#6b9fd4")}
-                    onBlur={(e) => (e.currentTarget.style.borderColor = "#325276")}
-                  />
-                </div>
+            <form
+              id="auth-form"
+              className={`${styles.form} ${styles.formSignup}`}
+              onSubmit={handleSubmit}
+              aria-busy={loading}
+            >
+              <label className={`${styles.field} ${styles.spanTwo}`} htmlFor="signup-display-name">
+                <span>Name</span>
+                <input
+                  className={styles.input}
+                  id="signup-display-name"
+                  name="display_name"
+                  type="text"
+                  placeholder="Your name"
+                  autoComplete="name"
+                  required
+                  maxLength={120}
+                />
+              </label>
 
-                <div style={{ display: "flex", flexDirection: "column", gap: ".28rem" }}>
-                  <label
-                    style={{
-                      fontSize: ".68rem",
-                      letterSpacing: ".1em",
-                      textTransform: "uppercase" as const,
-                      color: "#7a9bc4",
-                      fontWeight: 700,
-                    }}
-                  >
-                    Email *
-                  </label>
-                  <input
-                    name="email"
-                    type="email"
-                    required
-                    placeholder="you@company.com"
-                    autoComplete="email"
-                    style={inputStyle}
-                    onFocus={(e) => (e.currentTarget.style.borderColor = "#6b9fd4")}
-                    onBlur={(e) => (e.currentTarget.style.borderColor = "#325276")}
-                  />
-                </div>
+              <label className={`${styles.field} ${styles.spanTwo}`} htmlFor="signup-email">
+                <span>Email</span>
+                <input
+                  className={styles.input}
+                  id="signup-email"
+                  name="email"
+                  type="email"
+                  required
+                  placeholder="you@company.com"
+                  autoComplete="email"
+                  inputMode="email"
+                  autoCapitalize="none"
+                  spellCheck={false}
+                  aria-invalid={invalidField === "email"}
+                  aria-describedby={invalidField === "email" ? "signup-error" : undefined}
+                  onChange={() => clearFieldError("email")}
+                />
+              </label>
 
-                <div style={{ display: "flex", flexDirection: "column", gap: ".28rem" }}>
-                  <label
-                    style={{
-                      fontSize: ".68rem",
-                      letterSpacing: ".1em",
-                      textTransform: "uppercase" as const,
-                      color: "#7a9bc4",
-                      fontWeight: 700,
-                    }}
-                  >
-                    Password *
-                  </label>
+              <div className={styles.field}>
+                <label htmlFor="signup-password">Password</label>
+                <div className={styles.passwordField}>
                   <input
+                    className={styles.input}
+                    id="signup-password"
                     name="password"
-                    type="password"
+                    type={showPasswords ? "text" : "password"}
                     required
-                    placeholder="At least 6 characters"
+                    minLength={AUTH_PASSWORD_MIN_LENGTH}
                     autoComplete="new-password"
-                    style={inputStyle}
-                    onFocus={(e) => (e.currentTarget.style.borderColor = "#6b9fd4")}
-                    onBlur={(e) => (e.currentTarget.style.borderColor = "#325276")}
-                  />
-                </div>
-
-                <div style={{ display: "flex", flexDirection: "column", gap: ".28rem" }}>
-                  <label
-                    style={{
-                      fontSize: ".68rem",
-                      letterSpacing: ".1em",
-                      textTransform: "uppercase" as const,
-                      color: "#7a9bc4",
-                      fontWeight: 700,
-                    }}
-                  >
-                    Confirm password *
-                  </label>
-                  <input
-                    name="confirm_password"
-                    type="password"
-                    required
-                    placeholder="Confirm password"
-                    autoComplete="new-password"
-                    style={inputStyle}
-                    onFocus={(e) => (e.currentTarget.style.borderColor = "#6b9fd4")}
-                    onBlur={(e) => (e.currentTarget.style.borderColor = "#325276")}
-                  />
-                </div>
-
-                <button
-                  type="submit"
-                  disabled={loading}
-                  style={{
-                    marginTop: ".4rem",
-                    background: "#6b9fd4",
-                    color: "#0c1322",
-                    border: "1px solid #6b9fd4",
-                    borderRadius: 999,
-                    padding: ".65rem 1.6rem",
-                    fontSize: ".74rem",
-                    fontWeight: 700,
-                    letterSpacing: ".1em",
-                    textTransform: "uppercase" as const,
-                    cursor: loading ? "wait" : "pointer",
-                    fontFamily: "inherit",
-                    transition: "opacity 140ms ease, transform 140ms ease",
-                    opacity: loading ? 0.6 : 1,
-                    width: "100%",
-                  }}
-                  onMouseEnter={(e) => {
-                    if (!loading) {
-                      e.currentTarget.style.opacity = "0.88";
-                      e.currentTarget.style.transform = "translateY(-1px)";
+                    aria-invalid={invalidField === "password"}
+                    aria-describedby={
+                      invalidField === "password"
+                        ? "signup-password-hint signup-error"
+                        : "signup-password-hint"
                     }
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.opacity = loading ? "0.6" : "1";
-                    e.currentTarget.style.transform = "none";
-                  }}
-                >
-                  {loading ? "Creating account..." : "Create account"}
-                </button>
-              </form>
-            </>
-          )}
-        </section>
-      </div>
-    </main>
+                    onChange={() => clearFieldError("password")}
+                  />
+                  <button
+                    className={styles.iconButton}
+                    type="button"
+                    onClick={() => setShowPasswords((visible) => !visible)}
+                    aria-label={showPasswords ? "Hide passwords" : "Show passwords"}
+                    aria-controls="signup-password signup-confirm-password"
+                    aria-pressed={showPasswords}
+                    title={showPasswords ? "Hide passwords" : "Show passwords"}
+                  >
+                    {showPasswords ? <EyeOff size={17} aria-hidden="true" /> : <Eye size={17} aria-hidden="true" />}
+                  </button>
+                </div>
+                <p className={styles.passwordHint} id="signup-password-hint">
+                  At least {AUTH_PASSWORD_MIN_LENGTH} characters
+                </p>
+              </div>
+
+              <label className={styles.field} htmlFor="signup-confirm-password">
+                <span>Confirm password</span>
+                <input
+                  className={styles.input}
+                  id="signup-confirm-password"
+                  name="confirm_password"
+                  type={showPasswords ? "text" : "password"}
+                  required
+                  minLength={AUTH_PASSWORD_MIN_LENGTH}
+                  autoComplete="new-password"
+                  aria-invalid={invalidField === "confirmation"}
+                  aria-describedby={invalidField === "confirmation" ? "signup-error" : undefined}
+                  onChange={() => clearFieldError("confirmation")}
+                />
+              </label>
+
+              <button className={styles.submit} type="submit" disabled={loading}>
+                {loading ? <LoaderCircle size={17} aria-hidden="true" /> : <UserPlus size={17} aria-hidden="true" />}
+                {loading ? "Creating account..." : "Create account"}
+              </button>
+            </form>
+          </>
+        )}
+      </section>
+    </AuthShell>
   );
 }

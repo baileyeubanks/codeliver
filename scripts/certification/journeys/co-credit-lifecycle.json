@@ -1,0 +1,64 @@
+{
+  "schemaVersion": 1,
+  "kind": "journey",
+  "id": "co-credit-lifecycle",
+  "title": "Estimate, reserve, execute, settle or release, and audit Co-Unit usage",
+  "horizon": 2,
+  "proofTtlDays": 7,
+  "routes": [
+    "/api/usage/estimate",
+    "/api/usage/policy",
+    "/api/usage/reservations",
+    "/api/usage/reservations/[id]/commit",
+    "/api/usage/reservations/[id]/release",
+    "/api/usage/reconciliation",
+    "/api/usage/audit",
+    "/api/usage/summary",
+    "/api/usage/collaboration",
+    "/api/ai/transcribe",
+    "/api/transcode"
+  ],
+  "states": ["quoted", "declined", "reserved", "running", "settled", "released", "reconciled", "disputed"],
+  "viewports": [
+    { "id": "mobile", "width": 390, "height": 844 },
+    { "id": "desktop", "width": 1440, "height": 1000 }
+  ],
+  "accessibility": [
+    "Quote, balance, caps, and confirmation are understandable without color alone",
+    "Budget approval and cancellation are keyboard and screen-reader operable",
+    "Automated critical and serious accessibility violations equal zero"
+  ],
+  "securityInvariants": [
+    "Client and reviewer collaboration never consumes creator credits",
+    "No operation exceeds the confirmed maximum or bypasses entitlement",
+    "No product request directly creates payment activity"
+  ],
+  "persistence": [
+    "Reservation and settlement survive retries and process restart",
+    "Receipt preserves rate version, native measures, funding source, and outcome"
+  ],
+  "concurrency": [
+    "Parallel reservations serialize against tenant and project caps",
+    "A duplicate operation commits customer usage at most once"
+  ],
+  "degradedDependencies": [
+    "Provider and Stripe outage do not lose internal usage authority",
+    "Safety rejection, failure, unusable output, cache hit, and retry release or avoid debit"
+  ],
+  "rollback": [
+    "Rollback preserves settled receipts and releases abandoned reservations",
+    "Rate rollback cannot reinterpret an existing quote or receipt"
+  ],
+  "performanceBudgets": [
+    { "metric": "usage-estimate-p95-ms", "operator": "<=", "value": 500 },
+    { "metric": "reservation-p95-ms", "operator": "<=", "value": 750 }
+  ],
+  "checks": [
+    "billing.usage-contract",
+    "billing.budget-enforcement",
+    "billing.usage-at-most-once",
+    "billing.receipt-audit",
+    "billing.no-direct-payment-mutation",
+    "resilience.concurrency-idempotency"
+  ]
+}

@@ -269,7 +269,7 @@ export default function AITranscription({
           filteredSegments.map((seg: TranscriptionSegment, i: number) => (
             <div
               key={i}
-              className="flex gap-3 py-1.5 group hover:bg-white/[0.02] rounded-[var(--radius-sm)] px-2 -mx-2 transition-colors"
+              className="flex gap-3 py-1.5 group hover:bg-[var(--surface)]/[0.02] rounded-[var(--radius-sm)] px-2 -mx-2 transition-colors"
             >
               <button
                 onClick={() => onTimecodeClick?.(seg.start)}

@@ -1,0 +1,154 @@
+- banner:
+  - button "Menu":
+  - link "Content Co-op":
+    - /url: /projects?demo=1
+    - generic: Content Co-op
+  - navigation:
+    - link "Dashboard":
+      - /url: /?demo=1
+    - link "Projects":
+      - /url: /projects?demo=1
+    - link "Reviews":
+      - /url: /reviews?demo=1
+  - button "Help & Feedback":
+  - button "Search":
+  - button:
+- main:
+  - complementary:
+    - combobox:
+      - option "Project Library" [selected]
+      - option "Bookmarks"
+    - button "ICA":
+      - generic: ICA
+    - button:
+    - button "Schneider + EPC":
+      - generic: Schneider + EPC
+    - button "Nashville Roadshow":
+      - generic: Nashville Roadshow
+    - button "McLaren Podcast":
+      - generic: McLaren Podcast
+    - button "bp":
+      - generic: bp
+    - button "Astro Cleaning Services":
+      - generic: Astro Cleaning Services
+    - link "Archive":
+      - /url: /projects/archive
+      - generic: Archive
+    - link "Trash":
+      - /url: /projects/trash
+      - generic: Trash
+  - button "Toggle sidebar":
+  - navigation:
+    - link "Projects":
+      - /url: /projects?demo=1
+    - generic: ICA
+  - generic: Local reconstruction
+  - button "Upload media":
+    - text: Upload media
+  - button "Upload options":
+  - generic "Project summary":
+    - generic: 4 deliverables
+    - generic: 2 in review
+    - generic: 1 changes requested
+    - generic: 1 approved
+  - textbox "Search folder..."
+  - combobox:
+    - option "A–Z" [selected]
+    - option "Created date"
+  - checkbox "Select all"
+  - text: Select all
+  - button "Batch actions":
+  - button "New Folder":
+    - text: New Folder
+  - button "Upload":
+    - text: Upload
+  - button:
+  - button:
+  - table:
+    - rowgroup:
+      - row "Select all visible assets Title Duration Version Uploaded Reviewers Status":
+        - columnheader "Select all visible assets":
+          - checkbox "Select all visible assets"
+        - columnheader
+        - columnheader "Title"
+        - columnheader "Duration"
+        - columnheader "Version"
+        - columnheader "Uploaded"
+        - columnheader "Reviewers"
+        - columnheader "Status"
+        - columnheader
+    - rowgroup:
+      - row "Select Charles Drummond_v5 Open Charles Drummond_v5 Charles Drummond_v5 1:10 V5 1h ago 1/2 Requires Changes Actions for Charles Drummond_v5":
+        - cell "Select Charles Drummond_v5":
+          - checkbox "Select Charles Drummond_v5"
+        - cell "Open Charles Drummond_v5":
+          - link "Open Charles Drummond_v5":
+            - /url: /review/demo?demo=1&asset=charles-drummond-v5
+        - cell "Charles Drummond_v5":
+          - link "Charles Drummond_v5":
+            - /url: /review/demo?demo=1&asset=charles-drummond-v5
+        - cell "1:10"
+        - cell "V5":
+          - generic: V5
+        - cell "1h ago"
+        - cell "1/2":
+          - text: 1/2
+        - cell "Requires Changes"
+        - cell "Actions for Charles Drummond_v5":
+          - button "Actions for Charles Drummond_v5":
+      - row "Select Denie McDonald_v4 Open Denie McDonald_v4 Denie McDonald_v4 1:11 V4 1h ago 1/2 In Review Actions for Denie McDonald_v4":
+        - cell "Select Denie McDonald_v4":
+          - checkbox "Select Denie McDonald_v4"
+        - cell "Open Denie McDonald_v4":
+          - link "Open Denie McDonald_v4":
+            - /url: /review/demo?demo=1&asset=denie-mcdonald-v4
+        - cell "Denie McDonald_v4":
+          - link "Denie McDonald_v4":
+            - /url: /review/demo?demo=1&asset=denie-mcdonald-v4
+        - cell "1:11"
+        - cell "V4":
+          - generic: V4
+        - cell "1h ago"
+        - cell "1/2":
+          - text: 1/2
+        - cell "In Review"
+        - cell "Actions for Denie McDonald_v4":
+          - button "Actions for Denie McDonald_v4":
+      - row "Select ICA_ROADSHOW_x_FINAL Open ICA_ROADSHOW_x_FINAL ICA_ROADSHOW_x_FINAL 1:00 V5 128d ago 2/2 Approved Actions for ICA_ROADSHOW_x_FINAL":
+        - cell "Select ICA_ROADSHOW_x_FINAL":
+          - checkbox "Select ICA_ROADSHOW_x_FINAL"
+        - cell "Open ICA_ROADSHOW_x_FINAL":
+          - link "Open ICA_ROADSHOW_x_FINAL":
+            - /url: /review/demo?demo=1&asset=ica-roadshow-final
+        - cell "ICA_ROADSHOW_x_FINAL":
+          - link "ICA_ROADSHOW_x_FINAL":
+            - /url: /review/demo?demo=1&asset=ica-roadshow-final
+        - cell "1:00"
+        - cell "V5":
+          - generic: V5
+        - cell "128d ago"
+        - cell "2/2":
+          - text: 2/2
+        - cell "Approved"
+        - cell "Actions for ICA_ROADSHOW_x_FINAL":
+          - button "Actions for ICA_ROADSHOW_x_FINAL":
+      - row "Select Kevin Bowers_v2 Open Kevin Bowers_v2 Kevin Bowers_v2 1:12 V2 1h ago 0/1 In Review Actions for Kevin Bowers_v2":
+        - cell "Select Kevin Bowers_v2":
+          - checkbox "Select Kevin Bowers_v2"
+        - cell "Open Kevin Bowers_v2":
+          - link "Open Kevin Bowers_v2":
+            - /url: /review/demo?demo=1&asset=kevin-bowers-v2
+        - cell "Kevin Bowers_v2":
+          - link "Kevin Bowers_v2":
+            - /url: /review/demo?demo=1&asset=kevin-bowers-v2
+        - cell "1:12"
+        - cell "V2":
+          - generic: V2
+        - cell "1h ago"
+        - cell "0/1":
+          - text: 0/1
+        - cell "In Review"
+        - cell "Actions for Kevin Bowers_v2":
+          - button "Actions for Kevin Bowers_v2":
+- button "Open Next.js Dev Tools":
+- alert

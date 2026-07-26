@@ -1,76 +1,57 @@
-import { NextResponse } from "next/server";
 import { requireAuthWithClient } from "@/lib/auth-client";
-import { getOwnedProject } from "@/lib/access-control";
+import { getProjectAccess } from "@/lib/access-control";
+import { apiError, apiJson, backendUnavailable } from "@/lib/api/responses";
+import { legacyUploadRetiredResponse } from "@/lib/tus/legacy-retirement";
 
-export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
-  const { user, supabase } = await requireAuthWithClient();
-  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-
-  const { id } = await params;
-  const projectAccess = await getOwnedProject(id, user.id, supabase);
-  if (!projectAccess.ok) {
-    return NextResponse.json({ error: projectAccess.error }, { status: projectAccess.status });
-  }
-
+async function authenticatedClient() {
   try {
-    const { data, error } = await supabase
-      .from("assets")
-      .select("*, comments(count), approvals(id, status)")
-      .eq("project_id", id)
-      .order("updated_at", { ascending: false });
-
-    if (error) return NextResponse.json({ items: [] });
-    return NextResponse.json({ items: data ?? [] });
+    const context = await requireAuthWithClient();
+    if (!context.user) return { response: apiError("Unauthorized", "UNAUTHORIZED", 401) };
+    return { ...context };
   } catch {
-    return NextResponse.json({ items: [] });
+    return { response: backendUnavailable() };
   }
 }
 
-export async function POST(req: Request, { params }: { params: Promise<{ id: string }> }) {
-  const { user, supabase } = await requireAuthWithClient();
-  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+function accessFailure(access: { status: number; error: string }) {
+  if (access.status >= 500) return backendUnavailable();
+  return apiError(access.error, "PROJECT_NOT_FOUND", access.status);
+}
 
-  const { id } = await params;
-  const projectAccess = await getOwnedProject(id, user.id, supabase);
-  if (!projectAccess.ok) {
-    return NextResponse.json({ error: projectAccess.error }, { status: projectAccess.status });
-  }
+export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
+  const context = await authenticatedClient();
+  if ("response" in context) return context.response;
+  const { user, supabase: authSupabase } = context;
+  if (!user) return backendUnavailable();
 
   try {
-    const body = await req.json();
+    const { id } = await params;
+    const projectAccess = await getProjectAccess(
+      id,
+      user.id,
+      "viewer",
+      authSupabase,
+    );
+    if (!projectAccess.ok) return accessFailure(projectAccess);
 
-    const { data, error } = await supabase
+    const { data, error } = await authSupabase
       .from("assets")
-      .insert({
-        project_id: id,
-        title: body.title,
-        file_type: body.file_type || "video",
-        file_url: body.file_url || null,
-        thumbnail_url: body.thumbnail_url || null,
-        file_size: body.file_size || null,
-        duration_seconds: body.duration_seconds || null,
-      })
-      .select()
-      .single();
+      .select(
+        "id, project_id, folder_id, title, file_type, file_url, thumbnail_url, proxy_url, file_size, duration_seconds, status, position, uploaded_by, created_at, updated_at, comments(count), approvals(id, status, step_order, role_label, assignee_email), versions(count)",
+      )
+      .eq("project_id", id)
+      .is("deleted_at", null)
+      .order("updated_at", { ascending: false });
 
     if (error) {
-      console.error("Asset creation error:", error.message);
-      return NextResponse.json({ error: error.message }, { status: 500 });
+      return backendUnavailable();
     }
-
-    // Log activity (don't fail if this errors)
-    await supabase.from("activity_log").insert({
-      project_id: id,
-      asset_id: data.id,
-      actor_id: user.id,
-      actor_name: user.email,
-      action: "uploaded_asset",
-      details: { asset_title: data.title },
-    }).then(() => {}, () => {});
-
-    return NextResponse.json(data, { status: 201 });
-  } catch (e: any) {
-    console.error("Asset POST exception:", e?.message);
-    return NextResponse.json({ error: "Failed to create asset" }, { status: 500 });
+    return apiJson({ items: data ?? [] });
+  } catch {
+    return backendUnavailable();
   }
+}
+
+export async function POST() {
+  return legacyUploadRetiredResponse();
 }

@@ -4,7 +4,8 @@
  */
 
 import { formatShareIntentMeta, type ShareIntent } from "@/lib/sharing/share-intent";
-import { getSiteUrl } from "@/lib/server-env";
+import { getAdminSiteUrl, getClientSiteUrl } from "@/lib/server-env";
+import { buildSurfaceUrl } from "@/lib/surface-origins";
 
 export interface EmailPayload {
   to: string;
@@ -47,8 +48,19 @@ export async function sendEmail(payload: EmailPayload): Promise<{ id: string } |
 }
 
 export function getBaseUrl(): string {
-  if (typeof window !== "undefined") return window.location.origin;
-  return getSiteUrl();
+  return getClientSiteUrl();
+}
+
+export function getAdminBaseUrl(): string {
+  return getAdminSiteUrl();
+}
+
+function publicReviewUrl(value: string): string {
+  return buildSurfaceUrl(getClientSiteUrl(), value);
+}
+
+function internalAppUrl(value: string): string {
+  return buildSurfaceUrl(getAdminSiteUrl(), value);
 }
 
 function formatExpiry(expiresAt?: string | null) {
@@ -73,7 +85,7 @@ export const emailTemplates = {
       <p>A new asset requires your approval:</p>
       <p><strong>Asset:</strong> ${assetTitle}</p>
       <p><strong>Project:</strong> ${projectName}</p>
-      <p><a href="${reviewUrl}" style="display: inline-block; margin-top: 12px; padding: 10px 20px; background-color: #007bff; color: white; text-decoration: none; border-radius: 4px;">Review Asset</a></p>
+      <p><a href="${publicReviewUrl(reviewUrl)}" style="display: inline-block; margin-top: 12px; padding: 10px 20px; background-color: #007bff; color: white; text-decoration: none; border-radius: 4px;">Review Asset</a></p>
       <p style="color: #666; font-size: 12px; margin-top: 20px;">Please respond with your approval or request for changes.</p>
     `,
   }),
@@ -91,6 +103,7 @@ export const emailTemplates = {
     expiresAt?: string | null;
   }) => {
     const meta = formatShareIntentMeta(shareIntent);
+    const publicShareLink = publicReviewUrl(shareLink);
     const ctaLabel =
       shareIntent === "final_delivery"
         ? "Open Delivery"
@@ -99,10 +112,10 @@ export const emailTemplates = {
           : "Open Review";
     const intro =
       shareIntent === "final_delivery"
-        ? "A final asset has been handed off to you in Co-Deliver."
+        ? "A final asset has been handed off to you in Co‑ProVideo."
         : shareIntent === "approval_needed"
-          ? "Your approval is needed on an asset in Co-Deliver."
-          : `You have been invited into a ${meta.label.toLowerCase()} in Co-Deliver.`;
+          ? "Your approval is needed on an asset in Co‑ProVideo."
+          : `You have been invited into a ${meta.label.toLowerCase()} in Co‑ProVideo.`;
 
     return {
       subject: `${meta.label}: ${assetTitle}`,
@@ -115,7 +128,7 @@ export const emailTemplates = {
         <p><strong>Expires:</strong> ${formatExpiry(expiresAt)}</p>
         <p>
           <a
-            href="${shareLink}"
+            href="${publicShareLink}"
             style="display: inline-block; margin-top: 12px; padding: 10px 20px; background-color: #007bff; color: white; text-decoration: none; border-radius: 4px;"
           >
             ${ctaLabel}
@@ -133,7 +146,7 @@ export const emailTemplates = {
       <blockquote style="border-left: 4px solid #ddd; padding-left: 12px; margin: 12px 0; color: #666;">
         ${commentBody.substring(0, 200)}${commentBody.length > 200 ? "..." : ""}
       </blockquote>
-      <p><a href="${reviewUrl}" style="display: inline-block; margin-top: 12px; padding: 10px 20px; background-color: #007bff; color: white; text-decoration: none; border-radius: 4px;">View Comment</a></p>
+      <p><a href="${internalAppUrl(reviewUrl)}" style="display: inline-block; margin-top: 12px; padding: 10px 20px; background-color: #007bff; color: white; text-decoration: none; border-radius: 4px;">View Comment</a></p>
     `,
   }),
 };

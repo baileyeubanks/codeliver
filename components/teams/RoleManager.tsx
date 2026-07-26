@@ -192,7 +192,7 @@ export default function RoleManager({ currentRole }: Props) {
                 {category.actions.map((item) => (
                   <tr
                     key={item.action}
-                    className="hover:bg-white/[0.02]"
+                    className="hover:bg-[var(--surface)]/[0.02]"
                   >
                     <td className="py-1.5 pr-4 text-[var(--ink)]">
                       {item.label}

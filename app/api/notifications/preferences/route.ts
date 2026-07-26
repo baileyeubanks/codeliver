@@ -1,87 +1,103 @@
-import { NextResponse } from "next/server";
-import { requireAuth } from "@/lib/auth";
-import { getSupabase } from "@/lib/supabase";
-import type { NotificationType } from "@/lib/types/codeliver";
+import { requireAuthWithClient } from "@/lib/auth-client";
+import { apiError, apiJson, backendUnavailable } from "@/lib/api/responses";
+import { isBackendUnavailableError } from "@/lib/api/backend";
+import { getExternalNotificationAdapters } from "@/lib/notifications/adapters";
+import {
+  defaultNotificationPreference,
+  NOTIFICATION_EVENT_TYPES,
+  parseNotificationPreferences,
+} from "@/lib/notifications/preferences";
 
-interface PreferenceRow {
-  event_type: string;
-  email_enabled: boolean;
-  email_frequency: string;
-  in_app_enabled: boolean;
+async function getSession() {
+  try {
+    const session = await requireAuthWithClient();
+    return session.user ? session : { response: apiError("Unauthorized", "UNAUTHORIZED", 401) };
+  } catch (error) {
+    return { response: isBackendUnavailableError(error) ? backendUnavailable() : apiError("Authentication service is unavailable", "AUTH_UNAVAILABLE", 503) };
+  }
 }
 
-type PreferencePayload = Record<
-  NotificationType,
-  {
-    email_enabled: boolean;
-    in_app_enabled: boolean;
-    email_frequency: string;
-  }
->;
-
 export async function GET() {
-  const user = await requireAuth();
-  if (!user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const session = await getSession();
+  if ("response" in session) return session.response;
+  const { supabase } = session;
+  const user = session.user!;
+
+  let data;
+  try {
+    const result = await supabase
+      .from("notification_preferences")
+      .select("event_type, email_enabled, email_frequency, in_app_enabled")
+      .eq("user_id", user.id);
+    if (result.error) return backendUnavailable();
+    data = result.data;
+  } catch {
+    return backendUnavailable();
   }
 
-  const supabase = getSupabase();
-  const { data, error } = await supabase
-    .from("notification_preferences")
-    .select("*")
-    .eq("user_id", user.id);
+  const stored = new Map((data ?? []).map((row) => [row.event_type, row]));
+  const preferences = Object.fromEntries(
+    NOTIFICATION_EVENT_TYPES.map((eventType) => {
+      const row = stored.get(eventType);
+      return [
+        eventType,
+        row
+          ? {
+              email_enabled: row.email_enabled,
+              email_frequency: row.email_frequency,
+              in_app_enabled: row.in_app_enabled,
+            }
+          : defaultNotificationPreference(),
+      ];
+    }),
+  );
 
-  if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
-  }
-
-  // Convert array to record keyed by event_type
-  const preferences: Record<string, Omit<PreferenceRow, "event_type">> = {};
-  for (const row of data ?? []) {
-    preferences[row.event_type] = {
-      email_enabled: row.email_enabled,
-      email_frequency: row.email_frequency,
-      in_app_enabled: row.in_app_enabled,
-    };
-  }
-
-  return NextResponse.json({ preferences });
+  return apiJson({
+    preferences,
+    channels: {
+      in_app: { configured: true, consent_required: false },
+      email: {
+        configured: getExternalNotificationAdapters().some(
+          (adapter) => adapter.channel === "email" && adapter.configured,
+        ),
+        consent_required: false,
+      },
+      sms: { configured: false, preview_only: true, consent_required: true },
+      imessage: { configured: false, preview_only: true, consent_required: true },
+    },
+  });
 }
 
 export async function PUT(req: Request) {
-  const user = await requireAuth();
-  if (!user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const session = await getSession();
+  if ("response" in session) return session.response;
+  const { supabase } = session;
+  const user = session.user!;
+
+  const body = await req.json().catch(() => null);
+  const preferencesInput =
+    body && typeof body === "object" && !Array.isArray(body)
+      ? (body as Record<string, unknown>).preferences
+      : null;
+  const parsed = parseNotificationPreferences(preferencesInput);
+  if (!parsed.ok) {
+    return apiError(parsed.error, "INVALID_REQUEST", 400);
   }
 
-  const body = await req.json();
-  const preferences = body.preferences as PreferencePayload | undefined;
-
-  if (!preferences || typeof preferences !== "object") {
-    return NextResponse.json(
-      { error: "preferences object is required" },
-      { status: 400 }
-    );
-  }
-
-  const supabase = getSupabase();
-
-  const rows = Object.entries(preferences).map(([event_type, prefs]) => ({
+  const rows = Object.entries(parsed.value).map(([eventType, preference]) => ({
     user_id: user.id,
-    event_type,
-    email_enabled: prefs.email_enabled,
-    email_frequency: prefs.email_frequency,
-    in_app_enabled: prefs.in_app_enabled,
+    event_type: eventType,
+    email_enabled: preference.email_enabled,
+    email_frequency: preference.email_frequency,
+    in_app_enabled: preference.in_app_enabled,
   }));
-
-  // Upsert all preferences
-  const { error } = await supabase
-    .from("notification_preferences")
-    .upsert(rows, { onConflict: "user_id,event_type" });
-
-  if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+  try {
+    const { error } = await supabase
+      .from("notification_preferences")
+      .upsert(rows, { onConflict: "user_id,event_type" });
+    if (error) return backendUnavailable();
+    return apiJson({ ok: true, updated: rows.length });
+  } catch {
+    return backendUnavailable();
   }
-
-  return NextResponse.json({ ok: true });
 }

@@ -1,49 +1,13 @@
-import { NextResponse } from "next/server";
-import { getSupabase } from "@/lib/supabase";
+import { apiError } from "@/lib/api/responses";
 
-export async function POST(req: Request) {
-  const body = await req.json();
-  const { invite_id, asset_id } = body;
-
-  if (!invite_id || !asset_id) {
-    return NextResponse.json({ error: "invite_id and asset_id required" }, { status: 400 });
-  }
-
-  // Get invite to check watermark settings
-  const { data: invite, error: inviteError } = await getSupabase()
-    .from("review_invites")
-    .select("*")
-    .eq("id", invite_id)
-    .eq("asset_id", asset_id)
-    .single();
-
-  if (inviteError || !invite) {
-    return NextResponse.json({ error: "Invite not found" }, { status: 404 });
-  }
-
-  if (!invite.watermark_enabled) {
-    // No watermark needed, return original asset URL
-    const { data: asset } = await getSupabase()
-      .from("assets")
-      .select("file_url")
-      .eq("id", asset_id)
-      .single();
-
-    return NextResponse.json({ url: asset?.file_url, watermarked: false });
-  }
-
-  // For watermarked content, return the original URL with watermark metadata
-  // In production, this would generate a server-side watermarked version
-  const { data: asset } = await getSupabase()
-    .from("assets")
-    .select("file_url")
-    .eq("id", asset_id)
-    .single();
-
-  return NextResponse.json({
-    url: asset?.file_url,
-    watermarked: true,
-    watermark_text: invite.watermark_text || invite.reviewer_email || "CONFIDENTIAL",
-    watermark_opacity: 0.3,
-  });
+// Watermark-required review links now fail closed at atomic admission. This
+// legacy helper previously returned a provider URL for unwatermarked media;
+// keeping it as a tombstone prevents that bypass while the real rendered
+// watermark delivery capability remains unavailable.
+export async function POST() {
+  return apiError(
+    "Legacy watermark delivery is retired",
+    "WATERMARK_ROUTE_RETIRED",
+    410,
+  );
 }

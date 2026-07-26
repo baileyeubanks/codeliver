@@ -122,6 +122,7 @@ import {
   type RequestKind,
   type RequestPriority,
 } from "@/lib/requests/model.ts";
+import type { PerformanceMetric } from "@/lib/reporting/performance.ts";
 import {
   transitionRequestStatus,
   type RequestStatus,
@@ -326,6 +327,9 @@ export interface DemoWorkspaceState {
   requests: DemoRequest[];
   requestMessages: DemoRequestMessage[];
   workOrders: DemoWorkOrder[];
+  /* P28: Reporting (published-creative performance metrics; honest local    */
+  /* preview numbers shaped by lib/reporting/ — no analytics provider).      */
+  performanceMetrics: PerformanceMetric[];
 }
 
 export interface CreateDemoShareInput {
@@ -695,6 +699,7 @@ export function createInitialDemoWorkspace(): DemoWorkspaceState {
       ...order,
       deliverables: order.deliverables.map((deliverable) => ({ ...deliverable })),
     })),
+    performanceMetrics: seedDemoPerformanceMetrics().map((metric) => ({ ...metric })),
   };
 }
 
@@ -837,6 +842,7 @@ export function restoreDemoWorkspace(raw: string | null): DemoWorkspaceState {
       requests: mergeSeededRecords(parsed.requests, fallback.requests),
       requestMessages: mergeSeededRecords(parsed.requestMessages, fallback.requestMessages),
       workOrders: mergeSeededRecords(parsed.workOrders, fallback.workOrders),
+      performanceMetrics: mergeSeededRecords(parsed.performanceMetrics, fallback.performanceMetrics),
       settings: {
         profile: { ...fallback.settings.profile, ...savedSettings?.profile },
         appearance: { ...fallback.settings.appearance, ...savedSettings?.appearance },
@@ -3885,4 +3891,113 @@ export function addDemoRequestMessage(
     requestMessages: [...current.requestMessages, message],
   }));
   return { ok: true, id: message.id };
+}
+
+/* --------------------- P28: Reporting (performance seeds) ----------------- */
+
+/**
+ * P28: performance metrics for published demo creatives — views, engagement,
+ * watch time, completion, clicks, and leads. These are honest local-preview
+ * numbers (the dashboard labels them "Demo metrics — local preview"); no
+ * analytics provider is implied. Shaped by lib/reporting/performance.ts.
+ */
+export function seedDemoPerformanceMetrics(): PerformanceMetric[] {
+  return [
+  {
+    id: "perf-ica-master-16x9",
+    asset_id: "ica-roadshow-final",
+    project_id: "ica",
+    title: "ICA_ROADSHOW_MASTER_16x9",
+    platform: "LinkedIn",
+    aspect: "16:9",
+    published_at: "2026-03-12T14:00:00.000Z",
+    duration_seconds: 60,
+    views: 4820,
+    engagements: 217,
+    avg_watch_seconds: 31.2,
+    completions: 1880,
+    clicks: 96,
+    leads: 7,
+  },
+  {
+    id: "perf-ica-social-9x16",
+    asset_id: "ica-roadshow-final",
+    project_id: "ica",
+    title: "ICA_ROADSHOW_SOCIAL_9x16",
+    platform: "Instagram Reels",
+    aspect: "9:16",
+    published_at: "2026-03-12T14:05:00.000Z",
+    duration_seconds: 32,
+    views: 9310,
+    engagements: 612,
+    avg_watch_seconds: 24.8,
+    completions: 5819,
+    clicks: 261,
+    leads: 14,
+  },
+  {
+    id: "perf-ica-ceo-hero",
+    asset_id: "ica-ceo-hero-v1",
+    project_id: "ica",
+    title: "ICA CEO Hero Cut_v1",
+    platform: "YouTube",
+    aspect: "16:9",
+    published_at: "2026-07-12T16:00:00.000Z",
+    duration_seconds: 45,
+    views: 1240,
+    engagements: 41,
+    avg_watch_seconds: 12.1,
+    completions: 285,
+    clicks: 18,
+    leads: 1,
+  },
+  {
+    id: "perf-epc-recap-16x9",
+    asset_id: "epc-recap-v6",
+    project_id: "schneider-epc",
+    title: "SCHNEIDER_EPC_RECAP_v6",
+    platform: "LinkedIn",
+    aspect: "16:9",
+    published_at: "2026-07-13T13:00:00.000Z",
+    duration_seconds: 122,
+    views: 2105,
+    engagements: 118,
+    avg_watch_seconds: 78.4,
+    completions: 1158,
+    clicks: 84,
+    leads: 9,
+  },
+  {
+    id: "perf-bp-rodeo-16x9",
+    asset_id: "bp-rodeo-v2",
+    project_id: "bp",
+    title: "BP Rodeo Recap_v2",
+    platform: "Facebook",
+    aspect: "16:9",
+    published_at: "2026-07-14T18:30:00.000Z",
+    duration_seconds: 94,
+    views: 3560,
+    engagements: 190,
+    avg_watch_seconds: 41.5,
+    completions: 1495,
+    clicks: 62,
+    leads: 4,
+  },
+  {
+    id: "perf-ambient-loop-9x16",
+    asset_id: "ambient-product-loop-v1",
+    project_id: "schneider-epc",
+    title: "Ambient Product Loop_v1",
+    platform: "Instagram Reels",
+    aspect: "9:16",
+    published_at: "2026-07-10T12:00:00.000Z",
+    duration_seconds: 15,
+    views: 2780,
+    engagements: 203,
+    avg_watch_seconds: 11.9,
+    completions: 1974,
+    clicks: 41,
+    leads: 2,
+  },
+];
 }

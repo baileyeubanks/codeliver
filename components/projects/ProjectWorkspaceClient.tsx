@@ -11,6 +11,7 @@ import {
   useDemoWorkspace,
 } from "@/lib/demo/workspace-store";
 import ProjectCockpit, { type CockpitUploadStatus } from "@/components/projects/ProjectCockpit";
+import ProjectWorkspaceTabs from "@/components/projects/ProjectWorkspaceTabs";
 import AssetUpload from "@/components/assets/AssetUpload";
 import CoProductionBrand from "@/components/brand/CoProductionBrand";
 import type { MediaAsset } from "@/components/projects/MediaCard";
@@ -385,10 +386,9 @@ export default function ProjectWorkspaceClient() {
           className="hidden"
           onChange={(event) => handleUpload(event.target.files)}
         />
-        <ProjectCockpit
+        <ProjectWorkspaceTabs
           project={demoProject}
           assets={demoWorkspace.assets.filter((asset) => asset.project_id === id)}
-          demoMode
           projects={demoWorkspace.projects}
           uploading={uploading}
           uploadStatus={uploadStatus}

@@ -112,6 +112,7 @@ import {
   seedSequences,
   seedShots,
 } from "./record-seed";
+import { demoLibrarySeedAssets } from "@/lib/assets/demo-library.ts";
 
 export const DEMO_WORKSPACE_STORAGE_KEY = "co-videopro.workspace.v2";
 export const LEGACY_DEMO_WORKSPACE_STORAGE_KEYS = ["co-deliver.demo-workspace.v1"];
@@ -300,6 +301,10 @@ export interface DemoWorkspaceState {
   discoveryAnswers: DiscoveryAnswer[];
   rateCards: RateCard[];
   rateItems: RateItem[];
+  /* P26: Asset Library (favorites + cutdown requests; curated metadata lives
+   * in lib/assets/demo-library.ts, keyed by asset id). */
+  libraryFavorites: string[];
+  libraryCutdownRequests: DemoLibraryCutdownRequest[];
 }
 
 export interface CreateDemoShareInput {
@@ -411,7 +416,11 @@ export function createInitialDemoWorkspace(): DemoWorkspaceState {
     },
     projects: demoProjects.map((project) => ({ ...project })),
     folders: cloneFolders(demoFolders),
-    assets: demoAssets.map((asset) => ({ ...asset })),
+    assets: [
+      ...demoAssets.map((asset) => ({ ...asset })),
+      // P26: appended real-file-backed library seeds (ica-ceo-hero, ambient loop).
+      ...demoLibrarySeedAssets.map((asset) => ({ ...asset })),
+    ],
     archivedAssets: [],
     trashedAssets: [],
     shareLinks: [
@@ -652,6 +661,8 @@ export function createInitialDemoWorkspace(): DemoWorkspaceState {
     discoveryAnswers: seedDiscoveryAnswers.map((record) => ({ ...record })),
     rateCards: seedRateCards.map((record) => ({ ...record })),
     rateItems: seedRateItems.map((record) => ({ ...record })),
+    libraryFavorites: [],
+    libraryCutdownRequests: [],
   };
 }
 
@@ -708,6 +719,16 @@ function normalizeRestoredDemoAssets(assets: MediaAsset[]) {
   }));
 }
 
+/** P26: append the real-file-backed library seeds to restored workspaces that
+ * predate them (append-only; existing assets are never rewritten). */
+function withP26LibrarySeedAssets(assets: MediaAsset[]): MediaAsset[] {
+  const missing = demoLibrarySeedAssets.filter(
+    (seed) => !assets.some((asset) => asset.id === seed.id),
+  );
+  if (missing.length === 0) return assets;
+  return [...assets, ...missing.map((seed) => ({ ...seed }))];
+}
+
 function mergeSeededRecords<T extends { id: string }>(saved: T[] | undefined, seeded: T[]) {
   if (!saved) return seeded;
   const savedIds = new Set(saved.map((record) => record.id));
@@ -729,7 +750,9 @@ export function restoreDemoWorkspace(raw: string | null): DemoWorkspaceState {
       session: { ...fallback.session, ...parsed.session },
       projects: legacy?.projects ?? parsed.projects ?? fallback.projects,
       folders: legacy?.folders ?? parsed.folders ?? fallback.folders,
-      assets: normalizeRestoredDemoAssets(legacy?.assets ?? parsed.assets ?? fallback.assets),
+      assets: normalizeRestoredDemoAssets(
+        withP26LibrarySeedAssets(legacy?.assets ?? parsed.assets ?? fallback.assets),
+      ),
       archivedAssets: normalizeRestoredDemoAssets(
         parsed.archivedAssets ?? fallback.archivedAssets,
       ),
@@ -770,6 +793,8 @@ export function restoreDemoWorkspace(raw: string | null): DemoWorkspaceState {
       discoveryAnswers: mergeSeededRecords(parsed.discoveryAnswers, fallback.discoveryAnswers),
       rateCards: mergeSeededRecords(parsed.rateCards, fallback.rateCards),
       rateItems: mergeSeededRecords(parsed.rateItems, fallback.rateItems),
+      libraryFavorites: parsed.libraryFavorites ?? [],
+      libraryCutdownRequests: parsed.libraryCutdownRequests ?? [],
       settings: {
         profile: { ...fallback.settings.profile, ...savedSettings?.profile },
         appearance: { ...fallback.settings.appearance, ...savedSettings?.appearance },
@@ -3134,4 +3159,79 @@ export function compileBidToProposal(projectId: string): RecordMutationResult {
     }),
   }));
   return { ok: true, id: result.id };
+}
+
+/* --------------------- P26: Asset Library --------------------------------- */
+/* Favorites + cutdown requests for the demo asset library. Curated asset    */
+/* metadata (campaigns, rights, format matrices, packages) lives in           */
+/* lib/assets/demo-library.ts and is keyed by asset id — only the mutable     */
+/* user state below is persisted.                                             */
+
+export interface DemoLibraryCutdownRequest {
+  id: string;
+  asset_id: string;
+  asset_title: string;
+  platform: string;
+  duration_seconds: number;
+  note: string;
+  /** Local preview only — the request is recorded, never dispatched. */
+  status: "recorded";
+  created_at: string;
+}
+
+export function toggleDemoLibraryFavorite(assetId: string) {
+  updateState((state) => ({
+    ...state,
+    libraryFavorites: state.libraryFavorites.includes(assetId)
+      ? state.libraryFavorites.filter((id) => id !== assetId)
+      : [...state.libraryFavorites, assetId],
+  }));
+}
+
+export function recordDemoLibraryCutdownRequest(input: {
+  assetId: string;
+  platform: string;
+  durationSeconds: number;
+  note: string;
+}): RecordMutationResult {
+  const state = getSnapshot();
+  const asset = state.assets.find((candidate) => candidate.id === input.assetId);
+  if (!asset) return { ok: false, reason: "Asset not found in the demo workspace." };
+  if (!input.platform.trim()) return { ok: false, reason: "Choose a target platform." };
+  if (!Number.isFinite(input.durationSeconds) || input.durationSeconds <= 0) {
+    return { ok: false, reason: "Duration must be greater than zero seconds." };
+  }
+
+  const request: DemoLibraryCutdownRequest = {
+    id: createId("cutdown"),
+    asset_id: asset.id,
+    asset_title: asset.title,
+    platform: input.platform.trim(),
+    duration_seconds: Math.round(input.durationSeconds),
+    note: input.note.trim(),
+    status: "recorded",
+    created_at: new Date().toISOString(),
+  };
+
+  updateState((current) => ({
+    ...current,
+    libraryCutdownRequests: [request, ...current.libraryCutdownRequests],
+    activity: [
+      {
+        id: createId("activity"),
+        action: "requested_cutdown",
+        actor_name: "You",
+        details: {
+          asset_title: asset.title,
+          platform: request.platform,
+          duration_seconds: String(request.duration_seconds),
+        },
+        created_at: request.created_at,
+        project_id: asset.project_id,
+        asset_id: asset.id,
+      },
+      ...current.activity,
+    ],
+  }));
+  return { ok: true, id: request.id };
 }

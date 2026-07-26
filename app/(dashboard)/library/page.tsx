@@ -19,6 +19,7 @@ import {
 } from "lucide-react";
 import { useDemoMode } from "@/lib/demo/mode";
 import { useDemoWorkspace } from "@/lib/demo/workspace-store";
+import DemoLibraryView from "@/components/library/DemoLibraryView";
 
 interface Asset {
   id: string;
@@ -121,6 +122,13 @@ export default function LibraryPage() {
     if (search && !a.title.toLowerCase().includes(search.toLowerCase())) return false;
     return true;
   });
+
+  // P26: demo mode renders the full asset-library experience (faceted search,
+  // hover-scrub, format matrix, packages, rights, favorites, cutdowns).
+  // All hooks above run unconditionally; this branch is render-only.
+  if (demoMode) {
+    return <DemoLibraryView />;
+  }
   const uniqueProjectCount = new Set(assets.map((asset) => asset.project_id)).size;
   const inReviewCount = assets.filter((asset) =>
     ["in_review", "needs_changes"].includes(asset.status),

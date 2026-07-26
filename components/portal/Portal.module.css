@@ -37,6 +37,35 @@
   flex: 1;
 }
 
+.headerNav {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: 20px;
+}
+
+.headerNavLink {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 0 12px;
+  border-radius: var(--cvp-radius-sm);
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--cvp-ink-soft);
+  text-decoration: none;
+}
+
+.headerNavLink:hover {
+  background: var(--cvp-surface-alt);
+  color: var(--cvp-blue);
+}
+
+.headerNavLink:focus-visible {
+  outline: 2px solid var(--cvp-blue);
+  outline-offset: 2px;
+}
+
 /* User menu — native details/summary: keyboard- and screen-reader-honest. */
 .userMenu {
   position: relative;

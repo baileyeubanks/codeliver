@@ -23,6 +23,7 @@ export type NavigationIconName =
   | "library"
   | "opportunities"
   | "plus"
+  | "requests"
   | "reviews"
   | "settings"
   | "trash";
@@ -136,6 +137,16 @@ export const WORKSPACE_NAVIGATION: WorkspaceNavigationSection[] = [
         capability: "opportunities:read",
         primary: true,
         mobile: true,
+      },
+      {
+        id: "requests",
+        label: "Requests",
+        shortLabel: "Requests",
+        description: "Client request intake, triage, and work orders",
+        href: "/requests",
+        icon: "requests",
+        capability: "reviews:read",
+        primary: true,
       },
       {
         id: "reviews",

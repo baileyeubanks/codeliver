@@ -1,6 +1,7 @@
 "use client";
 
 import { LogOut } from "lucide-react";
+import Link from "next/link";
 import type { ReactNode } from "react";
 import CoProductionBrand from "@/components/brand/CoProductionBrand";
 import { signOutDemoSession } from "@/lib/demo/workspace-store";
@@ -41,6 +42,14 @@ export default function PortalShell({
           priority
         />
         <p className={styles.headerClient}>{clientName}</p>
+        <nav className={styles.headerNav} aria-label="Portal">
+          <Link href="/portal?demo=1" className={styles.headerNavLink}>
+            Home
+          </Link>
+          <Link href="/portal/requests?demo=1" className={styles.headerNavLink}>
+            Requests
+          </Link>
+        </nav>
         <span className={styles.headerSpacer} aria-hidden="true" />
         <details className={styles.userMenu}>
           <summary

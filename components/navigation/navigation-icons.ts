@@ -4,6 +4,7 @@ import {
   Clapperboard,
   FolderKanban,
   House,
+  Inbox,
   LibraryBig,
   MessageSquareText,
   Plus,
@@ -24,6 +25,7 @@ export const NAVIGATION_ICONS: Record<NavigationIconName, LucideIcon> = {
   opportunities: Target,
   plus: Plus,
   reviews: MessageSquareText,
+  requests: Inbox,
   settings: Settings,
   trash: Trash2,
 };

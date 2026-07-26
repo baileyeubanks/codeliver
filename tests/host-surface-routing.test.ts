@@ -6,6 +6,7 @@ import test from "node:test";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { unstable_doesMiddlewareMatch } from "next/dist/experimental/testing/server/middleware-testing-utils.js";
 import { NextRequest } from "next/server.js";
+import { AuthSessionMissingError } from "@supabase/supabase-js";
 
 import {
   ADMIN_SURFACE_HOST,
@@ -29,7 +30,10 @@ const supabaseStubUrl = `data:text/javascript,${encodeURIComponent(`
         async getUser() {
           globalThis.__ccoHostSurfaceGetUserCalls =
             (globalThis.__ccoHostSurfaceGetUserCalls ?? 0) + 1;
-          return { data: { user: globalThis.__ccoHostSurfaceUser ?? null } };
+          return {
+            data: { user: globalThis.__ccoHostSurfaceUser ?? null },
+            error: globalThis.__ccoHostSurfaceError ?? null,
+          };
         }
       }
     };
@@ -62,6 +66,7 @@ type StubIdentity = {
 const runtimeState = globalThis as typeof globalThis & {
   __ccoHostSurfaceGetUserCalls?: number;
   __ccoHostSurfaceUser?: StubIdentity;
+  __ccoHostSurfaceError?: Error | null;
 };
 
 test("managed hosts are recognized exactly without suffix or credential confusion", () => {
@@ -189,6 +194,7 @@ test("proxy routes verified identities and denies untrusted managed-surface acce
     );
 
     runtimeState.__ccoHostSurfaceGetUserCalls = 0;
+    runtimeState.__ccoHostSurfaceError = null;
     runtimeState.__ccoHostSurfaceUser = {
       app_metadata: { content_coop_role: "staff" },
     };
@@ -433,9 +439,34 @@ test("proxy routes verified identities and denies untrusted managed-surface acce
     assert.equal(legacyLogin.status, 307);
     assert.equal(legacyLoginLocation.origin, `https://${LEGACY_ADMIN_SURFACE_HOST}`);
     assert.equal(legacyLoginLocation.pathname, LOGIN_PATH);
+
+    runtimeState.__ccoHostSurfaceError = new AuthSessionMissingError();
+    const missingCookie = await proxy(
+      new NextRequest(`https://${LEGACY_ADMIN_SURFACE_HOST}/`, {
+        headers: { host: LEGACY_ADMIN_SURFACE_HOST },
+      }),
+    );
+    assert.equal(missingCookie.status, 307);
+    assert.equal(
+      new URL(missingCookie.headers.get("location") ?? "").pathname,
+      LOGIN_PATH,
+    );
+
+    runtimeState.__ccoHostSurfaceError = new Error("provider unavailable");
+    const providerOutage = await proxy(
+      new NextRequest(`https://${LEGACY_ADMIN_SURFACE_HOST}/`, {
+        headers: { host: LEGACY_ADMIN_SURFACE_HOST },
+      }),
+    );
+    assert.equal(providerOutage.status, 503);
+    assert.deepEqual(await providerOutage.json(), {
+      error: "Backend service is unavailable",
+      code: "BACKEND_UNAVAILABLE",
+    });
   } finally {
     runtimeState.__ccoHostSurfaceGetUserCalls = undefined;
     runtimeState.__ccoHostSurfaceUser = undefined;
+    runtimeState.__ccoHostSurfaceError = undefined;
     if (previousUrl === undefined) delete process.env.NEXT_PUBLIC_SUPABASE_URL;
     else process.env.NEXT_PUBLIC_SUPABASE_URL = previousUrl;
     if (previousKey === undefined) delete process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;

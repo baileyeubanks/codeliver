@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { createServerClient } from "@supabase/ssr";
+import { isAuthSessionMissingError } from "@supabase/supabase-js";
 import {
   buildProtectedReturnPath,
   LOGIN_PATH,
@@ -433,8 +434,13 @@ export async function proxy(req: NextRequest) {
       },
     );
     const identity = await supabase.auth.getUser();
-    if (identity.error) return backendUnavailableResponse();
-    user = identity.data.user;
+    if (isAuthSessionMissingError(identity.error)) {
+      user = null;
+    } else if (identity.error) {
+      return backendUnavailableResponse();
+    } else {
+      user = identity.data.user;
+    }
   } catch {
     return backendUnavailableResponse();
   }

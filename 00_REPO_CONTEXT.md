@@ -1,12 +1,13 @@
-# CO-DELIVER Repo Context
+# Co-VideoPro Repo Context
 
 ## Role
-Standalone review and delivery product under the Content Co-op umbrella.
+Canonical video-production operating-system repo under the Content Co-op
+umbrella. Co-Deliver is its current review-and-delivery spine.
 
 ## Canonical Repo
 - `/Users/baileyeubanks/Desktop/Projects/contentco-op/cco-videopro-definitive-20260715`
 - Branch: `codex/co-videopro-definitive-20260715`
-- Reconciled HEAD: `a7eaaab73729b8e8f591f0ea18e1ee06ae21e499`
+- Application-source baseline: `2639e8973211476649f95029d1a3d33a5fccf57d`
 - Machine: M2
 - The older `.../contentco-op/codeliver` checkout is superseded for local
   consolidation. This definitive repo is the canonical M2 source; deployed
@@ -17,10 +18,12 @@ Standalone review and delivery product under the Content Co-op umbrella.
 
 ## Current Condition
 `PARTIAL` — the exact-SHA application-source harness reproduced green on M2 on
-2026-07-26, and CCO-C2 now has a repo-owned production-mode listener plus an
-anonymous fail-closed verifier receipt on `4103` at documentation-only HEAD
-`bad8ef1`; `4115` remains unused. Authenticated/backend/media proof and the
-real-file operating spine are not complete. P10–P28 have current
+2026-07-26 at local commit `2639e89`, and its independent exact-diff reviews have
+no remaining Critical or Important findings. The earlier CCO-C2
+production-mode listener and anonymous fail-closed receipt at `bad8ef1` are
+historical and expired; neither `4103` nor `4115` currently has a listener.
+Authenticated/backend/media proof and the real-file operating spine are not
+complete. P10–P28 have current
 source-and-evidence classifications, but none qualifies as `REAL`. Historical
 runtime proof and current blockers are separated in `STATUS.md` and
 `BLOCKERS.md`.
@@ -35,7 +38,11 @@ runtime proof and current blockers are separated in `STATUS.md` and
 - client portal, requests, workspace, asset library, and reporting
 
 ## Canonical Product Truth
-- Co-Deliver is one standalone review product.
+- Co-VideoPro is the canonical operating-system identity for this repo.
+- Co-Deliver is the current review-and-delivery spine inside Co-VideoPro, not
+  a separate source or authority boundary.
+- Inherited Co-Production Pro and Co-Deliver UI labels remain visible naming
+  debt; documentation must not pretend that product-identity cleanup is done.
 - Public review happens at `/review/[token]`.
 - Internal review happens at `/projects/[id]/assets/[assetId]`.
 - Both routes now converge on one shared player-first review workspace contract.
@@ -66,6 +73,26 @@ runtime proof and current blockers are separated in `STATUS.md` and
   and playable processing remain blocked (`app/api/upload/_shared.ts`,
   `lib/storage/config.ts`, `lib/storage/release-readiness.ts`,
   `app/api/storage/readiness/route.ts`).
+- The only production catalog writer is `/api/upload/tus`. After a durable
+  clean commit receipt, one service-only atomic RPC owns exactly one asset and
+  V1; authenticated playback resolves that immutable version through
+  `/api/media/versions/[versionId]` with receipt-bound ranged reads. The legacy
+  `/api/media/upload` and `/api/media/tus*` paths, metadata-only asset POST,
+  and arbitrary V2 `file_url` POST are explicit `410 Gone` tombstones. This is
+  source truth only: the migration is unapplied and no live database or
+  real-file runtime receipt exists.
+- Filesystem commit publication preflights capacity for the full immutable
+  copy, writes a separate sealed inode, validates it through held no-follow
+  handles, removes deterministic crash placements, and emits a receipt only
+  for a read-only final object with one remaining link. Exact-offset restart
+  recovery can inspect sealed staging without write authority.
+- Public review responses and comment writes use explicit external-safe
+  projections. Invites must be active and point to an existing asset; a
+  password-protected invite fails closed until password verification exists.
+  Complete frame pins use the UI's 0–100 percentage contract and bind to the
+  invite's exact version. The repair migration refuses to reinterpret any
+  existing legacy pin. These are source contracts; CCNAS and live PostgreSQL
+  behavior remain unproved.
 - Public runtime must be `next start` on port 4103 via `scripts/rebuild-public-runtime.sh`, verified by `scripts/verify-runtime.sh`. Never serve the public surface from `next dev`. This is the required contract, not a claim that the runtime is currently up.
 
 ## Key Source Files
@@ -84,10 +111,11 @@ runtime proof and current blockers are separated in `STATUS.md` and
 - internal auth/data remains owner-scoped
 - P19's `onLock` path remains unwired, so the visible approval flow cannot yet
   establish durable locked delivery
-- upload reconciliation currently creates an asset but no V1 version; public
-  review authority requires a resolvable version
-- uploaded CCNAS media currently points at a staff-authenticated stream route,
-  so anonymous token-review playback is not yet a proved path
+- atomic asset/V1 catalog authority and exact authenticated playback are
+  implemented in source, but the migration, live database privileges, and
+  real-file runtime path are unproved
+- anonymous token-review playback is not yet wired and proved against the
+  exact managed version route
 - approval records are not yet exact-version-bound and externally attributable
   through the durable history needed for locked delivery
 - several later capabilities use demo workspace or browser-local persistence;
@@ -100,9 +128,9 @@ runtime proof and current blockers are separated in `STATUS.md` and
 ## Next Focus
 - keep the shared player-first review workspace canonical
 - preserve the independently reviewed CCO-C1 truth-doc commit, completed
-  CCO-C3 source-and-current-evidence ledger, and current CCO-C2 anonymous
-  runtime receipt; next establish CCO-C4 private readiness and the bounded
-  CCO-C5 real spine
+  CCO-C3 source-and-current-evidence ledger, historical CCO-C2 receipt, and
+  independently reviewed CCO-C5A source commit; next obtain Bailey-approved
+  private database/storage readiness and prove the bounded real spine
 - keep P10–P28 classifications current as route/UI/data/authority/runtime
   evidence changes
 - establish a current local production runtime receipt

@@ -1,4 +1,4 @@
-# Co-Deliver Deploy Contract
+# Co-VideoPro / Co-Deliver Spine Deploy Contract
 
 Status: declared release contract, reconciled to M2 source on 2026-07-26.
 This document does not prove that any public host, source-control branch,
@@ -9,6 +9,7 @@ currently configured or healthy.
 
 - Repo: `/Users/baileyeubanks/Desktop/Projects/contentco-op/cco-videopro-definitive-20260715`
 - Branch: `codex/co-videopro-definitive-20260715`
+- Application-source baseline: `2639e8973211476649f95029d1a3d33a5fccf57d`
 - Framework: Next.js 16
 - Default port: `4103`
 - Health endpoint: `/api/health` (public response is exactly `{"status":"ok"}`)
@@ -106,17 +107,40 @@ configuration returns `503 BACKEND_UNAVAILABLE`. Ingest/write readiness,
 trusted-scan release readiness, and durable derivative-processing readiness are
 separate gates. The current source lacks the latter two.
 
+Production catalog authority has one writer: `/api/upload/tus`. The legacy
+`/api/media/upload` and `/api/media/tus*` routes are `410 Gone` tombstones,
+`POST /api/projects/[id]/assets` no longer creates metadata-only assets, and
+`POST /api/assets/[id]/versions` no longer accepts arbitrary V2 `file_url`
+references. A clean committed upload is attached to one managed asset and
+exact V1 by
+`supabase/migrations/20260726084644_atomic_upload_catalog_v1.sql`; authenticated
+range playback resolves `/api/media/versions/[versionId]` against the same
+provider receipt. That migration is source-only and unapplied.
+
+`supabase/migrations/20260726113000_comment_pin_percentage_contract.sql`
+aligns persisted frame pins with the 0–100 percentage contract used by both
+cockpits. It takes an exclusive table lock and aborts before DDL if any legacy
+pin exists; existing 0–1 values require an explicit, separately approved
+remediation decision. It is source-only and unapplied.
+
+Filesystem publication requires capacity for a full immutable copy, places
+bytes into a separate sealed inode through a deterministic crash-recovery
+path, and issues a receipt only after one read-only link remains. Public review
+uses explicit external-safe projections; invites must be active and reference
+an existing asset, password-protected invites fail closed, and frame comments
+bind to the invite's exact version with complete 0–100 pin pairs. These source
+contracts still require approved database, provider, and runtime proof.
+
 ## Public Runtime Rule
 
 - Do not serve public Co-Deliver from `next dev`.
-- Public review, tus uploads, HLS playback, and signed download flows should run against a production build.
+- Public review, canonical `/api/upload/tus`, exact-version playback, and
+  signed download flows should run against a production build.
 - No process listened on M2 port `4103` or `4115` during CCO-C1. CCO-C2 then
   established a repo-owned `next start` listener on `4103` and reran the
-  anonymous verifier at documentation-only HEAD `bad8ef1`; `4115` remains
-  unused. The live-process receipt expires on stop, rebuild, or
-  PID/listener/cwd drift. Runtime-affecting application/build-input changes
-  make it stale evidence for the current tree; documentation-only changes do
-  not invalidate the exact built-runtime receipt.
+  anonymous verifier at documentation-only HEAD `bad8ef1`. That process has
+  stopped, both ports are currently down, and source advanced to `2639e89`;
+  the CCO-C2 receipt is historical and expired.
 - Terminal A owns the foreground runtime:
 
 ```bash
@@ -159,3 +183,9 @@ BASE_URL=http://127.0.0.1:4103 ./scripts/verify-runtime.sh
 This contract authorizes no push, deploy, DNS, database, provider, M4/NAS
 production, or destructive mutation. Release remains blocked until the
 applicable Bailey approval and fresh live provenance/runtime evidence exist.
+In particular, CCO-C5A requires a Bailey-approved read-only duplicate/data
+preflight, database migration applications, effective-privilege/RPC proof,
+and a fresh configured real-file runtime receipt before its source contracts
+can be called operational. The same database gate applies to the frame-pin
+migration, including a read-only inventory of legacy pin rows before its
+exclusive lock or constraint changes are allowed.

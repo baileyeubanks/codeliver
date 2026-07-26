@@ -1,7 +1,7 @@
-# Co-Deliver Deliverable Lifecycle
+# Co-VideoPro Deliverable Lifecycle
 
-Date: 2026-06-27
-Status: L0 lifecycle map.
+Date: 2026-07-26
+Status: CCO-C5A source map plus hardening at M2 local commit `2639e89`
 
 ## Canonical Lifecycle Expected By Directive
 
@@ -26,16 +26,16 @@ Status: L0 lifecycle map.
 | Canonical state | Current evidence |
 | --- | --- |
 | project_created | `/api/projects`, `projects.created_at` |
-| deliverable_uploaded | `/api/media/upload`, `/api/media/tus`, `/api/projects/[id]/assets`, `assets.status` |
-| internal_ready | Implied by `assets.status = ready` after non-media TUS finalization or transcode completion |
+| deliverable_uploaded | Source contract only: canonical `/api/upload/tus` commits bytes and atomically attaches one asset plus exact V1 after a clean scan |
+| internal_ready | Not proved. Managed asset/V1 source exists, but the migration is unapplied and production scanner/derivative readiness is open |
 | review_link_created | `/api/assets/[id]/share`, `review_invites` |
 | client_notified | `sendEmail` in share and approval routes, no durable send status on invite |
 | client_viewed | `/api/review/[token]` increments `review_invites.view_count` and `last_viewed_at` |
-| feedback_requested | Implied by comment-enabled review links |
+| feedback_requested | Exact-version public comment writes and safe response projections exist in source; the frame-pin repair migration is unapplied |
 | revision_required | `assets.status = needs_changes`, approval decisions, comments |
-| revision_uploaded | `/api/assets/[id]/versions` creates `versions` row |
+| revision_uploaded | Not implemented as a governed writer. Arbitrary `POST /api/assets/[id]/versions` is intentionally `410 Gone` |
 | approval_requested | `approval_workflows`, `approvals`, `/api/approvals/notify` |
-| approved | `approvals.status`, `assets.status = approved` |
+| approved | Generic asset PATCH cannot set this state; approval source exists, but attributable exact-version approval is not end-to-end proved |
 | final_delivery_prepared | `share_intent = final_delivery` is derived, not durable |
 | final_delivered | Not canonical. Export/download logs `downloaded_asset` but does not prove final package delivery |
 | published_or_handoff_complete | Not canonical. Webhooks exist, no publishing handoff model proven |
@@ -43,9 +43,20 @@ Status: L0 lifecycle map.
 
 ## Lifecycle Gaps
 
+- The CCO-C5A migration is unapplied; no live database, RPC, privilege,
+  provider, or real-file runtime receipt exists.
+- The frame-pin migration is unapplied and deliberately aborts if any legacy
+  pin exists; legacy coordinate remediation requires a separate approved
+  decision.
+- Anonymous review-token playback has not been bridged to and proved against
+  the managed exact-version route.
+- Legacy multipart/TUS, metadata-only asset, and arbitrary V2 writers are
+  retired. They cannot be cited as lifecycle evidence.
 - `share_intent` is derived, not stored as a durable lifecycle contract.
 - `final_delivery_prepared` and `final_delivered` are not distinct durable states.
 - Download/export does not enforce approved-version selection.
 - Archive is not tied to final package proof.
 - Payment/contract gates are absent.
-
+- No current receipt proves the complete sequence: real upload → asset → V1 →
+  playback → anonymous frame comment → attributable approval → lock → final
+  delivery.

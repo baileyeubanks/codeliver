@@ -1,4 +1,4 @@
-# Co-ProVideo Stabilization Blockers
+# Co-VideoPro Stabilization Blockers
 
 Updated: 2026-07-26
 Machine: M2
@@ -7,7 +7,7 @@ Branch: `codex/co-videopro-definitive-20260715`
 This file records current proof blockers and capability gaps, not a claim that
 the whole project is blocked. Everything that is safe and independent of these
 conditions continues. The observations below are scoped to the inspected M2
-shell and source at `a7eaaab`; they do not describe every private service or
+shell and source at `2639e89`; they do not describe every private service or
 configuration store on M2.
 
 Never print, copy, or commit secret values. Report key names and presence only.
@@ -47,6 +47,17 @@ What it blocks:
   until an approved private configuration source is located or supplied.
 - Real database-backed project/asset/team/webhook API flows cannot be
   end-to-end proved against the production runtime.
+- The CCO-C5A migration
+  `20260726084644_atomic_upload_catalog_v1.sql` is source-only. Live PostgreSQL
+  syntax, existing-data compatibility, effective grants/policies, and the
+  service-only atomic RPC remain unproved until Bailey approves a database
+  preflight and migration application.
+- The frame-pin repair migration
+  `20260726113000_comment_pin_percentage_contract.sql` is also source-only.
+  It deliberately takes an exclusive table lock and aborts if any existing pin
+  coordinate is present, preventing silent reinterpretation of ambiguous
+  legacy 0–1 values. A read-only legacy-pin inventory and explicit remediation
+  decision are therefore required before approved application.
 - Real-session proof for audit C2 (stable server session with a genuine
   Supabase identity) cannot be completed.
 - Production data authority cannot pass unless both schema keys are present,
@@ -102,10 +113,13 @@ What it blocks:
 
 - Real NAS-backed upload, reload, playback, retry, export, and transcode
   behavior (F11) cannot be end-to-end proved.
-- The positive side of the storage contract is unproven. Source tests and the
-  current CCO-C2 runtime prove fail-closed behavior; the unauthenticated
-  readiness route currently returns structured `503 BACKEND_UNAVAILABLE`
-  before provider readiness can be evaluated.
+- The positive side of the storage contract is unproven. Source tests prove
+  the fail-closed contract, while the older CCO-C2 runtime receipt is
+  historical and both local runtime ports are currently down.
+- Commit hardening at `2639e89` uses a separate sealed inode, deterministic
+  crash-placement cleanup, a one-link receipt, and full-copy capacity
+  preflight. CCNAS still must prove its actual chmod, hard-link, directory
+  fsync, capacity, and retry semantics in an approved isolated runtime.
 
 Read-only readiness check once an approved provider, write flag, corresponding
 root, authenticated session, and foreground production runtime exist:
@@ -120,13 +134,14 @@ curl -sS http://127.0.0.1:4103/api/storage/readiness \
 unset AUTH_COOKIE
 ```
 
-Do not run a positive or negative TUS mutation against live NAS. CCO-C4 must
-first claim an isolated disposable `local` target and publish the exact
-failure-first procedure. An approved ingest/quarantine proof must supply the
-mandatory base64 `projectId` and `idempotencyKey` metadata, capture the POST
-`Location`, PATCH the bytes with the correct offset/content type, then HEAD
-the session and assert offset plus quarantine state. It is not a release,
-asset, V1, playback, or delivery proof.
+Do not run a positive or negative TUS mutation against live NAS. A positive
+proof must first use an approved isolated disposable `local` target, pass the
+read-only database contamination/preflight checks, and apply the CCO-C5A
+migration only with Bailey's approval. The canonical `/api/upload/tus` source
+contract then requires the mandatory base64 `projectId` and `idempotencyKey`
+metadata and atomically attaches clean committed bytes to one asset and exact
+V1. Until that sequence is run against a configured production build, it is
+source behavior—not release, playback, or delivery proof.
 
 ## Blocker 3 — Production malware release gate is unimplemented
 
@@ -159,9 +174,11 @@ this upload path.
 
 What it blocks:
 
-- automatic V1 playable-derivative creation after upload;
+- automatic proxy/HLS/thumbnail derivative creation after upload;
 - positive workflow readiness;
-- a real-file upload → playable-media proof.
+- resilient derivative-backed playback proof. The exact-version route can
+  stream a browser-playable committed original, but that path also lacks a
+  configured real-file runtime receipt.
 
 ## Blocker 5 — Production origin, cryptographic, and worker inputs absent
 
@@ -181,15 +198,25 @@ authorization. `FFMPEG_PATH` and `FFPROBE_PATH` are not set, but both commands
 currently resolve from M2's `PATH`; executable presence alone does not prove
 the derivative worker path.
 
-## Known real-spine source gaps
+## Known real-spine gaps after CCO-C5A
 
-Read-only CCO-C3 inspection identified additional breaks that are not
-environment problems:
+Core commit `3c8f3f9` plus hardening commit `2639e89` close the
+duplicate-writer, missing-V1, writable-inode, and public-payload source gaps:
+`/api/upload/tus` is the sole production writer, one clean committed upload is
+atomically bound to one asset and exact V1, and authenticated playback is
+receipt-bound and range-capable. The old multipart/TUS, metadata-only asset,
+and arbitrary V2 writers are `410 Gone`. Public frame-comment writes are
+exact-version-bound and safely projected, but their database repair remains
+unapplied. Review invites must be active and reference an existing asset;
+password-protected invites intentionally fail closed until governed password
+verification is implemented.
 
-- completed TUS reconciliation creates an asset but does not create its V1
-  row, while review/share/comment authority requires a resolvable version;
-- uploaded CCNAS assets point at a staff-authenticated stream route, which an
-  anonymous review token cannot use directly;
+Remaining gaps are:
+
+- the migration is unapplied and no live database/RPC/effective-privilege or
+  real-file playback receipt exists;
+- anonymous review playback still needs a token-authorized exact-version
+  bridge and live proof rather than internal-session authority;
 - approval is not durably exact-version-bound, external actor attribution is
   incomplete in approval history, and P19's lock callback is unwired; and
 - signed-delivery readiness and a durable final delivery package are not yet
@@ -198,22 +225,19 @@ environment problems:
 These gaps require bounded source packets with tests and independent review.
 They must not be papered over with demo-store state or a false-success UI.
 
-## Current evidence boundary — local runtime proved, private readiness open
+## Current evidence boundary — source proved, runtime and private readiness open
 
 CCO-C2 established a repo-owned M2 `next start` listener on port `4103` at
 documentation-only HEAD `bad8ef1`; port `4115` remains unused. The anonymous
-runtime verifier passed, while the authenticated 404 check skipped because
-`AUTH_COOKIE` is absent. The current session and storage-readiness endpoints
-fail closed with structured `503 BACKEND_UNAVAILABLE`, and detailed readiness
-fails closed with `503 HEALTH_AUTH_UNAVAILABLE`.
+runtime verifier passed for that dated build, while the authenticated 404
+check skipped because `AUTH_COOKIE` was absent. That process has stopped,
+both ports are currently down, and source advanced to `2639e89`; the receipt
+is historical.
 
-This closes the no-listener gap only. It does not establish authenticated
-database behavior, positive provider readiness, media ingestion/release,
-playable derivatives, or the real-file spine. The receipt expires if PID
-`83183` stops, the runtime is rebuilt, or its cwd/listener identity changes.
-A runtime-affecting application or build-input change makes the process stale
-evidence for the current application tree; documentation-only changes do not
-invalidate the exact built-runtime receipt.
+Current evidence establishes source contracts and a green full harness. It
+does not establish authenticated database behavior, positive provider
+readiness, migration application, media ingestion/release, playable
+derivatives, anonymous exact-version playback, or the real-file spine.
 
 Private service configuration, deployed runtime state, M4 state, CCNAS mount
 health, database contents, provider readiness, and production DNS/Coolify
@@ -223,7 +247,7 @@ provenance remain `UNKNOWN`; absence from this shell must not be generalized.
 
 - Runtime tooling exists: `scripts/rebuild-public-runtime.sh` and
   `scripts/verify-runtime.sh` remain the required local path. Their 2026-07-25
-  success is historical; the current bounded CCO-C2 receipt is in `STATUS.md`.
+  and CCO-C2 success is historical; the expired receipt is in `STATUS.md`.
 - Missing optional email/AI provider keys (`RESEND_API_KEY`,
   `ANTHROPIC_API_KEY`): dependent routes fail closed by design.
 - Bodyless TUS `HEAD` responses: intentional HTTP/TUS protocol behavior.

@@ -1,48 +1,105 @@
-# Co-Deliver File And Version Authority
+# Co-VideoPro File And Version Authority
 
-Date: 2026-06-27
-Status: L0 authority map.
+Date: 2026-07-26
+Status: CCO-C5A source contract plus hardening at M2 local commit `2639e89`
 
-## Upload Paths
+## One Production Writer
 
-1. `POST /api/media/upload`
-   - Legacy/small-file multipart NAS upload.
-   - Writes directly under `NAS_MEDIA_ROOT`.
-   - Optionally inserts an `assets` row.
-   - If DB insert fails, code logs the error but still returns upload success.
+`POST /api/upload/tus` and its upload-resource methods are the only production
+file/catalog writer. The production Projects surface uses
+`components/assets/AssetUpload.tsx` and passes a canonical project UUID.
 
-2. `POST /api/media/tus` and `/api/media/tus/[uploadId]`
-   - Resumable upload metadata and chunks under `NAS_MEDIA_ROOT/.tus-uploads`.
-   - Finalization moves the file to project folder and inserts an `assets` row.
-   - May enqueue transcode work.
+The upload path:
 
-3. `POST /api/projects/[id]/assets`
-   - Creates asset metadata.
-   - Needs separate file authority review.
+1. authorizes the actor and project before accepting bytes;
+2. commits bytes through the configured provider;
+3. records size, SHA-256, provider version identity, and commit time;
+4. requires a durable clean scan verdict;
+5. calls one service-only atomic RPC; and
+6. returns the one asset and exact V1 bound to that upload.
 
-4. `POST /api/assets/[id]/versions`
-   - Creates a `versions` row.
-   - Updates `assets.file_url` to the latest version.
-   - Carries unresolved comments forward.
-   - Attempts to reset `approval_steps`, but current schema uses `approvals` and `approval_workflows`.
+Retries must resolve the same upload, provider object, asset, and V1. Conflicting
+identity, a soft-deleted record, a cross-project partial, or more than one
+inherited asset claiming the storage object fails closed.
 
-## Storage Paths
+## Retired Writers
 
-- NAS filesystem: `NAS_MEDIA_ROOT` or fallback `/volume1/media`.
-- Supabase storage bucket: `deliverables`, created as public in migration 001.
-- Media stream: `/api/media/stream?path=...`, requires internal auth.
+These routes are intentionally dead and return `410 Gone` before reading auth,
+request bodies, route parameters, storage, or the database:
 
-## Version Authority
+- `POST /api/media/upload`
+- `POST /api/media/tus`
+- methods on `/api/media/tus/[uploadId]`
 
-Current code supports `versions.version_number` and migration 006 adds `versions.is_current`, but `/api/assets/[id]/versions` does not set `is_current`. Export uses the numerically latest version, not approved version.
+These catalog writers are also retired:
 
-## P0 Gaps
+- `POST /api/projects/[id]/assets` cannot create metadata-only assets and
+  points callers to canonical TUS ingest.
+- `POST /api/assets/[id]/versions` cannot create an arbitrary referenced V2.
+  It intentionally advertises no false successor because a governed revision
+  ingest contract is not implemented.
 
-- Duplicate upload paths exist and are not guarded by one canonical file gate.
-- DB insert failure after file write can create orphaned NAS files.
-- Public review links may reference `/api/media/stream`, but that route requires internal auth.
-- Version upload resets a non-existent or stale `approval_steps` table.
-- Export/download does not prove it serves the approved version.
-- No checksum/hash authority was found.
-- No canonical package artifact authority was found.
+Browser-direct storage uploads and public storage URLs were removed from the
+production Projects surface. Demo-only upload behavior remains local and must
+stay visibly labeled.
 
+## Database Authority
+
+Migration `20260726084644_atomic_upload_catalog_v1.sql` adds managed version
+receipt fields, server-owned catalog privileges, safe authenticated read
+projections, unique managed-upload identities, and the
+`attach_committed_upload_v1` RPC.
+
+The function is `SECURITY INVOKER`, executable only by `service_role`, checks
+the supplied actor against canonical project/team authority, locks both upload
+and provider-object identities, detects inherited contamination, and performs
+asset plus V1 creation in one transaction.
+
+The migration is **unapplied**. No current receipt proves live PostgreSQL
+syntax, existing-data compatibility, grants/policies, effective RPC authority,
+or rollback behavior. Applying it requires Bailey's explicit database approval
+after a read-only duplicate and compatibility preflight.
+
+## Exact-Version Playback
+
+Authenticated playback uses `/api/media/versions/[versionId]`. The route:
+
+- authorizes the exact version through its asset and project;
+- rejects missing or soft-deleted catalog records;
+- validates the managed storage receipt;
+- supports bounded HTTP range responses; and
+- opens, verifies, and streams the same file handle so pathname replacement
+  cannot swap content between verification and read.
+
+Active content is forced to download. Provider receipt columns and storage
+keys are absent from authenticated catalog projections.
+
+Filesystem publication copies the completed staging object into a separate
+deterministic placement inode, validates and seals it through held no-follow
+handles, verifies the final hard link before directory sync, removes placement
+and staging entries durably, and issues a receipt only at `nlink = 1`.
+Reconciliation removes crash orphans and aliases and rejects writable objects
+or legacy staging aliases. This is application-level immutability, not WORM;
+CCNAS filesystem semantics still require isolated runtime proof.
+
+This does not yet prove anonymous review-token playback. The public-review
+bridge must authorize the same exact version without revealing provider
+identity and then be exercised with a real file.
+
+## Current Evidence Boundary
+
+Source gates at `2639e89` pass:
+
+- typecheck;
+- lint with zero errors;
+- 1,150 passing tests, zero failures, and three runtime skips;
+- production build; and
+- independent exact-diff review with no Critical or Important findings.
+
+Both M2 runtime ports are down. No database was started, no migration was
+applied, and no provider or real file was mutated. Therefore upload → asset →
+V1 → playback is a reviewed source contract, not an operational or
+end-to-end proof. A safely projected exact-version frame-comment write now
+exists in source, but its pin migration is unapplied and anonymous media
+playback remains open. Attributable approval, lock, and final delivery also
+remain open.

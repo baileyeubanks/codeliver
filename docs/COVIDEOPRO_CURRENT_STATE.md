@@ -1,4 +1,4 @@
-# Co-VideoPro — Current State (Evidence-Based Audit)
+# Co-VideoPro — Historical 2026-07-16 State Audit
 
 **Date:** 2026-07-16
 **Worktree:** `~/Desktop/Projects/contentco-op/cco-videopro-definitive-20260715`
@@ -6,6 +6,40 @@
 **Baseline commit:** `e068ee8` — "checkpoint: preserve prior co-videopro transformation state" (674 files: the previous autonomous session's uncommitted work, preserved unchanged before this mission)
 **Base commit:** `585a703` — co-deliver `main` HEAD
 **Audit method:** static repository inspection (this session); runtime re-verification and screenshot capture are tracked as pending items in §9.
+
+---
+
+> **Superseded:** This file preserves the 2026-07-16 baseline and must not be
+> cited as current product truth. Current authority is `STATUS.md`,
+> `BLOCKERS.md`, `00_REPO_CONTEXT.md`, `DEPLOY_CONTRACT.md`, and the reality
+> maps under `docs/reality/co-deliver/`.
+
+## 2026-07-26 superseding snapshot
+
+At M2 application-source baseline
+`2639e8973211476649f95029d1a3d33a5fccf57d`, `/api/upload/tus` is the only
+production catalog writer. A clean committed upload is source-bound through
+one service-only atomic RPC to one asset and exact V1. Authenticated
+`/api/media/versions/[versionId]` playback is exact-version, range-capable, and
+receipt-bound. Legacy multipart/TUS routes, metadata-only asset POST, and
+arbitrary V2 `file_url` POST are explicit `410 Gone` tombstones.
+
+Commit publication now preflights capacity for the full immutable copy, uses
+a separate sealed inode with deterministic crash cleanup, and requires a
+one-link receipt. Public review rows are allowlisted; invites must be active
+and reference an existing asset, and password-protected invites fail closed.
+Exact-version frame comments use complete 0–100 percentage pins. Both database
+migrations remain unapplied; the pin migration refuses to reinterpret any
+existing legacy pin. Neither M2 runtime port is listening, and no live
+database/RPC/privilege, provider, real-file, or anonymous-playback receipt
+exists. The full upload → asset → V1 → playback → anonymous comment →
+attributable approval → lock → delivery spine remains open.
+
+Current source gates: typecheck pass; lint 0 errors/40 warnings; 1,153 tests
+with 1,150 pass/0 fail/3 runtime skips; production build pass; independent
+exact-diff reviews with no Critical or Important findings.
+
+Everything below this point is the historical 2026-07-16 snapshot.
 
 ---
 
@@ -49,7 +83,7 @@ Current naming state (grep counts over `app/ components/ lib/ packages/`):
 - **Dual runtime:** (a) production: Supabase-backed API routes; (b) **demo mode**: auto-enabled in dev when Supabase env is absent (`lib/demo/mode.ts`), driven by `lib/demo/workspace-store.ts` (localStorage key above) with seeded projects/assets.
 - No `.env`/`.env.local` exists in the worktree — only `.env.example`. Local runs therefore default to demo mode.
 
-### 1.4 Database (16 migrations, `supabase/migrations/`)
+### 1.4 Database (historical migration inventory)
 
 Tables (schema `co_production`): `projects`, `project_members`, `assets`, `versions`, `reviews`, `review_invites`, `comments`, `comment_attachments`, `comment_reactions`, `annotations` (pin/rect/freehand/arrow/text), `approval_workflows`, `approval_history`, `approvals`, `folders`, `tags`, `asset_tags`, `notifications`, `notification_preferences`, `teams`, `team_members`, `team_invites`, `activity_log`, `transcriptions`, `edit_decisions`, `transcode_jobs`, `share_analytics`, `comparison_sessions`, `project_analytics_cache`, `usage_events`, `webhooks`, `webhook_deliveries`, `brand_checks`, `presence`. RLS covered by migration 011 + hardening in `012`/`20260715093300_fail_closed_co_production_authority`.
 
@@ -57,7 +91,9 @@ Tables (schema `co_production`): `projects`, `project_members`, `assets`, `versi
 
 ### 1.5 Media pipeline (real, not fake)
 
-- tus resumable upload: `app/api/upload/tus/*` (and legacy `app/api/media/tus/*`), NAS-backed via `NAS_MEDIA_ROOT` (DEPLOY_CONTRACT).
+- Historical note: canonical tus lived at `app/api/upload/tus/*`. The former
+  `app/api/media/tus/*` path is now a `410 Gone` tombstone; see the superseding
+  snapshot above.
 - FFmpeg pipeline: `lib/media-pipeline/{service,ffmpeg,config,errors}.ts`, jobs in `transcode_jobs`, worker endpoints `app/api/transcode/{route,worker,jobs/[id]}` behind worker auth (`app/api/transcode/_lib/worker-auth`).
 - Transcripts: `app/api/assets/[id]/transcript/*` + batch; `transcriptions` table; `lib/transcript/`; UI `components/transcript/TranscriptWorkbench.tsx`, `WaveformTranscript.tsx`.
 - Player: `components/player/{VideoPlayer,PlayerControls,PlayerTimeline,FrameIndicator}.tsx` (frame indicator exists; frame accuracy to be runtime-verified).

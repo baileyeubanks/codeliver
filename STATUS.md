@@ -1,10 +1,10 @@
-# Co-ProVideo Stabilization Status
+# Co-VideoPro Stabilization Status
 
 Updated: 2026-07-26
 Machine: M2
 Branch: `codex/co-videopro-definitive-20260715`
-Application-source baseline: `a7eaaab73729b8e8f591f0ea18e1ee06ae21e499`
-HEAD at CCO-C2 runtime build: `bad8ef16e8fd041f98095f068d89140f20d74e45`
+Application-source baseline: `2639e8973211476649f95029d1a3d33a5fccf57d`
+Historical CCO-C2 runtime build: `bad8ef16e8fd041f98095f068d89140f20d74e45`
 
 ## Anti-Drift Contract
 
@@ -17,33 +17,57 @@ HEAD at CCO-C2 runtime build: `bad8ef16e8fd041f98095f068d89140f20d74e45`
 
 The tracked tree was clean at CCO-C1 entry on `a7eaaab`; the inherited
 untracked `audit/` directory is preserved and out of scope for cleanup.
-F1–F14 source stabilization and the later P6–P28 commits are present, and the
-source harness is green at this exact SHA.
+F1–F14 source stabilization, the later P6–P28 commits, and the independently
+reviewed CCO-C5A upload/asset/V1 authority packet and its storage/public-review
+hardening follow-up are present. The source harness is green at exact local
+commit `2639e89`.
 
-The operating-system claim is **not complete**. CCO-C2 established a
-repo-owned M2 `next start` listener on `4103` and a current anonymous
-fail-closed verifier receipt at documentation-only HEAD `bad8ef1`; `4115`
-remains unused. A real file has not yet been independently proved through
+The operating-system claim is **not complete**. CCO-C2 established a dated
+repo-owned M2 `next start` and anonymous fail-closed receipt at `bad8ef1`, but
+that process has stopped and the receipt is historical. No process currently
+listens on M2 port `4103` or `4115`. A real file has not yet been independently
+proved through
 upload → asset → V1 → playback → anonymous public review → frame comment →
 attributable approval → locked delivery. P10–P28 now have a
 source-and-current-evidence classification ledger below; none qualifies as
 `REAL` without current route, data, authority, and runtime proof.
 
+CCO-C5A now makes `/api/upload/tus` the only production catalog writer. A
+clean committed upload is source-bound through one service-only atomic RPC to
+one asset and one exact V1, and authenticated playback resolves that immutable
+version through a receipt-bound range route. The legacy multipart/TUS writers,
+metadata-only asset writer, and arbitrary V2 `file_url` writer are explicit
+`410 Gone` tombstones. The migration is **source-only and unapplied**: live
+PostgreSQL syntax, effective privileges, RPC behavior, current data
+contamination, configured storage, and real-file runtime behavior remain
+unproved. Generic asset editing also refuses `approved` and `final`; those
+states must come from the governed approval and delivery workflows.
+
+The follow-up at `2639e89` publishes committed filesystem media through a
+separate sealed inode, preflights capacity for the full immutable copy,
+requires a single-link immutable receipt, cleans deterministic crash
+placements, and fails closed on writable or aliased objects. Anonymous review
+payloads now use explicit public allowlists, inactive or protected invites
+fail closed, and a public frame comment is source-bound to the invite's exact
+version with complete 0–100 percentage pins. The pin constraint migration
+aborts before DDL if any legacy pin exists, so ambiguous 0–1 rows cannot be
+silently reinterpreted. These are reviewed source contracts—not CCNAS,
+database, anonymous-playback, or end-to-end runtime proof.
+
 ## Harness Evidence (current source truth)
 
 Command set: `git diff --check && npm run typecheck && npm run lint && npm test && npm run build`
 
-- Reproduced on M2 on 2026-07-26 at exact HEAD `a7eaaab`.
+- Reproduced on M2 on 2026-07-26 at exact local commit `2639e89`.
 - `git diff --check`: pass
 - `npm run typecheck`: pass, 0 errors
-- `npm run lint`: pass, 0 errors, 42 warnings
-- `npm test`: pass, 1,097 total / 1,094 pass / 0 fail / 3 runtime skips
-- `npm run build`: pass (one Turbopack NFT trace warning)
-- CCO-C2 rebuilt successfully at documentation-only HEAD `bad8ef1`
-- Runtime on `:4103`: **up** as repo-owned `next-server` PID `83183`
-- Runtime on `:4115`: **down** and intentionally unused
-- Anonymous runtime verifier: pass; authenticated 404 check skipped because
-  `AUTH_COOKIE` is absent
+- `npm run lint`: pass, 0 errors, 40 warnings
+- `npm test`: pass, 1,153 total / 1,150 pass / 0 fail / 3 runtime skips
+- `npm run build`: pass
+- Independent exact-diff review: no remaining Critical or Important findings
+- Runtime on `:4103`: **down**
+- Runtime on `:4115`: **down**
+- CCO-C2 anonymous verifier receipt: historical and expired
 
 The phase-level harness counts below are preserved as historical receipts.
 Do not cite 664/664, 696/696, 722/722, or 741/741 as current source truth.
@@ -73,7 +97,7 @@ FFmpeg and FFprobe themselves currently resolve from M2's `PATH`.
 
 ## P10–P28 Capability Ledger (CCO-C3 source classification)
 
-Classification is anchored to committed HEAD `a7eaaab` and current M2 evidence
+Classification is anchored to committed HEAD `2639e89` and current M2 evidence
 on 2026-07-26. `REAL` requires current route, UI, data, authority, and runtime
 proof; source presence or a unit test alone is insufficient. A phase can be
 upgraded only by new evidence.
@@ -86,13 +110,13 @@ upgraded only by new evidence.
 | P13 | `PARTIAL` | Closure is documentation-only; intended elements were deferred or reverted. |
 | P14 | `DEMONSTRATION` | Copilot requires demo mode, uses canned browser-local state, and has no AI API. |
 | P15 | `PARTIAL` | Monogram is integrated into production-facing UI paths; presentation only. |
-| P16 | `PARTIAL` | Player controls mount in review UI; current playable-media runtime proof is absent. |
-| P17 | `PARTIAL` | Annotation UI exists; the production comment route discards drawing/annotation payloads. |
-| P18 | `PARTIAL` | Parent replies persist; reactions, edits, deletes, attachments, and mentions remain incomplete for public review. |
-| P19 | `PARTIAL` | Real review is version-bound; rich V1–V3 behavior is demo-seeded and production returns one version. |
+| P16 | `PARTIAL` | Player controls and exact authenticated range playback exist in source; current playable-media runtime proof is absent. |
+| P17 | `PARTIAL` | Complete 0–100 frame-pin pairs persist in source; richer drawing/annotation payloads remain incomplete. |
+| P18 | `PARTIAL` | Exact-version public frame comments and parent replies persist in source; reactions, edits, deletes, attachments, mentions, and live proof remain incomplete. |
+| P19 | `PARTIAL` | Canonical ingest now creates exact V1 in unapplied source; rich V1–V3 behavior remains demo-seeded and no live database/runtime receipt exists. |
 | P20 | `PARTIAL` | Approval writes/audit route exist; exact-version binding, attribution, and lock wiring are incomplete. |
 | P21 | `PARTIAL` | Summary logic can use loaded comments; its API is demo-only and triage is localStorage. |
-| P22 | `PARTIAL` | Server invites support some controls; password/settings/receipts remain browser-local and are skipped for real tokens. |
+| P22 | `PARTIAL` | Active existing-asset invites are source-enforced; password-protected invites fail closed because verification, settings, and receipts are not yet governed end to end. |
 | P23 | `DEMONSTRATION` | Client portal is demo-guarded and reads demo workspace state. |
 | P24 | `DEMONSTRATION` | New workspace tabs mount only in the demo branch. |
 | P25 | `DEMONSTRATION` | The production surface says the board API is still being built. |
@@ -408,11 +432,12 @@ image optimizer SSRF, obvious project ID guessing, hardcoded secret values in ch
 | F7 | Webhook hardening | Implemented | Source tests + runtime matrix PASS |
 | F8 | Real dynamic-route 404s | Implemented | Source tests pass; authenticated 404 blocked-on-env |
 | F9 | Middleware static metadata exclusions | Implemented | Source tests + curl-verified |
-| F10 | Production runtime tooling for port 4103 | Implemented | Current repo-owned `next start` and anonymous verifier receipt at `bad8ef1` |
+| F10 | Production runtime tooling for port 4103 | Implemented | Tooling exists; the `bad8ef1` runtime receipt is historical and both ports are currently down |
 | F11 | Fail-closed storage and retry UI | Partial | Source tests pass; provider, write-enable, CCNAS, scanner, and positive media proof remain |
 | F12 | Stable auth session JSON | Implemented | Source tests + runtime matrix PASS |
 | F13 | Error and response hygiene | Implemented | Source tests + runtime matrix PASS |
 | F14 | Contract documentation | Implemented | Four truth documents committed at `bad8ef1`; exact-diff rereview found no Critical or Important issues |
+| F15 | Canonical upload → asset → exact V1 authority | Implemented in source | Core `3c8f3f9`, hardening `2639e89`; current harness 1,150/1,153 tests pass, build/typecheck/lint pass, exact-diff rereviews clean; migrations unapplied and runtime unproved |
 
 ## Blocked-on-env
 
@@ -432,13 +457,12 @@ presence-only verification commands are in `BLOCKERS.md`.
 - `scripts/verify-runtime.sh`
 - Browser proof for upload, reload, playback, login, and protected-route behavior
 
-## Current runtime proof — 2026-07-26 (CCO-C2)
+## Historical runtime proof — 2026-07-26 (CCO-C2, expired)
 
-This receipt is current only while the exact repo-owned process remains up. It
-expires on runtime stop, rebuild, or PID/listener/cwd drift. A
-runtime-affecting application or build-input change makes the running process
-no longer evidence for the current application tree. Documentation-only
-changes do not invalidate the exact built-runtime receipt.
+This receipt expired when the exact repo-owned process stopped. Both `4103`
+and `4115` are currently down, and application source has advanced to
+`2639e89`, so the receipt is retained only as provenance and is not evidence
+for the current tree.
 
 - Runtime build HEAD: `bad8ef16e8fd041f98095f068d89140f20d74e45`
   (documentation-only descendant of the independently tested application
@@ -457,9 +481,10 @@ changes do not invalidate the exact built-runtime receipt.
   `503 BACKEND_UNAVAILABLE`; `/api/health/ready`: structured
   `503 HEALTH_AUTH_UNAVAILABLE`.
 
-This proves current production-mode serving and anonymous fail-closed behavior.
-It does not prove a configured backend, authenticated data, writable storage,
-scanner release, derivatives, or the real-file spine.
+This proved production-mode serving and anonymous fail-closed behavior for the
+dated `bad8ef1` build only. It does not prove current serving, a configured
+backend, authenticated data, writable storage, scanner release, derivatives,
+the unapplied CCO-C5A migration, or the real-file spine.
 
 ## Historical runtime proof — 2026-07-25 (post-cutover)
 

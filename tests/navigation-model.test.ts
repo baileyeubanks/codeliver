@@ -18,7 +18,7 @@ test("workspace navigation is filtered by role capabilities", () => {
   const viewerIds = visibleNavigation("viewer").flatMap((section) =>
     section.items.map((item) => item.id),
   );
-  assert.deepEqual(viewerIds, ["home", "projects", "reviews", "field", "library", "archive", "trash"]);
+  assert.deepEqual(viewerIds, ["home", "projects", "requests", "reviews", "field", "library", "archive", "trash"]);
 });
 
 test("the most specific route wins active navigation", () => {

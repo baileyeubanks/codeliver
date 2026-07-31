@@ -10,10 +10,11 @@ const source = readFileSync(
   "utf8",
 );
 
-test("the review document does not consume or reject a final-view session during server rendering", () => {
+test("the review document probes existence without consuming a final-view admission", () => {
   assert.doesNotMatch(source, /getReviewInviteByToken/);
   assert.doesNotMatch(source, /admitReviewInvite/);
   assert.match(source, /if \(!isOpaqueRouteToken\(token\)\) notFound\(\)/);
+  assert.match(source, /probeReviewDocumentAuthority\(token\)/);
   assert.match(source, /return <PublicReviewPage \/>/);
 });
 

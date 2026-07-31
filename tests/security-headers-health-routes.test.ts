@@ -124,6 +124,45 @@ test("global headers remove framework metadata and preserve review media capabil
   assert.match(contentSecurityPolicy, /https:\/\/fonts\.gstatic\.com/);
 });
 
+test("development CSP permits React debugging without weakening production CSP", async () => {
+  const previousNodeEnvironment = process.env.NODE_ENV;
+
+  try {
+    process.env.NODE_ENV = "development";
+    const developmentUrl = pathToFileURL(resolve(repositoryRoot, "next.config.ts"));
+    developmentUrl.searchParams.set("environment", "development-csp");
+    const { default: developmentConfig } = await import(developmentUrl.href);
+    const developmentRules = await developmentConfig.headers?.();
+    const developmentHeaders = new Map(
+      developmentRules
+        ?.find((rule) => rule.source === "/:path*")
+        ?.headers.map((header) => [header.key, header.value]),
+    );
+    assert.match(
+      developmentHeaders.get("Content-Security-Policy") ?? "",
+      /script-src 'self' 'unsafe-inline' 'unsafe-eval'/,
+    );
+
+    process.env.NODE_ENV = "production";
+    const productionUrl = pathToFileURL(resolve(repositoryRoot, "next.config.ts"));
+    productionUrl.searchParams.set("environment", "production-csp");
+    const { default: productionConfig } = await import(productionUrl.href);
+    const productionRules = await productionConfig.headers?.();
+    const productionHeaders = new Map(
+      productionRules
+        ?.find((rule) => rule.source === "/:path*")
+        ?.headers.map((header) => [header.key, header.value]),
+    );
+    assert.doesNotMatch(
+      productionHeaders.get("Content-Security-Policy") ?? "",
+      /'unsafe-eval'/,
+    );
+  } finally {
+    if (previousNodeEnvironment === undefined) delete process.env.NODE_ENV;
+    else process.env.NODE_ENV = previousNodeEnvironment;
+  }
+});
+
 test("public liveness endpoints omit service topology", async () => {
   for (const response of [await publicHealthGet(), await publicLiveGet()]) {
     assert.equal(response.status, 200);

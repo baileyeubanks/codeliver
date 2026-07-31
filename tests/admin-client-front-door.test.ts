@@ -263,6 +263,8 @@ test("protected admin and client cross-surface requests are denied without redir
 });
 
 test("the branded auth, cockpit, and public review shells retain mobile and desktop geometry", () => {
+  const globalStyles = source("app/globals.css");
+  const shellSource = source("components/Shell.tsx");
   const authStyles = source("components/auth/AuthShell.module.css");
   const shellStyles = source("components/Shell.module.css");
   const cockpitStyles = source("components/projects/ProjectCockpit.module.css");
@@ -281,6 +283,16 @@ test("the branded auth, cockpit, and public review shells retain mobile and desk
   assert.match(authStyles, /@media \(max-width:\s*360px\)[\s\S]*?padding-inline:\s*12px/);
 
   assert.match(shellStyles, /@media \(max-width:\s*760px\)[\s\S]*?env\(safe-area-inset-bottom\)/);
+  assert.doesNotMatch(
+    globalStyles,
+    /\.workspace-main\s*>\s*div\s*\{/,
+    "workspace notices must not inherit the full-height content wrapper geometry",
+  );
+  assert.match(
+    globalStyles,
+    /\.workspace-main\s*>\s*\.workspace-content-panel\s*\{[\s\S]*?min-height:\s*100%/,
+  );
+  assert.match(shellSource, /className=\{`\$\{styles\.content\} workspace-content-panel`\}/);
   assert.match(cockpitStyles, /@media \(max-width:\s*900px\)[\s\S]*?grid-template-columns:\s*minmax\(0, 1fr\)/);
   assert.match(cockpitStyles, /@media \(max-width:\s*900px\)[\s\S]*?\.shell :global\(\.cockpit-sidebar\)\s*\{\s*display:\s*none/);
   assert.match(publicReviewStyles, /@media \(min-width:\s*981px\)[\s\S]*?grid-template-columns:\s*minmax\(0, 1fr\) minmax\(360px, 390px\)/);

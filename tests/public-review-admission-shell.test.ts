@@ -114,7 +114,7 @@ test("overlapping initial and renewal admission calls share one server admission
   }
 });
 
-test("production page defers invite authority to admission and renews long sessions", () => {
+test("production page probes document truth, then admission renews long sessions", () => {
   const page = readFileSync(
     resolve(repositoryRoot, "app/review/[token]/page.tsx"),
     "utf8",
@@ -124,8 +124,10 @@ test("production page defers invite authority to admission and renews long sessi
     "utf8",
   );
 
-  assert.doesNotMatch(page, /getReviewInviteByToken|BackendUnavailableError/);
+  assert.doesNotMatch(page, /getReviewInviteByToken|admitReviewInvite/);
   assert.match(page, /isOpaqueRouteToken\(token\)/);
+  assert.match(page, /probeReviewDocumentAuthority\(token\)/);
+  assert.match(page, /BackendUnavailableError\("Review database"\)/);
   assert.match(page, /referrer:\s*"no-referrer"/);
   assert.match(client, /loadAdmittedPublicReview\(token\)/);
   assert.match(client, /renewPublicReviewAdmission\(token\)/);

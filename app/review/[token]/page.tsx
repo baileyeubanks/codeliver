@@ -8,6 +8,8 @@ import {
   isOpaqueRouteToken,
 } from "@/lib/dynamic-route-authority";
 import { isLocalDemoServerRequest } from "@/lib/demo/server-mode";
+import { BackendUnavailableError } from "@/lib/api/backend";
+import { probeReviewDocumentAuthority } from "@/lib/review/document-authority";
 
 export const metadata: Metadata = {
   referrer: "no-referrer",
@@ -56,5 +58,10 @@ export default async function PublicReviewRoute({
   }
 
   if (!isOpaqueRouteToken(token)) notFound();
+  const documentAuthority = await probeReviewDocumentAuthority(token);
+  if (!documentAuthority.ok) {
+    if (documentAuthority.status === 404) notFound();
+    throw new BackendUnavailableError("Review database");
+  }
   return <PublicReviewPage />;
 }

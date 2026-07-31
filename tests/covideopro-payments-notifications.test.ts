@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import test from "node:test";
 
 import {
@@ -80,6 +81,18 @@ test("money formatting is cents-exact", () => {
 
 /* ---------------------------- Notifications --------------------------------- */
 
+test("client-reachable notification helpers do not import Node-only modules", () => {
+  const notificationsSource = readFileSync(
+    new URL("../lib/covideopro/notifications.ts", import.meta.url),
+    "utf8",
+  );
+  assert.doesNotMatch(
+    notificationsSource,
+    /(?:from\s+|import\s*\()\s*["']node:/,
+    "Node-only imports break the browser bundle and leave the login surface unhydrated",
+  );
+});
+
 test("E.164 normalization accepts plausible numbers and rejects the rest", () => {
   assert.equal(normalizeE164("(555) 123-4567"), "+15551234567");
   assert.equal(normalizeE164("5551234567"), "+15551234567");
@@ -108,10 +121,40 @@ test("review-link drafts are per-channel with stable idempotency and dedupe", ()
 
   const keyA = notificationIdempotencyKey(drafts[0]);
   const keyB = notificationIdempotencyKey({ ...drafts[0] });
+  assert.equal(
+    keyA,
+    "10f349e645550a8c7d018f8c5e80c83a",
+    "browser-safe hashing must preserve the existing SHA-256 idempotency contract",
+  );
   assert.equal(keyA, keyB, "same intent ⇒ same key");
   assert.equal(notificationIdempotencyKey(drafts[2]), keyA, "duplicate channel ⇒ same key");
   const remaining = dedupeOutboxDrafts(drafts, [{ idempotency_key: keyA }]);
   assert.deepEqual(remaining.map((draft) => draft.channel), ["sms"]);
+});
+
+test("browser-safe idempotency hashing preserves SHA-256 for Unicode and multi-block messages", () => {
+  assert.equal(
+    notificationIdempotencyKey({
+      projectId: "ica",
+      intent: "review_link",
+      channel: "sms",
+      recipient: "+15551234567",
+      subject: "Cut review — versión 3 🎬",
+      body: `Frame notes: ${"🎬 café ".repeat(32)}`,
+    }),
+    "e37826049bf0d46a35a7fa7f8b3dce06",
+  );
+  assert.equal(
+    notificationIdempotencyKey({
+      projectId: "ica",
+      intent: "x",
+      channel: "email",
+      recipient: "A@EXAMPLE.COM",
+      subject: "",
+      body: "a".repeat(130),
+    }),
+    "7063c9a57ce6b25423bdf4008d807bf5",
+  );
 });
 
 test("dry-run dispatch: never live, unconfigured providers go pending", () => {

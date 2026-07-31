@@ -77,6 +77,10 @@ import type {
 } from "@/lib/types/codeliver";
 import PlayerTimeline from "@/components/player/PlayerTimeline";
 import { useDemoMediaObjectUrl } from "@/lib/demo/media-blob-store";
+import {
+  resolveDemoPublicReviewIdentity,
+  resolveDemoShareAssetId,
+} from "@/lib/demo/public-review-identity";
 
 interface Asset {
   id: string;
@@ -224,13 +228,29 @@ export default function PublicReviewPage() {
   const [approvalSubmitting, setApprovalSubmitting] = useState(false);
   const [approvalError, setApprovalError] = useState("");
   const demoMode = token === "demo" || searchParams.get("demo") === "1";
-  const requestedDemoShareToken = demoMode ? searchParams.get("share") : null;
+  const requestedDemoShareToken = demoMode
+    ? searchParams.get("share") ?? (token !== "demo" ? token : null)
+    : null;
   const requestedDemoShare = requestedDemoShareToken
     ? demoWorkspace.shareLinks.find((link) => link.token === requestedDemoShareToken)
     : null;
-  const requestedDemoAssetId = demoMode
-    ? searchParams.get("asset") ?? requestedDemoShare?.asset_ids[0] ?? null
-    : null;
+  const requestedDemoAssetQuery = demoMode ? searchParams.get("asset") : null;
+  const requestedDemoAssetResolution = requestedDemoShare
+    ? resolveDemoShareAssetId({
+        share: requestedDemoShare,
+        requestedAssetId: requestedDemoAssetQuery,
+      })
+    : requestedDemoAssetQuery
+      ? ({ ok: true, assetId: requestedDemoAssetQuery } as const)
+      : null;
+  const requestedDemoAssetId =
+    requestedDemoAssetResolution?.ok === true
+      ? requestedDemoAssetResolution.assetId
+      : null;
+  const requestedDemoAssetError =
+    requestedDemoAssetResolution?.ok === false
+      ? requestedDemoAssetResolution.error
+      : null;
   const demoMediaUrl = useDemoMediaObjectUrl(requestedDemoAssetId);
 
   // P19b/P22: the demo review surface resolves against the browser-local
@@ -299,15 +319,45 @@ export default function PublicReviewPage() {
             throw new Error("This review link has been revoked.");
           }
 
-          const workspaceAsset = demoWorkspace.assets.find(
-            (candidate) => candidate.id === requestedDemoAssetId,
-          );
-          const workspaceProject = demoWorkspace.projects.find(
-            (candidate) => candidate.id === workspaceAsset?.project_id,
-          );
-          const publicAssetId = workspaceAsset?.id ?? demoReviewPayload.asset.id;
-          const publicProjectId = workspaceAsset?.project_id ?? "demo";
-          const publicVersionId = `demo-version-${workspaceAsset?.version_count ?? 4}`;
+          if (requestedDemoAssetError) {
+            throw new Error(requestedDemoAssetError);
+          }
+          const scopedIdentity =
+            requestedDemoShareToken || requestedDemoAssetQuery
+              ? resolveDemoPublicReviewIdentity({
+                  workspace: {
+                    assets: demoWorkspace.assets,
+                    projects: demoWorkspace.projects,
+                    shareLinks: demoWorkspace.shareLinks,
+                  },
+                  shareToken: requestedDemoShareToken,
+                  requestedAssetId: requestedDemoAssetQuery,
+                  mediaObjectUrl: demoMediaUrl,
+                })
+              : null;
+          if (scopedIdentity && !scopedIdentity.ok) {
+            throw new Error(scopedIdentity.error);
+          }
+
+          const genericVersion =
+            currentVersion(demoReviewPayload.versions) ??
+            demoReviewPayload.versions[0];
+          if (!scopedIdentity && !genericVersion) {
+            throw new Error("This demo review is not bound to a media version yet.");
+          }
+
+          const publicAssetId =
+            scopedIdentity?.ok === true
+              ? scopedIdentity.asset.id
+              : demoReviewPayload.asset.id;
+          const publicProjectId =
+            scopedIdentity?.ok === true
+              ? scopedIdentity.projectId
+              : "demo";
+          const publicVersionId =
+            scopedIdentity?.ok === true
+              ? scopedIdentity.version.id
+              : genericVersion!.id;
           const requestedIntent =
             requestedDemoShare?.share_intent ??
             normalizeShareIntent(searchParams.get("intent")) ??
@@ -319,18 +369,10 @@ export default function PublicReviewPage() {
           const intentDefaults = resolveShareIntentDefaults(requestedIntent);
           const review = {
             ...demoReviewPayload,
-            asset: {
-              ...demoReviewPayload.asset,
-              id: publicAssetId,
-              title: workspaceAsset?.title ?? demoReviewPayload.asset.title,
-              file_url: demoMediaUrl ?? demoReviewPayload.asset.file_url,
-              status: workspaceAsset?.status ?? demoReviewPayload.asset.status,
-              projects: {
-                name: workspaceProject
-                  ? `${workspaceProject.name} / Client Review`
-                  : demoReviewPayload.asset.projects?.name ?? "Client Review",
-              },
-            },
+            asset:
+              scopedIdentity?.ok === true
+                ? scopedIdentity.asset
+                : demoReviewPayload.asset,
             permissions: requestedDemoShare?.permission ?? intentDefaults.permissions,
             expires_at: requestedDemoShare?.expires_at ?? demoReviewPayload.expires_at,
             download_enabled:
@@ -359,11 +401,10 @@ export default function PublicReviewPage() {
                   : null),
               permission: requestedDemoShare?.permission ?? intentDefaults.permissions,
             }),
-            comments: demoReviewPayload.comments.map((comment) => ({
-              ...comment,
-              asset_id: publicAssetId,
-              version_id: publicVersionId,
-            })),
+            comments:
+              scopedIdentity?.ok === true
+                ? []
+                : demoReviewPayload.comments,
             invite: {
               ...demoReviewPayload.invite,
               id: requestedDemoShare?.id ?? demoReviewPayload.invite.id,
@@ -383,7 +424,7 @@ export default function PublicReviewPage() {
               (comment) =>
                 comment.project_id === publicProjectId &&
                 comment.asset_id === publicAssetId &&
-                comment.version_id === publicVersionId,
+                (!comment.version_id || comment.version_id === publicVersionId),
             )
             .map((comment) => ({
               id: comment.id,
@@ -416,42 +457,20 @@ export default function PublicReviewPage() {
             ...review.asset,
             status: persistedApprovalState?.asset_status ?? review.asset.status,
           };
-          const demoVersion: Version = {
-            id: publicVersionId,
-            asset_id: publicAssetId,
-            version_number: workspaceAsset?.version_count ?? 4,
-            file_url: review.asset.file_url ?? "",
-            file_size: null,
-            thumbnail_url: "/demo/ceraweek-speaker.jpg",
-            duration_seconds: workspaceAsset?.duration_seconds ?? null,
-            resolution: "1920 x 1080",
-            is_current: true,
-            notes: "Local demo review version",
-            uploaded_by: null,
-            created_at: workspaceAsset?.created_at ?? new Date().toISOString(),
-          };
+          const demoVersion: Version =
+            scopedIdentity?.ok === true
+              ? scopedIdentity.version
+              : genericVersion!;
           const rootComments = restoredComments.filter((comment) => !comment.parent_id);
           const initialSelection =
             rootComments.find((comment) => comment.status === "open")?.id ??
             rootComments[0]?.id ??
             null;
 
-          // P19: the demo payload carries the V1–V3 seed list (P19a); a
-          // payload without one falls back to the single version the loader
-          // has always built — the switcher then shows one chip.
-          const seededVersions = (demoReviewPayload as { versions?: Version[] }).versions;
-          const versionList = seededVersions?.length
-            ? sortVersions(
-                seededVersions.map((candidate) => ({
-                  ...candidate,
-                  asset_id: publicAssetId,
-                  file_url:
-                    candidate.is_current && demoMediaUrl
-                      ? demoMediaUrl
-                      : candidate.file_url,
-                })),
-              )
-            : [demoVersion];
+          const versionList =
+            scopedIdentity?.ok === true
+              ? scopedIdentity.versions
+              : sortVersions(demoReviewPayload.versions);
           // ?v= is the canonical deep-link; ?version= is honored as an alias.
           const requestedVersion = resolveVersionParam(
             versionList,
@@ -584,6 +603,8 @@ export default function PublicReviewPage() {
     demoWorkspace.reviewComments,
     demoWorkspace.shareLinks,
     requestedDemoAssetId,
+    requestedDemoAssetQuery,
+    requestedDemoAssetError,
     requestedDemoShare,
     requestedDemoShareToken,
     searchParams,

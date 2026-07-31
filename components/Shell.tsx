@@ -486,7 +486,7 @@ export default function Shell({ children }: { children: React.ReactNode }) {
               <DatabaseZap size={15} /> Backend storage is unreachable — work stays in this browser until the readiness probe recovers.
             </div>
           ) : null}
-          <div className={styles.content}>{children}</div>
+          <div className={`${styles.content} workspace-content-panel`}>{children}</div>
         </main>
       </div>
 

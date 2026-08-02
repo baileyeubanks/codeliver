@@ -40,7 +40,11 @@ test("GET /api/version returns a sha field", async () => {
   const body = await res.json();
   assert.equal(typeof body.sha, "string");
   assert.ok(body.sha.length > 0, "sha must be a non-empty string");
-  assert.equal(body.product, "co-videopro");
+  // CCO_GOAL §4 DECIDED #3 + LONG_HORIZON Phase 02 exit spec:
+  // { sha, builtAt, product: "Co-VideoPro" } — casing is part of the gate.
+  assert.equal(body.product, "Co-VideoPro");
+  assert.equal(typeof body.builtAt, "string");
+  assert.ok(body.builtAt.length > 0, "builtAt must be a non-empty string");
   assert.equal(res.headers.get("Cache-Control"), "no-store");
 });
 

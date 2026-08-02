@@ -9,9 +9,14 @@ import { NextRequest } from "next/server.js";
 
 import {
   ADMIN_SURFACE_HOST,
+  APP_SURFACE_HOST,
   buildProtectedReturnPath,
   buildSurfaceUrl,
   CLIENT_SURFACE_HOST,
+  isAppProductHost,
+  isApprovedProductionHost,
+  isCcoOsAdminHost,
+  ccoOsAdminRedirectUrl,
   LOGIN_PATH,
   resolveHostSurface,
   resolveTrustedSurfaceRole,
@@ -63,9 +68,13 @@ const runtimeState = globalThis as typeof globalThis & {
 };
 
 test("managed hosts are recognized exactly without suffix or credential confusion", () => {
-  assert.equal(resolveHostSurface(ADMIN_SURFACE_HOST), "admin");
-  assert.equal(resolveHostSurface(`${ADMIN_SURFACE_HOST}:443`), "admin");
+  assert.equal(resolveHostSurface(ADMIN_SURFACE_HOST), null); // CCO OS host, not CVP
+  assert.equal(resolveHostSurface(`${ADMIN_SURFACE_HOST}:443`), null);
   assert.equal(resolveHostSurface(CLIENT_SURFACE_HOST.toUpperCase()), "client");
+  assert.equal(isAppProductHost(APP_SURFACE_HOST), true);
+  assert.equal(isAppProductHost(`www.${APP_SURFACE_HOST}`), true);
+  assert.equal(isApprovedProductionHost(APP_SURFACE_HOST), true);
+  assert.equal(resolveHostSurface(APP_SURFACE_HOST), "admin"); // staff surface on product host
 
   for (const host of [
     `attacker.${ADMIN_SURFACE_HOST}`,
@@ -74,9 +83,11 @@ test("managed hosts are recognized exactly without suffix or credential confusio
     `${ADMIN_SURFACE_HOST}.`,
     `${ADMIN_SURFACE_HOST}:8443`,
     "deliver.contentco-op.com",
+    `attacker.${APP_SURFACE_HOST}`,
     "",
   ]) {
     assert.equal(resolveHostSurface(host), null, host);
+    assert.equal(isApprovedProductionHost(host), false, host);
   }
 });
 
@@ -154,7 +165,7 @@ test("one login path carries only a safe local return target", () => {
 
   assert.equal(
     buildSurfaceUrl("admin", "/projects/ica?view=review").toString(),
-    "https://admin.contentco-op.com/projects/ica?view=review",
+    "https://co-videopro.com/projects/ica?view=review",
   );
   assert.equal(
     buildSurfaceUrl("client", "https://attacker.example/session").toString(),
@@ -182,8 +193,8 @@ test("proxy routes verified identities and denies untrusted managed-surface acce
       app_metadata: { content_coop_role: "staff" },
     };
     const allowed = await proxy(
-      new NextRequest("https://admin.contentco-op.com/projects?view=review", {
-        headers: { host: ADMIN_SURFACE_HOST },
+      new NextRequest("https://co-videopro.com/projects?view=review", {
+        headers: { host: APP_SURFACE_HOST },
       }),
     );
     assert.equal(allowed.status, 200);
@@ -202,8 +213,8 @@ test("proxy routes verified identities and denies untrusted managed-surface acce
     assert.equal(clientAllowed.headers.get("x-middleware-next"), "1");
 
     const mismatch = await proxy(
-      new NextRequest("https://admin.contentco-op.com/projects/ica?view=review", {
-        headers: { host: ADMIN_SURFACE_HOST },
+      new NextRequest("https://co-videopro.com/projects/ica?view=review", {
+        headers: { host: APP_SURFACE_HOST },
       }),
     );
     assert.equal(mismatch.status, 403);
@@ -218,8 +229,8 @@ test("proxy routes verified identities and denies untrusted managed-surface acce
       email: "typed-by-client@contentco-op.com",
     };
     const denied = await proxy(
-      new NextRequest("https://admin.contentco-op.com/projects", {
-        headers: { host: ADMIN_SURFACE_HOST },
+      new NextRequest("https://co-videopro.com/projects", {
+        headers: { host: APP_SURFACE_HOST },
       }),
     );
     assert.equal(denied.status, 403);
@@ -241,8 +252,8 @@ test("proxy routes verified identities and denies untrusted managed-surface acce
 
     runtimeState.__ccoHostSurfaceUser = { app_metadata: { role: "staff" } };
     const legacyClaimDenied = await proxy(
-      new NextRequest("https://admin.contentco-op.com/projects", {
-        headers: { host: ADMIN_SURFACE_HOST },
+      new NextRequest("https://co-videopro.com/projects", {
+        headers: { host: APP_SURFACE_HOST },
       }),
     );
     assert.equal(legacyClaimDenied.status, 403);
@@ -337,11 +348,11 @@ test("proxy routes verified identities and denies untrusted managed-surface acce
     assert.equal(runtimeState.__ccoHostSurfaceGetUserCalls, callsBeforeUnknownHost);
 
     const missingHost = await proxy(
-      new NextRequest("https://admin.contentco-op.com/login"),
+      new NextRequest("https://co-videopro.com/login"),
     );
     assert.equal(missingHost.status, 403);
 
-    for (const surfaceHost of [ADMIN_SURFACE_HOST, CLIENT_SURFACE_HOST]) {
+    for (const surfaceHost of [APP_SURFACE_HOST, CLIENT_SURFACE_HOST]) {
       for (const path of ["/login", "/api/auth/signup", "/demo/cco-lockup.png", "/brand/co-production-pro-horizontal.png"]) {
         const response = await proxy(
           new NextRequest(`https://${surfaceHost}${path}`, {
@@ -379,12 +390,12 @@ test("proxy routes verified identities and denies untrusted managed-surface acce
     runtimeState.__ccoHostSurfaceUser = null;
     const login = await proxy(
       new NextRequest("https://untrusted.example/projects/ica?view=review", {
-        headers: { host: ADMIN_SURFACE_HOST },
+        headers: { host: APP_SURFACE_HOST },
       }),
     );
     const loginLocation = new URL(login.headers.get("location") ?? "");
     assert.equal(login.status, 307);
-    assert.equal(loginLocation.origin, `https://${ADMIN_SURFACE_HOST}`);
+    assert.equal(loginLocation.origin, `https://${APP_SURFACE_HOST}`);
     assert.equal(loginLocation.pathname, LOGIN_PATH);
     assert.equal(loginLocation.searchParams.get("next"), "/projects/ica?view=review");
   } finally {
@@ -399,4 +410,13 @@ test("proxy routes verified identities and denies untrusted managed-surface acce
     if (previousDemoMode === undefined) delete process.env.CODELIVER_DEMO_MODE;
     else process.env.CODELIVER_DEMO_MODE = previousDemoMode;
   }
+});
+
+
+test("admin.contentco-op.com is CCO OS, not a Co-VideoPro surface", () => {
+  assert.equal(isCcoOsAdminHost(ADMIN_SURFACE_HOST), true);
+  assert.equal(resolveHostSurface(ADMIN_SURFACE_HOST), null);
+  assert.equal(isApprovedProductionHost(ADMIN_SURFACE_HOST), false);
+  assert.equal(ccoOsAdminRedirectUrl("/"), "https://admin.contentco-op.com/os");
+  assert.equal(ccoOsAdminRedirectUrl("/os/quotes"), "https://admin.contentco-op.com/os/quotes");
 });

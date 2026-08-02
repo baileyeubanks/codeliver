@@ -175,7 +175,7 @@ test("share modal keeps compact cockpit controls while preserving the share cont
 
   assert.match(shareModal, /role="dialog"/);
   assert.match(shareModal, /aria-modal="true"/);
-  assert.match(shareModal, /Co‑ProVideo sharing controls/);
+  assert.match(shareModal, /Co-VideoPro sharing controls/);
   assert.match(shareModal, /aria-pressed=\{selected\}/);
   assert.match(shareModal, /Create \$\{intentDefinition\.label\.toLowerCase\(\)\} link/);
   assert.doesNotMatch(shareModal, /rounded-full/);

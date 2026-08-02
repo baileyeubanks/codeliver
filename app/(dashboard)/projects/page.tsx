@@ -27,6 +27,7 @@ import MediaCard, { type MediaAsset } from "@/components/projects/MediaCard";
 import MediaTable from "@/components/projects/MediaTable";
 import AssetUpload from "@/components/assets/AssetUpload";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import DemoShareModal from "@/components/demo/DemoShareModal";
 import {
   addDemoAssets,
@@ -49,22 +50,22 @@ const AUTHORITATIVE_UPLOAD_INPUT_ID = "projects-authoritative-upload-input";
 
 const lifecyclePath = [
   {
-    label: "Intake",
+    label: "Pre-Production",
     detail: "Project shell and brief",
     icon: FileText,
   },
   {
-    label: "Ingest",
+    label: "Production",
     detail: "Media upload and versions",
     icon: Upload,
   },
   {
-    label: "Review",
+    label: "Post-Production",
     detail: "Comments and approvals",
     icon: MessageSquare,
   },
   {
-    label: "Delivery",
+    label: "Delivery & Assets",
     detail: "Share links and exports",
     icon: CheckCircle2,
   },
@@ -106,6 +107,7 @@ export default function ProjectsPage() {
   );
   const [remoteLoading, setRemoteLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
+  const router = useRouter();
   const [showNewProject, setShowNewProject] = useState(false);
   const [newProjectName, setNewProjectName] = useState("");
   const [shareOpen, setShareOpen] = useState(false);
@@ -439,7 +441,7 @@ export default function ProjectsPage() {
                 key={item.label}
                 className="grid min-h-[74px] grid-cols-[32px_minmax(0,1fr)] items-center gap-3 rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3 py-2"
               >
-                <span className="flex h-8 w-8 items-center justify-center rounded-md bg-[var(--surface)] text-[var(--accent)]">
+                <span className="flex h-8 w-8 items-center justify-center rounded-md bg-[var(--accent-dim)] text-[var(--accent)]">
                   <Icon size={16} />
                 </span>
                 <span className="min-w-0">
@@ -484,10 +486,10 @@ export default function ProjectsPage() {
 
         <div className="library-status-row" aria-label="Project status strip">
           <span>{filtered.length} {filtered.length === 1 ? "deliverable" : "deliverables"}</span>
-          <span><i className="status-dot green" />{filtered.filter((asset) => asset.status === "in_review").length} in review</span>
+          <span><i className="status-dot blue" />{filtered.filter((asset) => asset.status === "in_review").length} in review</span>
           <span><i className="status-dot orange" />{filtered.filter((asset) => asset.status === "needs_changes").length} changes requested</span>
-          <span><i className="status-dot blue" />{filtered.filter((asset) => asset.status === "approved").length} approved</span>
-          <span><Clock3 size={13} />Transcript, waveform, and export readiness appear after processing jobs report back.</span>
+          <span><i className="status-dot green" />{filtered.filter((asset) => asset.status === "approved").length} approved</span>
+          <span><Clock3 size={13} />Transcript, waveform, and export readiness appear once media finishes processing.</span>
         </div>
 
         {selectedIds.size > 0 ? (
@@ -521,27 +523,32 @@ export default function ProjectsPage() {
           onSearchChange={setSearchQuery}
           selectAll={selectAll}
           onSelectAll={handleSelectAll}
-          onNewFolder={() => setShowNewProject(true)}
+          onNewFolder={() => router.push(`/projects/new${demoSuffix}`)}
           thumbnailSize={thumbnailSize}
           onThumbnailSize={setThumbnailSize}
           onUpload={triggerUpload}
           uploading={uploading}
         />
 
-        {/* New Project modal */}
+        {/* Quick add: name-only workspace, no brief */}
         {showNewProject && (
-          <div className="mb-4 flex items-center gap-3 rounded-lg border border-[var(--border)] bg-[var(--surface)] p-4">
-            <input
-              type="text"
-              value={newProjectName}
-              onChange={(e) => setNewProjectName(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && createProject()}
-              placeholder="Workspace name..."
-              className="input flex-1"
-              autoFocus
-            />
-            <button onClick={createProject} className="btn btn-primary">Create workspace</button>
-            <button onClick={() => setShowNewProject(false)} className="btn btn-secondary">Cancel</button>
+          <div className="mb-4 rounded-lg border border-[var(--border)] bg-[var(--surface)] p-4">
+            <p className="mb-2 text-xs text-[var(--muted)]">
+              Quick add creates a name-only workspace. Add the client and brief later, or use New workspace for the full intake.
+            </p>
+            <div className="flex items-center gap-3">
+              <input
+                type="text"
+                value={newProjectName}
+                onChange={(e) => setNewProjectName(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && createProject()}
+                placeholder="Workspace name..."
+                className="input flex-1"
+                autoFocus
+              />
+              <button onClick={createProject} className="btn btn-primary">Create workspace</button>
+              <button onClick={() => setShowNewProject(false)} className="btn btn-secondary">Cancel</button>
+            </div>
           </div>
         )}
 
@@ -579,14 +586,14 @@ export default function ProjectsPage() {
                     className="btn btn-secondary"
                     onClick={() => setShowNewProject(true)}
                   >
-                    <Plus size={14} /> New workspace
+                    <Plus size={14} /> Quick add
                   </button>
                 )}
                 <button
                   className="page-upload-btn"
                   onClick={triggerUpload}
                 >
-                  <Upload size={14} /> Upload Media
+                  <Upload size={14} /> Upload media
                 </button>
               </div>
             )}

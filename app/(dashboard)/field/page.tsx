@@ -26,7 +26,7 @@ const RELEASE_NEXT: Record<string, string | null> = {
 };
 
 const card: React.CSSProperties = {
-  background: "var(--card, #fffdf8)",
+  background: "var(--surface)",
   border: "1px solid var(--border)",
   borderRadius: 12,
   padding: "14px 16px",
@@ -67,8 +67,8 @@ export default function FieldPage() {
     return (
       <div className="projects-content flex-1 overflow-y-auto px-6 py-4">
         <div className="empty-state" style={{ minHeight: 320 }}>
-          <h3 className="empty-state-title">Field works with the local workspace</h3>
-          <p className="empty-state-text">The field view reads the local Project Operating Record — production days, shot lists, releases, and clearances.</p>
+          <h3 className="empty-state-title">Field is not connected yet</h3>
+          <p className="empty-state-text">Connect this workspace to see production days, shot lists, releases, and clearances for your shoots.</p>
         </div>
       </div>
     );
@@ -115,7 +115,8 @@ export default function FieldPage() {
     <div className="projects-content flex-1 overflow-y-auto px-5 py-5">
       <div style={{ maxWidth: 560, margin: "0 auto" }}>
         <header className="mb-4">
-          <h1 className="text-xl font-semibold text-[var(--ink)]">Field</h1>
+          <p className="mb-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-[var(--accent)]">Production</p>
+          <h1 className="text-2xl font-semibold tracking-tight text-[var(--ink)]">Field</h1>
           <p className="mt-1 text-sm text-[var(--muted)]">The shoot day in your pocket — shots, releases, clearances.</p>
           <select
             aria-label="Field project"
@@ -125,7 +126,7 @@ export default function FieldPage() {
               router.replace(`/field?project=${event.target.value}&demo=1`);
             }}
             className="mt-3 w-full"
-            style={{ minHeight: 44, borderRadius: 10, border: "1px solid var(--border)", background: "var(--card, #fffdf8)", padding: "0 12px" }}
+            style={{ minHeight: 44, borderRadius: 10, border: "1px solid var(--border)", background: "var(--surface)", padding: "0 12px" }}
           >
             {workspace.projects.map((candidate) => (
               <option key={candidate.id} value={candidate.id}>{candidate.name}</option>
@@ -222,7 +223,7 @@ export default function FieldPage() {
               </div>
             ))}
             {liveShots.length === 0 ? (
-              <p className="text-sm text-[var(--muted)]">No shot list for this day yet — build it in the Plan surface.</p>
+              <p className="text-sm text-[var(--muted)]">No shots planned for this day yet — add them from the project workspace.</p>
             ) : null}
           </section>
         ) : null}

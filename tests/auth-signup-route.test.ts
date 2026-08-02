@@ -9,6 +9,7 @@ const repositoryRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const hostSurfaceStubUrl = `data:text/javascript,${encodeURIComponent(`
   export const ADMIN_SURFACE_HOST = "admin.example.test";
   export const CLIENT_SURFACE_HOST = "client.example.test";
+  export const APP_SURFACE_HOST = "co-videopro.com";
 `)}`;
 
 const authStubUrl = `data:text/javascript,${encodeURIComponent(`

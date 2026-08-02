@@ -1,0 +1,20 @@
+[
+  {"url":"/projects","name":"projects","viewport":"1440x900","auth":true},
+  {"url":"/projects","name":"projects","viewport":"768x1024","auth":true},
+  {"url":"/projects","name":"projects","viewport":"375x812","auth":true},
+  {"url":"/projects/new","name":"projects-new","viewport":"1440x900","auth":true},
+  {"url":"/projects/new","name":"projects-new","viewport":"768x1024","auth":true},
+  {"url":"/projects/new","name":"projects-new","viewport":"375x812","auth":true},
+  {"url":"/projects/archive","name":"projects-archive","viewport":"1440x900","auth":true},
+  {"url":"/projects/archive","name":"projects-archive","viewport":"768x1024","auth":true},
+  {"url":"/projects/archive","name":"projects-archive","viewport":"375x812","auth":true},
+  {"url":"/projects/trash","name":"projects-trash","viewport":"1440x900","auth":true},
+  {"url":"/projects/trash","name":"projects-trash","viewport":"768x1024","auth":true},
+  {"url":"/projects/trash","name":"projects-trash","viewport":"375x812","auth":true},
+  {"url":"/projects/ica","name":"project-ica","viewport":"1440x900","auth":true,"wait":3000},
+  {"url":"/projects/ica","name":"project-ica","viewport":"768x1024","auth":true},
+  {"url":"/projects/ica","name":"project-ica","viewport":"375x812","auth":true},
+  {"url":"/projects/ica/assets/charles-drummond-v5","name":"asset-charles","viewport":"1440x900","auth":true,"wait":3500},
+  {"url":"/projects/ica/assets/charles-drummond-v5","name":"asset-charles","viewport":"768x1024","auth":true,"wait":3000},
+  {"url":"/projects/ica/assets/charles-drummond-v5","name":"asset-charles","viewport":"375x812","auth":true,"wait":3000}
+]

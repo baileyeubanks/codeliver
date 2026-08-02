@@ -237,8 +237,8 @@ export default function SettingsPage() {
         {
           id: "email",
           label: "Email",
-          value: "Provider checked",
-          detail: "Adapter readiness loads from the preferences API",
+          value: "Checking",
+          detail: "We verify your email delivery service before sending",
           icon: Mail,
           good: true,
         },
@@ -313,7 +313,7 @@ export default function SettingsPage() {
           <SettingsSection
             title="Notification authority"
             detail="Each channel is permission-aware. Dry-run and unconfigured channels are visible so the workspace never implies a message was sent when no provider is connected."
-            action={<StatusBadge tone={demoMode ? "info" : "good"}>{demoMode ? "Local controls" : "API backed"}</StatusBadge>}
+            action={<StatusBadge tone={demoMode ? "info" : "good"}>{demoMode ? "Preview workspace" : "Saved to your account"}</StatusBadge>}
           >
             <div className="overflow-hidden rounded-[var(--radius)] border border-[var(--border)] bg-[var(--border)]">
               <div className="grid gap-px sm:grid-cols-2 xl:grid-cols-4">
@@ -447,7 +447,7 @@ export default function SettingsPage() {
               <NotificationSection
                 icon={<MessagesSquare size={16} />}
                 title="iMessage relay"
-                detail={`${settings.notifications.imessage.relayName} - ${
+                detail={`${settings.notifications.imessage.relayName} · ${
                   settings.notifications.imessage.status === "ready"
                     ? "connected"
                     : settings.notifications.imessage.status === "dry_run"
@@ -496,8 +496,8 @@ export default function SettingsPage() {
           ) : (
             <SettingsSection
               title="Managed preferences"
-              detail="Saved per-event preferences are read from and written to the authenticated notification preferences API."
-              action={<StatusBadge tone="good">Persisted</StatusBadge>}
+              detail="Your per-event notification choices are saved to your account and applied everywhere you sign in."
+              action={<StatusBadge tone="good">Saved</StatusBadge>}
             >
               <NotificationPreferences />
             </SettingsSection>

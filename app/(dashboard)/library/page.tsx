@@ -171,10 +171,10 @@ export default function LibraryPage() {
     <div className="mx-auto w-full max-w-7xl px-4 py-5 sm:px-6">
       <div className="mb-4 flex flex-wrap items-start justify-between gap-4 border-b border-[var(--border)] pb-4">
         <div className="min-w-0">
-          <p className="mb-1 text-[10px] font-bold uppercase text-[var(--dim)]">Asset management</p>
-          <h1 className="text-[22px] font-bold leading-tight text-[var(--ink)]">Media library</h1>
+          <p className="mb-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-[var(--accent)]">Asset management</p>
+          <h1 className="text-2xl font-semibold tracking-tight text-[var(--ink)]">Media library</h1>
           <p className="mt-1 max-w-2xl text-sm text-[var(--muted)]">
-            Search, inspect, and reopen project assets without leaving the Co‑ProVideo workspace.
+            Search, inspect, and reopen project assets without leaving the Co-VideoPro workspace.
           </p>
         </div>
         <Link

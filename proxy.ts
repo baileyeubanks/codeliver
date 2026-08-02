@@ -4,6 +4,10 @@ import { createServerClient } from "@supabase/ssr";
 import {
   buildProtectedReturnPath,
   hostForSurface,
+  ccoOsAdminRedirectUrl,
+  isAppProductHost,
+  isApprovedProductionHost,
+  isCcoOsAdminHost,
   LOGIN_PATH,
   resolveHostSurface,
   resolveTrustedSurfaceRole,
@@ -22,6 +26,8 @@ import {
 
 const PUBLIC_EXACT_ROUTES = [
   LOGIN_PATH,
+  "/login/forgot",
+  "/forgot-password",
   "/signup",
   "/welcome",
   "/auth/callback",
@@ -326,12 +332,20 @@ export async function proxy(req: NextRequest) {
     isLocalDemoPreviewEnabled() &&
     req.nextUrl.searchParams.get("demo") === "1";
 
-  if (!hostSurface && !localDevelopment) {
+  // admin.contentco-op.com is CCO OS — never serve Co-VideoPro there.
+  if (isCcoOsAdminHost(host)) {
+    return NextResponse.redirect(ccoOsAdminRedirectUrl(req.nextUrl.pathname), 308);
+  }
+
+  if (!localDevelopment && !isApprovedProductionHost(host)) {
     return hostAccessDenied(pathname);
   }
 
-  if (hostSurface) {
-    const launchGateResponse = productionApiLaunchGate(req, hostSurface);
+  // Unified product host uses the admin API allowlist (full workspace surface).
+  // Split admin/client hosts keep their own allowlists + role gates below.
+  const launchSurface = hostSurface ?? (isAppProductHost(host) ? "admin" : null);
+  if (launchSurface) {
+    const launchGateResponse = productionApiLaunchGate(req, launchSurface);
     if (launchGateResponse) return launchGateResponse;
   }
 

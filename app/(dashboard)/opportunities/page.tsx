@@ -35,6 +35,15 @@ const INQUIRY_STATUS_LABEL: Record<Inquiry["status"], string> = {
   declined: "Declined",
 };
 
+const PROPOSAL_STATUS_LABEL: Record<string, string> = {
+  draft: "Draft",
+  in_review: "In review",
+  sent: "Sent",
+  approved: "Approved",
+  declined: "Declined",
+  superseded: "Superseded",
+};
+
 export default function OpportunitiesPage() {
   const demoMode = useDemoMode();
   const workspace = useDemoWorkspace();
@@ -112,8 +121,8 @@ export default function OpportunitiesPage() {
     <div className="projects-content flex-1 overflow-y-auto px-6 py-4">
       <header className="mb-4 flex flex-wrap items-end justify-between gap-3 border-b border-[var(--border)] pb-4">
         <div className="min-w-0 max-w-3xl">
-          <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[var(--muted)]">Opportunities</p>
-          <h1 className="text-xl font-semibold text-[var(--ink)]">Inquiries, clients, and proposal pipeline</h1>
+          <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[var(--accent)]">Opportunities</p>
+          <h1 className="text-2xl font-semibold tracking-tight text-[var(--ink)]">Inquiries, clients, and proposal pipeline</h1>
           <p className="mt-1 max-w-2xl text-sm text-[var(--muted)]">
             Where new work becomes a production. Qualify inquiries, keep client context, and move proposals to approval.
           </p>
@@ -283,7 +292,7 @@ export default function OpportunitiesPage() {
                   <span className="flex items-center gap-2 text-sm font-semibold text-[var(--ink)]">
                     <FileText size={15} /> {proposal.title}
                   </span>
-                  <span className="demo-pill">{proposal.status}</span>
+                  <span className="demo-pill">{PROPOSAL_STATUS_LABEL[proposal.status] ?? proposal.status}</span>
                 </header>
                 <p className="mt-1 text-xs text-[var(--muted)]">
                   {project?.name} · v{proposal.version} · <strong className="text-sm font-semibold text-[var(--ink)]" style={{ fontVariantNumeric: "tabular-nums" }}>${total.toLocaleString(undefined, { maximumFractionDigits: 0 })}</strong>

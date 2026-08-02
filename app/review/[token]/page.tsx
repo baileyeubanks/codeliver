@@ -12,6 +12,8 @@ import { BackendUnavailableError } from "@/lib/api/backend";
 import { probeReviewDocumentAuthority } from "@/lib/review/document-authority";
 
 export const metadata: Metadata = {
+  title: "Review | Co-VideoPro",
+  description: "Watch, comment on, and approve your Content Co-op deliverables.",
   referrer: "no-referrer",
   robots: {
     index: false,

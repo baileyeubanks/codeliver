@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { headers } from "next/headers";
 import { notFound } from "next/navigation";
 import InternalAssetReviewPage from "@/components/review/InternalAssetReviewPage";
@@ -6,6 +7,10 @@ import { BackendUnavailableError } from "@/lib/api/backend";
 import { requireAuth } from "@/lib/auth";
 import { isKnownDemoAssetRoute, isProductionRecordId } from "@/lib/dynamic-route-authority";
 import { isLocalDemoServerRequest } from "@/lib/demo/server-mode";
+
+export const metadata: Metadata = {
+  title: "Asset review | Co-VideoPro",
+};
 
 export default async function AssetReviewRoute({
   params,

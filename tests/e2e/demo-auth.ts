@@ -11,7 +11,7 @@ export const DEMO_PASSWORD = "demo-password";
 export async function signInDemoWorkspace(page: Page) {
   await page.goto("/login?demo=1");
   await expect(
-    page.getByRole("heading", { name: "Sign in to Co‑ProVideo" }),
+    page.getByRole("heading", { name: "Sign in to Co-VideoPro" }),
   ).toBeVisible();
   await page.getByLabel("Email").fill(DEMO_EMAIL);
   await page.getByLabel("Password", { exact: true }).fill(DEMO_PASSWORD);

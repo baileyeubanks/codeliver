@@ -134,9 +134,9 @@ Baseline: `e068ee8` (checkpoint of the prior session's transformation state).
 - Boards absorbed from `~/Downloads/Webster_Product_Board_Package` (5 boards; board 03 governs T4 mobile dark field instrument).
 - Suite 578/578; tsc clean; screenshots 31–33 (login, home, welcome).
 
-## U16 — Identity: Webster retired → Co‑ProVideo + CCO universe adoption (2026-07-17)
+## U16 — Identity: Webster retired → Co-VideoPro + CCO universe adoption (2026-07-17)
 
-- Webster was a false start; retired. The product is **Co‑ProVideo by Content Co-op**, inside the **CCO OS** universe (co-videopro = admin shell, client surface simplified, public contentco-op.com untouched).
+- Webster was a false start; retired. The product is **Co-VideoPro by Content Co-op**, inside the **CCO OS** universe (co-videopro = admin shell, client surface simplified, public contentco-op.com untouched).
 - `docs/CCO_DESIGN_UNIVERSE_ADOPTION.md`: dialect law, surface mapping, ROOT deletion ledger. Mega audit preserved verbatim at `docs/CCO_DESIGN_UNIVERSE_MEGA_AUDIT.md`. Naming/colorway law in §5; muted CVP artwork (`public/brand/cvp-mark-muted.png`, `cvp-stacked-muted.png`, ffmpeg hue=s=0.5).
 - Cut Check spec verified and parked (back burner, user decision). Commits a11c907 → 4c7d85c.
 

@@ -1,0 +1,120 @@
+/* ==========================================================================
+   Co-VideoPro — Foundation layer
+   Token authority for docs/CO_VIDEOPRO_CANON.md §2. A surface that reads its
+   values from here cannot drift. Light UI, Inter, Sapphire blue, neutrals
+   dominant, RGY for meaning only. Dark is the player, not the product.
+   ========================================================================== */
+
+:root {
+  /* --- brand blue: identity AND the single interaction colour ------------ */
+  --sapphire:      #0057FF;   /* CTAs, links, active state, key data */
+  --deep-blue:     #0033A0;   /* hover, pressed */
+  --gradient-base: #0003CC;   /* gradient start — logo and hero only */
+  --sky:           #4DA3FF;   /* secondary accent, gradient end */
+  --pale:          #BCC2FF;   /* soft fills, tags, selected */
+  --ice:           #EAF2FF;   /* lightest tint, info bg, active row wash */
+
+  /* --- neutrals: these dominate the screen ------------------------------- */
+  --white:    #FFFFFF;
+  --canvas:   #F7F9FC;
+  --gray-100: #F1F5F9;
+  --gray-300: #CBD5E1;   /* the one border value */
+  --gray-500: #8B94A3;   /* NON-TEXT ONLY — 3.0:1 on white */
+  --gray-700: #334155;   /* secondary + caption text — 10.4:1 */
+  --slate:    #1A2233;
+  --ink:      #040F1C;   /* primary text; player chrome */
+
+  /* --- semantic: purpose only, never decorative -------------------------- */
+  --green: #16A34A;   /* complete · approved · healthy */
+  --amber: #F59E0B;   /* attention · in review · pending */
+  --red:   #DC2626;   /* blocker · needs action · over estimate */
+  /* blue doubles as active · in progress */
+
+  --green-soft: #E7F6EC;
+  --amber-soft: #FEF3E2;
+  --red-soft:   #FDECEC;
+
+  /* --- form -------------------------------------------------------------- */
+  --r-panel: 12px;
+  --r-ctl:    8px;
+  --pill:   999px;
+  --line:   var(--gray-300);
+
+  /* 4px grid */
+  --s1: 4px;  --s2: 8px;  --s3: 12px; --s4: 16px;
+  --s5: 20px; --s6: 24px; --s8: 32px;
+
+  --font: Inter, ui-sans-serif, -apple-system, "Segoe UI", sans-serif;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+html, body {
+  height: 100%;
+  background: var(--canvas);
+  color: var(--ink);
+  font-family: var(--font);
+  font-variant-numeric: tabular-nums;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* --- type roles (canon §2.3) --------------------------------------------- */
+.t-display { font-size: 48px; line-height: 56px; font-weight: 800; letter-spacing: -0.03em; }
+.t-h2      { font-size: 32px; line-height: 40px; font-weight: 600; letter-spacing: -0.022em; }
+.t-h3      { font-size: 24px; line-height: 32px; font-weight: 600; letter-spacing: -0.018em; }
+.t-body    { font-size: 16px; line-height: 24px; font-weight: 400; }
+.t-data    { font-size: 14px; line-height: 20px; font-weight: 500; }
+.t-caption { font-size: 12px; line-height: 16px; font-weight: 400; color: var(--gray-700); }
+/* Hierarchy below secondary is made with size, weight and tracking — never
+   with a lighter grey, because the next grey down fails AA on white. */
+.t-micro {
+  font-size: 11px; line-height: 1; font-weight: 600;
+  letter-spacing: 0.10em; text-transform: uppercase; color: var(--gray-700);
+}
+.t-num { font-variant-numeric: tabular-nums; }
+
+/* --- primitives ----------------------------------------------------------- */
+.panel {
+  background: var(--white);
+  border: 1px solid var(--line);
+  border-radius: var(--r-panel);
+  min-width: 0;
+}
+.panel-head {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: var(--s3); height: 44px; padding: 0 var(--s4);
+  border-bottom: 1px solid var(--line);
+}
+.panel-foot {
+  display: flex; align-items: center; height: 44px; padding: 0 var(--s4);
+  border-top: 1px solid var(--line); flex: none;
+}
+.foot-note { font-size: 12px; line-height: 16px; color: var(--gray-700); }
+
+/* Status pill: coloured dot + label. RGY + blue only. */
+.pill {
+  display: inline-flex; align-items: center; gap: 6px;
+  height: 24px; padding: 0 10px;
+  border-radius: var(--pill); border: 1px solid var(--line);
+  background: var(--white);
+  font-size: 12px; line-height: 1; font-weight: 500; color: var(--gray-700);
+  white-space: nowrap;
+}
+.dot { width: 7px; height: 7px; border-radius: var(--pill); flex: none; }
+
+.btn-primary {
+  display: inline-flex; align-items: center; gap: 6px;
+  height: 32px; padding: 0 var(--s3);
+  border: 0; border-radius: var(--r-ctl);
+  background: var(--sapphire); color: var(--white);
+  font-family: var(--font); font-size: 13px; font-weight: 600;
+  white-space: nowrap;
+}
+.btn-secondary {
+  display: inline-flex; align-items: center; gap: 6px;
+  height: 32px; padding: 0 var(--s3);
+  border: 1px solid var(--sapphire); border-radius: var(--r-ctl);
+  background: var(--white); color: var(--sapphire);
+  font-family: var(--font); font-size: 13px; font-weight: 600;
+  white-space: nowrap;
+}

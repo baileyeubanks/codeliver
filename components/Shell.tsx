@@ -30,6 +30,8 @@ import {
   roleCan,
   visibleNavigation,
   withWorkspaceQuery,
+  PRODUCT_NAME,
+  WORKSPACE_LABEL,
   type WorkspaceRole,
 } from "./navigation/navigation-model";
 import { useOnlineStatus } from "./navigation/useEnvironmentStatus";
@@ -268,7 +270,7 @@ export default function Shell({ children }: { children: React.ReactNode }) {
   }
 
   if (isProjectCockpit) {
-    return <div className="min-h-screen bg-[#121417]">{children}</div>;
+    return <div className="min-h-screen bg-[var(--cvp-ink-deep)]">{children}</div>;
   }
 
   return (
@@ -290,7 +292,7 @@ export default function Shell({ children }: { children: React.ReactNode }) {
           >
             <Menu size={19} />
           </button>
-          <Link href={withWorkspaceQuery("/", demoSuffix)} aria-label="Co‑ProVideo home">
+          <Link href={withWorkspaceQuery("/", demoSuffix)} aria-label={`${PRODUCT_NAME} home`}>
             <CoProductionBrand className={styles.brandLockup} priority />
           </Link>
         </div>
@@ -315,31 +317,34 @@ export default function Shell({ children }: { children: React.ReactNode }) {
           className={`workspace-search ${styles.searchButton}`}
           type="button"
           onClick={() => setCommandOpen(true)}
-          aria-label="Search commands, projects, and media"
           title="Search workspace"
         >
           <Search size={18} />
-          <span>Search commands, projects, and media</span>
+          <span>Search workspace</span>
+          <kbd>⌘K</kbd>
         </button>
 
         <div className="workspace-actions">
-          {demoSuffix ? (
+          {roleCan(workspaceRole, "media:write") ? (
             <button
               className="btn btn-primary workspace-upload-button"
               type="button"
+              disabled={!demoSuffix}
               onClick={() => {
+                if (!demoSuffix) return;
                 setAccountOpen(false);
                 setNotificationsOpen(false);
                 setUploadOpen(true);
               }}
-              aria-label="Upload media to a project"
+              aria-label={demoSuffix ? "Upload media to a project" : "Upload unavailable — media storage is not configured"}
+              title={demoSuffix ? "Upload media to a project" : "Upload unavailable — media storage is not configured"}
             >
               <Upload size={15} /> <span className="workspace-upload-label">Upload</span>
             </button>
           ) : null}
           <a
             className="workspace-icon-button workspace-help"
-            href="mailto:hello@contentco-op.com?subject=Co-Production%20Pro%20feedback"
+            href="mailto:hello@contentco-op.com?subject=Co-VideoPro%20feedback"
             aria-label="Email help and feedback"
             title="Help and feedback"
           >
@@ -383,7 +388,7 @@ export default function Shell({ children }: { children: React.ReactNode }) {
                         onClick={() => setNotificationsOpen(false)}
                       >
                         <span>{item.actor_name} {activityLabel(item.action)}</span>
-                        <small>{item.details.asset_title ?? "Co‑ProVideo workspace"}</small>
+                        <small>{item.details.asset_title ?? WORKSPACE_LABEL}</small>
                       </Link>
                     ))}
                     {demoWorkspace.activity.length === 0 ? <p>No new notifications.</p> : null}
@@ -398,7 +403,7 @@ export default function Shell({ children }: { children: React.ReactNode }) {
                         data-read={item.read}
                       >
                         <span>{item.title}</span>
-                        <small>{item.body ?? "Co‑ProVideo workspace"}</small>
+                        <small>{item.body ?? WORKSPACE_LABEL}</small>
                       </Link>
                     ))}
                     {remoteNotifications.length === 0 ? <p>No new notifications.</p> : null}

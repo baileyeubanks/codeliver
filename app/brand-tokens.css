@@ -1,5 +1,5 @@
 /**
- * Co-ProVideo brand tokens — Arc III (P11) foundation.
+ * Co-VideoPro brand tokens — Arc III (P11) foundation.
  * Sources (in priority order):
  *  1. BRAND CANON (Bailey, 2026-07-25): three CVP Enterprise brand guides —
  *     Primary Blue #156BFF, Deep Blue #0A1D3D, Cool Gray #E6E9EF,
@@ -15,7 +15,7 @@
   --cvp-blue-soft: #5b93ff;       /* canon-derived lighter step */
   --cvp-blue-tint: #e9f1ff;       /* blue tint surface */
   --cvp-accent: #156bff;          /* signature action = canon Primary Blue (lime removed) */
-  --cvp-accent-hover: #0052cc;    /* canon VP Blue (guide 3) */
+  --cvp-accent-hover: #0052cc;    /* derived hover step (darker Primary Blue) */
   --cvp-accent-dim: #156bff1f;
   --cvp-accent-glow: #156bff2e;
 
@@ -24,9 +24,10 @@
   --cvp-ink-deep: #07132b;
   --cvp-ink-soft: #3d4a68;
   --cvp-ink-faint: #6d7a94;
+  --cvp-charcoal: #0d0f14;        /* canon Charcoal */
 
   /* Canvas + surfaces (canon grays) */
-  --cvp-canvas: #f2f4f7;          /* canon Light Gray */
+  --cvp-canvas: #f2f4f7;          /* derived light canvas (not canon) */
   --cvp-surface: #ffffff;         /* canon White */
   --cvp-surface-alt: #eaeef4;
   --cvp-surface-sunken: #e6e9ef;  /* canon Cool Gray */
@@ -47,25 +48,30 @@
   --cvp-phase-production: var(--cvp-blue);
   --cvp-phase-post: var(--cvp-green);
   --cvp-phase-delivery: var(--cvp-ink);
+  /* Text-safe darker cuts of the phase hues, for type on the *-tint surfaces. */
+  --cvp-red-ink: #b23a2c;
+  --cvp-amber-ink: #92400e;
+  --cvp-green-ink: #1f7a4d;
   --cvp-red-tint: #fdeae7;
   --cvp-green-tint: #e5f6ec;
   --cvp-amber-tint: #fdf1da;
 
-  /* Signature accents */
+  /* Signature accents — single-hue brand rule. The chrome hairline stays in the
+     blue family; the phase hues above are for chips only, never a full-width bar. */
   --cvp-gradient-ribbon: linear-gradient(
     90deg,
-    var(--cvp-red) 0%,
-    var(--cvp-amber) 33%,
-    var(--cvp-green) 66%,
-    var(--cvp-blue) 100%
+    var(--cvp-blue) 0%,
+    var(--cvp-blue-soft) 100%
   );
   --cvp-copilot-bg: #0a1d3d;      /* canon Deep Blue floating AI Copilot panel */
   --cvp-copilot-ink: #e5e9f2;
   --cvp-copilot-border: #ffffff1a;
   --cvp-unsaved-bar: var(--cvp-amber-tint); /* "N unsaved changes" strip */
 
-  /* Typography (canon: Inter family) */
-  --cvp-font-display: "Inter Display", "Inter", -apple-system, sans-serif;
+  /* Typography (canon: Inter family). Inter is loaded with its optical-size
+     axis (opsz 14..32), so large type gets the display cut automatically —
+     do not name a separate "Inter Display" family that is never fetched. */
+  --cvp-font-display: "Inter", -apple-system, sans-serif;
   --cvp-font-body: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
 
   /* Shape (live brand radii) + elevation */

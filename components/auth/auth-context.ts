@@ -20,8 +20,10 @@ const CLIENT_AUTH_HOST_CONTEXT: AuthHostContext = {
   label: "Client collaboration",
 };
 
-const ADMIN_HOST = "admin.contentco-op.com";
+/** CCO OS commercial host — not a Co-VideoPro auth surface. */
+const CCO_OS_ADMIN_HOST = "admin.contentco-op.com";
 const CLIENT_HOST = "client.contentco-op.com";
+const APP_HOSTS = new Set(["co-videopro.com", "www.co-videopro.com"]);
 
 function normalizedHostname(value: string): string {
   return value.trim().toLowerCase();
@@ -31,7 +33,12 @@ function normalizedHostname(value: string): string {
 export function resolveAuthHostContext(hostname: string): AuthHostContext {
   const normalized = normalizedHostname(hostname);
 
-  if (normalized === ADMIN_HOST) {
+  if (normalized === CCO_OS_ADMIN_HOST) {
+    // CCO OS owns this host; Co-VideoPro UI should not brand it as staff shell.
+    return DEFAULT_AUTH_HOST_CONTEXT;
+  }
+
+  if (APP_HOSTS.has(normalized)) {
     return ADMIN_AUTH_HOST_CONTEXT;
   }
 

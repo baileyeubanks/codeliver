@@ -3,8 +3,9 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Eye, EyeOff, LoaderCircle, LogIn, ShieldCheck } from "lucide-react";
+import { Eye, EyeOff, LoaderCircle, LogIn } from "lucide-react";
 import AuthShell, { authStyles as styles } from "@/components/auth/AuthShell";
+import loginStyles from "./login.module.css";
 import {
   authFailureMessage,
   buildAuthPageHref,
@@ -30,6 +31,8 @@ export default function LoginPage() {
   const requestedPath = resolveSafeReturnPath(returnTarget, "/projects");
   const loginHref = buildAuthPageHref("/login", returnTarget, demoMode);
   const signupHref = buildAuthPageHref("/signup", returnTarget, demoMode);
+  // Canonical public recovery path (also aliased at /login/forgot).
+  const forgotHref = demoMode ? "/forgot-password?demo=1" : "/forgot-password";
 
   useEffect(() => {
     function syncSurfaceMismatch() {
@@ -85,15 +88,14 @@ export default function LoginPage() {
   return (
     <AuthShell demoMode={demoMode} loginHref={loginHref}>
       <section className={styles.panel} aria-labelledby="login-title">
-        <div className={styles.contextRow}>
-          <span className={styles.contextLabel}>
-            <ShieldCheck size={13} aria-hidden="true" /> Account access
-          </span>
-          {demoMode ? <span className={styles.demoLabel}>Demo</span> : null}
-        </div>
+        {demoMode ? (
+          <div className={styles.contextRow}>
+            <span className={styles.demoLabel}>Demo</span>
+          </div>
+        ) : null}
 
         <header className={styles.heading}>
-          <h1 id="login-title">Sign in to Co‑ProVideo</h1>
+          <h1 id="login-title">Sign in to Co-VideoPro</h1>
           <p>Review and approve work with Content Co-op.</p>
         </header>
 
@@ -144,7 +146,12 @@ export default function LoginPage() {
           </label>
 
           <div className={styles.field}>
-            <label htmlFor="login-password">Password</label>
+            <div className={loginStyles.labelRow}>
+              <label htmlFor="login-password">Password</label>
+              <Link className={loginStyles.forgotLink} href={forgotHref}>
+                Forgot password?
+              </Link>
+            </div>
             <div className={styles.passwordField}>
               <input
                 className={styles.input}
@@ -178,7 +185,7 @@ export default function LoginPage() {
         </form>
 
         <footer className={styles.footer}>
-          <span>New to Co‑ProVideo?</span>
+          <span>New to Co-VideoPro?</span>
           <Link href={signupHref}>Create an account</Link>
         </footer>
       </section>

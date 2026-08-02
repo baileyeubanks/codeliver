@@ -14,11 +14,11 @@ export interface CoProductionBrandProps {
   sizes?: string;
 }
 
-const DEFAULT_LABEL = "Co‑ProVideo by Content Co-op";
+const DEFAULT_LABEL = "Co-VideoPro by Content Co-op";
 
 /**
- * The Co‑ProVideo lockup: monumental display wordmark + the CVP four-color
- * monogram (Bailey's artwork). One mark per surface, per the Co‑ProVideo
+ * The Co-VideoPro lockup: monumental display wordmark + the CVP four-color
+ * monogram (Bailey's artwork). One mark per surface, per the Co-VideoPro
  * design bible (docs/COPROVIDEO_DESIGN_BIBLE.md).
  */
 export function CoProductionBrand({
@@ -45,7 +45,7 @@ export function CoProductionBrand({
       />
       {variant !== "compact-mark" ? (
         <span className={styles.wordmark} aria-hidden="true">
-          <span className={styles.product}>Co‑ProVideo</span>
+          <span className={styles.product}>Co-VideoPro</span>
           <span className={styles.company}>by Content Co-op</span>
         </span>
       ) : null}

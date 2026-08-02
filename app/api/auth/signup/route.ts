@@ -1,5 +1,5 @@
 import {
-  ADMIN_SURFACE_HOST,
+  APP_SURFACE_HOST,
   CLIENT_SURFACE_HOST,
 } from "@/lib/auth/host-surface";
 import { createSupabaseAuth } from "@/lib/supabase-auth";
@@ -21,11 +21,13 @@ function signupBody(value: unknown): Record<string, unknown> | null {
 
 function confirmationRedirect(request: Request): string | undefined {
   const requestUrl = new URL(request.url);
+  const hostname = requestUrl.hostname.toLowerCase();
   const allowedHost =
-    requestUrl.hostname === ADMIN_SURFACE_HOST ||
-    requestUrl.hostname === CLIENT_SURFACE_HOST ||
-    requestUrl.hostname === "localhost" ||
-    requestUrl.hostname === "127.0.0.1";
+    hostname === CLIENT_SURFACE_HOST ||
+    hostname === APP_SURFACE_HOST ||
+    hostname === `www.${APP_SURFACE_HOST}` ||
+    hostname === "localhost" ||
+    hostname === "127.0.0.1";
 
   return allowedHost
     ? new URL("/auth/callback", requestUrl.origin).toString()

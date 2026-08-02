@@ -1,0 +1,23 @@
+[
+  {"url":"/welcome","name":"welcome","viewport":"1440x900","auth":false,"wait":3000},
+  {"url":"/welcome","name":"welcome","viewport":"768x1024","auth":false,"wait":3000},
+  {"url":"/welcome","name":"welcome","viewport":"375x812","auth":false,"wait":3000},
+  {"url":"/login","name":"login","viewport":"1440x900","auth":false,"wait":3000},
+  {"url":"/login","name":"login","viewport":"768x1024","auth":false,"wait":3000},
+  {"url":"/login","name":"login","viewport":"375x812","auth":false,"wait":3000},
+  {"url":"/signup","name":"signup","viewport":"1440x900","auth":false,"wait":3000},
+  {"url":"/signup","name":"signup","viewport":"768x1024","auth":false,"wait":3000},
+  {"url":"/signup","name":"signup","viewport":"375x812","auth":false,"wait":3000},
+  {"url":"/","name":"overview","viewport":"1440x900","auth":true,"wait":3500},
+  {"url":"/","name":"overview","viewport":"768x1024","auth":true,"wait":3500},
+  {"url":"/","name":"overview","viewport":"375x812","auth":true,"wait":3500},
+  {"url":"/opportunities","name":"opportunities","viewport":"1440x900","auth":true,"wait":3500},
+  {"url":"/opportunities","name":"opportunities","viewport":"768x1024","auth":true,"wait":3500},
+  {"url":"/opportunities","name":"opportunities","viewport":"375x812","auth":true,"wait":3500},
+  {"url":"/reviews","name":"reviews","viewport":"1440x900","auth":true,"wait":3500},
+  {"url":"/reviews","name":"reviews","viewport":"768x1024","auth":true,"wait":3500},
+  {"url":"/reviews","name":"reviews","viewport":"375x812","auth":true,"wait":3500},
+  {"url":"/activity","name":"activity","viewport":"1440x900","auth":true,"wait":3500},
+  {"url":"/activity","name":"activity","viewport":"768x1024","auth":true,"wait":3500},
+  {"url":"/activity","name":"activity","viewport":"375x812","auth":true,"wait":3500}
+]

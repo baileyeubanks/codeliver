@@ -38,7 +38,7 @@ export default function PortalShell({
       <header className={styles.header}>
         <CoProductionBrand
           variant="horizontal"
-          label="Co-ProVideo client portal by Content Co-op"
+          label="Co-VideoPro client portal by Content Co-op"
           priority
         />
         <p className={styles.headerClient}>{clientName}</p>

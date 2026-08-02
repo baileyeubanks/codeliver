@@ -8,7 +8,7 @@ const repositoryRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 
 const identityStubUrl = `data:text/javascript,${encodeURIComponent(`
   export const HEALTH_SERVICE_ID = "co-deliver";
-  export const HEALTH_PRODUCT_NAME = "Co-ProVideo";
+  export const HEALTH_PRODUCT_NAME = "Co-VideoPro";
   export const HEALTH_BRAND_NAME = "Content Co-op";
   export function currentHealthPort() { return 4103; }
 `)}`;
@@ -232,7 +232,7 @@ test("authenticated staff retain dependency detail on internal endpoints", async
     status: "unhealthy",
     ready: false,
     service: "co-deliver",
-    product: "Co-ProVideo",
+    product: "Co-VideoPro",
     brand: "Content Co-op",
     observedAt: "2026-07-25T12:00:00.000Z",
     durationMs: 14,
@@ -246,7 +246,7 @@ test("authenticated staff retain dependency detail on internal endpoints", async
     status: "unhealthy",
     ready: false,
     service: "co-deliver",
-    product: "Co-ProVideo",
+    product: "Co-VideoPro",
     brand: "Content Co-op",
     probe: "readiness",
     observedAt: "2026-07-25T12:00:00.000Z",

@@ -1,5 +1,5 @@
 /**
- * Co‑ProVideo — Project Operating Record: transition validators.
+ * Co-VideoPro — Project Operating Record: transition validators.
  *
  * The ONLY way lifecycle state changes. Pure functions, framework-free, shared
  * by the demo runtime, the API routes, and the test suite. Every validator

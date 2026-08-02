@@ -1,0 +1,13 @@
+[
+  {"url":"/library","name":"library","viewport":"1440x900","auth":true},
+  {"url":"/library","name":"library","viewport":"768x1024","auth":true},
+  {"url":"/library","name":"library","viewport":"375x812","auth":true},
+  {"url":"/field","name":"field","viewport":"375x812","auth":true},
+  {"url":"/field","name":"field","viewport":"768x1024","auth":true},
+  {"url":"/field","name":"field","viewport":"1440x900","auth":true},
+  {"url":"/settings","name":"settings","viewport":"1440x900","auth":true},
+  {"url":"/settings","name":"settings","viewport":"768x1024","auth":true},
+  {"url":"/settings","name":"settings","viewport":"375x812","auth":true},
+  {"url":"/invite/does-not-exist","name":"invite-bogus","viewport":"1440x900"},
+  {"url":"/invite/does-not-exist","name":"invite-bogus","viewport":"375x812"}
+]

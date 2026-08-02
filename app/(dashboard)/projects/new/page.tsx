@@ -93,7 +93,7 @@ export default function NewProject() {
 
       <section className="rounded-lg border border-[var(--border)] bg-[var(--surface)] p-4 sm:p-5">
         <div className="mb-5 flex items-start gap-3 border-b border-[var(--border)] pb-4">
-          <span className="flex h-9 w-9 items-center justify-center rounded-md bg-[var(--surface)] text-[var(--accent)]">
+          <span className="flex h-9 w-9 items-center justify-center rounded-md bg-[var(--accent-dim)] text-[var(--accent)]">
             <FileText size={17} />
           </span>
           <div>

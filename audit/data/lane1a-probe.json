@@ -1,0 +1,1213 @@
+[
+  {
+    "job": {
+      "url": "/welcome",
+      "viewport": "1440x900"
+    },
+    "data": {
+      "title": "Co-VideoPro | Content Co-op",
+      "finalUrl": "http://localhost:4103/welcome",
+      "fonts": [
+        "Inter",
+        "Bricolage Grotesque",
+        "Geist Mono",
+        "__nextjs-Geist"
+      ],
+      "weights": [
+        "400",
+        "700",
+        "500",
+        "800",
+        "600"
+      ],
+      "sizes": {
+        "16px": 21,
+        "14px": 5,
+        "10.5px": 3,
+        "10px": 3,
+        "8.5px": 1,
+        "11px": 1,
+        "118px": 1,
+        "17.5px": 1
+      },
+      "colors": {
+        "rgb(242, 237, 226)": 20,
+        "rgb(23, 25, 29)": 4,
+        "rgba(242, 237, 226, 0.42)": 3,
+        "rgb(11, 25, 40)": 2,
+        "rgba(242, 237, 226, 0.78)": 1,
+        "rgba(242, 237, 226, 0.62)": 1,
+        "rgb(184, 178, 164)": 1,
+        "rgba(242, 237, 226, 0.66)": 1,
+        "rgba(242, 237, 226, 0.4)": 1,
+        "rgb(117, 117, 117)": 1
+      },
+      "backgrounds": {
+        "rgb(10, 13, 18)": 1,
+        "rgb(242, 237, 226)": 1,
+        "rgba(26, 29, 33, 0.42)": 1,
+        "rgba(242, 237, 226, 0.16)": 1,
+        "rgb(74, 125, 255)": 1
+      },
+      "bodyFont": "Inter, \"Instrument Sans\", sans-serif",
+      "overflowX": false,
+      "scrollW": 1440,
+      "clientW": 1440,
+      "offenders": [],
+      "mainPadding": "0px",
+      "controls": [
+        "A: \"CLIENT SIGN IN\" -> /login",
+        "A: \"Start a project\" -> /signup",
+        "A: \"Enter the studio\" -> /login?demo=1"
+      ]
+    }
+  },
+  {
+    "job": {
+      "url": "/welcome",
+      "viewport": "375x812"
+    },
+    "data": {
+      "title": "Co-VideoPro | Content Co-op",
+      "finalUrl": "http://localhost:4103/welcome",
+      "fonts": [
+        "Inter",
+        "Bricolage Grotesque",
+        "Geist Mono",
+        "__nextjs-Geist"
+      ],
+      "weights": [
+        "400",
+        "700",
+        "500",
+        "800",
+        "600"
+      ],
+      "sizes": {
+        "16px": 20,
+        "13.5px": 5,
+        "10.5px": 3,
+        "14px": 1,
+        "8.5px": 1,
+        "11px": 1,
+        "52px": 1,
+        "15px": 1
+      },
+      "colors": {
+        "rgb(242, 237, 226)": 20,
+        "rgb(23, 25, 29)": 4,
+        "rgb(11, 25, 40)": 2,
+        "rgba(242, 237, 226, 0.78)": 1,
+        "rgba(242, 237, 226, 0.62)": 1,
+        "rgb(184, 178, 164)": 1,
+        "rgba(242, 237, 226, 0.66)": 1,
+        "rgba(242, 237, 226, 0.4)": 1,
+        "rgb(117, 117, 117)": 1
+      },
+      "backgrounds": {
+        "rgb(10, 13, 18)": 1,
+        "rgb(242, 237, 226)": 1,
+        "rgba(26, 29, 33, 0.42)": 1,
+        "rgba(242, 237, 226, 0.16)": 1,
+        "rgb(74, 125, 255)": 1
+      },
+      "bodyFont": "Inter, \"Instrument Sans\", sans-serif",
+      "overflowX": false,
+      "scrollW": 375,
+      "clientW": 375,
+      "offenders": [],
+      "mainPadding": "0px",
+      "controls": [
+        "A: \"CLIENT SIGN IN\" -> /login",
+        "A: \"Start a project\" -> /signup",
+        "A: \"Enter the studio\" -> /login?demo=1"
+      ]
+    }
+  },
+  {
+    "job": {
+      "url": "/login",
+      "viewport": "1440x900"
+    },
+    "data": {
+      "title": "Co-VideoPro | Content Co-op",
+      "finalUrl": "http://localhost:4103/login",
+      "fonts": [
+        "Inter",
+        "Bricolage Grotesque",
+        "Geist Mono",
+        "__nextjs-Geist"
+      ],
+      "weights": [
+        "400",
+        "700",
+        "500",
+        "600",
+        "650"
+      ],
+      "sizes": {
+        "16px": 52,
+        "11px": 14,
+        "10px": 10,
+        "9px": 3,
+        "8.5px": 1,
+        "14px": 1,
+        "25px": 1,
+        "12px": 1
+      },
+      "colors": {
+        "rgb(11, 25, 40)": 30,
+        "rgb(30, 77, 140)": 19,
+        "rgb(95, 107, 120)": 13,
+        "rgb(44, 58, 77)": 7,
+        "rgb(91, 122, 94)": 7,
+        "rgb(255, 255, 255)": 5,
+        "rgb(117, 117, 117)": 1
+      },
+      "backgrounds": {
+        "rgb(250, 246, 239)": 6,
+        "rgba(30, 77, 140, 0.1)": 4,
+        "rgb(240, 235, 224)": 1,
+        "rgba(250, 246, 239, 0.92)": 1,
+        "rgb(30, 77, 140)": 1
+      },
+      "bodyFont": "Inter, \"Instrument Sans\", sans-serif",
+      "overflowX": false,
+      "scrollW": 1440,
+      "clientW": 1440,
+      "offenders": [],
+      "mainPadding": "0px",
+      "controls": [
+        "A: \"Skip to account access\" -> #auth-content",
+        "A: \"Co-VideoPro BY CONTENT CO-OP\" -> /login?demo=1",
+        "INPUT: \"INPUT\"",
+        "INPUT: \"INPUT\"",
+        "BUTTON: \"Show password\"",
+        "BUTTON: \"Open local workspace\"",
+        "A: \"Create an account\" -> /signup?demo=1"
+      ]
+    }
+  },
+  {
+    "job": {
+      "url": "/login",
+      "viewport": "375x812"
+    },
+    "data": {
+      "title": "Co-VideoPro | Content Co-op",
+      "finalUrl": "http://localhost:4103/login",
+      "fonts": [
+        "Inter",
+        "Bricolage Grotesque",
+        "Geist Mono",
+        "__nextjs-Geist"
+      ],
+      "weights": [
+        "400",
+        "700",
+        "500",
+        "600",
+        "650"
+      ],
+      "sizes": {
+        "16px": 50,
+        "10px": 15,
+        "11px": 8,
+        "9px": 3,
+        "14px": 1,
+        "8.5px": 1,
+        "22px": 1,
+        "12px": 1
+      },
+      "colors": {
+        "rgb(11, 25, 40)": 28,
+        "rgb(30, 77, 140)": 19,
+        "rgb(95, 107, 120)": 12,
+        "rgb(44, 58, 77)": 7,
+        "rgb(91, 122, 94)": 7,
+        "rgb(255, 255, 255)": 5,
+        "rgb(117, 117, 117)": 1
+      },
+      "backgrounds": {
+        "rgb(250, 246, 239)": 6,
+        "rgba(30, 77, 140, 0.1)": 4,
+        "rgb(240, 235, 224)": 1,
+        "rgba(250, 246, 239, 0.92)": 1,
+        "rgb(30, 77, 140)": 1
+      },
+      "bodyFont": "Inter, \"Instrument Sans\", sans-serif",
+      "overflowX": false,
+      "scrollW": 375,
+      "clientW": 375,
+      "offenders": [],
+      "mainPadding": "0px",
+      "controls": [
+        "A: \"Skip to account access\" -> #auth-content",
+        "A: \"Co-VideoPro BY CONTENT CO-OP\" -> /login?demo=1",
+        "INPUT: \"INPUT\"",
+        "INPUT: \"INPUT\"",
+        "BUTTON: \"Show password\"",
+        "BUTTON: \"Open local workspace\"",
+        "A: \"Create an account\" -> /signup?demo=1"
+      ]
+    }
+  },
+  {
+    "job": {
+      "url": "/signup",
+      "viewport": "1440x900"
+    },
+    "data": {
+      "title": "Co-VideoPro | Content Co-op",
+      "finalUrl": "http://localhost:4103/signup",
+      "fonts": [
+        "Inter",
+        "Bricolage Grotesque",
+        "Geist Mono",
+        "__nextjs-Geist"
+      ],
+      "weights": [
+        "400",
+        "700",
+        "500",
+        "600",
+        "650"
+      ],
+      "sizes": {
+        "16px": 56,
+        "11px": 17,
+        "10px": 6,
+        "9px": 3,
+        "8.5px": 1,
+        "14px": 1,
+        "25px": 1,
+        "12px": 1
+      },
+      "colors": {
+        "rgb(11, 25, 40)": 33,
+        "rgb(30, 77, 140)": 18,
+        "rgb(95, 107, 120)": 11,
+        "rgb(44, 58, 77)": 9,
+        "rgb(91, 122, 94)": 7,
+        "rgb(255, 255, 255)": 6,
+        "rgb(117, 117, 117)": 1
+      },
+      "backgrounds": {
+        "rgb(250, 246, 239)": 8,
+        "rgba(30, 77, 140, 0.1)": 3,
+        "rgb(240, 235, 224)": 1,
+        "rgba(250, 246, 239, 0.92)": 1,
+        "rgb(30, 77, 140)": 1
+      },
+      "bodyFont": "Inter, \"Instrument Sans\", sans-serif",
+      "overflowX": false,
+      "scrollW": 1440,
+      "clientW": 1440,
+      "offenders": [],
+      "mainPadding": "0px",
+      "controls": [
+        "A: \"Skip to account access\" -> #auth-content",
+        "A: \"Co-VideoPro BY CONTENT CO-OP\" -> /login?demo=1",
+        "A: \"Back to sign in\" -> /login?demo=1",
+        "INPUT: \"Your name\"",
+        "INPUT: \"you@company.com\"",
+        "INPUT: \"INPUT\"",
+        "BUTTON: \"Show passwords\"",
+        "INPUT: \"INPUT\"",
+        "BUTTON: \"Create account\""
+      ]
+    }
+  },
+  {
+    "job": {
+      "url": "/signup",
+      "viewport": "375x812"
+    },
+    "data": {
+      "title": "Co-VideoPro | Content Co-op",
+      "finalUrl": "http://localhost:4103/signup",
+      "fonts": [
+        "Inter",
+        "Bricolage Grotesque",
+        "Geist Mono",
+        "__nextjs-Geist"
+      ],
+      "weights": [
+        "400",
+        "700",
+        "500",
+        "600",
+        "650"
+      ],
+      "sizes": {
+        "16px": 54,
+        "10px": 11,
+        "11px": 11,
+        "9px": 3,
+        "14px": 1,
+        "8.5px": 1,
+        "22px": 1,
+        "12px": 1
+      },
+      "colors": {
+        "rgb(11, 25, 40)": 31,
+        "rgb(30, 77, 140)": 18,
+        "rgb(95, 107, 120)": 10,
+        "rgb(44, 58, 77)": 9,
+        "rgb(91, 122, 94)": 7,
+        "rgb(255, 255, 255)": 6,
+        "rgb(117, 117, 117)": 1
+      },
+      "backgrounds": {
+        "rgb(250, 246, 239)": 8,
+        "rgba(30, 77, 140, 0.1)": 3,
+        "rgb(240, 235, 224)": 1,
+        "rgba(250, 246, 239, 0.92)": 1,
+        "rgb(30, 77, 140)": 1
+      },
+      "bodyFont": "Inter, \"Instrument Sans\", sans-serif",
+      "overflowX": false,
+      "scrollW": 375,
+      "clientW": 375,
+      "offenders": [],
+      "mainPadding": "0px",
+      "controls": [
+        "A: \"Skip to account access\" -> #auth-content",
+        "A: \"Co-VideoPro BY CONTENT CO-OP\" -> /login?demo=1",
+        "A: \"Back to sign in\" -> /login?demo=1",
+        "INPUT: \"Your name\"",
+        "INPUT: \"you@company.com\"",
+        "INPUT: \"INPUT\"",
+        "BUTTON: \"Show passwords\"",
+        "INPUT: \"INPUT\"",
+        "BUTTON: \"Create account\""
+      ]
+    }
+  },
+  {
+    "job": {
+      "url": "/",
+      "viewport": "1440x900"
+    },
+    "data": {
+      "title": "Co-VideoPro | Content Co-op",
+      "finalUrl": "http://localhost:4103/?demo=1",
+      "fonts": [
+        "Inter",
+        "Bricolage Grotesque",
+        "Geist Mono",
+        "__nextjs-Geist"
+      ],
+      "weights": [
+        "400",
+        "700",
+        "500",
+        "600",
+        "580",
+        "650"
+      ],
+      "sizes": {
+        "16px": 145,
+        "13.12px": 89,
+        "10px": 22,
+        "12px": 18,
+        "11px": 16,
+        "14px": 12,
+        "12.48px": 11,
+        "12.8px": 8,
+        "8.5px": 7,
+        "11.52px": 1,
+        "20px": 1
+      },
+      "colors": {
+        "rgb(11, 25, 40)": 190,
+        "rgb(95, 107, 120)": 80,
+        "rgb(30, 77, 140)": 21,
+        "rgb(242, 237, 226)": 11,
+        "rgb(255, 255, 255)": 7,
+        "rgb(184, 178, 164)": 6,
+        "rgb(207, 68, 51)": 2,
+        "rgb(138, 127, 108)": 1,
+        "rgb(117, 117, 117)": 1
+      },
+      "backgrounds": {
+        "rgb(10, 13, 18)": 11,
+        "rgb(250, 246, 239)": 8,
+        "rgba(10, 13, 18, 0.68)": 5,
+        "rgb(196, 114, 42)": 3,
+        "rgb(240, 235, 224)": 2,
+        "rgb(30, 77, 140)": 2,
+        "rgb(161, 74, 74)": 1,
+        "rgba(30, 77, 140, 0.1)": 1
+      },
+      "bodyFont": "Inter, \"Instrument Sans\", sans-serif",
+      "overflowX": false,
+      "scrollW": 1440,
+      "clientW": 1440,
+      "offenders": [],
+      "mainPadding": "0px",
+      "controls": [
+        "A: \"Skip to workspace content\" -> #workspace-content",
+        "BUTTON: \"Open workspace navigation\"",
+        "A: \"Co-VideoPro BY CONTENT CO-OP\" -> /?demo=1",
+        "A: \"Home\" -> /?demo=1",
+        "A: \"Projects\" -> /projects?demo=1",
+        "A: \"Pipeline\" -> /opportunities?demo=1",
+        "BUTTON: \"More\"",
+        "BUTTON: \"Search commands, projects, and media\"",
+        "BUTTON: \"Upload\"",
+        "A: \"Email help and feedback\" -> mailto:hello@contentco-op.com?subject=Co-Production%20Pro%20feedback",
+        "BUTTON: \"Notifications\"",
+        "BUTTON: \"BE\"",
+        "A: \"Overview\" -> /?demo=1",
+        "A: \"Projects\" -> /projects?demo=1",
+        "A: \"Opportunities\" -> /opportunities?demo=1",
+        "A: \"Reviews\" -> /reviews?demo=1",
+        "A: \"Activity\" -> /activity?demo=1",
+        "A: \"Field\" -> /field?demo=1",
+        "A: \"Media library\" -> /library?demo=1",
+        "A: \"Archive\" -> /projects/archive?demo=1",
+        "A: \"Trash\" -> /projects/trash?demo=1",
+        "A: \"Workspace settings\" -> /settings?demo=1",
+        "A: \"ICA\" -> /projects/ica?demo=1",
+        "A: \"Schneider + EPC\" -> /projects/schneider-epc?demo=1",
+        "A: \"bp\" -> /projects/bp?demo=1",
+        "A: \"Conexon\" -> /projects/conexon?demo=1",
+        "A: \"Inquiry\" -> /opportunities?compose=inquiry&demo=1",
+        "A: \"Project\" -> /projects/new?demo=1",
+        "A: \"Development Conexon Conexon Workshop Interviews_v1\" -> /projects/conexon?demo=1",
+        "A: \"No media yet Pre-production Physical Edge — El Paso No media yet\" -> /projects/el-paso?demo=1",
+        "A: \"Production bp BP Rodeo Recap_v2\" -> /projects/bp?demo=1",
+        "A: \"Post Schneider + EPC Schneider + McLaren Podcast_v3\" -> /projects/schneider-epc?demo=1",
+        "A: \"Review ICA Denie McDonald_v4\" -> /projects/ica?demo=1",
+        "A: \"PLAN Milestone overdue by 1 day Rough cut to Rachel · Edit bp Reschedu\" -> /projects/bp?surface=plan&demo=1",
+        "A: \"PLAN Milestone overdue by 10 days Brief v2 approved by Sam · Sam Delga\" -> /projects/conexon?surface=plan&demo=1",
+        "A: \"PROPOSAL Proposal v1 sent 16 days ago — no client answer Conexon Custo\" -> /projects/conexon?surface=proposal&demo=1",
+        "A: \"REVISION Revision round 2 has been in progress for 9 days Round 2 cons\" -> /projects/ica?surface=reviews&demo=1",
+        "A: \"DELIVERY ICA_ROADSHOW_SOCIAL_9x16.mp4 has waited in QC for 11 days Che\" -> /projects/ica?surface=delivery&demo=1",
+        "A: \"PLAN Production day overdue by 7 days Rodeo recap — day 1 (grounds + i\" -> /projects/bp?surface=plan&demo=1",
+        "A: \"All 7 open loops\" -> /activity?demo=1",
+        "A: \"Conexon Workshop Interviews_v1 Conexon\" -> /projects/conexon?demo=1&asset=conexon-workshop-v1&view=review&demo=1",
+        "A: \"Denie McDonald_v4 ICA\" -> /projects/ica?demo=1&asset=denie-mcdonald-v4&view=review&demo=1",
+        "A: \"Charles Drummond_v5 ICA\" -> /projects/ica?demo=1&asset=charles-drummond-v5&view=review&demo=1",
+        "A: \"Kevin Bowers_v2 ICA\" -> /projects/ica?demo=1&asset=kevin-bowers-v2&view=review&demo=1",
+        "A: \"Schneider + McLaren Podcast_v3 Schneider + EPC\" -> /projects/schneider-epc?demo=1&asset=mclaren-podcast-v3&view=review&demo=1",
+        "A: \"BP Rodeo Recap_v2 bp\" -> /projects/bp?demo=1&asset=bp-rodeo-v2&view=review&demo=1"
+      ]
+    }
+  },
+  {
+    "job": {
+      "url": "/",
+      "viewport": "375x812"
+    },
+    "data": {
+      "title": "Co-VideoPro | Content Co-op",
+      "finalUrl": "http://localhost:4103/?demo=1",
+      "fonts": [
+        "Inter",
+        "Bricolage Grotesque",
+        "Geist Mono",
+        "__nextjs-Geist"
+      ],
+      "weights": [
+        "400",
+        "700",
+        "500",
+        "640",
+        "600",
+        "650"
+      ],
+      "sizes": {
+        "16px": 182,
+        "9.44px": 24,
+        "12px": 18,
+        "14px": 13,
+        "10px": 11,
+        "12.48px": 9,
+        "12.8px": 8,
+        "8.5px": 7,
+        "11px": 7,
+        "11.52px": 1,
+        "20px": 1
+      },
+      "colors": {
+        "rgb(11, 25, 40)": 144,
+        "rgb(95, 107, 120)": 86,
+        "rgb(30, 77, 140)": 15,
+        "rgb(242, 237, 226)": 11,
+        "rgb(255, 255, 255)": 6,
+        "rgb(184, 178, 164)": 6,
+        "rgb(138, 127, 108)": 1,
+        "rgb(117, 117, 117)": 1
+      },
+      "backgrounds": {
+        "rgb(10, 13, 18)": 11,
+        "rgb(250, 246, 239)": 6,
+        "rgba(10, 13, 18, 0.68)": 5,
+        "rgb(196, 114, 42)": 3,
+        "rgb(240, 235, 224)": 2,
+        "rgb(30, 77, 140)": 2,
+        "rgba(30, 77, 140, 0.1)": 1,
+        "rgb(161, 74, 74)": 1
+      },
+      "bodyFont": "Inter, \"Instrument Sans\", sans-serif",
+      "overflowX": false,
+      "scrollW": 375,
+      "clientW": 375,
+      "offenders": [],
+      "mainPadding": "0px 0px 58px",
+      "controls": [
+        "A: \"Skip to workspace content\" -> #workspace-content",
+        "BUTTON: \"Open workspace navigation\"",
+        "A: \"Co-VideoPro BY CONTENT CO-OP\" -> /?demo=1",
+        "A: \"Home\" -> /?demo=1",
+        "A: \"Projects\" -> /projects?demo=1",
+        "A: \"Pipeline\" -> /opportunities?demo=1",
+        "BUTTON: \"More\"",
+        "BUTTON: \"Search commands, projects, and media\"",
+        "BUTTON: \"Upload media to a project\"",
+        "A: \"Email help and feedback\" -> mailto:hello@contentco-op.com?subject=Co-Production%20Pro%20feedback",
+        "BUTTON: \"Notifications\"",
+        "BUTTON: \"BE\"",
+        "A: \"Overview\" -> /?demo=1",
+        "A: \"Projects\" -> /projects?demo=1",
+        "A: \"Opportunities\" -> /opportunities?demo=1",
+        "A: \"Reviews\" -> /reviews?demo=1",
+        "A: \"Activity\" -> /activity?demo=1",
+        "A: \"Field\" -> /field?demo=1",
+        "A: \"Media library\" -> /library?demo=1",
+        "A: \"Archive\" -> /projects/archive?demo=1",
+        "A: \"Trash\" -> /projects/trash?demo=1",
+        "A: \"Workspace settings\" -> /settings?demo=1",
+        "A: \"ICA\" -> /projects/ica?demo=1",
+        "A: \"Schneider + EPC\" -> /projects/schneider-epc?demo=1",
+        "A: \"bp\" -> /projects/bp?demo=1",
+        "A: \"Conexon\" -> /projects/conexon?demo=1",
+        "A: \"Inquiry\" -> /opportunities?compose=inquiry&demo=1",
+        "A: \"Project\" -> /projects/new?demo=1",
+        "A: \"Development Conexon Conexon Workshop Interviews_v1\" -> /projects/conexon?demo=1",
+        "A: \"No media yet Pre-production Physical Edge — El Paso No media yet\" -> /projects/el-paso?demo=1",
+        "A: \"Production bp BP Rodeo Recap_v2\" -> /projects/bp?demo=1",
+        "A: \"Post Schneider + EPC Schneider + McLaren Podcast_v3\" -> /projects/schneider-epc?demo=1",
+        "A: \"Review ICA Denie McDonald_v4\" -> /projects/ica?demo=1",
+        "A: \"Milestone overdue by 1 day Rough cut to Rachel · Edit Reschedule or co\" -> /projects/bp?surface=plan&demo=1",
+        "A: \"Milestone overdue by 10 days Brief v2 approved by Sam · Sam Delgado Re\" -> /projects/conexon?surface=plan&demo=1",
+        "A: \"Proposal v1 sent 16 days ago — no client answer Conexon Customer-Story\" -> /projects/conexon?surface=proposal&demo=1",
+        "A: \"Revision round 2 has been in progress for 9 days Round 2 consolidation\" -> /projects/ica?surface=reviews&demo=1",
+        "A: \"ICA_ROADSHOW_SOCIAL_9x16.mp4 has waited in QC for 11 days Checking cap\" -> /projects/ica?surface=delivery&demo=1",
+        "A: \"Production day overdue by 7 days Rodeo recap — day 1 (grounds + interv\" -> /projects/bp?surface=plan&demo=1",
+        "A: \"All 7 open loops\" -> /activity?demo=1",
+        "A: \"Conexon Workshop Interviews_v1 Conexon\" -> /projects/conexon?demo=1&asset=conexon-workshop-v1&view=review&demo=1",
+        "A: \"Denie McDonald_v4 ICA\" -> /projects/ica?demo=1&asset=denie-mcdonald-v4&view=review&demo=1",
+        "A: \"Charles Drummond_v5 ICA\" -> /projects/ica?demo=1&asset=charles-drummond-v5&view=review&demo=1",
+        "A: \"Kevin Bowers_v2 ICA\" -> /projects/ica?demo=1&asset=kevin-bowers-v2&view=review&demo=1",
+        "A: \"Schneider + McLaren Podcast_v3 Schneider + EPC\" -> /projects/schneider-epc?demo=1&asset=mclaren-podcast-v3&view=review&demo=1",
+        "A: \"BP Rodeo Recap_v2 bp\" -> /projects/bp?demo=1&asset=bp-rodeo-v2&view=review&demo=1"
+      ]
+    }
+  },
+  {
+    "job": {
+      "url": "/opportunities",
+      "viewport": "1440x900"
+    },
+    "data": {
+      "title": "Co-VideoPro | Content Co-op",
+      "finalUrl": "http://localhost:4103/opportunities?demo=1",
+      "fonts": [
+        "Inter",
+        "Bricolage Grotesque",
+        "Geist Mono",
+        "__nextjs-Geist"
+      ],
+      "weights": [
+        "400",
+        "700",
+        "500",
+        "600",
+        "580",
+        "650"
+      ],
+      "sizes": {
+        "13.12px": 91,
+        "16px": 89,
+        "14px": 42,
+        "12px": 35,
+        "12.8px": 15,
+        "12.48px": 11,
+        "10px": 6,
+        "11.2px": 4,
+        "11px": 3,
+        "8.5px": 1,
+        "11.52px": 1,
+        "20px": 1
+      },
+      "colors": {
+        "rgb(11, 25, 40)": 214,
+        "rgb(95, 107, 120)": 55,
+        "rgb(30, 77, 140)": 15,
+        "rgb(255, 255, 255)": 13,
+        "rgb(117, 117, 117)": 1
+      },
+      "backgrounds": {
+        "rgb(250, 246, 239)": 13,
+        "rgba(30, 77, 140, 0.1)": 10,
+        "rgb(30, 77, 140)": 5,
+        "rgb(240, 235, 224)": 4,
+        "rgb(243, 237, 224)": 2,
+        "rgb(161, 74, 74)": 1
+      },
+      "bodyFont": "Inter, \"Instrument Sans\", sans-serif",
+      "overflowX": false,
+      "scrollW": 1440,
+      "clientW": 1440,
+      "offenders": [],
+      "mainPadding": "0px",
+      "controls": [
+        "A: \"Skip to workspace content\" -> #workspace-content",
+        "BUTTON: \"Open workspace navigation\"",
+        "A: \"Co-VideoPro BY CONTENT CO-OP\" -> /?demo=1",
+        "A: \"Home\" -> /?demo=1",
+        "A: \"Projects\" -> /projects?demo=1",
+        "A: \"Pipeline\" -> /opportunities?demo=1",
+        "BUTTON: \"More\"",
+        "BUTTON: \"Search commands, projects, and media\"",
+        "BUTTON: \"Upload\"",
+        "A: \"Email help and feedback\" -> mailto:hello@contentco-op.com?subject=Co-Production%20Pro%20feedback",
+        "BUTTON: \"Notifications\"",
+        "BUTTON: \"BE\"",
+        "A: \"Overview\" -> /?demo=1",
+        "A: \"Projects\" -> /projects?demo=1",
+        "A: \"Opportunities\" -> /opportunities?demo=1",
+        "A: \"Reviews\" -> /reviews?demo=1",
+        "A: \"Activity\" -> /activity?demo=1",
+        "A: \"Field\" -> /field?demo=1",
+        "A: \"Media library\" -> /library?demo=1",
+        "A: \"Archive\" -> /projects/archive?demo=1",
+        "A: \"Trash\" -> /projects/trash?demo=1",
+        "A: \"Workspace settings\" -> /settings?demo=1",
+        "A: \"ICA\" -> /projects/ica?demo=1",
+        "A: \"Schneider + EPC\" -> /projects/schneider-epc?demo=1",
+        "A: \"bp\" -> /projects/bp?demo=1",
+        "A: \"Conexon\" -> /projects/conexon?demo=1",
+        "BUTTON: \"New inquiry\"",
+        "BUTTON: \"Triage\"",
+        "BUTTON: \"Decline\"",
+        "BUTTON: \"Start adaptive discovery\"",
+        "BUTTON: \"Qualify\"",
+        "BUTTON: \"Decline\"",
+        "TEXTAREA: \"Answer for deliverables\"",
+        "SELECT: \"high confidence medium confidence low confidence\"",
+        "BUTTON: \"Save answer\"",
+        "BUTTON: \"Unknown\"",
+        "BUTTON: \"Conflicting answers\"",
+        "A: \"ICA\" -> /projects/ica?demo=1",
+        "A: \"Schneider + EPC\" -> /projects/schneider-epc?demo=1",
+        "A: \"Physical Edge — El Paso\" -> /projects/el-paso?demo=1",
+        "A: \"bp\" -> /projects/bp?demo=1",
+        "A: \"Conexon\" -> /projects/conexon?demo=1",
+        "A: \"Open in project\" -> /projects/ica?surface=proposal&demo=1",
+        "BUTTON: \"Record client approval\"",
+        "A: \"Open in project\" -> /projects/conexon?surface=proposal&demo=1"
+      ]
+    }
+  },
+  {
+    "job": {
+      "url": "/opportunities",
+      "viewport": "375x812"
+    },
+    "data": {
+      "title": "Co-VideoPro | Content Co-op",
+      "finalUrl": "http://localhost:4103/opportunities?demo=1",
+      "fonts": [
+        "Inter",
+        "Bricolage Grotesque",
+        "Geist Mono",
+        "__nextjs-Geist"
+      ],
+      "weights": [
+        "400",
+        "700",
+        "500",
+        "640",
+        "600"
+      ],
+      "sizes": {
+        "16px": 126,
+        "14px": 43,
+        "12px": 35,
+        "9.44px": 24,
+        "12.8px": 15,
+        "12.48px": 9,
+        "13.12px": 2,
+        "8.5px": 1,
+        "11.52px": 1,
+        "20px": 1,
+        "10px": 1
+      },
+      "colors": {
+        "rgb(11, 25, 40)": 169,
+        "rgb(95, 107, 120)": 64,
+        "rgb(255, 255, 255)": 12,
+        "rgb(30, 77, 140)": 11,
+        "rgb(117, 117, 117)": 1
+      },
+      "backgrounds": {
+        "rgb(250, 246, 239)": 11,
+        "rgba(30, 77, 140, 0.1)": 6,
+        "rgb(30, 77, 140)": 5,
+        "rgb(240, 235, 224)": 4,
+        "rgb(243, 237, 224)": 2,
+        "rgb(161, 74, 74)": 1
+      },
+      "bodyFont": "Inter, \"Instrument Sans\", sans-serif",
+      "overflowX": false,
+      "scrollW": 375,
+      "clientW": 375,
+      "offenders": [],
+      "mainPadding": "0px 0px 58px",
+      "controls": [
+        "A: \"Skip to workspace content\" -> #workspace-content",
+        "BUTTON: \"Open workspace navigation\"",
+        "A: \"Co-VideoPro BY CONTENT CO-OP\" -> /?demo=1",
+        "A: \"Home\" -> /?demo=1",
+        "A: \"Projects\" -> /projects?demo=1",
+        "A: \"Pipeline\" -> /opportunities?demo=1",
+        "BUTTON: \"More\"",
+        "BUTTON: \"Search commands, projects, and media\"",
+        "BUTTON: \"Upload media to a project\"",
+        "A: \"Email help and feedback\" -> mailto:hello@contentco-op.com?subject=Co-Production%20Pro%20feedback",
+        "BUTTON: \"Notifications\"",
+        "BUTTON: \"BE\"",
+        "A: \"Overview\" -> /?demo=1",
+        "A: \"Projects\" -> /projects?demo=1",
+        "A: \"Opportunities\" -> /opportunities?demo=1",
+        "A: \"Reviews\" -> /reviews?demo=1",
+        "A: \"Activity\" -> /activity?demo=1",
+        "A: \"Field\" -> /field?demo=1",
+        "A: \"Media library\" -> /library?demo=1",
+        "A: \"Archive\" -> /projects/archive?demo=1",
+        "A: \"Trash\" -> /projects/trash?demo=1",
+        "A: \"Workspace settings\" -> /settings?demo=1",
+        "A: \"ICA\" -> /projects/ica?demo=1",
+        "A: \"Schneider + EPC\" -> /projects/schneider-epc?demo=1",
+        "A: \"bp\" -> /projects/bp?demo=1",
+        "A: \"Conexon\" -> /projects/conexon?demo=1",
+        "BUTTON: \"New inquiry\"",
+        "BUTTON: \"Triage\"",
+        "BUTTON: \"Decline\"",
+        "BUTTON: \"Start adaptive discovery\"",
+        "BUTTON: \"Qualify\"",
+        "BUTTON: \"Decline\"",
+        "TEXTAREA: \"Answer for deliverables\"",
+        "SELECT: \"high confidence medium confidence low confidence\"",
+        "BUTTON: \"Save answer\"",
+        "BUTTON: \"Unknown\"",
+        "BUTTON: \"Conflicting answers\"",
+        "A: \"ICA\" -> /projects/ica?demo=1",
+        "A: \"Schneider + EPC\" -> /projects/schneider-epc?demo=1",
+        "A: \"Physical Edge — El Paso\" -> /projects/el-paso?demo=1",
+        "A: \"bp\" -> /projects/bp?demo=1",
+        "A: \"Conexon\" -> /projects/conexon?demo=1",
+        "A: \"Open in project\" -> /projects/ica?surface=proposal&demo=1",
+        "BUTTON: \"Record client approval\"",
+        "A: \"Open in project\" -> /projects/conexon?surface=proposal&demo=1"
+      ]
+    }
+  },
+  {
+    "job": {
+      "url": "/reviews",
+      "viewport": "1440x900"
+    },
+    "data": {
+      "title": "Co-VideoPro | Content Co-op",
+      "finalUrl": "http://localhost:4103/reviews?demo=1",
+      "fonts": [
+        "Inter",
+        "Bricolage Grotesque",
+        "Geist Mono",
+        "__nextjs-Geist"
+      ],
+      "weights": [
+        "400",
+        "700",
+        "500",
+        "600",
+        "580",
+        "650"
+      ],
+      "sizes": {
+        "13.12px": 127,
+        "16px": 95,
+        "12px": 16,
+        "12.48px": 11,
+        "10.88px": 11,
+        "11.52px": 10,
+        "11px": 8,
+        "14px": 8,
+        "12.8px": 8,
+        "10px": 5,
+        "20px": 4,
+        "8.5px": 1,
+        "24px": 1
+      },
+      "colors": {
+        "rgb(11, 25, 40)": 159,
+        "rgb(95, 107, 120)": 63,
+        "rgb(30, 77, 140)": 38,
+        "rgb(44, 58, 77)": 24,
+        "rgb(255, 255, 255)": 7,
+        "rgb(58, 109, 176)": 5,
+        "rgb(138, 127, 108)": 4,
+        "rgb(74, 222, 128)": 3,
+        "rgb(117, 117, 117)": 1
+      },
+      "backgrounds": {
+        "rgb(250, 246, 239)": 13,
+        "rgb(30, 77, 140)": 5,
+        "rgba(30, 77, 140, 0.1)": 3,
+        "rgb(240, 235, 224)": 2,
+        "rgb(161, 74, 74)": 1,
+        "rgba(34, 197, 94, 0.2)": 1,
+        "rgba(58, 109, 176, 0.12)": 1
+      },
+      "bodyFont": "Inter, \"Instrument Sans\", sans-serif",
+      "overflowX": false,
+      "scrollW": 1440,
+      "clientW": 1440,
+      "offenders": [],
+      "mainPadding": "0px",
+      "controls": [
+        "A: \"Skip to workspace content\" -> #workspace-content",
+        "BUTTON: \"Open workspace navigation\"",
+        "A: \"Co-VideoPro BY CONTENT CO-OP\" -> /?demo=1",
+        "A: \"Home\" -> /?demo=1",
+        "A: \"Projects\" -> /projects?demo=1",
+        "A: \"Pipeline\" -> /opportunities?demo=1",
+        "BUTTON: \"More\"",
+        "BUTTON: \"Search commands, projects, and media\"",
+        "BUTTON: \"Upload\"",
+        "A: \"Email help and feedback\" -> mailto:hello@contentco-op.com?subject=Co-Production%20Pro%20feedback",
+        "BUTTON: \"Notifications\"",
+        "BUTTON: \"BE\"",
+        "A: \"Overview\" -> /?demo=1",
+        "A: \"Projects\" -> /projects?demo=1",
+        "A: \"Opportunities\" -> /opportunities?demo=1",
+        "A: \"Reviews\" -> /reviews?demo=1",
+        "A: \"Activity\" -> /activity?demo=1",
+        "A: \"Field\" -> /field?demo=1",
+        "A: \"Media library\" -> /library?demo=1",
+        "A: \"Archive\" -> /projects/archive?demo=1",
+        "A: \"Trash\" -> /projects/trash?demo=1",
+        "A: \"Workspace settings\" -> /settings?demo=1",
+        "A: \"ICA\" -> /projects/ica?demo=1",
+        "A: \"Schneider + EPC\" -> /projects/schneider-epc?demo=1",
+        "A: \"bp\" -> /projects/bp?demo=1",
+        "A: \"Conexon\" -> /projects/conexon?demo=1",
+        "A: \"Create from cockpit\" -> /projects/bp?asset=bp-rodeo-v2&view=review&demo=1",
+        "A: \"Open projects\" -> /projects?demo=1",
+        "BUTTON: \"All links\"",
+        "BUTTON: \"Created by me\"",
+        "BUTTON: \"Copy\"",
+        "A: \"Open review link\" -> http://localhost:4103/review/demo?demo=1&asset=ica-roadshow-final&intent=approval_needed&share=demo-ica-final",
+        "BUTTON: \"Deactivate review link\"",
+        "BUTTON: \"Copy\"",
+        "A: \"Open review link\" -> http://localhost:4103/review/demo?demo=1&asset=denie-mcdonald-v4&assets=denie-mcdonald-v4%2Ccharles-drummond-v5&intent=client_review&share=demo-ceraweek-cuts",
+        "BUTTON: \"Deactivate review link\""
+      ]
+    }
+  },
+  {
+    "job": {
+      "url": "/reviews",
+      "viewport": "375x812"
+    },
+    "data": {
+      "title": "Co-VideoPro | Content Co-op",
+      "finalUrl": "http://localhost:4103/reviews?demo=1",
+      "fonts": [
+        "Inter",
+        "Bricolage Grotesque",
+        "Geist Mono",
+        "__nextjs-Geist"
+      ],
+      "weights": [
+        "400",
+        "700",
+        "500",
+        "640",
+        "600"
+      ],
+      "sizes": {
+        "16px": 132,
+        "13.12px": 36,
+        "9.44px": 24,
+        "12px": 16,
+        "10.88px": 11,
+        "14px": 9,
+        "12.48px": 9,
+        "12.8px": 8,
+        "11px": 5,
+        "20px": 4,
+        "8.5px": 1,
+        "11.52px": 1,
+        "24px": 1
+      },
+      "colors": {
+        "rgb(11, 25, 40)": 113,
+        "rgb(95, 107, 120)": 69,
+        "rgb(30, 77, 140)": 31,
+        "rgb(44, 58, 77)": 24,
+        "rgb(255, 255, 255)": 6,
+        "rgb(58, 109, 176)": 5,
+        "rgb(138, 127, 108)": 4,
+        "rgb(74, 222, 128)": 3,
+        "rgb(117, 117, 117)": 1
+      },
+      "backgrounds": {
+        "rgb(250, 246, 239)": 13,
+        "rgb(30, 77, 140)": 5,
+        "rgb(240, 235, 224)": 2,
+        "rgba(30, 77, 140, 0.1)": 2,
+        "rgb(161, 74, 74)": 1,
+        "rgba(34, 197, 94, 0.2)": 1,
+        "rgba(58, 109, 176, 0.12)": 1
+      },
+      "bodyFont": "Inter, \"Instrument Sans\", sans-serif",
+      "overflowX": false,
+      "scrollW": 375,
+      "clientW": 375,
+      "offenders": [],
+      "mainPadding": "0px 0px 58px",
+      "controls": [
+        "A: \"Skip to workspace content\" -> #workspace-content",
+        "BUTTON: \"Open workspace navigation\"",
+        "A: \"Co-VideoPro BY CONTENT CO-OP\" -> /?demo=1",
+        "A: \"Home\" -> /?demo=1",
+        "A: \"Projects\" -> /projects?demo=1",
+        "A: \"Pipeline\" -> /opportunities?demo=1",
+        "BUTTON: \"More\"",
+        "BUTTON: \"Search commands, projects, and media\"",
+        "BUTTON: \"Upload media to a project\"",
+        "A: \"Email help and feedback\" -> mailto:hello@contentco-op.com?subject=Co-Production%20Pro%20feedback",
+        "BUTTON: \"Notifications\"",
+        "BUTTON: \"BE\"",
+        "A: \"Overview\" -> /?demo=1",
+        "A: \"Projects\" -> /projects?demo=1",
+        "A: \"Opportunities\" -> /opportunities?demo=1",
+        "A: \"Reviews\" -> /reviews?demo=1",
+        "A: \"Activity\" -> /activity?demo=1",
+        "A: \"Field\" -> /field?demo=1",
+        "A: \"Media library\" -> /library?demo=1",
+        "A: \"Archive\" -> /projects/archive?demo=1",
+        "A: \"Trash\" -> /projects/trash?demo=1",
+        "A: \"Workspace settings\" -> /settings?demo=1",
+        "A: \"ICA\" -> /projects/ica?demo=1",
+        "A: \"Schneider + EPC\" -> /projects/schneider-epc?demo=1",
+        "A: \"bp\" -> /projects/bp?demo=1",
+        "A: \"Conexon\" -> /projects/conexon?demo=1",
+        "A: \"Create from cockpit\" -> /projects/bp?asset=bp-rodeo-v2&view=review&demo=1",
+        "A: \"Open projects\" -> /projects?demo=1",
+        "BUTTON: \"All links\"",
+        "BUTTON: \"Created by me\"",
+        "BUTTON: \"Copy\"",
+        "A: \"Open review link\" -> http://localhost:4103/review/demo?demo=1&asset=ica-roadshow-final&intent=approval_needed&share=demo-ica-final",
+        "BUTTON: \"Deactivate review link\"",
+        "BUTTON: \"Copy\"",
+        "A: \"Open review link\" -> http://localhost:4103/review/demo?demo=1&asset=denie-mcdonald-v4&assets=denie-mcdonald-v4%2Ccharles-drummond-v5&intent=client_review&share=demo-ceraweek-cuts",
+        "BUTTON: \"Deactivate review link\""
+      ]
+    }
+  },
+  {
+    "job": {
+      "url": "/activity",
+      "viewport": "1440x900"
+    },
+    "data": {
+      "title": "Co-VideoPro | Content Co-op",
+      "finalUrl": "http://localhost:4103/activity?demo=1",
+      "fonts": [
+        "Inter",
+        "Bricolage Grotesque",
+        "Geist Mono",
+        "__nextjs-Geist"
+      ],
+      "weights": [
+        "400",
+        "700",
+        "500",
+        "600",
+        "580",
+        "650"
+      ],
+      "sizes": {
+        "16px": 111,
+        "13.12px": 89,
+        "14px": 24,
+        "12px": 13,
+        "12.48px": 11,
+        "10px": 8,
+        "11px": 8,
+        "20px": 4,
+        "8.5px": 1,
+        "11.52px": 1,
+        "24px": 1
+      },
+      "colors": {
+        "rgb(11, 25, 40)": 177,
+        "rgb(95, 107, 120)": 42,
+        "rgb(30, 77, 140)": 23,
+        "rgb(138, 127, 108)": 13,
+        "rgb(255, 255, 255)": 7,
+        "rgb(107, 95, 174)": 4,
+        "rgb(91, 122, 94)": 3,
+        "rgb(117, 117, 117)": 1
+      },
+      "backgrounds": {
+        "rgb(250, 246, 239)": 16,
+        "rgb(30, 77, 140)": 3,
+        "rgb(240, 235, 224)": 2,
+        "rgb(161, 74, 74)": 1,
+        "rgba(30, 77, 140, 0.1)": 1
+      },
+      "bodyFont": "Inter, \"Instrument Sans\", sans-serif",
+      "overflowX": false,
+      "scrollW": 1440,
+      "clientW": 1440,
+      "offenders": [],
+      "mainPadding": "0px",
+      "controls": [
+        "A: \"Skip to workspace content\" -> #workspace-content",
+        "BUTTON: \"Open workspace navigation\"",
+        "A: \"Co-VideoPro BY CONTENT CO-OP\" -> /?demo=1",
+        "A: \"Home\" -> /?demo=1",
+        "A: \"Projects\" -> /projects?demo=1",
+        "A: \"Pipeline\" -> /opportunities?demo=1",
+        "BUTTON: \"More\"",
+        "BUTTON: \"Search commands, projects, and media\"",
+        "BUTTON: \"Upload\"",
+        "A: \"Email help and feedback\" -> mailto:hello@contentco-op.com?subject=Co-Production%20Pro%20feedback",
+        "BUTTON: \"Notifications\"",
+        "BUTTON: \"BE\"",
+        "A: \"Overview\" -> /?demo=1",
+        "A: \"Projects\" -> /projects?demo=1",
+        "A: \"Opportunities\" -> /opportunities?demo=1",
+        "A: \"Reviews\" -> /reviews?demo=1",
+        "A: \"Activity\" -> /activity?demo=1",
+        "A: \"Field\" -> /field?demo=1",
+        "A: \"Media library\" -> /library?demo=1",
+        "A: \"Archive\" -> /projects/archive?demo=1",
+        "A: \"Trash\" -> /projects/trash?demo=1",
+        "A: \"Workspace settings\" -> /settings?demo=1",
+        "A: \"ICA\" -> /projects/ica?demo=1",
+        "A: \"Schneider + EPC\" -> /projects/schneider-epc?demo=1",
+        "A: \"bp\" -> /projects/bp?demo=1",
+        "A: \"Conexon\" -> /projects/conexon?demo=1",
+        "A: \"Review cockpit\" -> /projects/bp?asset=bp-rodeo-v2&view=review&demo=1",
+        "A: \"Upload media\" -> /projects?demo=1",
+        "BUTTON: \"All\"",
+        "BUTTON: \"Comments\"",
+        "BUTTON: \"Approvals\"",
+        "BUTTON: \"Uploads\"",
+        "BUTTON: \"Audit\""
+      ]
+    }
+  },
+  {
+    "job": {
+      "url": "/activity",
+      "viewport": "375x812"
+    },
+    "data": {
+      "title": "Co-VideoPro | Content Co-op",
+      "finalUrl": "http://localhost:4103/activity?demo=1",
+      "fonts": [
+        "Inter",
+        "Bricolage Grotesque",
+        "Geist Mono",
+        "__nextjs-Geist"
+      ],
+      "weights": [
+        "400",
+        "700",
+        "500",
+        "640",
+        "600"
+      ],
+      "sizes": {
+        "16px": 148,
+        "14px": 25,
+        "9.44px": 24,
+        "12px": 10,
+        "12.48px": 9,
+        "11px": 5,
+        "20px": 4,
+        "10px": 3,
+        "8.5px": 1,
+        "11.52px": 1,
+        "24px": 1
+      },
+      "colors": {
+        "rgb(11, 25, 40)": 130,
+        "rgb(95, 107, 120)": 57,
+        "rgb(30, 77, 140)": 19,
+        "rgb(138, 127, 108)": 10,
+        "rgb(255, 255, 255)": 6,
+        "rgb(107, 95, 174)": 4,
+        "rgb(91, 122, 94)": 3,
+        "rgb(117, 117, 117)": 1
+      },
+      "backgrounds": {
+        "rgb(250, 246, 239)": 14,
+        "rgb(30, 77, 140)": 3,
+        "rgb(240, 235, 224)": 2,
+        "rgb(161, 74, 74)": 1
+      },
+      "bodyFont": "Inter, \"Instrument Sans\", sans-serif",
+      "overflowX": false,
+      "scrollW": 375,
+      "clientW": 375,
+      "offenders": [],
+      "mainPadding": "0px 0px 58px",
+      "controls": [
+        "A: \"Skip to workspace content\" -> #workspace-content",
+        "BUTTON: \"Open workspace navigation\"",
+        "A: \"Co-VideoPro BY CONTENT CO-OP\" -> /?demo=1",
+        "A: \"Home\" -> /?demo=1",
+        "A: \"Projects\" -> /projects?demo=1",
+        "A: \"Pipeline\" -> /opportunities?demo=1",
+        "BUTTON: \"More\"",
+        "BUTTON: \"Search commands, projects, and media\"",
+        "BUTTON: \"Upload media to a project\"",
+        "A: \"Email help and feedback\" -> mailto:hello@contentco-op.com?subject=Co-Production%20Pro%20feedback",
+        "BUTTON: \"Notifications\"",
+        "BUTTON: \"BE\"",
+        "A: \"Overview\" -> /?demo=1",
+        "A: \"Projects\" -> /projects?demo=1",
+        "A: \"Opportunities\" -> /opportunities?demo=1",
+        "A: \"Reviews\" -> /reviews?demo=1",
+        "A: \"Activity\" -> /activity?demo=1",
+        "A: \"Field\" -> /field?demo=1",
+        "A: \"Media library\" -> /library?demo=1",
+        "A: \"Archive\" -> /projects/archive?demo=1",
+        "A: \"Trash\" -> /projects/trash?demo=1",
+        "A: \"Workspace settings\" -> /settings?demo=1",
+        "A: \"ICA\" -> /projects/ica?demo=1",
+        "A: \"Schneider + EPC\" -> /projects/schneider-epc?demo=1",
+        "A: \"bp\" -> /projects/bp?demo=1",
+        "A: \"Conexon\" -> /projects/conexon?demo=1",
+        "A: \"Review cockpit\" -> /projects/bp?asset=bp-rodeo-v2&view=review&demo=1",
+        "A: \"Upload media\" -> /projects?demo=1",
+        "BUTTON: \"All\"",
+        "BUTTON: \"Comments\"",
+        "BUTTON: \"Approvals\"",
+        "BUTTON: \"Uploads\"",
+        "BUTTON: \"Audit\""
+      ]
+    }
+  }
+]

@@ -12,17 +12,20 @@ function source(path: string): string {
 
 const BRAND_COLORS = ["#E8442E", "#1E40AF", "#16A34A", "#F59E0B"];
 
-test("the inline CVP monogram paints all four brand colors", () => {
+test("the inline CVP monogram stays monochrome in the canon palette", () => {
   const monogram = source("components/navigation/CvpMonogram.tsx");
+  assert.match(monogram, /stroke="var\(--cvp-ink\)"/);
+  assert.match(monogram, /stroke="var\(--cvp-blue\)"/);
   for (const color of BRAND_COLORS) {
-    assert.ok(monogram.includes(color), `monogram is missing ${color}`);
+    assert.ok(!monogram.includes(color), `monogram must not hardcode ${color}`);
   }
 });
 
 test("the workspace rail brand slot carries the monogram, wordmark, and microcopy", () => {
   const rail = source("components/navigation/WorkspaceRail.tsx");
   assert.match(rail, /<CvpMonogram\b/);
-  assert.match(rail, /<strong>Co‑ProVideo<\/strong>/);
+  assert.match(rail, /<strong>\{PRODUCT_NAME\}<\/strong>/);
+  assert.match(rail, /PRODUCT_NAME = "Co-VideoPro"|PRODUCT_NAME/);
   assert.match(rail, /by Content Co-op/);
   const railStyles = source("components/navigation/WorkspaceRail.module.css");
   assert.match(railStyles, /\.brandHeader::before[\s\S]*?--cvp-gradient-ribbon/);

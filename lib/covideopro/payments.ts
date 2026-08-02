@@ -1,5 +1,5 @@
 /**
- * Co‑ProVideo — payment milestones and checkout provider abstraction.
+ * Co-VideoPro — payment milestones and checkout provider abstraction.
  *
  * Guidance source: stripe-best-practices skill (Checkout Sessions for one-time
  * payments; never pass payment_method_types).

@@ -1,0 +1,23 @@
+{
+  "url": "http://localhost:4103/projects/ica?demo=1&asset=charles-drummond-v5&view=review",
+  "resolved": "clicked",
+  "screenShare": {
+    "disabled": true,
+    "ariaDisabled": "true",
+    "visible": true,
+    "x": 1273,
+    "y": 778
+  },
+  "chips": [
+    "Needs attention",
+    "Browser online only",
+    "4 listed",
+    "presence unverified",
+    "Not used in demo",
+    "FFmpeg backend not claimed",
+    "4 listed",
+    "Roster only; realtime unverified",
+    "Needs attention"
+  ],
+  "resolveBtns": 1
+}

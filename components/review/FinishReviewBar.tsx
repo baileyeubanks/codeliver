@@ -28,7 +28,7 @@ const ASSET_STATE_LABEL: Record<AssetApprovalState, string> = {
 };
 
 /**
- * The guest's closing act (Co‑ProVideo review promise): submit the round as a
+ * The guest's closing act (Co-VideoPro review promise): submit the round as a
  * durable decision. Approved / Request changes / Notes only — all recorded
  * with the reviewer's open comments attached as provenance.
  */

@@ -1,5 +1,5 @@
 /**
- * Co‑ProVideo — notification outbox (provider-neutral).
+ * Co-VideoPro — notification outbox (provider-neutral).
  *
  * Guidance source: sms-communications skill — reuse the repo's channel model,
  * normalize E.164, keep an audit trail with idempotency keys, dry-run cannot

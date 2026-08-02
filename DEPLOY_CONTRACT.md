@@ -1,3 +1,13 @@
+
+## Host law (2026-08-01)
+
+- `co-videopro.com` — Co-VideoPro product (staff/unified)
+- `client.contentco-op.com` — Co-VideoPro client role
+- `admin.contentco-op.com` — **CCO OS commercial** (not this app; proxy 308 → `/os`)
+- `contentco-op.com` — public marketing only
+
+See `/Users/baileyeubanks/Desktop/Projects/contentco-op/CCO_PRODUCT_CANON.md`.
+
 # Co-VideoPro / Co-Deliver Spine Deploy Contract
 
 Status: declared release contract, reconciled to M2 source on 2026-07-26.

@@ -1,5 +1,5 @@
 /**
- * Co‑ProVideo — exception engine (N2).
+ * Co-VideoPro — exception engine (N2).
  *
  * Exception-first operating model: an exception is a promise-vs-prediction
  * divergence, pre-declared, risk-ranked, carrying an owner and a repair verb.

@@ -1,0 +1,16 @@
+[
+  {"url":"/welcome","viewport":"1440x900"},
+  {"url":"/welcome","viewport":"375x812"},
+  {"url":"/login","viewport":"1440x900"},
+  {"url":"/login","viewport":"375x812"},
+  {"url":"/signup","viewport":"1440x900"},
+  {"url":"/signup","viewport":"375x812"},
+  {"url":"/","viewport":"1440x900","auth":true},
+  {"url":"/","viewport":"375x812","auth":true},
+  {"url":"/opportunities","viewport":"1440x900","auth":true},
+  {"url":"/opportunities","viewport":"375x812","auth":true},
+  {"url":"/reviews","viewport":"1440x900","auth":true},
+  {"url":"/reviews","viewport":"375x812","auth":true},
+  {"url":"/activity","viewport":"1440x900","auth":true},
+  {"url":"/activity","viewport":"375x812","auth":true}
+]

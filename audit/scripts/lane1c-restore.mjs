@@ -1,0 +1,26 @@
+import { chromium } from "playwright";
+const browser = await chromium.launch();
+const ctx = await browser.newContext();
+const page = await ctx.newPage();
+await page.goto("http://localhost:4103/login?demo=1", { waitUntil: "networkidle" }).catch(() => {});
+const btn = page.getByRole("button", { name: /open local workspace/i });
+await btn.first().waitFor({ timeout: 10000 });
+await btn.first().click();
+await page.waitForTimeout(4000);
+const res = await page.evaluate(() => {
+  const key = "co-videopro.workspace.v2";
+  const raw = window.localStorage.getItem(key);
+  if (!raw) return "no-key";
+  const state = JSON.parse(raw);
+  const day = (state.productionDays || []).find((d) => d.date === "2026-08-17");
+  if (!day) return "no-day";
+  const was = day.status;
+  day.status = "scheduled";
+  window.localStorage.setItem(key, JSON.stringify(state));
+  return { was, now: day.status };
+});
+console.log(JSON.stringify(res));
+await page.goto("http://localhost:4103/field?demo=1", { waitUntil: "networkidle" }).catch(() => {});
+await page.waitForTimeout(1500);
+console.log(await page.locator("section[aria-label='Field day']").innerText().catch(() => "n/a"));
+await browser.close();

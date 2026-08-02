@@ -9,6 +9,7 @@ import {
   mobileNavigation,
   visibleNavigation,
   withWorkspaceQuery,
+  WORKSPACE_LABEL,
   type WorkspaceRole,
 } from "./navigation-model";
 import { useDialogFocus } from "./useDialogFocus";
@@ -182,7 +183,7 @@ export default function WorkspaceNavigation({
             </div>
 
             <footer className={styles.drawerFooter}>
-              <span>Co‑ProVideo workspace</span>
+              <span>{WORKSPACE_LABEL}</span>
               <strong>{role}</strong>
             </footer>
           </aside>

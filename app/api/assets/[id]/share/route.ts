@@ -173,7 +173,7 @@ async function PATCHHandler(req: Request, { params }: { params: Promise<{ id: st
     assetId,
     inviteId,
     requestId,
-    actor: { id: user.id, name: user.email ?? "Co‑ProVideo operator" },
+    actor: { id: user.id, name: user.email ?? "Co-VideoPro operator" },
   });
   if (!result.ok) return NextResponse.json(result, { status: result.status });
   return NextResponse.json(result);
@@ -202,7 +202,7 @@ async function DELETEHandler(req: Request, { params }: { params: Promise<{ id: s
     client: getSupabase(),
     assetId,
     inviteId,
-    actor: { id: user.id, name: user.email ?? "Co‑ProVideo operator" },
+    actor: { id: user.id, name: user.email ?? "Co-VideoPro operator" },
   });
   if (!result.ok) return NextResponse.json(result, { status: result.status });
   return NextResponse.json(result);

@@ -1,3 +1,8 @@
+/** Canonical product name. Single source of truth for shell/nav chrome copy. */
+export const PRODUCT_NAME = "Co-VideoPro";
+/** Footer/wordmark label shared by the desktop rail and the mobile drawer. */
+export const WORKSPACE_LABEL = `${PRODUCT_NAME} workspace`;
+
 export type WorkspaceRole = "owner" | "producer" | "editor" | "reviewer" | "viewer";
 
 export type WorkspaceCapability =

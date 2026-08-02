@@ -1,5 +1,5 @@
 /**
- * Co‑ProVideo — shot list readiness (T5).
+ * Co-VideoPro — shot list readiness (T5).
  *
  * The shot list is the shoot-day truth: what the day owes the edit.
  * Readiness is deterministic and keyed to the day's own lifecycle: a

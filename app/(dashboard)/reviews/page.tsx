@@ -186,7 +186,7 @@ export default function ReviewsPage() {
               key={item.label}
               className="grid min-h-[74px] grid-cols-[32px_minmax(0,1fr)] items-center gap-3 rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3 py-2"
             >
-              <span className="flex h-8 w-8 items-center justify-center rounded-md bg-[var(--surface)] text-[var(--accent)]">
+              <span className="flex h-8 w-8 items-center justify-center rounded-md bg-[var(--surface-2)] text-[var(--accent)]">
                 <Icon size={16} />
               </span>
               <span className="min-w-0">
@@ -211,7 +211,7 @@ export default function ReviewsPage() {
           className={`h-8 rounded-md px-3 text-xs font-semibold transition ${
             tab === "all"
               ? "bg-[var(--accent-dim)] text-[var(--accent)]"
-              : "text-[var(--muted)] hover:bg-[var(--surface)] hover:text-[var(--ink)]"
+              : "text-[var(--muted)] hover:bg-[var(--surface-2)] hover:text-[var(--ink)]"
           }`}
           onClick={() => setTab("all")}
         >
@@ -224,7 +224,7 @@ export default function ReviewsPage() {
           className={`h-8 rounded-md px-3 text-xs font-semibold transition ${
             tab === "mine"
               ? "bg-[var(--accent-dim)] text-[var(--accent)]"
-              : "text-[var(--muted)] hover:bg-[var(--surface)] hover:text-[var(--ink)]"
+              : "text-[var(--muted)] hover:bg-[var(--surface-2)] hover:text-[var(--ink)]"
           }`}
           onClick={() => setTab("mine")}
         >
@@ -331,7 +331,7 @@ export default function ReviewsPage() {
                         )}
                         {link.allow_downloads && (
                           <span className="badge badge-working">
-                            <Download size={10} className="mr-1" /> DL
+                            <Download size={10} className="mr-1" /> Download
                           </span>
                         )}
                       </div>

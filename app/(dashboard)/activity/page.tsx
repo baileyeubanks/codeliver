@@ -36,6 +36,10 @@ const activityFilters: Array<{ id: ActivityFilter; label: string }> = [
   { id: "audit", label: "Audit" },
 ];
 
+function activityKindLabel(kind: Exclude<ActivityFilter, "all">): string {
+  return activityFilters.find((filter) => filter.id === kind)?.label ?? "Audit";
+}
+
 function activityKind(action: string): Exclude<ActivityFilter, "all"> {
   if (action.includes("comment")) return "comments";
   if (action.includes("approved") || action.includes("approval") || action.includes("change") || action.includes("reject")) {
@@ -158,7 +162,7 @@ export default function ActivityPage() {
               key={item.label}
               className="grid min-h-[74px] grid-cols-[32px_minmax(0,1fr)] items-center gap-3 rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3 py-2"
             >
-              <span className="flex h-8 w-8 items-center justify-center rounded-md bg-[var(--surface)] text-[var(--accent)]">
+              <span className="flex h-8 w-8 items-center justify-center rounded-md bg-[var(--surface-2)] text-[var(--accent)]">
                 <Icon size={16} />
               </span>
               <span className="min-w-0">
@@ -223,8 +227,8 @@ export default function ActivityPage() {
                   onClick={() => setActiveFilter(filter.id)}
                   className={`h-8 rounded-md px-3 text-xs font-semibold transition ${
                     activeFilter === filter.id
-                      ? "bg-[var(--accent-soft)] text-[var(--accent)]"
-                      : "text-[var(--muted)] hover:bg-[var(--surface)] hover:text-[var(--ink)]"
+                      ? "bg-[var(--accent-dim)] text-[var(--accent)]"
+                      : "text-[var(--muted)] hover:bg-[var(--surface-2)] hover:text-[var(--ink)]"
                   }`}
                 >
                   {filter.label}
@@ -248,7 +252,7 @@ export default function ActivityPage() {
                   key={item.id}
                   className="grid grid-cols-[32px_minmax(0,1fr)] gap-3 border-b border-[var(--border)] px-4 py-3 last:border-b-0 sm:grid-cols-[32px_minmax(0,1fr)_80px]"
                 >
-                  <div className="flex h-8 w-8 items-center justify-center rounded-md bg-[var(--surface)]">
+                  <div className="flex h-8 w-8 items-center justify-center rounded-md bg-[var(--surface-2)]">
                     {actionIcon(item.action)}
                   </div>
                   <div className="min-w-0">
@@ -265,8 +269,8 @@ export default function ActivityPage() {
                       </p>
                     )}
                     <p className="mt-1 text-[10px] font-semibold uppercase tracking-[0.08em] text-[var(--dim)]">
-                      {activityKind(item.action)}
-                      {item.asset_id ? ` / ${item.asset_id}` : ""}
+                      {activityKindLabel(activityKind(item.action))}
+                      {item.details?.asset_title ? ` / ${item.details.asset_title}` : ""}
                     </p>
                   </div>
                   <time className="hidden justify-self-end text-xs text-[var(--dim)] sm:block">

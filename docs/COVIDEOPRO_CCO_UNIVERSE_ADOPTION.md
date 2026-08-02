@@ -10,7 +10,7 @@
 | Working | Royal Light Cockpit (cool gray, white cards, royal blue, dark media islands) | Home, Opportunities, Projects, cockpit shell |
 | Stage | Dark Cinema (near-black wells only) | review stage, SequenceTimeline, player surfaces |
 | Deep work | Paper Desk (canvas #eae2d3, rust/moss) | future writing surface (Co-Script weave, T6) |
-| Terminal | **No surface in Co‑ProVideo** | money surfaces are editorial (Surface F), not Bloomberg — the operative meaning of "delete ROOT" |
+| Terminal | **No surface in Co-VideoPro** | money surfaces are editorial (Surface F), not Bloomberg — the operative meaning of "delete ROOT" |
 
 Color = state only (law 2). Every number is a door (law 3). Nothing beautiful that lies (epilogue).
 

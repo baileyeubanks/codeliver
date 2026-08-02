@@ -143,7 +143,7 @@ export async function POST(req: Request) {
       client: client as never,
       adapters,
       actorId: user.id,
-      actorName: user.email ?? "Co‑ProVideo user",
+      actorName: user.email ?? "Co-VideoPro user",
       preferenceEnabled,
     });
   } catch {

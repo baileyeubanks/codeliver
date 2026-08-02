@@ -4,9 +4,29 @@ import { headers } from "next/headers";
 import { DemoCapabilityProvider } from "@/lib/demo/capability-context";
 import CopilotMount from "@/components/copilot/CopilotMount";
 
+const SITE_URL = "https://co-videopro.com";
+const SITE_NAME = "Co-VideoPro";
+const SITE_DESCRIPTION =
+  "All-in-one video production workspace for planning, review, approval, editing, and delivery.";
+
 export const metadata: Metadata = {
-  title: "Co‑ProVideo | Content Co-op",
-  description: "All-in-one video production workspace for planning, review, approval, editing, and delivery.",
+  metadataBase: new URL(SITE_URL),
+  title: "Co-VideoPro | Content Co-op",
+  description: SITE_DESCRIPTION,
+  openGraph: {
+    type: "website",
+    url: SITE_URL,
+    siteName: SITE_NAME,
+    title: "Co-VideoPro | Content Co-op",
+    description: SITE_DESCRIPTION,
+    images: [{ url: "/icon.svg", alt: "Co-VideoPro" }],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Co-VideoPro | Content Co-op",
+    description: SITE_DESCRIPTION,
+    images: ["/icon.svg"],
+  },
 };
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
@@ -20,7 +40,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
         {/* eslint-disable-next-line @next/next/no-page-custom-font */}
         <link
-          href="https://fonts.googleapis.com/css2?family=Geist+Mono:wght@400;500;600&family=Inter:wght@400;500;600;700;800&display=swap"
+          href="https://fonts.googleapis.com/css2?family=Geist+Mono:wght@400;500;600&family=Inter:opsz,wght@14..32,400..800&display=swap"
           rel="stylesheet"
         />
       </head>

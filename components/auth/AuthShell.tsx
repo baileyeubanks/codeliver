@@ -63,15 +63,15 @@ export default function AuthShell({ children, demoMode, loginHref }: AuthShellPr
       <header className={styles.header}>
         <Link
           className={styles.brand}
-          href={loginHref ?? (demoMode ? "/login?demo=1" : "/login")}
-          aria-label="Co‑ProVideo by Content Co-op sign in"
+          href={demoMode ? (loginHref ?? "/login?demo=1") : "/welcome"}
+          aria-label="Co-VideoPro by Content Co-op home"
         >
           <CoProductionBrand className={styles.brandLockup} priority />
         </Link>
 
         <div className={styles.product}>
           <span>Video production workspace</span>
-          <strong>Co‑ProVideo</strong>
+          <strong>Co-VideoPro</strong>
         </div>
 
         <div className={styles.securityStatus}>
@@ -80,7 +80,7 @@ export default function AuthShell({ children, demoMode, loginHref }: AuthShellPr
         </div>
       </header>
 
-      <section className={styles.workspace} aria-label="Account access">
+      <section className={styles.workspace} aria-label="Co-VideoPro by Content Co-op sign in">
         <div className={styles.formColumn} id="auth-content" tabIndex={-1}>
           <div className={styles.brandHero}>
             <CvpMonogram size={30} title="CVP monogram" />

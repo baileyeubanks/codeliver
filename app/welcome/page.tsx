@@ -4,14 +4,12 @@ import CoProductionBrand from "@/components/brand/CoProductionBrand";
 import { ShowreelStage, type ShowreelClip } from "@/components/brand/ShowreelStage";
 
 /**
- * Studio Home — the public front door (master spec §I.Home).
+ * Studio Home — the public front door of Co-VideoPro.
  *
  * A moving editorial introduction: full-bleed selected film imagery, slow
- * crop drift, low film grain, a deep midnight overlay, monumental warm-ivory
- * type in deliberate negative space, a tactile ivory invitation, a
- * smoked-glass studio entrance, and a discreet private client entrance.
- * The composition replaces the interim Canva-gradient hero per the
- * Co‑ProVideo design bible, tranche 2.
+ * crop drift, low film grain, a deep overlay, monumental white type in
+ * deliberate negative space, a single clear invitation, and a discreet
+ * client sign-in.
  */
 const REEL: readonly ShowreelClip[] = [
   {
@@ -38,7 +36,7 @@ export default function WelcomePage() {
       <div className="cpv-leak" aria-hidden="true" />
 
       <header className="cpv-reel__chrome">
-        <span style={{ color: "var(--ivory)" }}>
+        <span style={{ color: "var(--cvp-surface)" }}>
           <CoProductionBrand priority />
         </span>
         <nav aria-label="Studio">
@@ -49,7 +47,7 @@ export default function WelcomePage() {
       </header>
 
       <section className="cpv-reel__copy">
-        <p className="cpv-eyebrow cpv-reveal">A Content Co-op studio · Est. for the work</p>
+        <p className="cpv-eyebrow cpv-reveal">A Content Co-op studio · Built for the work</p>
         <h1 className="cpv-display cpv-reveal cpv-reveal--1">
           The cinematic operating world for modern brand storytelling.
         </h1>
@@ -62,7 +60,7 @@ export default function WelcomePage() {
           <Link href="/signup" className="cpv-btn cpv-btn--ivory">
             Start a project <ArrowRight size={16} aria-hidden="true" />
           </Link>
-          <Link href="/login?demo=1" className="cpv-btn cpv-btn--glass">
+          <Link href="/login" className="cpv-btn cpv-btn--glass">
             Enter the studio
           </Link>
         </div>
@@ -72,7 +70,7 @@ export default function WelcomePage() {
 
       <footer className="cpv-reel__foot">
         <span>Create · Connect · Convert</span>
-        <span>Inquiry → Brief → Proposal → Production → Edit → Review → Delivery</span>
+        <span>From first brief to final delivery — one connected record</span>
       </footer>
     </main>
   );

@@ -70,14 +70,15 @@ test("admin and client hosts share one Content Co-op branded login", () => {
   assert.deepEqual(loginPages, ["app/login/page.tsx"], "the product must keep one login page");
   assert.match(loginPage, /<AuthShell\b/);
   assert.match(authShell, /CoProductionBrand/);
-  assert.match(authShell, /aria-label="Co‑ProVideo by Content Co-op sign in"/);
-  assert.match(authShell, /<strong>Co‑ProVideo<\/strong>/);
+  assert.match(authShell, /aria-label="Co-VideoPro by Content Co-op sign in"/);
+  assert.match(authShell, /<strong>Co-VideoPro<\/strong>/);
   assert.match(authShell, /aria-label="Access readiness"/);
   assert.match(authShell, /Verified session required/);
   assert.match(authShell, /Local paths only/);
   assert.doesNotMatch(frontDoorSource, /\/(?:admin|client)\/login\b/);
 
-  assert.equal(resolveAuthHostContext(ADMIN_HOST).kind, "admin");
+  assert.equal(resolveAuthHostContext(ADMIN_HOST).kind, "workspace"); // CCO OS host
+  assert.equal(resolveAuthHostContext("co-videopro.com").kind, "admin");
   assert.equal(resolveAuthHostContext(CLIENT_HOST).kind, "client");
 
   for (const obsoleteHost of [
@@ -236,7 +237,7 @@ test("protected admin and client cross-surface requests are denied without redir
   assert.equal(frontDoorSource.includes(ADMIN_HOST), true, `${ADMIN_HOST} has no surface policy`);
   assert.equal(frontDoorSource.includes(CLIENT_HOST), true, `${CLIENT_HOST} has no surface policy`);
 
-  assert.equal(resolveHostSurface(ADMIN_HOST), "admin");
+  assert.equal(resolveHostSurface(ADMIN_HOST), null);
   assert.equal(resolveHostSurface(CLIENT_HOST), "client");
   assert.equal(roleCanAccessSurface("staff", "admin"), true);
   assert.equal(roleCanAccessSurface("staff", "client"), false);
@@ -254,6 +255,12 @@ test("protected admin and client cross-surface requests are denied without redir
     /PUBLIC_ROUTE_PREFIXES\.some\(\(route\) => isPathAtOrBelow\(pathname, route\)\)/,
   );
   assert.doesNotMatch(publicMatcher, /pathname\.startsWith/);
+  assert.match(
+    proxySource,
+    /PUBLIC_EXACT_ROUTES\s*=\s*\[[\s\S]*?["']\/forgot-password["'][\s\S]*?["']\/login\/forgot["']|PUBLIC_EXACT_ROUTES\s*=\s*\[[\s\S]*?["']\/login\/forgot["'][\s\S]*?["']\/forgot-password["']/,
+  );
+  assert.match(proxySource, /isApprovedProductionHost\(host\)/);
+  assert.match(proxySource, /isAppProductHost\(host\)/);
 
   assert.match(proxySource, /if \(hostSurface\)[\s\S]*?resolveTrustedSurfaceRole\(user\)/);
   assert.match(proxySource, /if \(!role\) return surfaceAccessDenied\(pathname\)/);

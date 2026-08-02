@@ -1,0 +1,4 @@
+[
+  {"url":"/invite/does-not-exist","name":"invite-bogus","viewport":"1440x900","auth":true},
+  {"url":"/invite/does-not-exist","name":"invite-bogus","viewport":"375x812","auth":true}
+]

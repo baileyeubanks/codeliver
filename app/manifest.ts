@@ -2,13 +2,15 @@ import type { MetadataRoute } from "next";
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: "Co-ProVideo",
-    short_name: "Co-ProVideo",
-    description: "Content Co-op's secure video production workspace.",
+    name: "Co-VideoPro",
+    short_name: "Co-VideoPro",
+    description:
+      "All-in-one video production workspace for planning, review, approval, editing, and delivery.",
     start_url: "/login",
     display: "standalone",
-    background_color: "#0b1020",
-    theme_color: "#0b1020",
+    // Canon Deep Blue (--cvp-ink) — matches the icon plate in app/icon.svg.
+    background_color: "#0a1d3d",
+    theme_color: "#0a1d3d",
     icons: [
       {
         src: "/icon.svg",

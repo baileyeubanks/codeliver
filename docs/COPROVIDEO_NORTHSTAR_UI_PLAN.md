@@ -1,4 +1,4 @@
-# Co‑ProVideo — North-Star UI Elevation Plan (MAIN INSPIRATION + doctrine import)
+# Co-VideoPro — North-Star UI Elevation Plan (MAIN INSPIRATION + doctrine import)
 
 **Date:** 2026-07-17 · **Sources:** `~/Desktop/MAIN INSPIRATION.png` (the co-videopro target mockup) + the ACS OS engineering plan (doctrine import: exception-first, KPI tiers, color grammar, AI tier ladder). All behavior rules from `COPROVIDEO_DESIGN_BIBLE.md` still govern.
 
@@ -18,7 +18,7 @@
 
 ## 2. Doctrine import from the ACS plan (adapted to video production)
 
-- **Exception-first home rail:** exceptions = promise vs prediction divergence, pre-declared. Co‑ProVideo triggers: unsigned release with shoot ≤48h · proposal sent >7d unanswered · revision round open >5d · deliverable in QC >3d · unassigned production day <7d out · milestone overdue. Each carries owner + repair verbs (chase release, nudge client, consolidate comments, re-spec). Cleared by state change only. Quiet board = good day.
+- **Exception-first home rail:** exceptions = promise vs prediction divergence, pre-declared. Co-VideoPro triggers: unsigned release with shoot ≤48h · proposal sent >7d unanswered · revision round open >5d · deliverable in QC >3d · unassigned production day <7d out · milestone overdue. Each carries owner + repair verbs (chase release, nudge client, consolidate comments, re-spec). Cleared by state change only. Quiet board = good day.
 - **KPI tiers:** Daily (review-waiting count, unsigned releases ≤48h, QC queue, days-at-risk) · Weekly (estimate vs actual per project, revision rounds per asset, approval latency) · Monthly (margin per client, conversion by source, archive growth). Never a lagging metric on the daily screen.
 - **Color grammar:** lifecycle hues fixed (blue=system, amber=discovery/prep, red=production/blocker, sage=approved/delivered) — red reserved for exceptions, never decoration. Matches the bible's signal discipline.
 - **AI tier ladder (replaces "AI buttons"):** T1 read-only drafts (radio cut, brief draft, bid compile — current) · T2 reversible writes with undo window (outbox dry-run) · T3 pre-approval (client-facing: proposal send, review link, checkout link, call-sheet distribute) · T4 multi-stakeholder (payments, contracts). Approval cards show the full artifact in-surface; approve/edit/reject are equal verbs. This is the five-agents model formalized — **no AI Tools grid ships until each tool has a real engine behind it** (current honest set: Rough Cut=reasoned radio cut, Scene Select=reasoning selects, Captions=SRT/VTT — these three may surface; Enhancement/Look Match stay out until real).

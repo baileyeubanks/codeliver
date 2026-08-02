@@ -1,5 +1,5 @@
 /**
- * Co‑ProVideo — delivery manifest (T12).
+ * Co-VideoPro — delivery manifest (T12).
  *
  * The manifest is the shipment's truth on paper: every deliverable with its
  * frozen spec, conveyor state, QC proof, and delivery timestamp. Generated
@@ -31,6 +31,6 @@ export function buildDeliveryManifest(input: {
     lines.push("");
   }
 
-  lines.push("Generated from the Project Operating Record — Co‑ProVideo by Content Co-op.");
+  lines.push("Generated from the Project Operating Record — Co-VideoPro by Content Co-op.");
   return lines.join("\n");
 }

@@ -1,0 +1,72 @@
+/* Login-only additions layered on top of components/auth/AuthShell.module.css.
+   Inherits the --auth-* custom properties defined on .shell. */
+
+.labelRow {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.labelRow > label {
+  color: var(--auth-copy);
+  font-size: 11px;
+  font-weight: 650;
+}
+
+.forgotLink {
+  color: var(--auth-accent);
+  font-size: 11px;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.forgotLink:hover {
+  text-decoration: underline;
+}
+
+.forgotLink:focus-visible {
+  outline: 2px solid var(--auth-accent);
+  outline-offset: 2px;
+  border-radius: 3px;
+}
+
+.recoveryBody {
+  display: grid;
+  gap: 12px;
+  margin-top: 20px;
+  color: var(--auth-copy);
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.recoveryBody p {
+  margin: 0;
+}
+
+.recoveryAction {
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 4px;
+  border: 1px solid var(--auth-accent);
+  border-radius: 7px;
+  background: var(--auth-accent);
+  padding: 0 18px;
+  color: #ffffff;
+  font-size: 12px;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.recoveryAction:hover {
+  border-color: var(--auth-accent-hover);
+  background: var(--auth-accent-hover);
+}
+
+.recoveryAction:focus-visible {
+  outline: 2px solid var(--auth-accent);
+  outline-offset: 2px;
+}

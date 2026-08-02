@@ -1,5 +1,5 @@
 /**
- * Co‑ProVideo — field workspace day selection (T4).
+ * Co-VideoPro — field workspace day selection (T4).
  *
  * The field view anchors on the nearest live production day: the next
  * upcoming day, or the most recent one when the shoot is behind you.

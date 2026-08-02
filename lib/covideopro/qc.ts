@@ -1,5 +1,5 @@
 /**
- * Co‑ProVideo — delivery QC checklist (T12).
+ * Co-VideoPro — delivery QC checklist (T12).
  *
  * QC is a gate, not a suggestion: a deliverable cannot leave QC until every
  * check on its spec-derived checklist has passed. The checklist is derived

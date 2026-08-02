@@ -1,0 +1,14 @@
+{
+  "inspector": "clicked url=http://localhost:4103/projects/ica?demo=1&asset=charles-drummond-v5",
+  "activity": "clicked url=http://localhost:4103/projects/ica?demo=1&asset=charles-drummond-v5",
+  "versions": "clicked url=http://localhost:4103/projects/ica?demo=1&asset=charles-drummond-v5",
+  "reviewBack": "clicked url=http://localhost:4103/projects/ica?demo=1&asset=charles-drummond-v5",
+  "resolved": "FAILED TimeoutError: locator.click: Timeout 4000ms exceeded.",
+  "open": "FAILED TimeoutError: locator.click: Timeout 4000ms exceeded.",
+  "edit": "clicked url=http://localhost:4103/projects/ica?demo=1&asset=charles-drummond-v5",
+  "focus": "clicked url=http://localhost:4103/projects/ica?demo=1&asset=charles-drummond-v5",
+  "lifecycle": "clicked url=http://localhost:4103/projects/ica?demo=1&asset=charles-drummond-v5",
+  "commands": "clicked url=http://localhost:4103/projects/ica?demo=1&asset=charles-drummond-v5",
+  "screenShare": "not in DOM",
+  "resolveButtons": []
+}

@@ -10,20 +10,20 @@ function source(path: string): string {
   return readFileSync(resolve(repositoryRoot, path), "utf8");
 }
 
-test("not-found and error states stay inside the Co‑ProVideo exterior shell", () => {
+test("not-found and error states stay inside the Co‑VideoPro exterior shell", () => {
   const notFound = source("app/not-found.tsx");
   const globalError = source("app/global-error.tsx");
   const dashboardRedirect = source("app/(dashboard)/page.tsx");
   const demoGuard = source("components/demo/DemoSessionGuard.tsx");
   const globals = source("app/globals.css");
   const exteriorStyles = globals.slice(
-    globals.indexOf("/* ── Co‑ProVideo exterior/loading states"),
+    globals.indexOf("/* ── Co‑VideoPro exterior/loading states"),
     globals.indexOf("/* ── Top Navigation"),
   );
 
   assert.match(notFound, /CoProductionBrand/);
   assert.match(notFound, /variant="stacked"/);
-  assert.match(notFound, /Co‑ProVideo surface/);
+  assert.match(notFound, /Co‑VideoPro surface/);
   assert.match(notFound, /Workspace route unavailable/);
   assert.doesNotMatch(notFound, />404</);
   assert.doesNotMatch(notFound, /Page not found/);
@@ -40,7 +40,7 @@ test("not-found and error states stay inside the Co‑ProVideo exterior shell", 
   assert.match(globalError, /CoProductionBrand/);
   assert.match(globalError, /variant="stacked"/);
   assert.match(globalError, /Workspace recovery/);
-  assert.match(globalError, /Co‑ProVideo needs a quick refresh/);
+  assert.match(globalError, /Co‑VideoPro needs a quick refresh/);
   assert.match(globalError, /onClick=\{reset\}/);
   assert.match(globalError, /href="\/projects"/);
   assert.doesNotMatch(globalError, /style=\{\{/);
@@ -55,7 +55,7 @@ test("not-found and error states stay inside the Co‑ProVideo exterior shell", 
 
   assert.match(demoGuard, /CoProductionBrand/);
   assert.match(demoGuard, /variant="stacked"/);
-  assert.match(demoGuard, /Returning to Co‑ProVideo sign in/);
+  assert.match(demoGuard, /Returning to Co‑VideoPro sign in/);
   assert.match(demoGuard, /aria-busy="true"/);
   assert.match(demoGuard, /sr-only">Returning to sign in/);
   assert.doesNotMatch(demoGuard, /className="spinner"/);

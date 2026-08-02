@@ -316,7 +316,7 @@ export default function ProjectWorkspaceClient() {
         <div className="project-state__topline">
           <CoProductionBrand
             variant="horizontal"
-            label="Co‑ProVideo by Content Co-op"
+            label="Co‑VideoPro by Content Co-op"
             priority
           />
           <span>
@@ -351,7 +351,7 @@ export default function ProjectWorkspaceClient() {
         <div className="project-state__panel">
           <CoProductionBrand
             variant="stacked"
-            label="Co‑ProVideo by Content Co-op"
+            label="Co‑VideoPro by Content Co-op"
             priority
           />
           <div className="project-state__icon" aria-hidden="true">

@@ -2,8 +2,8 @@ import type { MetadataRoute } from "next";
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: "Co-ProVideo",
-    short_name: "Co-ProVideo",
+    name: "Co-VideoPro",
+    short_name: "Co-VideoPro",
     description: "Content Co-op's secure video production workspace.",
     start_url: "/login",
     display: "standalone",

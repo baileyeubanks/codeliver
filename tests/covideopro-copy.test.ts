@@ -20,7 +20,7 @@ const customerFacingFiles = [
   "app/api/analytics/export/pdf/route.ts",
 ];
 
-test("customer-facing product copy consistently names Co‑ProVideo", () => {
+test("customer-facing product copy consistently names Co‑VideoPro", () => {
   for (const relativePath of customerFacingFiles) {
     const source = readFileSync(resolve(repositoryRoot, relativePath), "utf8");
     assert.doesNotMatch(source, /Co-Deliver/, `${relativePath} exposes the retired product name`);
@@ -28,7 +28,7 @@ test("customer-facing product copy consistently names Co‑ProVideo", () => {
   }
 
   const layoutSource = readFileSync(resolve(repositoryRoot, "app/layout.tsx"), "utf8");
-  assert.match(layoutSource, /title: "Co‑ProVideo \| Content Co-op"/);
+  assert.match(layoutSource, /title: "Co‑VideoPro \| Content Co-op"/);
   assert.match(layoutSource, /All-in-one video production workspace/);
 });
 
@@ -43,8 +43,8 @@ test("legacy technical identifiers remain stable while the new login theme is av
   );
 
   assert.match(layoutModel, /co-deliver\.cockpit-layout/);
-  assert.match(loginTheme, /"Co‑ProVideo": \{/);
-  assert.match(loginTheme, /displayLabel: "Co‑ProVideo"/);
+  assert.match(loginTheme, /"Co‑VideoPro": \{/);
+  assert.match(loginTheme, /displayLabel: "Co‑VideoPro"/);
 });
 
 test("public health probes omit topology while internal checks preserve product identity", () => {
@@ -58,7 +58,7 @@ test("public health probes omit topology while internal checks preserve product 
   const checks = readFileSync(resolve(repositoryRoot, "app/api/health/_lib/checks.ts"), "utf8");
 
   assert.match(healthIdentity, /HEALTH_SERVICE_ID = "co-deliver"/);
-  assert.match(healthIdentity, /HEALTH_PRODUCT_NAME = "Co‑ProVideo"/);
+  assert.match(healthIdentity, /HEALTH_PRODUCT_NAME = "Co‑VideoPro"/);
   assert.match(healthIdentity, /HEALTH_BRAND_NAME = "Content Co-op"/);
   assert.match(healthIdentity, /currentHealthPort/);
   assert.match(healthRoute, /\{ status: "ok" \}/);

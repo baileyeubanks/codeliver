@@ -17,14 +17,14 @@ export default function GlobalError({
           <div className="exterior-state__panel">
             <CoProductionBrand
               variant="stacked"
-              label="Co‑ProVideo by Content Co-op"
+              label="Co‑VideoPro by Content Co-op"
               priority
             />
             <div className="exterior-state__icon" aria-hidden="true">
               <AlertTriangle size={18} />
             </div>
             <p className="exterior-state__eyebrow">Workspace recovery</p>
-            <h1>Co‑ProVideo needs a quick refresh.</h1>
+            <h1>Co‑VideoPro needs a quick refresh.</h1>
             <p>
               The workspace hit a recoverable error before projects, media,
               comments, and approvals could finish loading.

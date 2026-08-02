@@ -65,7 +65,7 @@ export async function POST(request: NextRequest) {
     if (team.error) return backendUnavailable();
     const acceptUrl = `${getBaseUrl()}/invite/${token}`; const teamName = team.data?.name ?? "a team"; const senderName = user.email ?? "A Content Co-op producer";
     let delivered = false;
-    try { delivered = Boolean(await sendEmail({ to: email, subject: `You're invited to join ${teamName} on Co‑ProVideo`, html: `<p>${escapeHtml(senderName)} invited you to join <strong>${escapeHtml(teamName)}</strong> as ${escapeHtml(role)}.</p><p><a href="${acceptUrl}">Accept Invitation</a></p>` })); } catch { delivered = false; }
+    try { delivered = Boolean(await sendEmail({ to: email, subject: `You're invited to join ${teamName} on Co‑VideoPro`, html: `<p>${escapeHtml(senderName)} invited you to join <strong>${escapeHtml(teamName)}</strong> as ${escapeHtml(role)}.</p><p><a href="${acceptUrl}">Accept Invitation</a></p>` })); } catch { delivered = false; }
     await supabase.from("activity_log").insert({ actor_id: user.id, actor_name: user.email ?? "Unknown", action: "team_invite_sent", details: { team_id: teamId, email, role, delivery_status: delivered ? "sent" : "not_sent" } });
     return apiJson({ invite: inviteRow(inserted.data as Record<string, unknown>), accept_url: acceptUrl, email_sent: delivered }, { status: 201 });
   } catch { return backendUnavailable(); }

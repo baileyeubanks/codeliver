@@ -1,7 +1,7 @@
 @import "tailwindcss";
 @import "./brand-tokens.css";
 
-/* Co‑ProVideo design system — CVP Enterprise brand canon (P12, re-canonized).
+/* Co‑VideoPro design system — CVP Enterprise brand canon (P12, re-canonized).
    Default: cool white canvas, white cards, canon navy ink, canon Primary Blue
    signal (#156BFF). No lime, no tan. Dark is opt-in (stage surfaces only),
    never the shell. */
@@ -134,7 +134,7 @@ html, body {
 
 a { color: inherit; text-decoration: none; }
 
-/* ── Co‑ProVideo exterior/loading states ───────────────── */
+/* ── Co‑VideoPro exterior/loading states ───────────────── */
 .exterior-state,
 .project-state {
   min-height: 100svh;
@@ -3042,7 +3042,7 @@ a { color: inherit; text-decoration: none; }
   .demo-share-created-list img { width: 52px; height: 34px; }
 }
 
-/* Co‑ProVideo project cockpit: live-brand porcelain + brand blue, media islands dark */
+/* Co‑VideoPro project cockpit: live-brand porcelain + brand blue, media islands dark */
 .cockpit-shell {
   --cockpit-accent: var(--cvp-blue);
   --cockpit-accent-strong: #0f4da0;
@@ -4032,7 +4032,7 @@ a { color: inherit; text-decoration: none; }
 }
 
 /* Auth surfaces share the graphite editorial world — the discreet
-   private client entrance (Co‑ProVideo design bible, tranche 4). */
+   private client entrance (Co‑VideoPro design bible, tranche 4). */
 .auth-shell {
   --auth-accent: #4a7dff;
   --auth-accent-strong: #6b93ff;
@@ -4615,7 +4615,7 @@ a { color: inherit; text-decoration: none; }
 
 /* Shared Content Co-op workspace frame — graphite editorial world.
    The workspace no longer carries a light variant: the product is the
-   cinematic dark world by design (Co‑ProVideo design bible, tranche 3). */
+   cinematic dark world by design (Co‑VideoPro design bible, tranche 3). */
 .workspace-shell {
   --topnav-h: 72px;
   width: 100%;
@@ -5261,7 +5261,7 @@ a { color: inherit; text-decoration: none; }
 
 /* ── Metronic Wave 1 port (COVIDEOPRO_METRONIC_PORT_PLAN.md) ─────────────────
    Token architecture adapted from metronic-tailwind-html-starter-kit
-   (config.ktui.css, range.css, scrollable.css), re-keyed to Co‑ProVideo
+   (config.ktui.css, range.css, scrollable.css), re-keyed to Co‑VideoPro
    tokens. Pattern source only — identity stays ours. */
 
 :root {
@@ -5443,7 +5443,7 @@ input[type="range"].cv-range:focus-visible {
 .cv-media-thumb__label strong { overflow: hidden; color: var(--ivory, #f2ede2); font-size: 10px; text-overflow: ellipsis; white-space: nowrap; }
 .cv-media-thumb__label small { color: var(--ivory-dim, #b8b2a4); font-size: 8.5px; }
 
-/* ── Co‑ProVideo board design system (identity layer) ── */
+/* ── Co‑VideoPro board design system (identity layer) ── */
 :root {
   --font-display: var(--cvp-font-display);
   --font-body: var(--cvp-font-body);
@@ -5487,7 +5487,7 @@ code, pre, .cv-timeline__timebar, .cv-timeline__meta {
 .cv-stage-dot--delivery,
 .cv-stage-dot--archived { background: var(--signal-green); }
 
-/* ── Co‑ProVideo design bible: material foundation ── */
+/* ── Co‑VideoPro design bible: material foundation ── */
 :root {
   --font-display: var(--cvp-font-display);
   --font-body: var(--cvp-font-body);
@@ -5528,7 +5528,7 @@ body {
 }
 
 /* ══════════════════════════════════════════════════════════════════
-   Co‑ProVideo — cinematic design language (foundation++)
+   Co‑VideoPro — cinematic design language (foundation++)
    Design-lead tranche, 2026-07-17. Everything here obeys the master
    spec: dark graphite depth, warm ivory clarity, smoked glass, soft
    film grain, cobalt movement, sage completion, amber attention,

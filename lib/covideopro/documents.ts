@@ -1,5 +1,5 @@
 /**
- * Co‑ProVideo — document layer over the estimate record (Gen‑3 port).
+ * Co‑VideoPro — document layer over the estimate record (Gen‑3 port).
  *
  * Doctrine: one estimate, one truth, two views. These renderers read the SAME
  * Proposal / PaymentMilestone records the cockpit edits — there is no second

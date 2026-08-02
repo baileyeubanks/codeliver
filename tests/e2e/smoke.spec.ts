@@ -6,14 +6,14 @@ import { signInDemoWorkspace } from "./demo-auth";
  * browser context, so demo seed state (localStorage) is pristine and tests
  * are order-independent.
  */
-test.describe("Co‑ProVideo demo smoke", () => {
+test.describe("Co‑VideoPro demo smoke", () => {
   test("login page renders and demo sign-in lands in the workspace", async ({ page }) => {
     await page.goto("/");
 
     // Unauthenticated visits bounce to the demo login page.
     await expect(page).toHaveURL(/\/login/);
     await expect(
-      page.getByRole("heading", { name: "Sign in to Co‑ProVideo" }),
+      page.getByRole("heading", { name: "Sign in to Co‑VideoPro" }),
     ).toBeVisible();
 
     await page.getByLabel("Email").fill("e2e.login@contentco-op.example");

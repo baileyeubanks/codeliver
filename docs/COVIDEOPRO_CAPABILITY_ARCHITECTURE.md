@@ -1,8 +1,8 @@
-# Co-ProVideo
+# Co-VideoPro
 
 ## The master surface and everything beneath it
 
-Co-ProVideo is a connected creative-production operating world. The master overview is not a decorative dashboard and no visible label is a dead end. Every title, stage, status, thumbnail, tool, task, person, date, icon, and action opens a deeper working surface with its own decisions, options, history, and outputs.
+Co-VideoPro is a connected creative-production operating world. The master overview is not a decorative dashboard and no visible label is a dead end. Every title, stage, status, thumbnail, tool, task, person, date, icon, and action opens a deeper working surface with its own decisions, options, history, and outputs.
 
 The master remains clean because it shows the truth of the system without exposing every child control at once. Richness lives beneath clear doorways. The overview answers what is happening now. Deeper studios answer how the work is shaped, changed, approved, delivered, and understood.
 
@@ -44,7 +44,7 @@ No generic “View all.” No ambiguous arrow. No repeated summary with nowhere 
 
 | Visible truth | Deeper surface | Toolsets and optionality | Result |
 |---|---|---|---|
-| Co-ProVideo logo | Studio Home | Workspace switcher, client portals, active projects, recent work, studio health | A clear return to the operating center |
+| Co-VideoPro logo | Studio Home | Workspace switcher, client portals, active projects, recent work, studio health | A clear return to the operating center |
 | Search | Universal Search | Projects, media, people, comments, transcripts, timecodes, tasks, briefs, filenames, tags, decisions | One searchable creative memory |
 | Upload | Ingest Studio | Video, audio, images, briefs, brand files, folder upload, resumable transfer, proxy creation, metadata, duplicate detection, technical validation | Organized media ready for production |
 | Share | Secure Sharing Studio | Client portal, review link, asset collection, password, expiration, watermark, download rules, recipient roles | Controlled collaboration outside the studio |

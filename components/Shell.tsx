@@ -290,7 +290,7 @@ export default function Shell({ children }: { children: React.ReactNode }) {
           >
             <Menu size={19} />
           </button>
-          <Link href={withWorkspaceQuery("/", demoSuffix)} aria-label="Co‑ProVideo home">
+          <Link href={withWorkspaceQuery("/", demoSuffix)} aria-label="Co‑VideoPro home">
             <CoProductionBrand className={styles.brandLockup} priority />
           </Link>
         </div>
@@ -383,7 +383,7 @@ export default function Shell({ children }: { children: React.ReactNode }) {
                         onClick={() => setNotificationsOpen(false)}
                       >
                         <span>{item.actor_name} {activityLabel(item.action)}</span>
-                        <small>{item.details.asset_title ?? "Co‑ProVideo workspace"}</small>
+                        <small>{item.details.asset_title ?? "Co‑VideoPro workspace"}</small>
                       </Link>
                     ))}
                     {demoWorkspace.activity.length === 0 ? <p>No new notifications.</p> : null}
@@ -398,7 +398,7 @@ export default function Shell({ children }: { children: React.ReactNode }) {
                         data-read={item.read}
                       >
                         <span>{item.title}</span>
-                        <small>{item.body ?? "Co‑ProVideo workspace"}</small>
+                        <small>{item.body ?? "Co‑VideoPro workspace"}</small>
                       </Link>
                     ))}
                     {remoteNotifications.length === 0 ? <p>No new notifications.</p> : null}

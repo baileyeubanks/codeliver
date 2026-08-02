@@ -40,11 +40,11 @@ export default function WorkspaceRail({ pathname, querySuffix, role, projects = 
         <Link
           href={withWorkspaceQuery("/", querySuffix)}
           className={styles.brandLink}
-          aria-label="Co‑ProVideo by Content Co-op home"
+          aria-label="Co‑VideoPro by Content Co-op home"
         >
           <CvpMonogram size={26} className={styles.brandMark} />
           <span className={styles.brandCopy}>
-            <strong>Co‑ProVideo</strong>
+            <strong>Co‑VideoPro</strong>
             <small>by Content Co-op</small>
           </span>
         </Link>
@@ -93,7 +93,7 @@ export default function WorkspaceRail({ pathname, querySuffix, role, projects = 
       </div>
 
       <footer className={styles.footer}>
-        <span>Co‑ProVideo workspace</span>
+        <span>Co‑VideoPro workspace</span>
         <strong>{role}</strong>
       </footer>
     </nav>

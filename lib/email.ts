@@ -112,10 +112,10 @@ export const emailTemplates = {
           : "Open Review";
     const intro =
       shareIntent === "final_delivery"
-        ? "A final asset has been handed off to you in Co‑ProVideo."
+        ? "A final asset has been handed off to you in Co‑VideoPro."
         : shareIntent === "approval_needed"
-          ? "Your approval is needed on an asset in Co‑ProVideo."
-          : `You have been invited into a ${meta.label.toLowerCase()} in Co‑ProVideo.`;
+          ? "Your approval is needed on an asset in Co‑VideoPro."
+          : `You have been invited into a ${meta.label.toLowerCase()} in Co‑VideoPro.`;
 
     return {
       subject: `${meta.label}: ${assetTitle}`,

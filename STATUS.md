@@ -558,7 +558,7 @@ inline SVG — crisp at the 24–32px sizes where the 900px raster artwork
   by default (`aria-hidden`) unless titled.
 - Sidebar brand slot (`components/navigation/WorkspaceRail.tsx` +
   `.module.css`): brand header above the rail groups — monogram +
-  "Co‑ProVideo" wordmark + "BY CONTENT CO-OP" microcopy, gradient-ribbon
+  "Co‑VideoPro" wordmark + "BY CONTENT CO-OP" microcopy, gradient-ribbon
   hairline, home link. Mobile drawer keeps the existing raster lockup.
 - Login/auth (`components/auth/AuthShell.tsx` + `.module.css`): brand hero
   above the access panel — 30px monogram + "CREATE • COLLABORATE • CONQUER"

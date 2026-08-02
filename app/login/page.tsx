@@ -136,7 +136,7 @@ export default function LoginPage() {
         </div>
 
         <header className={styles.heading}>
-          <h1 id="login-title">Sign in to Co‑ProVideo</h1>
+          <h1 id="login-title">Sign in to Co‑VideoPro</h1>
           <p>Review and approve work with Content Co-op.</p>
         </header>
 
@@ -236,7 +236,7 @@ export default function LoginPage() {
         </form>
 
         <footer className={styles.footer}>
-          <span>New to Co‑ProVideo?</span>
+          <span>New to Co‑VideoPro?</span>
           <Link href={signupHref}>Create an account</Link>
         </footer>
       </section>

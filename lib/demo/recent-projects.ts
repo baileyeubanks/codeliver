@@ -1,5 +1,5 @@
 /**
- * Co‑ProVideo — recent projects ordering (N2).
+ * Co‑VideoPro — recent projects ordering (N2).
  *
  * The nav drawer's "Recent projects" rail is ordered by each project's latest
  * workspace activity, newest first. Projects with no recorded activity keep

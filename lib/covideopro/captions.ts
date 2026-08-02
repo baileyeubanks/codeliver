@@ -1,5 +1,5 @@
 /**
- * Co‑ProVideo — caption export (SRT/VTT) from transcript segments.
+ * Co‑VideoPro — caption export (SRT/VTT) from transcript segments.
  * Truthful generation from the segment model; no provider dependency.
  */
 

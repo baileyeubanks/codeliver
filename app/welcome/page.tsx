@@ -11,7 +11,7 @@ import { ShowreelStage, type ShowreelClip } from "@/components/brand/ShowreelSta
  * type in deliberate negative space, a tactile ivory invitation, a
  * smoked-glass studio entrance, and a discreet private client entrance.
  * The composition replaces the interim Canva-gradient hero per the
- * Co‑ProVideo design bible, tranche 2.
+ * Co‑VideoPro design bible, tranche 2.
  */
 const REEL: readonly ShowreelClip[] = [
   {

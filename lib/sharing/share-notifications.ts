@@ -93,7 +93,7 @@ export function buildShareNotificationRequests({
       title:
         items.length === 1
           ? `${items[0].asset.title} v${items[0].version.version_number} is ready`
-          : `${items.length} Co‑ProVideo assets are ready`,
+          : `${items.length} Co‑VideoPro assets are ready`,
       body: itemLines.join("\n"),
       action_url: links[0],
     };

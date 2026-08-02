@@ -321,7 +321,7 @@ async function sendTestWebhook(
     event: "test",
     timestamp: new Date().toISOString(),
     team_id: context.teamId,
-    data: { message: "This is a test webhook from Co‑ProVideo" },
+    data: { message: "This is a test webhook from Co‑VideoPro" },
   };
 
   let responseCode = 0;

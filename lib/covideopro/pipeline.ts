@@ -1,5 +1,5 @@
 /**
- * Co‑ProVideo — Production Pipeline strip (S2).
+ * Co‑VideoPro — Production Pipeline strip (S2).
  *
  * The master narrative's stage rhythm: Pre-Production → Production →
  * Post-Production → Delivery & Assets. State comes from the project's own

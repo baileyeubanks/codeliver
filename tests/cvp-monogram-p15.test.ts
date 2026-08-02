@@ -22,7 +22,7 @@ test("the inline CVP monogram paints all four brand colors", () => {
 test("the workspace rail brand slot carries the monogram, wordmark, and microcopy", () => {
   const rail = source("components/navigation/WorkspaceRail.tsx");
   assert.match(rail, /<CvpMonogram\b/);
-  assert.match(rail, /<strong>Co‑ProVideo<\/strong>/);
+  assert.match(rail, /<strong>Co‑VideoPro<\/strong>/);
   assert.match(rail, /by Content Co-op/);
   const railStyles = source("components/navigation/WorkspaceRail.module.css");
   assert.match(railStyles, /\.brandHeader::before[\s\S]*?--cvp-gradient-ribbon/);

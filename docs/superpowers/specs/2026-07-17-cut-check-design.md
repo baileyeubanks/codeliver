@@ -9,7 +9,7 @@
 
 ## 1. Purpose
 
-Editors currently send cuts to clients with no automated sanity pass. Competitive intel shows neither Wipster nor Frame.io ships any AI review assist, and Sandcastles' pre-production intelligence (hook/structure doctrine) never reaches post-production. **Cut Check** closes that gap inside Co‑ProVideo: a deterministic analysis engine that inspects a version before it goes out, and later briefs reviewers. It is the first feature to convert the "level above market leaders" strategy into product.
+Editors currently send cuts to clients with no automated sanity pass. Competitive intel shows neither Wipster nor Frame.io ships any AI review assist, and Sandcastles' pre-production intelligence (hook/structure doctrine) never reaches post-production. **Cut Check** closes that gap inside Co‑VideoPro: a deterministic analysis engine that inspects a version before it goes out, and later briefs reviewers. It is the first feature to convert the "level above market leaders" strategy into product.
 
 **Primary moment (user decision):** both, phased — editor pre-flight first (this spec), reviewer-facing briefing second (named drop, §8).
 

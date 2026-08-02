@@ -5,7 +5,7 @@ import { DemoCapabilityProvider } from "@/lib/demo/capability-context";
 import CopilotMount from "@/components/copilot/CopilotMount";
 
 export const metadata: Metadata = {
-  title: "Co‑ProVideo | Content Co-op",
+  title: "Co‑VideoPro | Content Co-op",
   description: "All-in-one video production workspace for planning, review, approval, editing, and delivery.",
 };
 

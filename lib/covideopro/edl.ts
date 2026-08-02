@@ -1,5 +1,5 @@
 /**
- * Co‑ProVideo — EDL (CMX 3600) export for sequence handoff to Premiere/Resolve.
+ * Co‑VideoPro — EDL (CMX 3600) export for sequence handoff to Premiere/Resolve.
  * Pure generator: sequence + ordered clips → standards-readable EDL text.
  * The truthful handoff answer to NLE panels (COVIDEOPRO_ENTERPRISE_BENCHMARK.md).
  */

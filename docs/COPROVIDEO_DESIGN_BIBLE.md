@@ -1,6 +1,6 @@
-# Co‑ProVideo — Design Bible (governing visual identity)
+# Co‑VideoPro — Design Bible (governing visual identity)
 
-**Adopted:** 2026-07-17 · **Authority:** user-supplied Co‑ProVideo master spec — supersedes the Webster board system (that name is retired; the product is **co-videopro, styled Co‑ProVideo**, by Content Co-op). This file registers the governing tokens and the adoption tranches; the full user spec text is the reference of record.
+**Adopted:** 2026-07-17 · **Authority:** user-supplied Co‑VideoPro master spec — supersedes the Webster board system (that name is retired; the product is **co-videopro, styled Co‑VideoPro**, by Content Co-op). This file registers the governing tokens and the adoption tranches; the full user spec text is the reference of record.
 
 ## Positioning
 
@@ -43,7 +43,7 @@ These live in code as review checklists per surface tranche (see `docs/design-ev
 
 ## Adoption tranches
 
-1. **Foundation (this commit):** tokens, fonts, lockup (CVP monogram + Co‑ProVideo wordmark), name revert from Webster, graphite base theme variables.
+1. **Foundation (this commit):** tokens, fonts, lockup (CVP monogram + Co‑VideoPro wordmark), name revert from Webster, graphite base theme variables.
 2. **Studio Home:** full-bleed showreel hero (public front door) — grain, overlay, monumental type, quiet invitations.
 3. **Dark theme migration:** app surfaces move from light-admin to graphite editorial (cockpit already dark-adjacent; shell/home/projects follow).
 4. **Review Theater refinement:** the screening-room treatment of the existing review surface.

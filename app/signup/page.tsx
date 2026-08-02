@@ -183,7 +183,7 @@ export default function SignupPage() {
               </>
             ) : null}
             <Link className={styles.submit} href={loginHref}>
-              Sign in to Co‑ProVideo
+              Sign in to Co‑VideoPro
             </Link>
           </div>
         ) : (

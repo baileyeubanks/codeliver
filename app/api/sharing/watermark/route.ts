@@ -1,49 +1,71 @@
 import { NextResponse } from "next/server";
-import { getSupabase } from "@/lib/supabase";
+import {
+  getAuthorizedReviewInvite,
+  reviewInviteErrorPayload,
+} from "@/lib/review-invites";
+import { extractReviewAnalyticsToken } from "@/lib/sharing/share-analytics";
+import { resolveAssetVersion } from "@/lib/versions";
 
-export async function POST(req: Request) {
-  const body = await req.json();
-  const { invite_id, asset_id } = body;
+function noStore(body: unknown, init?: ResponseInit) {
+  const response = NextResponse.json(body, init);
+  response.headers.set("Cache-Control", "private, no-store");
+  return response;
+}
 
-  if (!invite_id || !asset_id) {
-    return NextResponse.json({ error: "invite_id and asset_id required" }, { status: 400 });
+export async function POST(request: Request) {
+  const body = await request.json().catch(() => null);
+  if (!body || typeof body !== "object" || Array.isArray(body)) {
+    return noStore({ error: "Request body must be an object" }, { status: 400 });
   }
 
-  // Get invite to check watermark settings
-  const { data: invite, error: inviteError } = await getSupabase()
-    .from("review_invites")
-    .select("*")
-    .eq("id", invite_id)
-    .eq("asset_id", asset_id)
-    .single();
-
-  if (inviteError || !invite) {
-    return NextResponse.json({ error: "Invite not found" }, { status: 404 });
+  const tokenResult = extractReviewAnalyticsToken(
+    request,
+    body as Record<string, unknown>,
+  );
+  if (!tokenResult.ok) {
+    return noStore({ error: tokenResult.error }, { status: 401 });
   }
 
-  if (!invite.watermark_enabled) {
-    // No watermark needed, return original asset URL
-    const { data: asset } = await getSupabase()
-      .from("assets")
-      .select("file_url")
-      .eq("id", asset_id)
-      .single();
-
-    return NextResponse.json({ url: asset?.file_url, watermarked: false });
+  const inviteResult = await getAuthorizedReviewInvite(request, tokenResult.token);
+  if (!inviteResult.ok) {
+    return noStore(
+      inviteResult.status === 401
+        ? reviewInviteErrorPayload(inviteResult)
+        : { error: "Invalid review authorization" },
+      { status: inviteResult.status === 401 ? 401 : inviteResult.status },
+    );
+  }
+  const invite = inviteResult.invite;
+  if (
+    (body.invite_id !== undefined && body.invite_id !== invite.id) ||
+    (body.asset_id !== undefined && body.asset_id !== invite.asset_id)
+  ) {
+    return noStore({ error: "Invalid review authorization" }, { status: 401 });
   }
 
-  // For watermarked content, return the original URL with watermark metadata
-  // In production, this would generate a server-side watermarked version
-  const { data: asset } = await getSupabase()
-    .from("assets")
-    .select("file_url")
-    .eq("id", asset_id)
-    .single();
+  const versionLookup = await resolveAssetVersion({
+    assetId: invite.asset_id,
+    versionId: invite.version_id,
+  });
+  if (!versionLookup.ok) {
+    return noStore({ error: "Review media is unavailable" }, { status: 404 });
+  }
 
-  return NextResponse.json({
-    url: asset?.file_url,
-    watermarked: true,
-    watermark_text: invite.watermark_text || invite.reviewer_email || "CONFIDENTIAL",
-    watermark_opacity: 0.3,
+  if (invite.watermark_enabled) {
+    return noStore(
+      {
+        error: "Server-side watermark delivery is not configured",
+        watermark_required: true,
+        delivery_ready: false,
+      },
+      { status: 503 },
+    );
+  }
+
+  return noStore({
+    url: `/api/review/${encodeURIComponent(tokenResult.token)}/media`,
+    version_id: versionLookup.version.id,
+    watermarked: false,
+    watermark_required: false,
   });
 }

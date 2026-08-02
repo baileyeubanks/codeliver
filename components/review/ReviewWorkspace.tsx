@@ -23,9 +23,10 @@ import {
   Volume2,
   VolumeX,
   Monitor,
-  Image,
+  Image as TheaterIcon,
   MonitorUp,
   Upload,
+  Scissors,
 } from "lucide-react";
 import InfoPanel from "./panels/InfoPanel";
 import CommentsPanel from "./panels/CommentsPanel";
@@ -36,6 +37,8 @@ import ActivityPanel from "./panels/ActivityPanel";
 import SharePanel from "./panels/SharePanel";
 import { useRealtimeComments } from "@/lib/hooks/useRealtimeComments";
 import { useRealtimePresence } from "@/lib/hooks/useRealtimePresence";
+import { normalizeReviewSeekStep, normalizeReviewShortcutKey, shouldIgnoreReviewShortcut } from "@/lib/review/player-policy";
+import type { EditDecision } from "@/lib/types/codeliver";
 
 type SidebarTab = "info" | "comments" | "reviewers" | "download" | "captions" | "activity" | "share";
 
@@ -70,6 +73,7 @@ interface ReviewWorkspaceProps {
   title: string;
   videoUrl?: string;
   thumbnailUrl?: string;
+  versionId?: string;
   versionNumber: number;
   backHref: string;
   userId?: string;
@@ -78,10 +82,10 @@ interface ReviewWorkspaceProps {
 
 export default function ReviewWorkspace({
   assetId,
-  projectId,
   title,
   videoUrl,
   thumbnailUrl,
+  versionId,
   versionNumber,
   backHref,
   userId = "",
@@ -92,10 +96,19 @@ export default function ReviewWorkspace({
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
   const [playbackRate, setPlaybackRate] = useState(1);
-  const [volume, setVolume] = useState(1);
   const [isMuted, setIsMuted] = useState(false);
   const [showVersionMenu, setShowVersionMenu] = useState(false);
   const [isTheaterMode, setIsTheaterMode] = useState(false);
+  const [seekStepSeconds, setSeekStepSeconds] = useState(2);
+  const [cutMarkers, setCutMarkers] = useState<
+    Array<{
+      id: string;
+      time: number;
+      status: EditDecision["status"];
+      pending?: boolean;
+    }>
+  >([]);
+  const [cutError, setCutError] = useState("");
   const [comments, setComments] = useState<ReviewComment[]>([]);
   const videoRef = useRef<HTMLVideoElement>(null);
   const progressRef = useRef<HTMLDivElement>(null);
@@ -113,14 +126,43 @@ export default function ReviewWorkspace({
   // ── Realtime: presence (who's watching) ──
   const presenceUsers = useRealtimePresence(assetId, userId, userName);
 
-  // ── Load initial comments from API ──
+  useEffect(() => {
+    const saved = Number(window.localStorage.getItem("co-deliver-review-seek-step"));
+    if (Number.isFinite(saved) && saved > 0) {
+      setSeekStepSeconds(normalizeReviewSeekStep(saved));
+    }
+  }, []);
+
+  // ── Load version-bound comments and edit decisions from the API ──
   useEffect(() => {
     if (!assetId) return;
-    fetch(`/api/assets/${assetId}/comments`)
-      .then((r) => (r.ok ? r.json() : { items: [] }))
-      .then((data) => setComments(data.items ?? data ?? []))
-      .catch(() => {});
-  }, [assetId]);
+    const versionQuery = versionId ? `?version_id=${encodeURIComponent(versionId)}` : "";
+
+    void Promise.all([
+      fetch(`/api/assets/${assetId}/comments${versionQuery}`)
+        .then((response) => (response.ok ? response.json() : { items: [] })),
+      fetch(`/api/assets/${assetId}/edit-decisions${versionQuery}`)
+        .then((response) => (response.ok ? response.json() : { items: [] })),
+    ])
+      .then(([commentPayload, decisionPayload]) => {
+        setComments(commentPayload.items ?? commentPayload ?? []);
+        setCutMarkers(
+          ((decisionPayload.items ?? []) as EditDecision[])
+            .filter(
+              (decision) =>
+                decision.decision_type === "cut" && decision.status !== "rejected",
+            )
+            .map((decision) => ({
+              id: decision.id,
+              time: decision.start_seconds,
+              status: decision.status,
+            })),
+        );
+      })
+      .catch(() => {
+        setCutError("Could not load the version edit decisions.");
+      });
+  }, [assetId, versionId]);
 
   // ── Comment actions ──
   const handleReply = useCallback(
@@ -132,6 +174,7 @@ export default function ReviewWorkspace({
           body: JSON.stringify({
             body: text,
             parent_id: commentId,
+            version_id: versionId,
           }),
         });
         if (res.ok) {
@@ -146,7 +189,7 @@ export default function ReviewWorkspace({
         }
       } catch {}
     },
-    [assetId]
+    [assetId, versionId]
   );
 
   const handleResolve = useCallback(
@@ -159,21 +202,146 @@ export default function ReviewWorkspace({
         )
       );
       try {
-        await fetch(`/api/assets/${assetId}/comments/${commentId}`, {
+        await fetch(`/api/assets/${assetId}/comments`, {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ status: newStatus }),
+          body: JSON.stringify({ id: commentId, status: newStatus }),
         });
       } catch {}
     },
     [assetId, comments]
   );
 
+  const togglePlay = useCallback(() => {
+    const video = videoRef.current;
+    if (!video) return;
+
+    if (video.paused) {
+      video.play().catch(() => setIsPlaying(false));
+    } else {
+      video.pause();
+    }
+  }, []);
+
+  const skip = useCallback((seconds: number) => {
+    const video = videoRef.current;
+    if (!video) return;
+    const upperBound = Number.isFinite(video.duration) ? video.duration : Infinity;
+    video.currentTime = Math.max(0, Math.min(upperBound, video.currentTime + seconds));
+  }, []);
+
+  const frameStep = useCallback((frames: number) => {
+    const video = videoRef.current;
+    if (!video) return;
+    video.pause();
+    setIsPlaying(false);
+    video.currentTime = Math.max(0, video.currentTime + frames / 30);
+  }, []);
+
+  const createCutDecision = useCallback(async () => {
+    const video = videoRef.current;
+    if (!video) return;
+    if (!versionId) {
+      setCutError("Upload a media version before recording cut decisions.");
+      return;
+    }
+
+    const time = Math.max(0, Number(video.currentTime.toFixed(3)));
+    if (cutMarkers.some((marker) => Math.abs(marker.time - time) < 0.25)) return;
+
+    const requestId = crypto.randomUUID();
+    const optimisticId = `pending-${requestId}`;
+    setCutError("");
+    setCutMarkers((current) => [
+      ...current,
+      { id: optimisticId, time, status: "accepted", pending: true },
+    ]);
+
+    try {
+      const response = await fetch(`/api/assets/${assetId}/edit-decisions`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          version_id: versionId,
+          decision_type: "cut",
+          source: "keyboard",
+          status: "accepted",
+          start_seconds: time,
+          end_seconds: null,
+          label: "Cut",
+          confidence: null,
+          client_request_id: requestId,
+          metadata: { input: "ArrowDown", version_number: versionNumber },
+        }),
+      });
+      const payload = await response.json().catch(() => null);
+      if (!response.ok) {
+        throw new Error(payload?.error || "Could not save the cut decision.");
+      }
+
+      const decision = payload as EditDecision;
+      setCutMarkers((current) =>
+        current.map((marker) =>
+          marker.id === optimisticId
+            ? {
+                id: decision.id,
+                time: decision.start_seconds,
+                status: decision.status,
+              }
+            : marker,
+        ),
+      );
+    } catch (error) {
+      setCutMarkers((current) => current.filter((marker) => marker.id !== optimisticId));
+      setCutError(error instanceof Error ? error.message : "Could not save the cut decision.");
+    }
+  }, [assetId, cutMarkers, versionId, versionNumber]);
+
+  const toggleFullscreen = useCallback(() => {
+    const container = videoRef.current?.closest(".review-shell") as HTMLElement | null;
+    if (!container) return;
+
+    if (document.fullscreenElement) {
+      document.exitFullscreen?.();
+    } else {
+      container.requestFullscreen?.();
+    }
+  }, []);
+
+  const toggleMute = useCallback(() => {
+    const video = videoRef.current;
+    if (!video) return;
+    const nextMuted = !video.muted;
+    video.muted = nextMuted;
+    setIsMuted(nextMuted);
+  }, []);
+
   // Keyboard shortcuts
   useEffect(() => {
     function handleKey(e: KeyboardEvent) {
-      if ((e.target as HTMLElement).tagName === "INPUT" || (e.target as HTMLElement).tagName === "TEXTAREA") return;
-      switch (e.key) {
+      const target = e.target instanceof HTMLElement ? e.target : null;
+      const insideControl = Boolean(
+        target?.closest(
+          'input, textarea, select, button, a, [contenteditable="true"], [role="button"], [role="slider"]',
+        ),
+      );
+      const key = normalizeReviewShortcutKey(e.key);
+      if (
+        shouldIgnoreReviewShortcut({
+          key,
+          insideControl,
+          defaultPrevented: e.defaultPrevented,
+          isComposing: e.isComposing,
+          altKey: e.altKey,
+          ctrlKey: e.ctrlKey,
+          metaKey: e.metaKey,
+          repeat: e.repeat,
+        })
+      ) {
+        return;
+      }
+
+      switch (key) {
         case "k":
         case " ":
           e.preventDefault();
@@ -181,11 +349,15 @@ export default function ReviewWorkspace({
           break;
         case "ArrowLeft":
           e.preventDefault();
-          skip(-5);
+          skip(-seekStepSeconds);
           break;
         case "ArrowRight":
           e.preventDefault();
-          skip(5);
+          skip(seekStepSeconds);
+          break;
+        case "ArrowDown":
+          e.preventDefault();
+          void createCutDecision();
           break;
         case "j":
           e.preventDefault();
@@ -219,59 +391,7 @@ export default function ReviewWorkspace({
     }
     window.addEventListener("keydown", handleKey);
     return () => window.removeEventListener("keydown", handleKey);
-  }, [isPlaying]);
-
-  function togglePlay() {
-    if (!videoRef.current) return;
-    if (videoRef.current.paused) {
-      videoRef.current.play();
-      setIsPlaying(true);
-    } else {
-      videoRef.current.pause();
-      setIsPlaying(false);
-    }
-  }
-
-  function skip(seconds: number) {
-    if (videoRef.current) {
-      videoRef.current.currentTime += seconds;
-    }
-  }
-
-  function frameStep(frames: number) {
-    if (!videoRef.current) return;
-    videoRef.current.pause();
-    setIsPlaying(false);
-    // Assume 30fps
-    videoRef.current.currentTime += frames / 30;
-  }
-
-  function toggleFullscreen() {
-    const container = document.querySelector(".review-shell");
-    if (container) {
-      if (!document.fullscreenElement) {
-        container.requestFullscreen?.();
-      } else {
-        document.exitFullscreen?.();
-      }
-    }
-  }
-
-  function toggleMute() {
-    if (videoRef.current) {
-      videoRef.current.muted = !videoRef.current.muted;
-      setIsMuted(!isMuted);
-    }
-  }
-
-  function setVolumeLevel(v: number) {
-    if (videoRef.current) {
-      videoRef.current.volume = v;
-      setVolume(v);
-      if (v === 0) setIsMuted(true);
-      else setIsMuted(false);
-    }
-  }
+  }, [createCutDecision, frameStep, seekStepSeconds, skip, toggleFullscreen, toggleMute, togglePlay]);
 
   function cycleSpeed() {
     const speeds = [0.5, 1, 1.5, 2];
@@ -279,6 +399,12 @@ export default function ReviewWorkspace({
     const next = speeds[(idx + 1) % speeds.length];
     setPlaybackRate(next);
     if (videoRef.current) videoRef.current.playbackRate = next;
+  }
+
+  function updateSeekStep(value: number) {
+    const normalized = normalizeReviewSeekStep(value);
+    setSeekStepSeconds(normalized);
+    window.localStorage.setItem("co-deliver-review-seek-step", String(normalized));
   }
 
   function formatTimecode(seconds: number) {
@@ -441,6 +567,30 @@ export default function ReviewWorkspace({
                   style={{ left: `${(currentTime / duration) * 100}%`, transform: "translate(-50%, -50%)" }}
                 />
               )}
+              {duration > 0
+                ? cutMarkers.map((marker) => (
+                    <button
+                      key={marker.id}
+                      type="button"
+                      className={`absolute top-1/2 grid h-5 w-5 -translate-x-1/2 -translate-y-1/2 place-items-center rounded border border-white/80 text-white shadow-sm ${
+                        marker.pending
+                          ? "bg-[var(--muted)] opacity-70 motion-safe:animate-pulse"
+                          : marker.status === "applied"
+                            ? "bg-[var(--purple)]"
+                            : "bg-[var(--green)]"
+                      }`}
+                      style={{ left: `${Math.max(0, Math.min(100, (marker.time / duration) * 100))}%` }}
+                      title={`Cut at ${formatTimecode(marker.time)} · ${marker.pending ? "saving" : marker.status}`}
+                      aria-label={`Cut at ${formatTimecode(marker.time)}, ${marker.pending ? "saving" : marker.status}`}
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        if (videoRef.current) videoRef.current.currentTime = marker.time;
+                      }}
+                    >
+                      <Scissors size={10} />
+                    </button>
+                  ))
+                : null}
             </div>
           </div>
 
@@ -448,13 +598,13 @@ export default function ReviewWorkspace({
           <div className="player-controls">
             {/* Left group: skip back, play, skip forward, frame back, in/out, frame forward */}
             <div className="flex items-center gap-1">
-              <button onClick={() => skip(-5)} className="btn-icon" style={{ width: 28, height: 28 }} title="Skip back">
+              <button onClick={() => skip(-seekStepSeconds)} className="btn-icon" style={{ width: 28, height: 28 }} title={`Back ${seekStepSeconds} seconds`}>
                 <SkipBack size={14} />
               </button>
               <button onClick={togglePlay} className="btn-icon" style={{ width: 32, height: 32 }} title="Play/Pause (K)">
                 {isPlaying ? <Pause size={16} /> : <Play size={16} />}
               </button>
-              <button onClick={() => skip(5)} className="btn-icon" style={{ width: 28, height: 28 }} title="Skip forward">
+              <button onClick={() => skip(seekStepSeconds)} className="btn-icon" style={{ width: 28, height: 28 }} title={`Forward ${seekStepSeconds} seconds`}>
                 <SkipForward size={14} />
               </button>
 
@@ -469,18 +619,41 @@ export default function ReviewWorkspace({
               <button onClick={() => frameStep(1)} className="btn-icon" style={{ width: 24, height: 24 }} title="Frame forward (.)">
                 <ChevronRight size={14} />
               </button>
+              <button
+                onClick={() => void createCutDecision()}
+                className="btn-icon"
+                style={{ width: 28, height: 28 }}
+                title="Mark cut at playhead (Down)"
+                aria-label="Mark cut at playhead"
+              >
+                <Scissors size={14} />
+              </button>
             </div>
 
             {/* Center: timecodes */}
             <div className="flex items-center gap-3 mx-4">
               <span className="player-timecode">{formatTimecode(currentTime)}</span>
               <span className="player-timecode">{formatTimecode(duration)}</span>
+              <span className="text-[11px] text-[var(--dim)]">{cutMarkers.length} cuts</span>
             </div>
 
             <div className="flex-1" />
 
             {/* Right group: speed, volume, quality, theater, fullscreen */}
             <div className="flex items-center gap-1">
+              <label className="flex items-center gap-1 text-[11px] text-[var(--muted)]">
+                <span className="sr-only">Arrow-key seek interval</span>
+                <select
+                  value={seekStepSeconds}
+                  onChange={(event) => updateSeekStep(Number(event.target.value))}
+                  className="h-7 rounded border border-[var(--border)] bg-[var(--surface)] px-1.5 text-xs text-[var(--ink)]"
+                  title="Arrow-key seek interval"
+                >
+                  {[1, 2, 5, 10].map((seconds) => (
+                    <option key={seconds} value={seconds}>{seconds}s</option>
+                  ))}
+                </select>
+              </label>
               <button
                 onClick={cycleSpeed}
                 className="text-xs font-medium text-[var(--muted)] hover:text-[var(--ink)] px-2 py-1 rounded transition-colors"
@@ -490,7 +663,7 @@ export default function ReviewWorkspace({
               </button>
 
               <button onClick={toggleMute} className="btn-icon" style={{ width: 28, height: 28 }} title="Volume (M)">
-                {isMuted || volume === 0 ? <VolumeX size={14} /> : <Volume2 size={14} />}
+                {isMuted ? <VolumeX size={14} /> : <Volume2 size={14} />}
               </button>
 
               <button className="btn-icon" style={{ width: 28, height: 28 }} title="Quality">
@@ -503,7 +676,7 @@ export default function ReviewWorkspace({
                 style={{ width: 28, height: 28 }}
                 title="Theater mode (T)"
               >
-                <Image size={14} />
+                <TheaterIcon size={14} />
               </button>
 
               <button onClick={toggleFullscreen} className="btn-icon" style={{ width: 28, height: 28 }} title="Fullscreen (F)">
@@ -511,6 +684,13 @@ export default function ReviewWorkspace({
               </button>
             </div>
           </div>
+          <p
+            className={`min-h-5 px-2 py-1 text-xs ${cutError ? "text-[var(--red)]" : "text-[var(--dim)]"}`}
+            role={cutError ? "alert" : "status"}
+            aria-live="polite"
+          >
+            {cutError || "Down marks a version-bound cut without interrupting playback."}
+          </p>
         </div>
 
         {/* Right sidebar — icon strip + content panel */}

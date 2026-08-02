@@ -1,0 +1,53 @@
+{
+  "schemaVersion": 1,
+  "kind": "pillar",
+  "id": "upload-processing-continuity",
+  "title": "Upload, storage placement, media processing, derivatives, and continuity",
+  "horizons": [1, 2, 3],
+  "owner": "Media platform and reliability",
+  "objective": "Move large media through bounded, portable, recoverable storage and processing authorities without changing source truth.",
+  "authorityDomains": ["identity", "tenant", "project", "version", "permission", "billing", "audit"],
+  "surfaces": [
+    { "kind": "api", "pattern": "/api/media/**" },
+    { "kind": "api", "pattern": "/api/storage/**" },
+    { "kind": "api", "pattern": "/api/upload/**" },
+    { "kind": "api", "pattern": "/api/transcode" },
+    { "kind": "api", "pattern": "/api/transcode/**" }
+  ],
+  "obligations": [
+    {
+      "id": "media-storage.h1.safe-ingest",
+      "title": "Ingest enforces path, project, size, type, quota, malware, and durable-finalization boundaries",
+      "category": "safe-ingest",
+      "severity": "critical",
+      "horizon": 1,
+      "proofTtlDays": 7,
+      "checks": ["security.upload-filename-boundary", "security.upload-tenant-authority", "resilience.health-contract", "evidence.ingest-review-approval"],
+      "residualRisk": "Crafted or interrupted uploads can escape storage boundaries, cross tenants, or leave orphaned state."
+    },
+    {
+      "id": "media-storage.h2.portable-scale",
+      "title": "Storage and processing support backpressure, provider portability, capacity proof, and fault isolation",
+      "category": "media-scale",
+      "severity": "critical",
+      "horizon": 2,
+      "proofTtlDays": 7,
+      "checks": ["resilience.queue-backpressure", "resilience.provider-portability", "resilience.degraded-dependencies", "performance.load-scenarios"],
+      "residualRisk": "Large jobs can exhaust memory, provider quotas, or local disks without bounded queues and portable placement."
+    },
+    {
+      "id": "media-storage.h3.continuity",
+      "title": "Source, derivatives, and manifests satisfy residency, retention, integrity, and restore policy",
+      "category": "media-governance",
+      "severity": "critical",
+      "horizon": 3,
+      "proofTtlDays": 90,
+      "checks": ["governance.residency-encryption", "governance.data-lifecycle", "governance.backup-integrity", "resilience.dr-restore-proof"],
+      "residualRisk": "Media may be lost, misplaced, or irrecoverable despite a healthy metadata database."
+    }
+  ],
+  "slos": [
+    { "id": "media-startup", "indicator": "p95 time to first playable frame", "targetMs": 2000, "windowDays": 28 },
+    { "id": "media-rpo", "indicator": "Maximum committed media-manifest loss", "targetMinutes": 15 }
+  ]
+}

@@ -1,0 +1,54 @@
+{
+  "schemaVersion": 1,
+  "kind": "pillar",
+  "id": "vault-agents-human-approval",
+  "title": "Vault knowledge, provenance, rights, agents, and human approval",
+  "horizons": [1, 2, 3],
+  "owner": "Knowledge and agent platform",
+  "objective": "Make project-scoped evidence and policy the authority for agent proposals, rights checks, human decisions, and resulting artifacts.",
+  "authorityDomains": ["identity", "tenant", "project", "version", "permission", "billing", "audit"],
+  "surfaces": [
+    { "kind": "api", "pattern": "/api/ai/**" },
+    { "kind": "api", "pattern": "/api/assets/tags" },
+    { "kind": "api", "pattern": "/api/folders" },
+    { "kind": "api", "pattern": "/api/integrations/hermes/notification-proposals" },
+    { "kind": "api", "pattern": "/api/integrations/hermes/proposals/[id]/decision" },
+    { "kind": "api", "pattern": "/api/vault/**" }
+  ],
+  "obligations": [
+    {
+      "id": "vault.h1.provenance-core",
+      "title": "Knowledge objects are project-scoped, versioned, sourced, permissioned, retained, and reviewable",
+      "category": "knowledge-authority",
+      "severity": "critical",
+      "horizon": 1,
+      "proofTtlDays": 14,
+      "checks": ["vault.provenance-contract", "vault.human-approval", "vault.cross-project-retrieval-proof", "security.cross-tenant-attack-proof"],
+      "residualRisk": "Unscoped notes or prompts can leak context and turn unsupported claims into client-facing facts."
+    },
+    {
+      "id": "vault.h2.agent-control",
+      "title": "Agent runs resolve entitlement, source scope, policy, budget, citations, validation, and human gates before mutation",
+      "category": "agent-control",
+      "severity": "critical",
+      "horizon": 2,
+      "proofTtlDays": 7,
+      "checks": ["vault.agent-scope-policy", "billing.budget-enforcement", "governance.model-prompt-lineage", "resilience.queue-backpressure"],
+      "residualRisk": "An agent can retrieve across projects, exceed budget, cite unsupported claims, or mutate approved work."
+    },
+    {
+      "id": "vault.h3.auditable-agents",
+      "title": "Agent retrieval, model, prompt, policy, output, reviewer, rights, and usage are replayable and auditable",
+      "category": "agent-governance",
+      "severity": "critical",
+      "horizon": 3,
+      "proofTtlDays": 30,
+      "checks": ["governance.model-prompt-lineage", "media.deterministic-replay-proof", "governance.immutable-audit-ledger", "governance.data-lifecycle"],
+      "residualRisk": "Agent output cannot be defended or reproduced without exact source, policy, model, and decision lineage."
+    }
+  ],
+  "slos": [
+    { "id": "agent-citation-validity", "indicator": "Accepted agent claims with valid project-authorized evidence spans", "target": 1, "windowDays": 30, "errorBudgetMinutes": 0 },
+    { "id": "unauthorized-agent-mutation", "indicator": "Agent mutations without required human approval", "target": 0, "windowDays": 30, "errorBudgetMinutes": 0 }
+  ]
+}

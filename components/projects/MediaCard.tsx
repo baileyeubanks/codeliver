@@ -8,23 +8,17 @@ import {
   Users,
   MessageSquare,
   Share2,
-  Upload,
-  Star,
-  FolderInput,
-  Copy,
-  Download,
   Archive,
   Trash2,
-  Pencil,
-  Layers,
-  Link2,
-  CloudDownload,
+  ExternalLink,
 } from "lucide-react";
 
 export interface MediaAsset {
   id: string;
   project_id: string;
+  folder_id?: string | null;
   title: string;
+  file_url?: string | null;
   thumbnail_url?: string;
   file_type: string;
   duration_seconds?: number;
@@ -32,9 +26,25 @@ export interface MediaAsset {
   version_count?: number;
   reviewer_count?: number;
   reviewer_done?: number;
+  approval_records?: Array<{
+    id: string;
+    status: string;
+    reviewer_name?: string | null;
+    role_label?: string | null;
+    assignee_email?: string | null;
+    step_order?: number | null;
+  }>;
   comment_count?: number;
   created_at: string;
   is_favorited?: boolean;
+  href?: string;
+}
+
+export function getMediaAssetHref(asset: MediaAsset, demoMode = false) {
+  if (asset.href) return asset.href;
+  const projectId = encodeURIComponent(asset.project_id);
+  const assetId = encodeURIComponent(asset.id);
+  return `/projects/${projectId}/assets/${assetId}${demoMode ? "?demo=1" : ""}`;
 }
 
 function timeAgo(iso: string) {
@@ -68,10 +78,16 @@ export default function MediaCard({
   asset,
   selected,
   onSelect,
+  onShare,
+  onArchive,
+  onTrash,
 }: {
   asset: MediaAsset;
   selected?: boolean;
   onSelect?: (id: string) => void;
+  onShare?: (id: string) => void;
+  onArchive?: (id: string) => void;
+  onTrash?: (id: string) => void;
 }) {
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -88,6 +104,7 @@ export default function MediaCard({
 
   const statusInfo = STATUS_MAP[asset.status] ?? STATUS_MAP.draft;
   const versionLabel = `V${asset.version_count ?? 1}`;
+  const assetHref = getMediaAssetHref(asset);
 
   return (
     <div className="card-media group">
@@ -97,9 +114,13 @@ export default function MediaCard({
           <input
             type="checkbox"
             checked={selected}
-            onChange={() => onSelect(asset.id)}
+            readOnly
             className="w-4 h-4 rounded accent-[var(--accent)] cursor-pointer"
-            onClick={(e) => e.stopPropagation()}
+            onClick={(event) => {
+              event.stopPropagation();
+              onSelect(asset.id);
+            }}
+            aria-label={`Select ${asset.title}`}
           />
         </div>
       )}
@@ -113,33 +134,59 @@ export default function MediaCard({
             setMenuOpen(!menuOpen);
           }}
           className="w-7 h-7 rounded-md flex items-center justify-center bg-black/40 text-white opacity-0 group-hover:opacity-100 transition-opacity"
+          title={`Actions for ${asset.title}`}
+          aria-label={`Actions for ${asset.title}`}
         >
           <MoreHorizontal size={14} />
         </button>
 
         {menuOpen && (
           <div className="dropdown" style={{ right: 0, top: "calc(100% + 4px)", minWidth: 200 }}>
-            <button className="dropdown-item"><Share2 size={14} /> Share for review</button>
-            <button className="dropdown-item"><Upload size={14} /> Upload new version</button>
-            <button className="dropdown-item"><CloudDownload size={14} /> Import from cloud</button>
-            <div className="dropdown-divider" />
-            <button className="dropdown-item"><Star size={14} /> Add to favorites</button>
-            <button className="dropdown-item"><Layers size={14} /> Manage versions</button>
-            <button className="dropdown-item"><Link2 size={14} /> Manage share links</button>
-            <div className="dropdown-divider" />
-            <button className="dropdown-item"><Pencil size={14} /> Rename</button>
-            <button className="dropdown-item"><FolderInput size={14} /> Move</button>
-            <button className="dropdown-item"><Copy size={14} /> Copy</button>
-            <button className="dropdown-item"><Download size={14} /> Download</button>
-            <div className="dropdown-divider" />
-            <button className="dropdown-item"><Archive size={14} /> Archive</button>
-            <button className="dropdown-item danger"><Trash2 size={14} /> Trash</button>
+            <Link href={assetHref} className="dropdown-item" onClick={() => setMenuOpen(false)}>
+              <ExternalLink size={14} /> Open review
+            </Link>
+            {onShare ? (
+              <button
+                type="button"
+                className="dropdown-item"
+                onClick={() => {
+                  onShare(asset.id);
+                  setMenuOpen(false);
+                }}
+              >
+                <Share2 size={14} /> Share for review
+              </button>
+            ) : null}
+            {onArchive ? (
+              <button
+                type="button"
+                className="dropdown-item"
+                onClick={() => {
+                  onArchive(asset.id);
+                  setMenuOpen(false);
+                }}
+              >
+                <Archive size={14} /> Archive
+              </button>
+            ) : null}
+            {onTrash ? (
+              <button
+                type="button"
+                className="dropdown-item danger"
+                onClick={() => {
+                  onTrash(asset.id);
+                  setMenuOpen(false);
+                }}
+              >
+                <Trash2 size={14} /> Move to Trash
+              </button>
+            ) : null}
           </div>
         )}
       </div>
 
       {/* Thumbnail */}
-      <Link href={`/projects/${asset.project_id}/assets/${asset.id}`}>
+      <Link href={assetHref}>
         <div
           className="card-media-thumb"
           style={{

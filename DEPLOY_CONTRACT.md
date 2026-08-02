@@ -1,23 +1,21 @@
-# Co-Deliver Deploy Contract
+# Co-VideoPro Deploy Contract
 
 ## Canonical Source
 
-- Repo: `/Users/baileyeubanks/Desktop/Projects/contentco-op/codeliver`
+- Repo: `/Users/baileyeubanks/Desktop/Projects/contentco-op/cco-codeliver`
 - Framework: Next.js 16
 - Default port: `4103`
 - Health endpoint: `/api/health`
-- Canonical public host: `https://deliver.contentco-op.com`
-- Legacy aliases:
-  - `https://co-deliver.contentco-op.com`
-  - `https://codeliver.contentco-op.com`
-  - both should redirect to the canonical host at the app layer
+- Canonical public host: `https://co-videopro.com`
+- Canonical alias: `https://www.co-videopro.com` redirects to the apex host.
+- The existing `contentco-op.com` public site is a separate product and must not be changed by this deployment.
 
 ## Live Publishing Rule
 
 - Live branch: `main`
 - Live source control: GitHub
-- Live deploy plane: Coolify webhook-driven rebuild from `baileyeubanks/codeliver`
-- Standard publish path: clean repo -> `git push origin main` -> Coolify auto-deploy -> `/api/health` verify
+- Live deploy plane: Vercel production project `co-videopro`
+- Standard publish path: verified production build -> Vercel production deployment -> domain verification -> `/api/health/live` verify
 
 ## Required Environment
 
@@ -31,6 +29,7 @@
 | `RESEND_API_KEY` | Optional | Review invite / notification email sending |
 | `RESEND_FROM_EMAIL` | Optional | From-address for review notifications |
 | `ANTHROPIC_API_KEY` | Optional | AI-assisted review routes |
+| `NAS_MEDIA_ROOT` | Yes at runtime for uploads, streaming, exports, and transcodes | Absolute CCNAS media path; no directory is created during build |
 | `PORT` | Optional | Runtime port; defaults to `4103` |
 
 ## Build and Runtime
@@ -40,6 +39,11 @@ npm ci
 npm run build
 npx next start --hostname 0.0.0.0 --port 4103
 ```
+
+The build must pass without a mounted NAS volume. Storage directories are
+created lazily when an authenticated upload begins. Runtime media operations
+must fail closed if `NAS_MEDIA_ROOT` is unavailable or not writable; they must
+not report an upload, export, or delivery as successful.
 
 ## Public Runtime Rule
 

@@ -1,0 +1,225 @@
+.rail {
+  min-height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.primary {
+  display: grid;
+  gap: 3px;
+}
+
+.primary button,
+.collapse {
+  width: 100%;
+  min-width: 0;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  padding: 0 11px;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--cockpit-copy, #3f4962);
+  font: inherit;
+  font-size: 0.73rem;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+}
+
+.primary button:hover,
+.primary button:focus-visible,
+.collapse:hover,
+.collapse:focus-visible {
+  background: var(--cockpit-accent-soft, #edf4ff);
+  color: var(--cockpit-accent, #145bb8);
+  outline: 0;
+}
+
+.primary button[data-active="true"],
+.primary button[aria-expanded="true"] {
+  background: var(--cockpit-accent-soft, #edf4ff);
+  color: var(--cockpit-accent, #145bb8);
+  font-weight: 680;
+}
+
+.label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.badge {
+  min-width: 19px;
+  height: 18px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-left: auto;
+  padding: 0 5px;
+  border-radius: 8px;
+  background: #e4edfb;
+  color: var(--cockpit-accent, #145bb8);
+  font-size: 0.58rem;
+  font-weight: 700;
+}
+
+.moreToggle {
+  position: relative;
+}
+
+.moreChevron {
+  flex: none;
+  margin-left: auto;
+  transition: transform 150ms ease;
+}
+
+.moreToggle[aria-expanded="true"] .moreChevron {
+  transform: rotate(180deg);
+}
+
+.moreViews {
+  display: grid;
+  gap: 3px;
+  margin: 1px 0 3px;
+  padding-left: 10px;
+  border-left: 1px solid #edf0f4;
+}
+
+.moreViews button {
+  height: 36px;
+  font-size: 0.7rem;
+}
+
+.collapse {
+  margin-top: 10px;
+  color: var(--cockpit-muted, #707b91);
+}
+
+.compact .primary button,
+.compact .collapse {
+  justify-content: center;
+  padding: 0;
+}
+
+.compact .label,
+.compact .badge,
+.compact .moreChevron {
+  display: none;
+}
+
+.compact .moreViews {
+  padding-left: 0;
+  border-left: 0;
+}
+
+.drawerOverlay {
+  position: fixed;
+  inset: 0;
+  z-index: 380;
+  background: rgba(15, 28, 48, 0.46);
+}
+
+.drawer {
+  width: min(320px, 88vw);
+  height: 100%;
+  display: grid;
+  grid-template-rows: 68px minmax(0, 1fr);
+  overflow: hidden;
+  background: #fff;
+  box-shadow: 18px 0 48px rgba(15, 28, 50, 0.24);
+}
+
+.drawerHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 7px 10px 7px 16px;
+  border-bottom: 1px solid var(--cockpit-border, #dfe4ec);
+}
+
+.drawerHead > img {
+  width: 146px;
+  height: 50px;
+  object-fit: contain;
+}
+
+.drawerHead button {
+  width: 40px;
+  height: 40px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--cockpit-copy, #3f4962);
+  cursor: pointer;
+}
+
+.drawerHead button:hover,
+.drawerHead button:focus-visible {
+  background: var(--cockpit-accent-soft, #edf4ff);
+  color: var(--cockpit-accent, #145bb8);
+  outline: 0;
+}
+
+.drawerBody {
+  min-height: 0;
+  overflow-y: auto;
+  padding: 14px;
+}
+
+.mobileBar {
+  display: none;
+}
+
+@media (max-width: 900px) {
+  .mobileBar {
+    position: fixed;
+    inset: auto 0 0;
+    z-index: 260;
+    height: calc(58px + env(safe-area-inset-bottom));
+    display: grid;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    padding: 4px 5px env(safe-area-inset-bottom);
+    border-top: 1px solid var(--cockpit-border, #dfe4ec);
+    background: rgba(255, 255, 255, 0.97);
+    box-shadow: 0 -8px 24px rgba(18, 35, 62, 0.08);
+    backdrop-filter: blur(12px);
+  }
+
+  .mobileBar button {
+    min-width: 0;
+    display: grid;
+    place-items: center;
+    align-content: center;
+    gap: 2px;
+    border: 0;
+    border-radius: 6px;
+    background: transparent;
+    color: var(--cockpit-muted, #707b91);
+    font: inherit;
+    font-size: 0.57rem;
+    font-weight: 650;
+    cursor: pointer;
+  }
+
+  .mobileBar button[data-active="true"],
+  .mobileBar button:focus-visible,
+  .mobileBar button[aria-expanded="true"] {
+    background: var(--cockpit-accent-soft, #edf4ff);
+    color: var(--cockpit-accent, #145bb8);
+    outline: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mobileBar {
+    backdrop-filter: none;
+  }
+}

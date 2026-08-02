@@ -1,0 +1,170 @@
+[
+  {
+    "name": "login-desktop-final-1440x1000",
+    "metrics": {
+      "bodyW": 1440,
+      "brokenImages": 0,
+      "docW": 1440,
+      "dpr": 1,
+      "h": 1000,
+      "issues": 0,
+      "overflow": false,
+      "url": "http://localhost:4105/login?demo=1",
+      "w": 1440
+    }
+  },
+  {
+    "name": "login-mobile-final-390x844",
+    "metrics": {
+      "bodyW": 390,
+      "brokenImages": 0,
+      "docW": 390,
+      "dpr": 1,
+      "h": 844,
+      "issues": 0,
+      "overflow": false,
+      "url": "http://localhost:4105/login?demo=1",
+      "w": 390
+    }
+  },
+  {
+    "name": "projects-desktop-final-1440x1000",
+    "metrics": {
+      "bodyW": 1440,
+      "brokenImages": 0,
+      "docW": 1440,
+      "dpr": 1,
+      "h": 1000,
+      "issues": 0,
+      "overflow": false,
+      "url": "http://localhost:4105/projects?demo=1",
+      "w": 1440
+    }
+  },
+  {
+    "name": "projects-mobile-final-390x844",
+    "metrics": {
+      "bodyW": 390,
+      "brokenImages": 0,
+      "docW": 390,
+      "dpr": 1,
+      "h": 844,
+      "issues": 0,
+      "overflow": false,
+      "url": "http://localhost:4105/projects?demo=1",
+      "w": 390
+    }
+  },
+  {
+    "name": "reviews-desktop-final-1440x1000",
+    "metrics": {
+      "bodyW": 1440,
+      "brokenImages": 0,
+      "docW": 1440,
+      "dpr": 1,
+      "h": 1000,
+      "issues": 0,
+      "overflow": false,
+      "url": "http://localhost:4105/reviews?demo=1",
+      "w": 1440
+    }
+  },
+  {
+    "name": "reviews-mobile-final-390x844",
+    "metrics": {
+      "bodyW": 390,
+      "brokenImages": 0,
+      "docW": 390,
+      "dpr": 1,
+      "h": 844,
+      "issues": 0,
+      "overflow": false,
+      "url": "http://localhost:4105/reviews?demo=1",
+      "w": 390
+    }
+  },
+  {
+    "name": "library-desktop-final-1440x1000",
+    "metrics": {
+      "bodyW": 1440,
+      "brokenImages": 0,
+      "docW": 1440,
+      "dpr": 1,
+      "h": 1000,
+      "issues": 0,
+      "overflow": false,
+      "url": "http://localhost:4105/library?demo=1",
+      "w": 1440
+    }
+  },
+  {
+    "name": "library-mobile-final-390x844",
+    "metrics": {
+      "bodyW": 390,
+      "brokenImages": 0,
+      "docW": 390,
+      "dpr": 1,
+      "h": 844,
+      "issues": 0,
+      "overflow": false,
+      "url": "http://localhost:4105/library?demo=1",
+      "w": 390
+    }
+  },
+  {
+    "name": "settings-brand-desktop-final-1440x1000",
+    "metrics": {
+      "bodyW": 1440,
+      "brokenImages": 0,
+      "docW": 1440,
+      "dpr": 1,
+      "h": 1000,
+      "issues": 0,
+      "overflow": false,
+      "url": "http://localhost:4105/settings?demo=1&section=brand",
+      "w": 1440
+    }
+  },
+  {
+    "name": "settings-brand-mobile-final-390x844",
+    "metrics": {
+      "bodyW": 390,
+      "brokenImages": 0,
+      "docW": 390,
+      "dpr": 1,
+      "h": 844,
+      "issues": 0,
+      "overflow": false,
+      "url": "http://localhost:4105/settings?demo=1&section=brand",
+      "w": 390
+    }
+  },
+  {
+    "name": "review-cockpit-desktop-final-1440x1000",
+    "metrics": {
+      "bodyW": 1434,
+      "brokenImages": 0,
+      "docW": 1434,
+      "dpr": 1,
+      "h": 1000,
+      "issues": 0,
+      "overflow": false,
+      "url": "http://localhost:4105/projects/bp?asset=bp-rodeo-v2&view=review&demo=1",
+      "w": 1440
+    }
+  },
+  {
+    "name": "review-cockpit-mobile-final-390x844",
+    "metrics": {
+      "bodyW": 384,
+      "brokenImages": 0,
+      "docW": 384,
+      "dpr": 1,
+      "h": 844,
+      "issues": 0,
+      "overflow": false,
+      "url": "http://localhost:4105/projects/bp?asset=bp-rodeo-v2&view=review&demo=1",
+      "w": 390
+    }
+  }
+]

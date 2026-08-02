@@ -1,0 +1,55 @@
+{
+  "schemaVersion": 1,
+  "kind": "pillar",
+  "id": "sharing-notifications-delivery",
+  "title": "Sharing manifests, recipient permissions, notifications, and delivery",
+  "horizons": [1, 2, 3],
+  "owner": "Delivery platform",
+  "objective": "Deliver immutable media versions to explicit recipients with enforceable permissions and durable delivery evidence.",
+  "authorityDomains": ["identity", "tenant", "project", "version", "permission", "billing", "audit"],
+  "surfaces": [
+    { "kind": "page", "pattern": "/review/**" },
+    { "kind": "api", "pattern": "/api/client/reviews" },
+    { "kind": "api", "pattern": "/api/review/**" },
+    { "kind": "api", "pattern": "/api/sharing/**" },
+    { "kind": "api", "pattern": "/api/notifications" },
+    { "kind": "api", "pattern": "/api/notifications/**" },
+    { "kind": "api", "pattern": "/api/webhooks" }
+  ],
+  "obligations": [
+    {
+      "id": "delivery.h1.permissioned-links",
+      "title": "Public links are private, immutable, permission-enforced, revocable, and usable on mobile and desktop",
+      "category": "sharing-core",
+      "severity": "critical",
+      "horizon": 1,
+      "proofTtlDays": 7,
+      "checks": ["security.review-link-row-privacy", "security.review-link-password", "security.public-file-controls", "consistency.version-binding", "evidence.sharing-public-review"],
+      "residualRisk": "A public or mutable link can expose original media or change beneath a client decision."
+    },
+    {
+      "id": "delivery.h2.durable-fanout",
+      "title": "Recipient fan-out is authorized, queued, signed, idempotent, retryable, and observable",
+      "category": "delivery-scale",
+      "severity": "critical",
+      "horizon": 2,
+      "proofTtlDays": 7,
+      "checks": ["security.notification-recipient-authorization", "security.webhook-egress-guard", "resilience.outbox-delivery", "resilience.concurrency-idempotency"],
+      "residualRisk": "Direct outbound calls can be forged, duplicated, silently lost, or used to reach private infrastructure."
+    },
+    {
+      "id": "delivery.h3.delivery-record",
+      "title": "Every grant, view, download, message, decision, expiry, and revocation is governed and auditable",
+      "category": "delivery-governance",
+      "severity": "critical",
+      "horizon": 3,
+      "proofTtlDays": 30,
+      "checks": ["governance.immutable-audit-ledger", "governance.data-lifecycle", "governance.residency-encryption", "billing.client-grant-continuity"],
+      "residualRisk": "Incomplete delivery records cannot prove who received or accessed a commissioned asset."
+    }
+  ],
+  "slos": [
+    { "id": "public-review-availability", "indicator": "Successful valid public review loads", "target": 0.9995, "windowDays": 30, "errorBudgetMinutes": 21.6 },
+    { "id": "duplicate-delivery", "indicator": "Duplicate outbound delivery side effects", "target": 0, "windowDays": 30, "errorBudgetMinutes": 0 }
+  ]
+}

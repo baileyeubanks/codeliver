@@ -13,6 +13,7 @@ import {
   AlertTriangle,
   CheckCircle,
 } from "lucide-react";
+import { toDemoSiteUrl } from "@/lib/surface-origins";
 
 interface SharePanelProps {
   onShare: (config: ShareConfig) => void;
@@ -55,7 +56,12 @@ export default function SharePanel({ onShare }: SharePanelProps) {
 
   function handleShare() {
     if (method === "url") {
-      setCreatedUrl(`${window.location.origin}/review/demo-token`);
+      try {
+        setCreatedUrl(toDemoSiteUrl("/review/demo-token", window.location.origin));
+      } catch {
+        setCreatedUrl("");
+        return;
+      }
     }
     onShare({
       mode,

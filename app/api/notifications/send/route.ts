@@ -1,116 +1,196 @@
 import { NextResponse } from "next/server";
-import { requireAuth } from "@/lib/auth";
-import { getSupabase } from "@/lib/supabase";
-import { sendEmail, getBaseUrl } from "@/lib/email";
-import type { NotificationType } from "@/lib/types/codeliver";
+import { requireAuthWithClient } from "@/lib/auth-client";
+import {
+  CO_PRODUCTION_DATA_SCHEMA,
+  getSupabaseDataSchema,
+} from "@/lib/data-authority";
+import { getBaseUrl } from "@/lib/email";
+import {
+  createInAppNotificationAdapter,
+  getExternalNotificationAdapters,
+} from "@/lib/notifications/adapters";
+import { parseNotificationRequest } from "@/lib/notifications/authority";
+import { NOTIFICATION_EVENT_TYPES } from "@/lib/notifications/preferences";
+import { dispatchAuditedNotification } from "@/lib/notifications/server-delivery";
+import {
+  dispatchDurableNotification,
+  isNotificationQueueFailure,
+} from "@/lib/notifications/transactional";
+import { tenantAuthorityKey } from "@/lib/tenant-authority";
 
-interface SendPayload {
-  user_id: string;
-  type: NotificationType;
-  title: string;
-  body: string;
-  data?: Record<string, unknown>;
+type NotificationClient = Parameters<typeof dispatchAuditedNotification>[0]["client"];
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return Boolean(value) && typeof value === "object" && !Array.isArray(value);
+}
+
+export async function GET() {
+  const { user, supabase } = await requireAuthWithClient();
+  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const client = supabase as unknown as NotificationClient;
+  const channels =
+    getSupabaseDataSchema() === CO_PRODUCTION_DATA_SCHEMA
+      ? [
+          {
+            channel: "in_app",
+            provider: "supabase-notifications",
+            configured: true,
+          },
+          { channel: "email", provider: "durable-outbox", configured: true },
+          { channel: "sms", provider: "durable-outbox", configured: false },
+          {
+            channel: "imessage",
+            provider: "durable-outbox",
+            configured: false,
+          },
+        ]
+      : [
+          createInAppNotificationAdapter({
+            client,
+            authenticatedUserId: user.id,
+          }),
+          ...getExternalNotificationAdapters(),
+        ].map((adapter) => ({
+          channel: adapter.channel,
+          provider: adapter.provider,
+          configured: adapter.configured,
+        }));
+  const tenantId = tenantAuthorityKey("personal", user.id);
+  return NextResponse.json({
+    tenant_id: tenantId,
+    preview_safe: true,
+    live_send_requires: ["action=send", "confirm_live_send=true", "idempotency_key"],
+    channels,
+  });
 }
 
 export async function POST(req: Request) {
-  const user = await requireAuth();
-  if (!user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const { user, supabase } = await requireAuthWithClient();
+  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const client = supabase as unknown as NotificationClient;
+
+  const body = await req.json().catch(() => null);
+  if (!isRecord(body)) {
+    return NextResponse.json({ error: "A JSON object is required" }, { status: 400 });
   }
 
-  const payload = (await req.json()) as SendPayload;
-  const { user_id, type, title, body, data } = payload;
-
-  if (!user_id || !type || !title) {
+  const recipient = isRecord(body.recipient) ? body.recipient : {};
+  if (
+    Array.isArray(body.channels) &&
+    body.channels.some((channel) => channel === "sms" || channel === "imessage")
+  ) {
     return NextResponse.json(
-      { error: "user_id, type, and title are required" },
-      { status: 400 }
+      { error: "SMS and iMessage authority is available only from an explicit share recipient contract" },
+      { status: 400 },
+    );
+  }
+  if (recipient.user_id != null && recipient.user_id !== user.id) {
+    return NextResponse.json(
+      { error: "This endpoint can only send to the authenticated user's verified identity" },
+      { status: 403 },
     );
   }
 
-  const supabase = getSupabase();
+  const verifiedEmail = user.email ?? null;
+  const tenantId = tenantAuthorityKey("personal", user.id);
+  if (
+    recipient.email != null &&
+    (typeof recipient.email !== "string" ||
+      !verifiedEmail ||
+      recipient.email.trim().toLowerCase() !== verifiedEmail.trim().toLowerCase())
+  ) {
+    return NextResponse.json(
+      { error: "recipient.email does not match the authenticated user's verified email" },
+      { status: 403 },
+    );
+  }
 
-  // Check user preferences for this event type
-  const { data: prefRows } = await supabase
+  const normalizedInput = {
+    ...body,
+    tenant_id: tenantId,
+    recipient: {
+      ...recipient,
+      user_id: user.id,
+      email: verifiedEmail,
+      phone: null,
+      imessage_handle: null,
+    },
+  };
+  const parsed = parseNotificationRequest(normalizedInput, {
+    authenticatedTenantId: tenantId,
+    allowedOrigin: getBaseUrl(),
+  });
+  if (!parsed.ok) {
+    return NextResponse.json(
+      { error: parsed.error, field: parsed.field, mutation_performed: false },
+      { status: 400 },
+    );
+  }
+  if (!(NOTIFICATION_EVENT_TYPES as readonly string[]).includes(parsed.value.eventType)) {
+    return NextResponse.json(
+      { error: "event_type is not supported by the in-app notification contract" },
+      { status: 400 },
+    );
+  }
+
+  const preference = await client
     .from("notification_preferences")
-    .select("*")
-    .eq("user_id", user_id)
-    .eq("event_type", type)
-    .limit(1);
+    .select("email_enabled, email_frequency, in_app_enabled")
+    .eq("user_id", user.id)
+    .eq("event_type", parsed.value.eventType)
+    .limit(1)
+    .maybeSingle();
+  if (preference.error) {
+    return NextResponse.json(
+      { error: "Notification preferences could not be verified; no notification was sent" },
+      { status: 503 },
+    );
+  }
+  const emailInstant =
+    preference.data?.email_enabled === true && preference.data.email_frequency === "instant";
+  const preferenceEnabled = {
+    in_app: preference.data?.in_app_enabled ?? true,
+    email: preference.data ? emailInstant : false,
+  };
+  const result =
+    getSupabaseDataSchema() === CO_PRODUCTION_DATA_SCHEMA
+      ? await dispatchDurableNotification({
+          request: parsed.value,
+          client,
+          actorId: user.id,
+          actorName: user.email ?? "Co-VideoPro user",
+          preferenceEnabled,
+        })
+      : await dispatchAuditedNotification({
+          request: parsed.value,
+          client,
+          adapters: [
+            createInAppNotificationAdapter({
+              client,
+              authenticatedUserId: user.id,
+            }),
+            ...getExternalNotificationAdapters(),
+          ],
+          actorId: user.id,
+          actorName: user.email ?? "Co-VideoPro user",
+          preferenceEnabled,
+        });
 
-  const pref = prefRows?.[0];
-
-  // Default: both in-app and email enabled
-  const inAppEnabled = pref?.in_app_enabled ?? true;
-  const emailEnabled = pref?.email_enabled ?? true;
-  const emailFrequency: string = pref?.email_frequency ?? "instant";
-
-  // Insert in-app notification if enabled
-  let notificationId: string | null = null;
-  if (inAppEnabled) {
-    const { data: inserted, error: insertErr } = await supabase
-      .from("notifications")
-      .insert({
-        user_id,
-        type,
-        title,
-        body: body ?? "",
-        data: data ?? {},
-        read: false,
-      })
-      .select("id")
-      .single();
-
-    if (insertErr) {
-      return NextResponse.json({ error: insertErr.message }, { status: 500 });
-    }
-
-    notificationId = inserted?.id ?? null;
+  if (isNotificationQueueFailure(result)) {
+    return NextResponse.json(
+      { error: result.error, code: result.code },
+      { status: 503 },
+    );
   }
 
-  // Send email if enabled and frequency is instant
-  let emailSent = false;
-  if (emailEnabled && emailFrequency === "instant") {
-    // Look up user email
-    const { data: profile } = await supabase
-      .from("profiles")
-      .select("email")
-      .eq("id", user_id)
-      .single();
-
-    if (profile?.email) {
-      const baseUrl = getBaseUrl();
-      const projectId = (data?.project_id as string) ?? "";
-      const assetId = (data?.asset_id as string) ?? "";
-      const viewUrl =
-        projectId && assetId
-          ? `${baseUrl}/projects/${projectId}/assets/${assetId}`
-          : baseUrl;
-
-      const result = await sendEmail({
-        to: profile.email,
-        subject: title,
-        html: `
-          <div style="font-family: sans-serif; max-width: 560px; margin: 0 auto;">
-            <h2 style="color: #f1f5f9; font-size: 18px;">${title}</h2>
-            <p style="color: #94a3b8; font-size: 14px; line-height: 1.6;">${body}</p>
-            <a href="${viewUrl}"
-               style="display: inline-block; margin-top: 16px; padding: 10px 20px;
-                      background: #3b82f6; color: #fff; border-radius: 8px;
-                      text-decoration: none; font-size: 14px; font-weight: 500;">
-              View in CoDeliver
-            </a>
-          </div>
-        `,
-      });
-
-      emailSent = result !== null;
+  if (!result.ok) {
+    const headers = new Headers();
+    if ("retry_after_seconds" in result && typeof result.retry_after_seconds === "number") {
+      headers.set("Retry-After", String(result.retry_after_seconds));
     }
+    return NextResponse.json(result, { status: result.status, headers });
   }
-
-  return NextResponse.json({
-    ok: true,
-    notification_id: notificationId,
-    email_sent: emailSent,
+  return NextResponse.json(result, {
+    status: result.mode === "queued" ? 202 : 200,
   });
 }

@@ -1,5 +1,13 @@
 import type { ApprovalDecision } from "@/lib/types/codeliver";
-import { getSupabase } from "@/lib/supabase";
+import {
+  CO_PRODUCTION_DATA_SCHEMA,
+  getSupabaseDataSchema,
+} from "@/lib/data-authority";
+import { deliverSignedWebhook } from "@/lib/security/webhook-delivery";
+import { enqueueWebhookOutboxDelivery } from "@/lib/security/webhook-outbox";
+import { recoverWebhookSecret } from "@/lib/security/webhook-secret";
+import { getSupabase, type DataSupabaseClient } from "@/lib/supabase";
+import { resolveAssetVersion } from "@/lib/versions";
 
 const APPROVED_STATUSES = new Set<ApprovalDecision>([
   "approved",
@@ -18,19 +26,24 @@ interface DecisionActor {
 
 interface RecordApprovalDecisionInput {
   assetId: string;
+  versionId?: string | null;
   approvalId: string;
   status: ApprovalDecision;
   decisionNote?: string | null;
   actor: DecisionActor;
 }
 
-export async function recordApprovalDecision({
-  assetId,
-  approvalId,
-  status,
-  decisionNote,
-  actor,
-}: RecordApprovalDecisionInput) {
+export async function recordApprovalDecision(
+  {
+    assetId,
+    versionId,
+    approvalId,
+    status,
+    decisionNote,
+    actor,
+  }: RecordApprovalDecisionInput,
+  client?: DataSupabaseClient,
+) {
   if (status === "pending") {
     return {
       ok: false as const,
@@ -39,20 +52,52 @@ export async function recordApprovalDecision({
     };
   }
 
-  const supabase = getSupabase();
+  const supabase = client ?? getSupabase();
+
+  if (!versionId) {
+    return {
+      ok: false as const,
+      statusCode: 400,
+      error: "The media version being approved is required",
+    };
+  }
+
+  const versionLookup = await resolveAssetVersion({
+    assetId,
+    versionId,
+    client: supabase,
+  });
+  if (!versionLookup.ok) {
+    return {
+      ok: false as const,
+      statusCode: versionLookup.status >= 500 ? 503 : versionLookup.status,
+      error:
+        versionLookup.status >= 500
+          ? "Approval version could not be evaluated"
+          : versionLookup.error,
+    };
+  }
+  if (!versionLookup.version.is_current) {
+    return {
+      ok: false as const,
+      statusCode: 409,
+      error: "This approval request is for an earlier version",
+    };
+  }
 
   const { data: approval, error: approvalError } = await supabase
     .from("approvals")
     .select("*")
     .eq("id", approvalId)
     .eq("asset_id", assetId)
+    .eq("version_id", versionId)
     .maybeSingle();
 
   if (approvalError) {
     return {
       ok: false as const,
-      statusCode: 500,
-      error: approvalError.message,
+      statusCode: 503,
+      error: "Approval step could not be loaded",
     };
   }
 
@@ -64,6 +109,14 @@ export async function recordApprovalDecision({
     };
   }
 
+  if (!approval.workflow_id) {
+    return {
+      ok: false as const,
+      statusCode: 409,
+      error: "This approval step is not bound to a versioned workflow",
+    };
+  }
+
   if (approval.status !== "pending") {
     return {
       ok: false as const,
@@ -72,18 +125,29 @@ export async function recordApprovalDecision({
     };
   }
 
-  const { data: workflow } = await supabase
+  const { data: workflow, error: workflowError } = await supabase
     .from("approval_workflows")
-    .select("id, mode")
+    .select("id, mode, version_id")
     .eq("id", approval.workflow_id)
+    .eq("asset_id", assetId)
+    .eq("version_id", versionId)
     .eq("status", "active")
     .maybeSingle();
+
+  if (workflowError) {
+    return {
+      ok: false as const,
+      statusCode: 503,
+      error: "Approval workflow could not be evaluated",
+    };
+  }
 
   if (workflow?.mode === "sequential") {
     const { data: pendingSteps, error: pendingError } = await supabase
       .from("approvals")
       .select("id")
       .eq("asset_id", assetId)
+      .eq("version_id", versionId)
       .eq("workflow_id", workflow.id)
       .eq("status", "pending")
       .order("step_order", { ascending: true });
@@ -91,8 +155,8 @@ export async function recordApprovalDecision({
     if (pendingError) {
       return {
         ok: false as const,
-        statusCode: 500,
-        error: pendingError.message,
+        statusCode: 503,
+        error: "Approval workflow could not be evaluated",
       };
     }
 
@@ -105,22 +169,25 @@ export async function recordApprovalDecision({
     }
   }
 
+  const decidedAt = new Date().toISOString();
   const { data: updatedApproval, error: updateError } = await supabase
     .from("approvals")
     .update({
       status,
       decision_note: decisionNote || null,
-      decided_at: new Date().toISOString(),
+      decided_at: decidedAt,
     })
     .eq("id", approvalId)
+    .eq("asset_id", assetId)
+    .eq("version_id", versionId)
     .select()
     .single();
 
   if (updateError) {
     return {
       ok: false as const,
-      statusCode: 500,
-      error: updateError.message,
+      statusCode: 503,
+      error: "Approval decision could not be recorded",
     };
   }
 
@@ -156,7 +223,8 @@ export async function recordApprovalDecision({
   const { data: allApprovals } = await supabase
     .from("approvals")
     .select("status")
-    .eq("asset_id", assetId);
+    .eq("asset_id", assetId)
+    .eq("version_id", versionId);
 
   const allApproved =
     (allApprovals?.length ?? 0) > 0 &&
@@ -173,29 +241,48 @@ export async function recordApprovalDecision({
       await supabase
         .from("approval_workflows")
         .update({ status: "completed" })
-        .eq("id", approval.workflow_id);
+        .eq("id", approval.workflow_id)
+        .eq("asset_id", assetId)
+        .eq("version_id", versionId);
     }
   } else if (CHANGE_REQUEST_STATUSES.has(status)) {
     await supabase.from("assets").update({ status: "needs_changes" }).eq("id", assetId);
     assetStatus = "needs_changes";
   }
 
-  // ── Webhook emission: fire events to all registered webhooks ──
+  // Queue managed-schema events before returning; legacy schemas retain their
+  // direct-delivery compatibility path.
   const webhookEvent = allApproved
     ? "review.completed"
     : APPROVED_STATUSES.has(status)
       ? "asset.approved"
       : "asset.changes_requested";
 
-  emitWebhookEvents(assetId, webhookEvent, {
-    asset_id: assetId,
-    asset_title: asset.data?.title,
-    approval_id: approvalId,
-    decision: status,
-    decided_by: actor.name,
-    all_approved: allApproved,
-    asset_status: assetStatus,
-  }).catch((err) => console.error("[webhooks] Emission error:", err));
+  const webhookEmission = emitPrivilegedApprovalWebhookAfterAuthorization(
+    supabase,
+    assetId,
+    webhookEvent,
+    `approval:${approvalId}:${status}:${webhookEvent}`,
+    decidedAt,
+    {
+      asset_id: assetId,
+      asset_title: asset.data?.title,
+      approval_id: approvalId,
+      decision: status,
+      decided_by: actor.name,
+      all_approved: allApproved,
+      asset_status: assetStatus,
+    },
+  );
+  if (getSupabaseDataSchema() === CO_PRODUCTION_DATA_SCHEMA) {
+    await webhookEmission.catch((error) =>
+      console.error("[webhooks] Queue authority error:", error),
+    );
+  } else {
+    void webhookEmission.catch((error) =>
+      console.error("[webhooks] Emission error:", error),
+    );
+  }
 
   return {
     ok: true as const,
@@ -205,36 +292,80 @@ export async function recordApprovalDecision({
 }
 
 /**
- * Emit webhook events to all active webhooks that subscribe to this event type.
- * Fire-and-forget — failures are logged but don't block the response.
+ * Emit webhook events to the owning team's active webhooks that subscribe to this event type.
+ * Managed-schema callers await queue attempts; failures remain non-blocking to
+ * the approval response until approval mutation and outbox insertion share one RPC.
  */
-async function emitWebhookEvents(
+async function emitPrivilegedApprovalWebhookAfterAuthorization(
+  authorizedClient: DataSupabaseClient,
   assetId: string,
   event: string,
-  data: Record<string, unknown>
+  deliveryIntentKey: string,
+  occurredAt: string,
+  data: Record<string, unknown>,
 ): Promise<void> {
-  const supabase = getSupabase();
-
-  // Get the asset's project → team → webhooks chain
-  const { data: asset } = await supabase
+  // Resolve authority from persisted relationships only: asset -> project -> team.
+  const { data: asset, error: assetError } = await authorizedClient
     .from("assets")
-    .select("project_id, projects(owner_id)")
+    .select("project_id, projects(team_id, owner_id)")
     .eq("id", assetId)
     .single();
 
-  if (!asset) return;
+  if (assetError || !asset) return;
 
-  // Find webhooks that subscribe to this event (or have empty events = all events)
-  const { data: webhooks } = await supabase
+  const project = Array.isArray(asset.projects)
+    ? asset.projects[0]
+    : asset.projects;
+  let teamId = project?.team_id ?? null;
+  if (getSupabaseDataSchema() === CO_PRODUCTION_DATA_SCHEMA) {
+    if (!teamId) return;
+  } else {
+    teamId = null;
+    const projectOwnerId = project?.owner_id;
+    if (!projectOwnerId) return;
+    const privilegedClient = getSupabase();
+    const { data: owningTeams, error: teamError } = await privilegedClient
+      .from("teams")
+      .select("id")
+      .eq("owner_id", projectOwnerId)
+      .limit(2);
+    if (teamError || owningTeams?.length !== 1 || !owningTeams[0]?.id) return;
+    teamId = owningTeams[0].id;
+  }
+
+  await deliverPrivilegedApprovalWebhookAfterAuthorization(
+    teamId,
+    event,
+    deliveryIntentKey,
+    occurredAt,
+    data,
+  );
+}
+
+async function deliverPrivilegedApprovalWebhookAfterAuthorization(
+  expectedTeamId: string,
+  event: string,
+  deliveryIntentKey: string,
+  occurredAt: string,
+  data: Record<string, unknown>,
+): Promise<void> {
+  const privilegedClient = getSupabase();
+
+  // Find owning-team webhooks that subscribe to this event (empty events = all events).
+  const { data: webhooks, error: webhooksError } = await privilegedClient
     .from("webhooks")
     .select("*")
+    .eq("team_id", expectedTeamId)
     .eq("active", true);
 
+  if (webhooksError) {
+    throw new Error("Owning-team webhook endpoints could not be loaded");
+  }
   if (!webhooks || webhooks.length === 0) return;
 
   const payload = {
     event,
-    timestamp: new Date().toISOString(),
+    timestamp: occurredAt,
     data,
   };
 
@@ -243,28 +374,42 @@ async function emitWebhookEvents(
     const events = webhook.events as string[];
     if (events.length > 0 && !events.includes(event)) continue;
 
+    const idempotencyKey = `${deliveryIntentKey}:${webhook.id}`.toLowerCase();
+    if (getSupabaseDataSchema() === CO_PRODUCTION_DATA_SCHEMA) {
+      try {
+        await enqueueWebhookOutboxDelivery(privilegedClient, {
+          webhookId: webhook.id,
+          expectedTeamId,
+          event,
+          idempotencyKey,
+          payload,
+        });
+      } catch (error) {
+        console.error("[webhooks] Endpoint queue error:", webhook.id, error);
+      }
+      continue;
+    }
+
     try {
-      const res = await fetch(webhook.url, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "X-CoDeliver-Signature": webhook.secret,
-          "X-CoDeliver-Event": event,
-        },
-        body: JSON.stringify(payload),
-        signal: AbortSignal.timeout(10000),
+      const result = await deliverSignedWebhook({
+        url: webhook.url,
+        secret: recoverWebhookSecret(webhook as Record<string, unknown>),
+        event,
+        deliveryId: `legacy:${idempotencyKey}`,
+        attempt: 1,
+        payload,
       });
 
       // Log delivery
-      await supabase.from("webhook_deliveries").insert({
+      await privilegedClient.from("webhook_deliveries").insert({
         webhook_id: webhook.id,
         event,
         payload,
-        response_code: res.status,
+        response_code: result.responseCode,
       });
-    } catch (err) {
+    } catch {
       // Log failed delivery
-      await supabase.from("webhook_deliveries").insert({
+      await privilegedClient.from("webhook_deliveries").insert({
         webhook_id: webhook.id,
         event,
         payload,

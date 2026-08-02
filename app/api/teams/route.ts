@@ -1,17 +1,35 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireAuth } from "@/lib/auth";
-import { getSupabase } from "@/lib/supabase";
-import { requireTeamRole } from "@/lib/middleware/rbac";
+import { requireAuthWithClient } from "@/lib/auth-client";
+import {
+  requireTeamRole,
+  type TeamAuthorityRole,
+} from "@/lib/middleware/rbac";
 import type { TeamRole } from "@/lib/types/codeliver";
+
+const TEAM_AUTHORITY_ROLES = new Set<TeamAuthorityRole>([
+  "owner",
+  "admin",
+  "producer",
+  "editor",
+  "member",
+  "reviewer",
+  "viewer",
+]);
+
+function isTeamAuthorityRole(value: unknown): value is TeamAuthorityRole {
+  return (
+    typeof value === "string" &&
+    TEAM_AUTHORITY_ROLES.has(value as TeamAuthorityRole)
+  );
+}
 
 /* ── GET — fetch a single team with members, or list all teams for current user ── */
 export async function GET(request: NextRequest) {
-  const user = await requireAuth();
+  const { user, supabase } = await requireAuthWithClient();
   if (!user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const supabase = getSupabase();
   const teamId = request.nextUrl.searchParams.get("team_id");
 
   if (teamId) {
@@ -66,7 +84,13 @@ export async function GET(request: NextRequest) {
   }
 
   const teamIds = memberships.map((m) => m.team_id);
-  const roleMap = new Map(memberships.map((m) => [m.team_id, m.role]));
+  const roleMap = new Map(
+    memberships.flatMap((membership) =>
+      isTeamAuthorityRole(membership.role)
+        ? [[membership.team_id, membership.role] as const]
+        : [],
+    ),
+  );
 
   const { data: teams, error: teamsErr } = await supabase
     .from("teams")
@@ -78,23 +102,22 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: teamsErr.message }, { status: 500 });
   }
 
-  const items = (teams ?? []).map((t) => ({
-    ...t,
-    currentRole: roleMap.get(t.id) ?? "viewer",
-  }));
+  const items = (teams ?? []).flatMap((team) => {
+    const currentRole = roleMap.get(team.id);
+    return currentRole ? [{ ...team, currentRole }] : [];
+  });
 
   return NextResponse.json({ items });
 }
 
 /* ── POST — create team or perform member operations ── */
 export async function POST(request: NextRequest) {
-  const user = await requireAuth();
+  const { user, supabase } = await requireAuthWithClient();
   if (!user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
   const body = await request.json();
-  const supabase = getSupabase();
 
   // Member operations: change_role / remove
   if (body.action === "change_role" || body.action === "remove") {
@@ -113,7 +136,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Require admin or owner
-    const check = await requireTeamRole(team_id, user.id, "admin");
+    const check = await requireTeamRole(team_id, user.id, "admin", supabase);
     if (!check.allowed) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
@@ -208,21 +231,11 @@ export async function POST(request: NextRequest) {
     .select()
     .single();
 
-  if (teamErr) {
-    return NextResponse.json({ error: teamErr.message }, { status: 500 });
+  if (teamErr || !team) {
+    return NextResponse.json({ error: "Failed to create team" }, { status: 500 });
   }
 
-  // Add creator as owner member
-  const { error: memberErr } = await supabase.from("team_members").insert({
-    team_id: team.id,
-    user_id: user.id,
-    role: "owner",
-    invited_by: user.id,
-  });
-
-  if (memberErr) {
-    return NextResponse.json({ error: memberErr.message }, { status: 500 });
-  }
+  // The teams insert trigger creates the owner membership in the same statement.
 
   await supabase.from("activity_log").insert({
     actor_id: user.id,
@@ -236,7 +249,7 @@ export async function POST(request: NextRequest) {
 
 /* ── PATCH — rename team ── */
 export async function PATCH(request: NextRequest) {
-  const user = await requireAuth();
+  const { user, supabase } = await requireAuthWithClient();
   if (!user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
@@ -251,12 +264,11 @@ export async function PATCH(request: NextRequest) {
     );
   }
 
-  const check = await requireTeamRole(team_id, user.id, "admin");
+  const check = await requireTeamRole(team_id, user.id, "admin", supabase);
   if (!check.allowed) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
-  const supabase = getSupabase();
   const { data, error } = await supabase
     .from("teams")
     .update({ name })
@@ -280,7 +292,7 @@ export async function PATCH(request: NextRequest) {
 
 /* ── DELETE — delete team (owner only) ── */
 export async function DELETE(request: NextRequest) {
-  const user = await requireAuth();
+  const { user, supabase } = await requireAuthWithClient();
   if (!user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
@@ -295,15 +307,13 @@ export async function DELETE(request: NextRequest) {
     );
   }
 
-  const check = await requireTeamRole(team_id, user.id, "owner");
+  const check = await requireTeamRole(team_id, user.id, "owner", supabase);
   if (!check.allowed) {
     return NextResponse.json(
       { error: "Only the team owner can delete a team" },
       { status: 403 }
     );
   }
-
-  const supabase = getSupabase();
 
   // Cascade delete handles members, invites, webhooks via FK
   const { error } = await supabase.from("teams").delete().eq("id", team_id);

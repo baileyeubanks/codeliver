@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuthWithClient } from "@/lib/auth-client";
+import { getSupabaseDataSchema } from "@/lib/data-authority";
 
 type FolderRow = {
   id: string;
@@ -38,32 +39,38 @@ function buildTree(rows: FolderRow[]): FolderTree[] {
 }
 
 export async function GET(request: NextRequest) {
-  const { user, supabase } = await requireAuthWithClient();
-  if (!user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  try {
+    const { user, supabase } = await requireAuthWithClient();
+    if (!user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
 
-  const projectId = request.nextUrl.searchParams.get("project_id");
+    const projectId = request.nextUrl.searchParams.get("project_id");
 
-  // If no project_id, return all folders for projects the user owns
-  if (!projectId) {
-    try {
-      const { data, error } = await supabase
-        .from("folders")
-        .select("*, projects!inner(owner_id)")
-        .eq("projects.owner_id", user.id)
-        .order("position", { ascending: true });
+    // If no project_id, return all folders for projects the user owns.
+    if (!projectId) {
+      let query = supabase.from("folders").select("*");
+      if (getSupabaseDataSchema() === "public") {
+        query = supabase
+          .from("folders")
+          .select("*, projects!inner(owner_id)")
+          .eq("projects.owner_id", user.id);
+      }
+      const { data, error } = await query.order("position", { ascending: true });
 
       if (error) {
-        return NextResponse.json({ items: [] });
+        console.error("Folders API error:", error.message);
+        return NextResponse.json(
+          { error: "Folders are temporarily unavailable" },
+          { status: 503, headers: { "Cache-Control": "no-store" } },
+        );
       }
-      return NextResponse.json({ items: buildTree(data || []) });
-    } catch {
-      return NextResponse.json({ items: [] });
+      return NextResponse.json(
+        { items: buildTree(data || []) },
+        { headers: { "Cache-Control": "no-store" } },
+      );
     }
-  }
 
-  try {
     const { data, error } = await supabase
       .from("folders")
       .select("*")
@@ -71,11 +78,22 @@ export async function GET(request: NextRequest) {
       .order("position", { ascending: true });
 
     if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 });
+      console.error("Folders API error:", error.message);
+      return NextResponse.json(
+        { error: "Folders are temporarily unavailable" },
+        { status: 503, headers: { "Cache-Control": "no-store" } },
+      );
     }
-    return NextResponse.json({ items: buildTree(data || []) });
-  } catch {
-    return NextResponse.json({ items: [] });
+    return NextResponse.json(
+      { items: buildTree(data || []) },
+      { headers: { "Cache-Control": "no-store" } },
+    );
+  } catch (error) {
+    console.error("Folders API exception:", error);
+    return NextResponse.json(
+      { error: "Folders are temporarily unavailable" },
+      { status: 503, headers: { "Cache-Control": "no-store" } },
+    );
   }
 }
 

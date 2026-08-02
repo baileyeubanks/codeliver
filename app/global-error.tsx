@@ -1,5 +1,7 @@
 "use client";
 
+import CoProductionBrand from "@/components/brand/CoProductionBrand";
+
 export default function GlobalError({
   error,
   reset,
@@ -9,28 +11,100 @@ export default function GlobalError({
 }) {
   return (
     <html lang="en">
-      <body style={{ background: "#0f172a", color: "#f1f5f9", fontFamily: "Inter, sans-serif" }}>
-        <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center" }}>
-          <div style={{ textAlign: "center" }}>
-            <h1 style={{ fontSize: "1.5rem", fontWeight: 700, marginBottom: "0.5rem" }}>Something went wrong</h1>
-            <p style={{ color: "#94a3b8", marginBottom: "1rem" }}>{error.message}</p>
+      <body
+        style={{
+          margin: 0,
+          background: "#edf1f4",
+          color: "#18223e",
+          fontFamily: "Inter, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif",
+        }}
+      >
+        <main
+          style={{
+            boxSizing: "border-box",
+            minHeight: "100svh",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            padding: 24,
+          }}
+        >
+          <section
+            style={{
+              width: "min(100%, 456px)",
+              boxSizing: "border-box",
+              border: "1px solid #d9e1e9",
+              borderRadius: 8,
+              background: "#ffffff",
+              padding: "32px 28px",
+              textAlign: "center",
+              boxShadow: "0 12px 34px rgba(32, 55, 88, 0.08)",
+            }}
+          >
+            <CoProductionBrand
+              variant="stacked"
+              sizes="(max-width: 520px) 188px, 212px"
+              priority
+              style={{
+                "--co-production-brand-width": "212px",
+                margin: "0 auto 20px",
+              }}
+            />
+            <p
+              style={{
+                margin: "0 0 8px",
+                color: "#145bb8",
+                fontSize: 10,
+                fontWeight: 700,
+                textTransform: "uppercase",
+              }}
+            >
+              Workspace error
+            </p>
+            <h1
+              style={{
+                margin: "0 0 8px",
+                color: "#18223e",
+                fontFamily: "Manrope, Inter, sans-serif",
+                fontSize: 25,
+                fontWeight: 700,
+                lineHeight: 1.2,
+              }}
+            >
+              Something went wrong
+            </h1>
+            <p
+              style={{
+                maxWidth: 360,
+                margin: "0 auto 22px",
+                color: "#647287",
+                fontSize: 13,
+                lineHeight: 1.6,
+              }}
+            >
+              {error.message || "The workspace could not finish loading."}
+            </p>
             <button
               onClick={reset}
               style={{
-                background: "#3b82f6",
-                color: "#fff",
-                border: "none",
-                borderRadius: "8px",
-                padding: "0.5rem 1.5rem",
+                minHeight: 44,
+                display: "inline-flex",
+                alignItems: "center",
+                justifyContent: "center",
+                border: "1px solid #145bb8",
+                borderRadius: 7,
+                background: "#145bb8",
+                padding: "0 20px",
+                color: "#ffffff",
                 cursor: "pointer",
-                fontSize: "0.875rem",
-                fontWeight: 500,
+                fontSize: 13,
+                fontWeight: 700,
               }}
             >
               Try again
             </button>
-          </div>
-        </div>
+          </section>
+        </main>
       </body>
     </html>
   );

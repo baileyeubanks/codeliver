@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 export default function DashboardRedirect() {
   const router = useRouter();
   useEffect(() => {
-    router.replace("/projects");
+    router.replace(`/projects${window.location.search}`);
   }, [router]);
 
   return (

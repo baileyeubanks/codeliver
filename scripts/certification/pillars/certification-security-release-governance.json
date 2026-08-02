@@ -1,0 +1,53 @@
+{
+  "schemaVersion": 1,
+  "kind": "pillar",
+  "id": "certification-security-release-governance",
+  "title": "Certification, security, accessibility, resilience, and release governance",
+  "horizons": [1, 2, 3],
+  "owner": "Quality, security, and reliability",
+  "objective": "Continuously inventory every route, select the highest residual risk, attack-test it, save expiring proof, and gate release on the integrated product.",
+  "authorityDomains": ["identity", "tenant", "project", "version", "permission", "billing", "audit"],
+  "surfaces": [
+    { "kind": "api", "pattern": "/api/health" },
+    { "kind": "api", "pattern": "/api/health/**" },
+    { "kind": "api", "pattern": "/api/analytics/**" },
+    { "kind": "api", "pattern": "/api/teams/audit" }
+  ],
+  "obligations": [
+    {
+      "id": "certification.h1.integrated-proof",
+      "title": "Routes, contracts, commands, journeys, accessibility, and source binding form one release receipt",
+      "category": "release-core",
+      "severity": "critical",
+      "horizon": 1,
+      "proofTtlDays": 7,
+      "checks": ["manifest.validity", "inventory.route-coverage", "inventory.journey-route-coverage", "journey.obligations-complete", "commands.lint", "commands.typecheck", "commands.product-tests", "commands.certification-tests", "commands.build", "governance.proof-binding", "governance.snapshot-stability"],
+      "residualRisk": "Isolated tests can pass while the integrated release remains broken or evidence targets different source."
+    },
+    {
+      "id": "certification.h2.operational-control",
+      "title": "Readiness, dependency degradation, SLOs, synthetics, load, rollback, and disaster recovery gate enterprise release",
+      "category": "operational-governance",
+      "severity": "critical",
+      "horizon": 2,
+      "proofTtlDays": 7,
+      "checks": ["resilience.health-contract", "resilience.degraded-dependencies", "operations.slo-contract", "operations.synthetic-monitoring", "performance.load-scenarios", "resilience.rollback-proof", "resilience.dr-restore-proof"],
+      "residualRisk": "A green functional build can still fail under provider loss, load, rollback, or restore."
+    },
+    {
+      "id": "certification.h3.governed-release",
+      "title": "Regulated release proves least privilege, lineage, retention, residency, immutable audit, and deterministic replay",
+      "category": "regulated-release",
+      "severity": "critical",
+      "horizon": 3,
+      "proofTtlDays": 30,
+      "checks": ["security.cross-tenant-attack-proof", "governance.immutable-audit-ledger", "governance.data-lifecycle", "governance.residency-encryption", "governance.model-prompt-lineage", "media.deterministic-replay-proof", "resilience.dr-restore-proof"],
+      "residualRisk": "A release cannot support regulated operations when authority, lineage, data policy, or replay remains unproven."
+    }
+  ],
+  "slos": [
+    { "id": "release-evidence-freshness", "indicator": "Required release proofs within TTL and bound to current source", "target": 1, "windowDays": 30, "errorBudgetMinutes": 0 },
+    { "id": "critical-synthetic-availability", "indicator": "Successful critical synthetic journey runs", "target": 0.999, "windowDays": 30, "errorBudgetMinutes": 43.2 },
+    { "id": "recovery-time-objective", "indicator": "Maximum time to restore critical review service", "targetMinutes": 240 }
+  ]
+}

@@ -61,10 +61,13 @@ function CommentCard({
               onClick={() => onSeek?.(comment.timecode_seconds!)}
             />
           )}
-          {(comment.pin_x != null || comment.pin_y != null) && (
-            <span className="inline-flex items-center gap-1 rounded-[var(--radius-sm)] bg-[var(--orange)]/10 px-2 py-0.5 text-xs text-[var(--orange)]">
+          {!isReply && (comment.pin_x != null || comment.pin_y != null) && (
+            <span
+              className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-[var(--orange)]/10 text-[var(--orange)]"
+              aria-label="Pinned on the reviewed frame"
+              title="Pinned on the reviewed frame"
+            >
               <MapPin size={10} />
-              Pin
             </span>
           )}
           {showVisibilityLabel && !isReply ? (
@@ -141,38 +144,46 @@ export default function CommentThread({
 
   return (
     <div
-      className={`rounded-[var(--radius)] border bg-[var(--bg)]/72 p-4 transition-colors ${
+      className={`border-b border-[var(--border)] px-2 py-3 transition-colors ${
         selected
-          ? "border-[var(--accent)] shadow-[0_0_0_1px_var(--accent)]"
+          ? "-mx-2 border-l-[3px] border-l-[var(--accent)] bg-[var(--accent)]/[0.055] pl-3 pr-2"
           : isResolved
-            ? "border-[var(--green)]/20 opacity-75"
-            : "border-[var(--border)]"
-      } ${onSelect ? "cursor-pointer hover:border-[var(--accent)]/50" : ""}`}
+            ? "opacity-75"
+            : ""
+      } ${onSelect ? "cursor-pointer hover:bg-[var(--surface-hover)]" : ""}`}
       onClick={onSelect}
-      role={onSelect ? "button" : undefined}
-      tabIndex={onSelect ? 0 : undefined}
-      onKeyDown={
-        onSelect
-          ? (event) => {
-              if (event.key === "Enter" || event.key === " ") {
-                event.preventDefault();
-                onSelect();
-              }
-            }
-          : undefined
-      }
+      role={onSelect ? "group" : undefined}
+      aria-label={onSelect ? `Comment thread ${index}` : undefined}
     >
       {/* Numbered badge + main comment */}
       <div className="flex gap-3">
-        <span
-          className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-xs font-bold ${
-            isResolved
-              ? "bg-[var(--green)]/15 text-[var(--green)]"
-              : "bg-[var(--accent)]/15 text-[var(--accent)]"
-          }`}
-        >
-          {index}
-        </span>
+        {onSelect ? (
+          <button
+            type="button"
+            onClick={(event) => {
+              event.stopPropagation();
+              onSelect();
+            }}
+            className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-xs font-bold transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)] ${
+              isResolved
+                ? "bg-[var(--green)]/15 text-[var(--green)]"
+                : "bg-[var(--accent)]/15 text-[var(--accent)]"
+            }`}
+            aria-label={`Select comment thread ${index}`}
+          >
+            {index}
+          </button>
+        ) : (
+          <span
+            className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-xs font-bold ${
+              isResolved
+                ? "bg-[var(--green)]/15 text-[var(--green)]"
+                : "bg-[var(--accent)]/15 text-[var(--accent)]"
+            }`}
+          >
+            {index}
+          </span>
+        )}
         <div className="min-w-0 flex-1">
           <CommentCard comment={comment} onSeek={onSeek} showVisibilityLabel={showVisibilityLabel} />
         </div>

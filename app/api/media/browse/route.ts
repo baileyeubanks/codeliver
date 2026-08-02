@@ -1,30 +1,35 @@
+import { lstat, readdir } from "node:fs/promises";
+import { basename, extname, join } from "node:path";
+
 import { NextRequest, NextResponse } from "next/server";
+
 import { requireAuth } from "@/lib/auth";
-import { existsSync, readdirSync, statSync, mkdirSync } from "fs";
-import { join, resolve, normalize, extname, basename } from "path";
+import { resolveTrustedSurfaceRole } from "@/lib/auth/host-surface";
+import {
+  createMediaDirectory,
+  resolveExistingMediaPath,
+  SafeMediaPathError,
+} from "@/lib/storage/safe-media-path";
 
 /**
  * NAS Media Browse / List API
  *
- * Lists directories and files from the NAS media volume.
- * Used by the Projects page to browse the media library.
- *
  * GET /api/media/browse?path=BP
+ * POST /api/media/browse - create a direct child folder
  */
-
-const MEDIA_ROOT = process.env.NAS_MEDIA_ROOT || "/volume1/media";
 
 const VIDEO_EXTS = new Set([".mp4", ".mov", ".avi", ".mkv", ".webm", ".m4v", ".mxf", ".prores"]);
 const IMAGE_EXTS = new Set([".png", ".jpg", ".jpeg", ".gif", ".webp", ".tiff", ".bmp", ".psd", ".ai"]);
 const AUDIO_EXTS = new Set([".mp3", ".wav", ".aac", ".flac", ".m4a", ".ogg"]);
 const DOC_EXTS = new Set([".pdf", ".doc", ".docx", ".xls", ".xlsx", ".ppt", ".pptx", ".srt", ".vtt"]);
+const UNSAFE_ENTRY_NAME = /[\u0000-\u001f\u007f]/;
 
-function getFileType(ext: string): string {
-  ext = ext.toLowerCase();
-  if (VIDEO_EXTS.has(ext)) return "video";
-  if (IMAGE_EXTS.has(ext)) return "image";
-  if (AUDIO_EXTS.has(ext)) return "audio";
-  if (DOC_EXTS.has(ext)) return "document";
+function getFileType(extension: string): string {
+  const normalized = extension.toLowerCase();
+  if (VIDEO_EXTS.has(normalized)) return "video";
+  if (IMAGE_EXTS.has(normalized)) return "image";
+  if (AUDIO_EXTS.has(normalized)) return "audio";
+  if (DOC_EXTS.has(normalized)) return "document";
   return "other";
 }
 
@@ -35,31 +40,58 @@ function formatFileSize(bytes: number): string {
   return `${(bytes / (1024 * 1024 * 1024)).toFixed(1)}GB`;
 }
 
-export async function GET(req: NextRequest) {
+async function staffAuthorizationFailure(): Promise<NextResponse | null> {
   const user = await requireAuth();
   if (!user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
-
-  const relativePath = req.nextUrl.searchParams.get("path") || "";
-  const normalizedPath = normalize(relativePath).replace(/^(\.\.[/\\])+/, "");
-  const absolutePath = resolve(join(MEDIA_ROOT, normalizedPath));
-
-  if (!absolutePath.startsWith(resolve(MEDIA_ROOT))) {
-    return NextResponse.json({ error: "Invalid path" }, { status: 403 });
+  if (resolveTrustedSurfaceRole(user) !== "staff") {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
+  return null;
+}
 
-  if (!existsSync(absolutePath)) {
-    return NextResponse.json({ error: "Path not found" }, { status: 404 });
-  }
+function mediaPathErrorResponse(error: unknown): NextResponse | null {
+  if (!(error instanceof SafeMediaPathError)) return null;
 
-  const stat = statSync(absolutePath);
-  if (!stat.isDirectory()) {
-    return NextResponse.json({ error: "Not a directory" }, { status: 400 });
+  switch (error.code) {
+    case "MEDIA_ROOT_UNCONFIGURED":
+    case "MEDIA_ROOT_UNAVAILABLE":
+      return NextResponse.json(
+        {
+          error: "Media storage is not configured or unavailable.",
+          code: "MEDIA_STORAGE_UNAVAILABLE",
+        },
+        { status: 503 }
+      );
+    case "MEDIA_PATH_NOT_FOUND":
+      return NextResponse.json({ error: "Path not found" }, { status: 404 });
+    case "MEDIA_PATH_NOT_DIRECTORY":
+      return NextResponse.json({ error: "Not a directory" }, { status: 400 });
+    case "MEDIA_PATH_EXISTS":
+      return NextResponse.json({ error: "Folder already exists" }, { status: 409 });
+    default:
+      return NextResponse.json({ error: "Invalid path" }, { status: 403 });
   }
+}
+
+function visibleEntry(name: string): boolean {
+  return (
+    !name.startsWith(".") &&
+    name !== "Thumbs.db" &&
+    name !== ".DS_Store" &&
+    !UNSAFE_ENTRY_NAME.test(name)
+  );
+}
+
+export async function GET(req: NextRequest) {
+  const authorizationFailure = await staffAuthorizationFailure();
+  if (authorizationFailure) return authorizationFailure;
 
   try {
-    const entries = readdirSync(absolutePath);
+    const requestedPath = req.nextUrl.searchParams.get("path") || "";
+    const directory = await resolveExistingMediaPath(requestedPath, "directory");
+    const entries = await readdir(directory.absolutePath);
     const folders: { name: string; path: string; itemCount: number }[] = [];
     const files: {
       name: string;
@@ -73,103 +105,106 @@ export async function GET(req: NextRequest) {
     }[] = [];
 
     for (const entry of entries) {
-      // Skip hidden files and system files
-      if (entry.startsWith(".") || entry === "Thumbs.db" || entry === ".DS_Store") continue;
+      if (!visibleEntry(entry)) continue;
 
-      const entryPath = join(absolutePath, entry);
-      const relPath = join(normalizedPath, entry);
+      const entryPath = join(directory.absolutePath, entry);
+      const relativePath = directory.relativePath
+        ? `${directory.relativePath}/${entry}`
+        : entry;
 
       try {
-        const entryStat = statSync(entryPath);
+        const entryStatus = await lstat(entryPath);
+        if (entryStatus.isSymbolicLink()) continue;
 
-        if (entryStat.isDirectory()) {
-          // Count items in subdirectory
+        if (entryStatus.isDirectory()) {
           let itemCount = 0;
           try {
-            itemCount = readdirSync(entryPath).filter((e) => !e.startsWith(".")).length;
+            const checkedDirectory = await resolveExistingMediaPath(
+              relativePath,
+              "directory",
+              directory.root
+            );
+            const children = await readdir(checkedDirectory.absolutePath, {
+              withFileTypes: true,
+            });
+            itemCount = children.filter(
+              (child) => visibleEntry(child.name) && !child.isSymbolicLink()
+            ).length;
           } catch {
-            // permission denied etc
+            // The entry may have changed or become inaccessible after listing.
           }
-          folders.push({
-            name: entry,
-            path: relPath,
-            itemCount,
-          });
-        } else if (entryStat.isFile()) {
-          const ext = extname(entry);
-          const fileType = getFileType(ext);
-          // Only show media-relevant files
-          if (fileType === "other") continue;
-
-          files.push({
-            name: basename(entry, ext),
-            path: relPath,
-            size: formatFileSize(entryStat.size),
-            sizeBytes: entryStat.size,
-            type: fileType,
-            ext: ext.toLowerCase().replace(".", ""),
-            modified: entryStat.mtime.toISOString(),
-            streamUrl: `/api/media/stream?path=${encodeURIComponent(relPath)}`,
-          });
+          folders.push({ name: entry, path: relativePath, itemCount });
+          continue;
         }
+
+        if (!entryStatus.isFile()) continue;
+        const extension = extname(entry);
+        const fileType = getFileType(extension);
+        if (fileType === "other") continue;
+
+        files.push({
+          name: basename(entry, extension),
+          path: relativePath,
+          size: formatFileSize(entryStatus.size),
+          sizeBytes: entryStatus.size,
+          type: fileType,
+          ext: extension.toLowerCase().replace(".", ""),
+          modified: entryStatus.mtime.toISOString(),
+          streamUrl: `/api/media/stream?path=${encodeURIComponent(relativePath)}`,
+        });
       } catch {
-        // Skip files we can't stat
-        continue;
+        // Skip entries that changed or cannot be inspected safely.
       }
     }
 
-    // Sort folders alphabetically, then files by modified date (newest first)
     folders.sort((a, b) => a.name.localeCompare(b.name));
     files.sort((a, b) => new Date(b.modified).getTime() - new Date(a.modified).getTime());
 
     return NextResponse.json({
-      path: normalizedPath,
+      path: directory.relativePath,
       folders,
       files,
       totalFolders: folders.length,
       totalFiles: files.length,
     });
-  } catch (err) {
-    return NextResponse.json({ error: "Failed to read directory" }, { status: 500 });
+  } catch (error) {
+    return (
+      mediaPathErrorResponse(error) ??
+      NextResponse.json({ error: "Failed to read directory" }, { status: 500 })
+    );
   }
 }
 
-/**
- * POST /api/media/browse — Create a new folder
- */
 export async function POST(req: NextRequest) {
-  const user = await requireAuth();
-  if (!user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const authorizationFailure = await staffAuthorizationFailure();
+  if (authorizationFailure) return authorizationFailure;
+
+  let body: unknown;
+  try {
+    body = await req.json();
+  } catch {
+    return NextResponse.json({ error: "Invalid request body" }, { status: 400 });
   }
 
-  const body = await req.json();
-  const { parentPath, folderName } = body;
+  if (!body || typeof body !== "object" || Array.isArray(body)) {
+    return NextResponse.json({ error: "Invalid request body" }, { status: 400 });
+  }
 
+  const { parentPath, folderName } = body as Record<string, unknown>;
   if (!folderName || typeof folderName !== "string") {
     return NextResponse.json({ error: "Missing folderName" }, { status: 400 });
   }
-
-  const safeName = folderName.replace(/[^a-zA-Z0-9_\-\s.]/g, "").trim();
-  if (!safeName) {
-    return NextResponse.json({ error: "Invalid folder name" }, { status: 400 });
-  }
-
-  const parent = normalize(parentPath || "").replace(/^(\.\.[/\\])+/, "");
-  const newFolderPath = resolve(join(MEDIA_ROOT, parent, safeName));
-
-  if (!newFolderPath.startsWith(resolve(MEDIA_ROOT))) {
-    return NextResponse.json({ error: "Invalid path" }, { status: 403 });
-  }
-
-  if (existsSync(newFolderPath)) {
-    return NextResponse.json({ error: "Folder already exists" }, { status: 409 });
+  if (parentPath !== undefined && typeof parentPath !== "string") {
+    return NextResponse.json({ error: "Invalid parentPath" }, { status: 400 });
   }
 
   try {
-    mkdirSync(newFolderPath, { recursive: true });
-    return NextResponse.json({ success: true, path: join(parent, safeName) });
-  } catch {
-    return NextResponse.json({ error: "Failed to create folder" }, { status: 500 });
+    const created = await createMediaDirectory(parentPath || "", folderName);
+    return NextResponse.json({ success: true, path: created.relativePath });
+  } catch (error) {
+    return (
+      mediaPathErrorResponse(error) ??
+      NextResponse.json({ error: "Failed to create folder" }, { status: 500 })
+    );
   }
 }

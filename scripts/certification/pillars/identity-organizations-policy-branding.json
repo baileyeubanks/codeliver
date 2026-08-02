@@ -1,0 +1,109 @@
+{
+  "schemaVersion": 1,
+  "kind": "pillar",
+  "id": "identity-organizations-policy-branding",
+  "title": "Identity, organizations, policy, preferences, and white-label branding",
+  "horizons": [1, 2, 3],
+  "owner": "Identity and product platform",
+  "objective": "Keep user, organization, policy, preference, and brand authority coherent from first sign-in through enterprise identity governance.",
+  "authorityDomains": ["identity", "tenant", "permission", "audit"],
+  "surfaces": [
+    { "kind": "page", "pattern": "/login" },
+    { "kind": "page", "pattern": "/signup" },
+    { "kind": "page", "pattern": "/invite/[token]" },
+    { "kind": "page", "pattern": "/settings" },
+    { "kind": "api", "pattern": "/auth/callback" },
+    { "kind": "api", "pattern": "/api/auth/**" },
+    { "kind": "api", "pattern": "/api/auth/session" },
+    { "kind": "api", "pattern": "/api/auth/logout" },
+    { "kind": "api", "pattern": "/api/identity/**" },
+    { "kind": "api", "pattern": "/api/teams" },
+    { "kind": "api", "pattern": "/api/teams/**" },
+    { "kind": "api", "pattern": "/api/notifications/preferences" }
+  ],
+  "obligations": [
+    {
+      "id": "identity.h1.actor-coherence",
+      "title": "Managed surfaces project one server-authenticated actor identity",
+      "category": "actor-identity",
+      "severity": "critical",
+      "horizon": 1,
+      "proofTtlDays": 7,
+      "checks": ["commands.product-tests", "evidence.auth-lifecycle"],
+      "residualRisk": "A hard-coded, browser-supplied, or stale actor can be displayed or written to audit evidence as though it were the authenticated user."
+    },
+    {
+      "id": "identity.h1.membership-role",
+      "title": "Organization role authority comes from the exact actor membership row",
+      "category": "membership-authority",
+      "severity": "critical",
+      "horizon": 1,
+      "proofTtlDays": 7,
+      "checks": ["commands.product-tests", "security.cross-tenant-attack-proof"],
+      "residualRisk": "A fixed role, fallback role, owner shortcut, invalid role value, or mismatched membership can grant capabilities the actor does not hold."
+    },
+    {
+      "id": "identity.h1.persisted-preferences",
+      "title": "Managed preferences persist under authenticated account authority",
+      "category": "preference-persistence",
+      "severity": "critical",
+      "horizon": 1,
+      "proofTtlDays": 7,
+      "checks": ["commands.product-tests", "product.production-settings-authority", "evidence.settings-brand-notifications"],
+      "residualRisk": "A managed user can be shown demo-local or another user's preferences and receive a false success when durable persistence fails."
+    },
+    {
+      "id": "identity.h1.demo-isolation",
+      "title": "Demo identity and storage cannot authorize a managed account",
+      "category": "demo-isolation",
+      "severity": "critical",
+      "horizon": 1,
+      "proofTtlDays": 7,
+      "checks": ["commands.product-tests", "evidence.auth-lifecycle", "security.auth-redirect-boundary"],
+      "residualRisk": "A demo query, local storage record, or demo session can bypass managed authentication or leak into production actor and preference state."
+    },
+    {
+      "id": "identity.h1.sign-out",
+      "title": "Sign-out succeeds only after server session revocation succeeds",
+      "category": "session-lifecycle",
+      "severity": "critical",
+      "horizon": 1,
+      "proofTtlDays": 7,
+      "checks": ["commands.product-tests", "evidence.auth-lifecycle"],
+      "residualRisk": "The interface can report a successful sign-out while the server cookie or provider session remains valid."
+    },
+    {
+      "id": "identity.h1.cross-tenant-denial",
+      "title": "Foreign tenant identifiers fail closed before reads or writes",
+      "category": "tenant-isolation",
+      "severity": "critical",
+      "horizon": 1,
+      "proofTtlDays": 7,
+      "checks": ["commands.product-tests", "security.cross-tenant-attack-proof"],
+      "residualRisk": "A caller can combine an authenticated identity with a foreign organization, team, member, invite, or preference identifier."
+    },
+    {
+      "id": "identity.h2.delegated-policy",
+      "title": "Organizations, delegated administration, and policy changes are tenant-safe under concurrency",
+      "category": "enterprise-policy",
+      "severity": "critical",
+      "horizon": 2,
+      "proofTtlDays": 7,
+      "checks": ["security.cross-tenant-attack-proof", "security.notification-recipient-authorization", "resilience.concurrency-idempotency"],
+      "residualRisk": "Delegated administration can cross tenant boundaries or lose concurrent preference updates."
+    },
+    {
+      "id": "identity.h3.assurance",
+      "title": "Enterprise identity, policy decisions, and brand changes are strongly authenticated and auditable",
+      "category": "identity-governance",
+      "severity": "high",
+      "horizon": 3,
+      "proofTtlDays": 14,
+      "checks": ["security.enterprise-identity-proof", "governance.immutable-audit-ledger", "governance.proof-binding"],
+      "residualRisk": "Password-only access and incomplete audit attribution cannot satisfy higher-assurance tenants."
+    }
+  ],
+  "slos": [
+    { "id": "auth-availability", "indicator": "Successful valid authentication attempts", "target": 0.9995, "windowDays": 30, "errorBudgetMinutes": 21.6 }
+  ]
+}

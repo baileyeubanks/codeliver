@@ -1,57 +1,133 @@
 import { NextResponse } from "next/server";
-import { getOwnedReviewInvite } from "@/lib/access-control";
-import { getSupabase } from "@/lib/supabase";
 import { requireAuth } from "@/lib/auth";
+import { getReviewInviteAccess } from "@/lib/access-control";
+import { getSupabaseDataSchema } from "@/lib/data-authority";
+import { getAuthorizedReviewInvite } from "@/lib/review-invites";
+import {
+  extractClientAddress,
+  extractReviewAnalyticsToken,
+  hashViewerAddress,
+  normalizeShareAnalyticsInput,
+} from "@/lib/sharing/share-analytics";
+import { getSupabase } from "@/lib/supabase";
 
-export async function GET(req: Request) {
+function invalidJson() {
+  return NextResponse.json(
+    { error: "Request body must be valid JSON" },
+    { status: 400 },
+  );
+}
+
+export async function GET(request: Request) {
   const user = await requireAuth();
-  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (!user) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
 
-  const { searchParams } = new URL(req.url);
+  const { searchParams } = new URL(request.url);
   const inviteId = searchParams.get("invite_id");
-  if (!inviteId) return NextResponse.json({ error: "invite_id required" }, { status: 400 });
+  if (!inviteId) {
+    return NextResponse.json({ error: "invite_id is required" }, { status: 400 });
+  }
 
-  const inviteAccess = await getOwnedReviewInvite(inviteId, user.id);
+  const inviteAccess = await getReviewInviteAccess(
+    inviteId,
+    user.id,
+    "member",
+  );
   if (!inviteAccess.ok) {
-    return NextResponse.json({ error: inviteAccess.error }, { status: inviteAccess.status });
+    return NextResponse.json(
+      { error: inviteAccess.error },
+      { status: inviteAccess.status },
+    );
   }
 
   const { data, error } = await getSupabase()
     .from("share_analytics")
-    .select("*")
+    .select("id, invite_id, viewed_at, duration_seconds, actions")
     .eq("invite_id", inviteId)
-    .order("viewed_at", { ascending: false });
+    .order("viewed_at", { ascending: false })
+    .limit(1_000);
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-  return NextResponse.json({ items: data });
+  if (error) {
+    return NextResponse.json(
+      { error: "Share analytics are temporarily unavailable" },
+      { status: 503 },
+    );
+  }
+  return NextResponse.json({ items: data ?? [] });
 }
 
-export async function POST(req: Request) {
-  const body = await req.json();
-  const { invite_id, viewer_ip_hash, duration_seconds, actions } = body;
+export async function POST(request: Request) {
+  let body: unknown;
+  try {
+    body = await request.json();
+  } catch {
+    return invalidJson();
+  }
+  if (!body || typeof body !== "object" || Array.isArray(body)) {
+    return invalidJson();
+  }
 
-  if (!invite_id) return NextResponse.json({ error: "invite_id required" }, { status: 400 });
+  const tokenResult = extractReviewAnalyticsToken(
+    request,
+    body as Record<string, unknown>,
+  );
+  if (!tokenResult.ok) {
+    return NextResponse.json({ error: tokenResult.error }, { status: 401 });
+  }
 
-  const { data: invite, error: inviteError } = await getSupabase()
-    .from("review_invites")
-    .select("id")
-    .eq("id", invite_id)
-    .maybeSingle();
+  const inputResult = normalizeShareAnalyticsInput(body);
+  if (!inputResult.ok) {
+    return NextResponse.json({ error: inputResult.error }, { status: 400 });
+  }
 
-  if (inviteError) return NextResponse.json({ error: inviteError.message }, { status: 500 });
-  if (!invite) return NextResponse.json({ error: "Review invite not found" }, { status: 404 });
+  const inviteResult = await getAuthorizedReviewInvite(request, tokenResult.token);
+  if (
+    !inviteResult.ok ||
+    inviteResult.invite.id !== inputResult.value.inviteId
+  ) {
+    return NextResponse.json(
+      { error: "Invalid review authorization" },
+      { status: 401 },
+    );
+  }
 
-  // Record analytics event
-  const { error: analyticsError } = await getSupabase()
+  let viewerIpHash: string | null;
+  try {
+    viewerIpHash = hashViewerAddress({
+      address: extractClientAddress(request),
+      inviteId: inputResult.value.inviteId,
+    });
+  } catch {
+    return NextResponse.json(
+      { error: "Analytics privacy controls are unavailable" },
+      { status: 503 },
+    );
+  }
+
+  const isolated = getSupabaseDataSchema() === "co_production";
+  const { error } = await getSupabase()
     .from("share_analytics")
     .insert({
-      invite_id,
-      viewer_ip_hash: viewer_ip_hash || null,
-      duration_seconds: duration_seconds || 0,
-      actions: actions || {},
+      invite_id: inputResult.value.inviteId,
+      viewer_ip_hash: viewerIpHash,
+      duration_seconds: inputResult.value.durationSeconds,
+      actions: inputResult.value.actions,
+      ...(isolated
+        ? { client_request_id: inputResult.value.clientRequestId }
+        : {}),
     });
 
-  if (analyticsError) return NextResponse.json({ error: analyticsError.message }, { status: 500 });
+  if (error?.code === "23505") {
+    return NextResponse.json({ ok: true, duplicate: true });
+  }
+  if (error) {
+    return NextResponse.json(
+      { error: "Share analytics could not be recorded" },
+      { status: 503 },
+    );
+  }
 
-  return NextResponse.json({ ok: true });
+  return NextResponse.json({ ok: true, duplicate: false });
 }

@@ -1,13 +1,22 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { Loader2, Save } from "lucide-react";
+import {
+  AlertCircle,
+  Loader2,
+  Mail,
+  MessageSquareText,
+  RefreshCw,
+  Save,
+  Smartphone,
+} from "lucide-react";
 import type { NotificationType } from "@/lib/types/codeliver";
 
 interface EventPreference {
   email_enabled: boolean;
   in_app_enabled: boolean;
   email_frequency: string;
+  version: number;
 }
 
 type PreferencesMap = Record<string, EventPreference>;
@@ -32,7 +41,12 @@ const FREQUENCY_OPTIONS = [
 ];
 
 function defaultPreference(): EventPreference {
-  return { email_enabled: true, in_app_enabled: true, email_frequency: "instant" };
+  return {
+    email_enabled: false,
+    in_app_enabled: true,
+    email_frequency: "off",
+    version: 0,
+  };
 }
 
 export default function NotificationPreferences() {
@@ -40,26 +54,53 @@ export default function NotificationPreferences() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [dirty, setDirty] = useState(false);
+  const [loadError, setLoadError] = useState("");
+  const [saveError, setSaveError] = useState("");
+  const [channels, setChannels] = useState<Record<string, { configured?: boolean; preview_only?: boolean }>>({});
+
+  const loadPreferences = useCallback(async (signal?: AbortSignal) => {
+    setLoading(true);
+    setLoadError("");
+    setSaveError("");
+    setSaved(false);
+    try {
+      const res = await fetch("/api/notifications/preferences", {
+        cache: "no-store",
+        credentials: "same-origin",
+        headers: { Accept: "application/json" },
+        signal,
+      });
+      const data = await res.json().catch(() => null);
+      if (!res.ok || !data?.preferences || typeof data.preferences !== "object") {
+        throw new Error(data?.error || "Notification preferences could not be loaded.");
+      }
+      const merged: PreferencesMap = {};
+      for (const evt of EVENT_TYPES) {
+        merged[evt.type] = data.preferences[evt.type] ?? defaultPreference();
+      }
+      setPreferences(merged);
+      setChannels(data.channels ?? {});
+      setDirty(false);
+    } catch (error) {
+      if (error instanceof DOMException && error.name === "AbortError") return;
+      setPreferences({});
+      setChannels({});
+      setLoadError(
+        error instanceof Error && error.message
+          ? error.message
+          : "Notification preferences could not be loaded.",
+      );
+    } finally {
+      if (!signal?.aborted) setLoading(false);
+    }
+  }, []);
 
   useEffect(() => {
-    async function load() {
-      try {
-        const res = await fetch("/api/notifications/preferences");
-        if (res.ok) {
-          const data = await res.json();
-          // Merge fetched with defaults for any missing types
-          const merged: PreferencesMap = {};
-          for (const evt of EVENT_TYPES) {
-            merged[evt.type] = data.preferences?.[evt.type] ?? defaultPreference();
-          }
-          setPreferences(merged);
-        }
-      } finally {
-        setLoading(false);
-      }
-    }
-    load();
-  }, []);
+    const controller = new AbortController();
+    void loadPreferences(controller.signal);
+    return () => controller.abort();
+  }, [loadPreferences]);
 
   const updatePreference = useCallback(
     (type: string, field: keyof EventPreference, value: boolean | string) => {
@@ -71,21 +112,62 @@ export default function NotificationPreferences() {
         },
       }));
       setSaved(false);
+      setDirty(true);
     },
     []
   );
 
   async function handleSave() {
+    if (!dirty || saving) return;
     setSaving(true);
+    setSaved(false);
+    setSaveError("");
     try {
       const res = await fetch("/api/notifications/preferences", {
         method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ preferences }),
+        credentials: "same-origin",
+        cache: "no-store",
+        headers: {
+          Accept: "application/json",
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          preferences: Object.fromEntries(
+            Object.entries(preferences).map(([eventType, preference]) => [
+              eventType,
+              {
+                email_enabled: preference.email_enabled,
+                email_frequency: preference.email_frequency,
+                in_app_enabled: preference.in_app_enabled,
+              },
+            ]),
+          ),
+          expected_versions: Object.fromEntries(
+            Object.entries(preferences).map(([eventType, preference]) => [
+              eventType,
+              preference.version,
+            ]),
+          ),
+        }),
       });
-      if (res.ok) {
-        setSaved(true);
+      const data = await res.json().catch(() => null);
+      if (!res.ok || data?.ok !== true || !data?.preferences) {
+        throw new Error(data?.error || "Preferences could not be saved.");
       }
+      const confirmed: PreferencesMap = {};
+      for (const evt of EVENT_TYPES) {
+        confirmed[evt.type] = data.preferences[evt.type] ?? defaultPreference();
+      }
+      setPreferences(confirmed);
+      setChannels(data.channels ?? channels);
+      setDirty(false);
+      setSaved(true);
+    } catch (error) {
+      setSaveError(
+        error instanceof Error && error.message
+          ? error.message
+          : "Preferences could not be saved.",
+      );
     } finally {
       setSaving(false);
     }
@@ -95,6 +177,24 @@ export default function NotificationPreferences() {
     return (
       <div className="flex h-48 items-center justify-center">
         <Loader2 size={20} className="animate-spin text-[var(--dim)]" />
+      </div>
+    );
+  }
+
+  if (loadError) {
+    return (
+      <div className="flex min-h-48 flex-col items-start justify-center gap-4" role="alert">
+        <div className="flex items-start gap-2 text-sm text-[var(--red)]">
+          <AlertCircle size={16} className="mt-0.5 shrink-0" aria-hidden="true" />
+          <span>{loadError}</span>
+        </div>
+        <button
+          type="button"
+          className="btn btn-secondary"
+          onClick={() => void loadPreferences()}
+        >
+          <RefreshCw size={14} aria-hidden="true" /> Retry
+        </button>
       </div>
     );
   }
@@ -113,8 +213,8 @@ export default function NotificationPreferences() {
         </div>
         <button
           type="button"
-          onClick={handleSave}
-          disabled={saving}
+          onClick={() => void handleSave()}
+          disabled={saving || !dirty}
           className="flex items-center gap-2 rounded-[var(--radius-sm)] bg-[var(--accent)] px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-[var(--accent-hover)] disabled:opacity-50"
         >
           {saving ? (
@@ -126,8 +226,45 @@ export default function NotificationPreferences() {
         </button>
       </div>
 
+      <div className="grid gap-2 sm:grid-cols-3">
+        {[
+          { id: "email", label: "Email", icon: Mail },
+          { id: "sms", label: "SMS", icon: Smartphone },
+          { id: "imessage", label: "iMessage", icon: MessageSquareText },
+        ].map(({ id, label, icon: Icon }) => (
+          <div
+            key={id}
+            className="flex min-h-11 items-center gap-2 border-b border-[var(--border)] px-1 py-2 text-sm"
+          >
+            <Icon size={14} className="text-[var(--muted)]" />
+            <span className="text-[var(--ink)]">{label}</span>
+            <span className="ml-auto text-xs text-[var(--dim)]">
+              {channels[id]?.configured ? "Ready" : channels[id]?.preview_only ? "Preview only" : "Not configured"}
+            </span>
+          </div>
+        ))}
+      </div>
+
+      {saveError ? (
+        <div className="flex flex-wrap items-center gap-3" role="alert">
+          <p className="m-0 text-sm text-[var(--red)]">{saveError}</p>
+          <button
+            type="button"
+            className="btn btn-secondary"
+            onClick={() => void loadPreferences()}
+          >
+            <RefreshCw size={14} aria-hidden="true" /> Reload saved values
+          </button>
+        </div>
+      ) : saved ? (
+        <p className="text-sm text-[var(--green)]" role="status">
+          Preferences confirmed and saved.
+        </p>
+      ) : null}
+
       {/* Table */}
-      <div className="overflow-hidden rounded-[var(--radius)] border border-[var(--border)]">
+      <div className="overflow-x-auto rounded-[var(--radius)] border border-[var(--border)]">
+        <div className="min-w-[620px]">
         {/* Column headers */}
         <div className="grid grid-cols-[1fr_80px_80px_140px] gap-4 border-b border-[var(--border)] bg-[var(--bg)] px-4 py-2.5">
           <span className="text-xs font-medium uppercase tracking-wider text-[var(--dim)]">
@@ -160,6 +297,8 @@ export default function NotificationPreferences() {
                   type="button"
                   role="switch"
                   aria-checked={pref.in_app_enabled}
+                  aria-label={`${pref.in_app_enabled ? "Disable" : "Enable"} in-app notifications for ${evt.label}`}
+                  disabled={saving}
                   onClick={() =>
                     updatePreference(
                       evt.type,
@@ -187,13 +326,24 @@ export default function NotificationPreferences() {
                   type="button"
                   role="switch"
                   aria-checked={pref.email_enabled}
-                  onClick={() =>
-                    updatePreference(
-                      evt.type,
-                      "email_enabled",
-                      !pref.email_enabled
-                    )
-                  }
+                  aria-label={`${pref.email_enabled ? "Disable" : "Enable"} email notifications for ${evt.label}`}
+                  disabled={saving}
+                  onClick={() => {
+                    setSaved(false);
+                    setDirty(true);
+                    setPreferences((prev) => ({
+                      ...prev,
+                      [evt.type]: {
+                        ...pref,
+                        email_enabled: !pref.email_enabled,
+                        email_frequency: pref.email_enabled
+                          ? "off"
+                          : pref.email_frequency === "off"
+                            ? "instant"
+                            : pref.email_frequency,
+                      },
+                    }));
+                  }}
                   className={`relative h-5 w-9 rounded-full transition-colors ${
                     pref.email_enabled
                       ? "bg-[var(--accent)]"
@@ -214,7 +364,7 @@ export default function NotificationPreferences() {
                 onChange={(e) =>
                   updatePreference(evt.type, "email_frequency", e.target.value)
                 }
-                disabled={!pref.email_enabled}
+                disabled={!pref.email_enabled || saving}
                 className="rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--bg)] px-2 py-1 text-xs text-[var(--ink)] disabled:opacity-40"
               >
                 {FREQUENCY_OPTIONS.map((opt) => (
@@ -226,6 +376,7 @@ export default function NotificationPreferences() {
             </div>
           );
         })}
+        </div>
       </div>
     </div>
   );

@@ -15,26 +15,21 @@ import { promisify } from "util";
 import {
   existsSync,
   mkdirSync,
-  statSync,
-  readdirSync,
 } from "fs";
-import { join, basename, extname } from "path";
+import { join } from "path";
 import { getSupabase } from "@/lib/supabase";
+import {
+  ensureTranscodeOutputDirectories,
+  resolveMediaPath,
+  resolveMediaRoot,
+} from "@/lib/storage/media-root";
 import type { TranscodeJob } from "./queue";
 import { completeJob, failJob } from "./queue";
 
 const execFileAsync = promisify(execFile);
 
-const MEDIA_ROOT = process.env.NAS_MEDIA_ROOT || "/volume1/media";
-const PROXY_ROOT = join(MEDIA_ROOT, "proxies");
-const THUMB_ROOT = join(MEDIA_ROOT, "thumbnails");
 const FFMPEG = process.env.FFMPEG_PATH || "ffmpeg";
 const FFPROBE = process.env.FFPROBE_PATH || "ffprobe";
-
-// Ensure output directories exist
-[PROXY_ROOT, THUMB_ROOT].forEach((dir) => {
-  if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
-});
 
 interface ProbeResult {
   duration: number;
@@ -118,7 +113,7 @@ async function transcodeToHLS(
     await execFileAsync(FFMPEG, args, {
       timeout: 600000, // 10 minutes max
     });
-  } catch (err) {
+  } catch {
     // Fallback to software encoding if VideoToolbox isn't available
     console.warn("[transcode] HW encode failed, falling back to libx264");
     const swArgs = args.map((a) =>
@@ -194,15 +189,19 @@ async function generateWaveform(
  * Process a single transcode job.
  */
 export async function processJob(job: TranscodeJob): Promise<void> {
-  const inputPath = join(MEDIA_ROOT, job.input_path);
-
-  if (!existsSync(inputPath)) {
-    await failJob(job.id, `Input file not found: ${job.input_path}`);
-    await updateAssetStatus(job.asset_id, "failed");
-    return;
-  }
-
   try {
+    const mediaRoot = resolveMediaRoot();
+    const inputPath = resolveMediaPath(job.input_path, mediaRoot);
+
+    if (!existsSync(inputPath)) {
+      await failJob(job.id, `Input file not found: ${job.input_path}`);
+      await updateAssetStatus(job.asset_id, "failed");
+      return;
+    }
+
+    const { proxyRoot, thumbnailRoot } =
+      ensureTranscodeOutputDirectories(mediaRoot);
+
     // 1. Probe the file
     const probe = await probeFile(inputPath);
     const assetSlug = job.asset_id.slice(0, 8);
@@ -215,13 +214,13 @@ export async function processJob(job: TranscodeJob): Promise<void> {
 
     if (isVideo) {
       // 2a. Transcode video to HLS
-      const hlsDir = join(PROXY_ROOT, assetSlug);
-      const playlistFile = await transcodeToHLS(inputPath, hlsDir, probe);
+      const hlsDir = join(proxyRoot, assetSlug);
+      await transcodeToHLS(inputPath, hlsDir, probe);
       hlsPath = `proxies/${assetSlug}/playlist.m3u8`;
 
       // 2b. Generate thumbnails
-      const thumbDir = join(THUMB_ROOT, assetSlug);
-      const posterFile = await generateThumbnails(
+      const thumbDir = join(thumbnailRoot, assetSlug);
+      await generateThumbnails(
         inputPath,
         thumbDir,
         probe.duration
@@ -230,13 +229,13 @@ export async function processJob(job: TranscodeJob): Promise<void> {
 
       // 2c. Generate waveform if has audio
       if (probe.hasAudio) {
-        const waveFile = join(THUMB_ROOT, assetSlug, "waveform.png");
+        const waveFile = join(thumbnailRoot, assetSlug, "waveform.png");
         await generateWaveform(inputPath, waveFile);
         waveformPath = `thumbnails/${assetSlug}/waveform.png`;
       }
     } else if (isAudio) {
       // Audio only — generate waveform
-      const waveDir = join(THUMB_ROOT, assetSlug);
+      const waveDir = join(thumbnailRoot, assetSlug);
       if (!existsSync(waveDir)) mkdirSync(waveDir, { recursive: true });
       const waveFile = join(waveDir, "waveform.png");
       await generateWaveform(inputPath, waveFile);

@@ -1,0 +1,111 @@
+- banner:
+  - generic "Content Co-op":
+    - img "Content Co-op"
+  - link "Projects":
+    - /url: /projects?demo=1
+    - text: Projects
+  - generic: Approval-needed review
+  - generic: Demo mode
+  - paragraph: ICA / Client Review
+  - heading "Charles Drummond_v5" [level=1]
+  - paragraph: Client approval is active for this version.
+  - generic: needs changes
+  - generic: Changes requested
+  - generic: Comment and approval access
+  - generic: Reviewing as Client Reviewer
+  - generic: 18 views
+  - generic: Expires Jul 17
+- main:
+  - paragraph: Review stage
+  - heading "Review player" [level=2]
+  - paragraph: Version 4 · Client review
+  - generic "Review statistics":
+    - generic: 2 open
+    - generic: 1 resolved
+    - generic: 3 timeline notes
+    - generic: 3 pinned
+  - text: 00:00:00:00|
+  - generic: F0
+  - button "Jump to comment 1": "1"
+  - button "Skip back 10s (J)":
+  - button "Frame back (ArrowLeft)":
+  - button "Play (Space)":
+  - button "Frame forward (ArrowRight)":
+  - button "Skip forward 10s (L)":
+  - generic: 0:00 / 0:05
+  - button "1x"
+  - button "Fullscreen (F)":
+  - generic: Timeline feedback
+  - generic: 3 markers
+  - generic: Note 1
+  - generic: 0:01
+  - text: Frame pin
+  - paragraph: Start the response a beat earlier so the answer lands before the lower third animates in.
+  - button "Clear selection":
+    - text: Clear selection
+  - complementary:
+    - paragraph: Review
+    - heading "Comments and approval" [level=2]
+    - paragraph: 2 open notes before sign-off.
+    - generic: 2 open
+    - generic: 1 resolved
+    - generic: Comment and approval access
+    - paragraph: Approval
+    - paragraph: Approvals move step by step.
+    - generic: 1/2 decided
+    - paragraph: Decision needed
+    - paragraph: Client Lead is ready for review
+    - paragraph: Leave any final notes, then use the actions below to approve or request changes.
+    - generic: Step 1
+    - generic: Client Lead
+    - paragraph: reviewer@client.example
+    - generic: Pending
+    - button "Approve"
+    - button "Approve with Changes"
+    - button "Request Changes"
+    - generic: Step 2
+    - generic: Content Co-op Producer
+    - paragraph: producer@contentcoop.example
+    - generic: Approved
+    - paragraph: “Editorial pass is complete and ready for client sign-off.”
+    - paragraph: 7/14/2026, 5:45:38 PM
+    - heading "Comments" [level=3]
+    - generic: 3 total
+    - paragraph: Select a thread to jump the player to that exact moment.
+    - button "Open (2)"
+    - button "All (3)"
+    - button "Resolved (1)"
+    - button "1 CR Client Reviewer 0:01 Pin 1h ago Start the response a beat earlier so the answer lands before the lower third animates in. CC Content Co-op 0:01 1h ago Adjusted in this pass. The dialogue now starts four frames earlier.":
+      - generic: "1"
+      - generic: CR
+      - generic: Client Reviewer
+      - button "0:01"
+      - text: Pin
+      - generic: 1h ago
+      - paragraph: Start the response a beat earlier so the answer lands before the lower third animates in.
+      - generic: CC
+      - generic: Content Co-op
+      - button "0:01"
+      - generic: 1h ago
+      - paragraph: Adjusted in this pass. The dialogue now starts four frames earlier.
+    - button "3 CR Client Reviewer 0:04 Pin 28m ago Please give the closing lockup another half second before the fade to black.":
+      - generic: "3"
+      - generic: CR
+      - generic: Client Reviewer
+      - button "0:04"
+      - text: Pin
+      - generic: 28m ago
+      - paragraph: Please give the closing lockup another half second before the fade to black.
+    - paragraph: Review notes
+    - paragraph: Feedback stays attached to this approval round.
+    - button "Place pin":
+      - text: Place pin
+    - generic: Reviewer name
+    - textbox "How should this feedback be attributed?": Client Reviewer
+    - generic: Timestamp 0:00
+    - textbox "Share any blocker, rationale, or final note that should sit beside your approval decision."
+    - paragraph: Attached to this version
+    - button "Send comment" [disabled]:
+      - text: Send comment
+- button "Open Next.js Dev Tools":
+- alert

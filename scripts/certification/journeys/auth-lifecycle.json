@@ -1,0 +1,70 @@
+{
+  "schemaVersion": 1,
+  "kind": "journey",
+  "id": "auth-lifecycle",
+  "title": "Sign up, sign in, session recovery, and sign out",
+  "horizon": 1,
+  "proofTtlDays": 7,
+  "routes": [
+    "/signup",
+    "/login",
+    "/auth/callback",
+    "/",
+    "/api/auth/signup",
+    "/api/auth/login",
+    "/api/auth/session",
+    "/api/auth/logout"
+  ],
+  "states": [
+    "anonymous",
+    "invalid credentials",
+    "pending email confirmation",
+    "authenticated",
+    "expired session",
+    "signed out"
+  ],
+  "viewports": [
+    { "id": "mobile", "width": 390, "height": 844 },
+    { "id": "desktop", "width": 1440, "height": 1000 }
+  ],
+  "accessibility": [
+    "Form fields have persistent labels and programmatic error relationships",
+    "Focus order and visible focus remain coherent through validation and redirects",
+    "Keyboard-only sign-in and sign-out complete without traps",
+    "Automated critical and serious accessibility violations equal zero"
+  ],
+  "securityInvariants": [
+    "Protected routes reject anonymous and expired sessions",
+    "next redirects remain same-origin and allowlisted",
+    "Sign-out invalidates server and browser session authority",
+    "Rate limiting does not reveal whether an account exists"
+  ],
+  "persistence": [
+    "A valid session survives a reload within policy",
+    "Sign-out remains effective after reload and back navigation"
+  ],
+  "concurrency": [
+    "Concurrent login attempts do not create conflicting session state",
+    "Sign-out in one tab revokes protected access in another tab"
+  ],
+  "degradedDependencies": [
+    "Auth provider timeout fails closed with a recoverable error",
+    "Database outage does not render protected cached data",
+    "Email provider outage preserves a retryable confirmation state"
+  ],
+  "rollback": [
+    "Previous auth release can read current session cookies or explicitly invalidates them",
+    "Rollback does not bypass newly required policy"
+  ],
+  "performanceBudgets": [
+    { "metric": "login-response-p95-ms", "operator": "<=", "value": 750 },
+    { "metric": "authenticated-shell-lcp-p75-ms", "operator": "<=", "value": 2500 }
+  ],
+  "checks": [
+    "evidence.auth-lifecycle",
+    "security.auth-redirect-boundary",
+    "evidence.viewport-proof",
+    "evidence.accessibility-proof",
+    "performance.runtime-budgets"
+  ]
+}

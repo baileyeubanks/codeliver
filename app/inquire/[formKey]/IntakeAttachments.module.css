@@ -1,0 +1,293 @@
+.attachments {
+  grid-column: 1 / -1;
+  min-width: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px 14px;
+  padding: 16px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: #fbfcfe;
+}
+
+.attachments > header {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.attachments > header > div {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+}
+
+.attachments > header > span:last-child {
+  color: var(--muted);
+  font-size: 0.61rem;
+  font-weight: 700;
+}
+
+.icon,
+.statusIcon {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  color: var(--accent);
+}
+
+.icon {
+  width: 32px;
+  height: 32px;
+  border: 1px solid #cfe0f6;
+  border-radius: 7px;
+  background: #edf4ff;
+}
+
+.attachments header div div {
+  min-width: 0;
+  display: grid;
+  gap: 2px;
+}
+
+.attachments header strong {
+  color: var(--ink-secondary);
+  font-size: 0.68rem;
+}
+
+.attachments header small,
+.limit {
+  color: var(--muted);
+  font-size: 0.59rem;
+}
+
+.fileInput {
+  position: fixed;
+  left: -10000px;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+}
+
+.addButton {
+  min-height: 38px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  padding: 0 13px;
+  border: 1px solid rgba(20, 91, 184, 0.34);
+  border-radius: 7px;
+  background: #fff;
+  color: var(--accent);
+  font: inherit;
+  font-size: 0.65rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.addButton:hover,
+.addButton:focus-visible {
+  border-color: var(--accent);
+  outline: 0;
+  background: #f4f8ff;
+}
+
+.addButton:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.limit {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 6px;
+  margin: 0;
+  text-align: right;
+}
+
+.limit b {
+  color: #7b5a12;
+  font-size: 0.55rem;
+  text-transform: uppercase;
+}
+
+.selectionError {
+  grid-column: 1 / -1;
+  margin: 0;
+  color: #963636;
+  font-size: 0.62rem;
+}
+
+.fileList {
+  grid-column: 1 / -1;
+  display: grid;
+  gap: 6px;
+  margin: 2px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.fileList li {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: 24px minmax(0, 1fr) auto;
+  align-items: start;
+  gap: 8px;
+  padding: 9px;
+  border-top: 1px solid var(--border);
+}
+
+.fileList li[data-status="error"] .statusIcon {
+  color: #b14b4b;
+}
+
+.fileList li[data-status="ready"] .statusIcon,
+.fileList li[data-status="screening"] .statusIcon {
+  color: #28744d;
+}
+
+.fileList li[data-status="queued"] .statusIcon svg,
+.fileList li[data-status="hashing"] .statusIcon svg,
+.fileList li[data-status="uploading"] .statusIcon svg,
+.fileList li[data-status="removing"] .statusIcon svg {
+  animation: spin 900ms linear infinite;
+}
+
+.statusIcon {
+  width: 24px;
+  height: 24px;
+}
+
+.fileDetail {
+  min-width: 0;
+  display: grid;
+  gap: 4px;
+}
+
+.fileDetail > div {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.fileDetail strong {
+  overflow: hidden;
+  color: var(--ink-secondary);
+  font-size: 0.63rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.fileDetail span,
+.fileDetail small,
+.fileDetail p {
+  color: var(--muted);
+  font-size: 0.57rem;
+}
+
+.fileDetail p {
+  margin: 0;
+  color: #963636;
+  line-height: 1.35;
+}
+
+.fileProgress {
+  width: 100%;
+  height: 3px;
+  overflow: hidden;
+  border-radius: 3px;
+  background: #e5eaf1;
+}
+
+.fileProgress i {
+  height: 100%;
+  display: block;
+  background: var(--accent);
+  transition: width 140ms ease;
+}
+
+.fileActions {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+}
+
+.fileActions button {
+  width: 34px;
+  height: 34px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.fileActions button:disabled {
+  cursor: wait;
+  opacity: 0.55;
+}
+
+.fileActions button:hover,
+.fileActions button:focus-visible {
+  border-color: var(--border);
+  outline: 0;
+  background: #fff;
+  color: var(--accent);
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+@media (max-width: 560px) {
+  .attachments {
+    grid-column: auto;
+    grid-template-columns: 1fr;
+  }
+
+  .addButton {
+    width: 100%;
+  }
+
+  .limit {
+    justify-content: flex-start;
+    text-align: left;
+  }
+
+  .fileDetail > div {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  .fileActions button {
+    width: 38px;
+    height: 38px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .fileList li[data-status="queued"] .statusIcon svg,
+  .fileList li[data-status="hashing"] .statusIcon svg,
+  .fileList li[data-status="uploading"] .statusIcon svg,
+  .fileList li[data-status="removing"] .statusIcon svg {
+    animation-duration: 1800ms;
+  }
+
+  .fileProgress i {
+    transition: none;
+  }
+}

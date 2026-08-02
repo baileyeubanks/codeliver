@@ -15,6 +15,7 @@ import {
 
 interface AISummaryProps {
   assetId: string;
+  versionId: string;
   comments: Array<{
     body: string;
     author_name: string;
@@ -47,7 +48,7 @@ const SENTIMENT_CONFIG = {
   },
 };
 
-export default function AISummary({ assetId, comments }: AISummaryProps) {
+export default function AISummary({ assetId, versionId, comments }: AISummaryProps) {
   const [result, setResult] = useState<SummaryResult | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -87,7 +88,11 @@ export default function AISummary({ assetId, comments }: AISummaryProps) {
       const res = await fetch("/api/ai/summarize", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ asset_id: assetId, comments }),
+        body: JSON.stringify({
+          asset_id: assetId,
+          version_id: versionId,
+          mode: "summary",
+        }),
       });
 
       if (!res.ok) throw new Error("Summary generation failed");

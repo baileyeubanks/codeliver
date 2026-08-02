@@ -8,3 +8,5 @@ out/
 *.tsbuildinfo
 next-env.d.ts
 .playwright-cli/
+.vercel
+.env*

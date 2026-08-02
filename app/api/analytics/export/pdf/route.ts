@@ -1,6 +1,43 @@
 import { NextResponse } from "next/server";
-import { requireAuth } from "@/lib/auth";
-import { getSupabase } from "@/lib/supabase";
+
+import { getProjectAccess } from "@/lib/access-control";
+import { requireAuthWithClient } from "@/lib/auth-client";
+
+const MAX_REQUEST_URL_LENGTH = 2_048;
+const MAX_EXPORT_ASSETS = 500;
+const MAX_EXPORT_COMMENTS = 10_000;
+const MAX_EXPORT_BYTES = 10 * 1024 * 1024;
+const UUID_PATTERN =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+const ALLOWED_QUERY_PARAMS = new Set(["project_id"]);
+
+const PRIVATE_HEADERS = {
+  "Cache-Control": "private, no-store",
+  "X-Content-Type-Options": "nosniff",
+  Vary: "Cookie, Authorization",
+};
+
+interface PdfAsset {
+  id: string;
+  title: string;
+  status: string;
+  file_type: string;
+  created_at: string;
+  duration_seconds: number | null;
+}
+
+interface PdfComment {
+  id: string;
+  asset_id: string;
+  author_name: string;
+  author_email: string | null;
+  body: string;
+  status: string;
+  timecode_seconds: number | null;
+  pin_x: number | null;
+  pin_y: number | null;
+  created_at: string;
+}
 
 /**
  * PDF-ready HTML Comment Report
@@ -25,53 +62,114 @@ function escapeHtml(str: string): string {
     .replace(/&/g, "&amp;")
     .replace(/</g, "&lt;")
     .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;");
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
+function safeClassName(value: string) {
+  return value.toLowerCase().replace(/[^a-z0-9_-]/g, "-");
+}
+
+function json(body: Record<string, unknown>, status = 200) {
+  return NextResponse.json(body, { status, headers: PRIVATE_HEADERS });
+}
+
+function unavailable() {
+  return json({ error: "PDF export is temporarily unavailable" }, 503);
+}
+
+function tooLarge() {
+  return json({ error: "Project is too large to export" }, 413);
+}
+
+function projectAccessFailure(status: number) {
+  return status >= 500
+    ? unavailable()
+    : json({ error: "Project not found" }, 404);
+}
+
+function parseProjectId(req: Request): string | null {
+  if (req.url.length > MAX_REQUEST_URL_LENGTH) return null;
+
+  let url: URL;
+  try {
+    url = new URL(req.url);
+  } catch {
+    return null;
+  }
+
+  for (const key of url.searchParams.keys()) {
+    if (!ALLOWED_QUERY_PARAMS.has(key)) return null;
+  }
+
+  const projectIds = url.searchParams.getAll("project_id");
+  return projectIds.length === 1 && UUID_PATTERN.test(projectIds[0])
+    ? projectIds[0]
+    : null;
 }
 
 export async function GET(req: Request) {
-  const user = await requireAuth();
-  if (!user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  try {
+    return await getPdfReport(req);
+  } catch {
+    return unavailable();
+  }
+}
+
+async function getPdfReport(req: Request) {
+  const { user, supabase } = await requireAuthWithClient();
+  if (!user) return json({ error: "Unauthorized" }, 401);
+
+  const projectId = parseProjectId(req);
+  if (!projectId) return json({ error: "Invalid export request" }, 400);
+
+  const projectAccess = await getProjectAccess(
+    projectId,
+    user.id,
+    "owner",
+    supabase,
+  );
+  if (!projectAccess.ok) {
+    return projectAccessFailure(projectAccess.status);
   }
 
-  const { searchParams } = new URL(req.url);
-  const projectId = searchParams.get("project_id");
-
-  if (!projectId) {
-    return NextResponse.json({ error: "project_id required" }, { status: 400 });
-  }
-
-  const supabase = getSupabase();
-
-  const { data: project, error: projErr } = await supabase
+  const { data: projectMetadata, error: projectError } = await supabase
     .from("projects")
-    .select("id, name, description")
+    .select("description")
     .eq("id", projectId)
-    .eq("owner_id", user.id)
-    .single();
+    .maybeSingle();
+  if (projectError) return unavailable();
+  if (!projectMetadata) return json({ error: "Project not found" }, 404);
 
-  if (projErr || !project) {
-    return NextResponse.json({ error: "Project not found" }, { status: 404 });
-  }
-
-  const { data: assets } = await supabase
+  const { data: assetData, error: assetsError } = await supabase
     .from("assets")
     .select("id, title, status, file_type, created_at, duration_seconds")
     .eq("project_id", projectId)
-    .order("created_at", { ascending: true });
+    .order("created_at", { ascending: true })
+    .limit(MAX_EXPORT_ASSETS + 1);
+  if (assetsError) return unavailable();
+  if ((assetData?.length ?? 0) > MAX_EXPORT_ASSETS) return tooLarge();
 
-  const assetIds = (assets ?? []).map((a: { id: string }) => a.id);
+  const assets = (assetData ?? []) as PdfAsset[];
+  const assetIds = assets.map((asset) => asset.id);
 
-  const { data: comments } = assetIds.length > 0
+  const commentsResult = assetIds.length > 0
     ? await supabase
         .from("comments")
         .select("id, asset_id, author_name, author_email, body, status, timecode_seconds, pin_x, pin_y, created_at")
         .in("asset_id", assetIds)
         .order("timecode_seconds", { ascending: true, nullsFirst: false })
-    : { data: [] };
+        .limit(MAX_EXPORT_COMMENTS + 1)
+    : { data: [], error: null };
+  if (commentsResult.error) return unavailable();
+  if ((commentsResult.data?.length ?? 0) > MAX_EXPORT_COMMENTS) {
+    return tooLarge();
+  }
 
-  const commentsByAsset = new Map<string, typeof comments>();
-  for (const c of comments ?? []) {
+  const comments = (commentsResult.data ?? []) as PdfComment[];
+
+  const commentsByAsset = new Map<string, PdfComment[]>();
+  for (const c of comments) {
     const existing = commentsByAsset.get(c.asset_id) ?? [];
     existing.push(c);
     commentsByAsset.set(c.asset_id, existing);
@@ -85,18 +183,14 @@ export async function GET(req: Request) {
     minute: "2-digit",
   });
 
-  const projectName = (project as { name: string }).name;
-  const projectDescription = (project as { description?: string }).description || "";
+  const projectName = projectAccess.data.name;
+  const projectDescription =
+    typeof projectMetadata.description === "string"
+      ? projectMetadata.description
+      : "";
 
   let assetRows = "";
-  for (const asset of (assets ?? []) as Array<{
-    id: string;
-    title: string;
-    status: string;
-    file_type: string;
-    created_at: string;
-    duration_seconds?: number;
-  }>) {
+  for (const asset of assets) {
     const assetComments = commentsByAsset.get(asset.id) ?? [];
     const openCount = assetComments.filter((c: { status: string }) => c.status === "open").length;
     const resolvedCount = assetComments.filter((c: { status: string }) => c.status === "resolved").length;
@@ -106,8 +200,8 @@ export async function GET(req: Request) {
         <div class="asset-header">
           <h2>${escapeHtml(asset.title)}</h2>
           <div class="asset-meta">
-            <span class="badge badge-${asset.status}">${asset.status.replace("_", " ")}</span>
-            <span class="meta-text">${asset.file_type}</span>
+            <span class="badge badge-${safeClassName(asset.status)}">${escapeHtml(asset.status.replaceAll("_", " "))}</span>
+            <span class="meta-text">${escapeHtml(asset.file_type)}</span>
             ${asset.duration_seconds ? `<span class="meta-text">${formatTimecode(asset.duration_seconds)}</span>` : ""}
             <span class="meta-text">${assetComments.length} comment${assetComments.length !== 1 ? "s" : ""}</span>
             <span class="meta-text">${openCount} open · ${resolvedCount} resolved</span>
@@ -141,8 +235,8 @@ export async function GET(req: Request) {
                     <td class="timecode">${formatTimecode(c.timecode_seconds)}</td>
                     <td class="author">${escapeHtml(c.author_name)}</td>
                     <td class="body">${escapeHtml(c.body)}</td>
-                    <td><span class="badge badge-${c.status}">${c.status}</span></td>
-                    <td class="pin">${c.pin_x != null ? "📌" : ""}</td>
+                    <td><span class="badge badge-${safeClassName(c.status)}">${escapeHtml(c.status)}</span></td>
+                    <td class="pin">${c.pin_x != null ? "Yes" : ""}</td>
                   </tr>
                 `).join("")}
               </tbody>
@@ -158,11 +252,17 @@ export async function GET(req: Request) {
   <meta charset="utf-8">
   <title>${escapeHtml(projectName)} — Comment Report</title>
   <style>
-    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+    @font-face {
+      font-family: 'Inter';
+      font-style: normal;
+      font-weight: 400 700;
+      font-display: swap;
+      src: url('/fonts/inter-latin.woff2') format('woff2');
+    }
 
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body {
-      font-family: 'Inter', -apple-system, sans-serif;
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
       font-size: 11px;
       line-height: 1.5;
       color: #1a1a1a;
@@ -182,7 +282,7 @@ export async function GET(req: Request) {
     .report-header h1 {
       font-size: 22px;
       font-weight: 700;
-      letter-spacing: -0.02em;
+      letter-spacing: 0;
     }
     .report-header .subtitle {
       font-size: 12px;
@@ -321,34 +421,42 @@ export async function GET(req: Request) {
     </div>
     <div class="brand">
       <strong>Content Co-op</strong>
-      Co-Deliver Review Platform
+      Co-VideoPro Review Platform
     </div>
   </div>
 
   <div class="summary-bar">
-    <div class="stat"><strong>${(assets ?? []).length}</strong> asset${(assets ?? []).length !== 1 ? "s" : ""}</div>
-    <div class="stat"><strong>${(comments ?? []).length}</strong> comment${(comments ?? []).length !== 1 ? "s" : ""}</div>
-    <div class="stat"><strong>${(comments ?? []).filter((c: { status: string }) => c.status === "open").length}</strong> open</div>
-    <div class="stat"><strong>${(comments ?? []).filter((c: { status: string }) => c.status === "resolved").length}</strong> resolved</div>
+    <div class="stat"><strong>${assets.length}</strong> asset${assets.length !== 1 ? "s" : ""}</div>
+    <div class="stat"><strong>${comments.length}</strong> comment${comments.length !== 1 ? "s" : ""}</div>
+    <div class="stat"><strong>${comments.filter((comment) => comment.status === "open").length}</strong> open</div>
+    <div class="stat"><strong>${comments.filter((comment) => comment.status === "resolved").length}</strong> resolved</div>
   </div>
 
   ${assetRows}
 
   <div class="footer">
-    Generated by Co-Deliver — Content Co-op · ${now}
+    Generated by Co-VideoPro — Content Co-op · ${now}
   </div>
 
   <div class="no-print" style="margin-top: 20px; text-align: center;">
     <button onclick="window.print()" style="padding: 10px 24px; background: #007bff; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 14px; font-weight: 600;">
-      📄 Save as PDF
+      Save as PDF
     </button>
   </div>
 </body>
 </html>`;
 
+  if (new TextEncoder().encode(html).byteLength > MAX_EXPORT_BYTES) {
+    return tooLarge();
+  }
+
   return new NextResponse(html, {
     headers: {
+      ...PRIVATE_HEADERS,
       "Content-Type": "text/html; charset=utf-8",
+      "Content-Security-Policy":
+        "default-src 'none'; style-src 'unsafe-inline'; font-src 'self'; script-src 'unsafe-inline'",
+      "Referrer-Policy": "no-referrer",
     },
   });
 }

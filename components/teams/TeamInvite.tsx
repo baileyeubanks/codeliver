@@ -44,7 +44,6 @@ export default function TeamInvite({ teamId, onInvited }: Props) {
   const [loadingInvites, setLoadingInvites] = useState(true);
 
   const fetchInvites = useCallback(async () => {
-    setLoadingInvites(true);
     const res = await fetch(`/api/teams/invites?team_id=${teamId}`);
     if (res.ok) {
       const data = await res.json();
@@ -54,8 +53,21 @@ export default function TeamInvite({ teamId, onInvited }: Props) {
   }, [teamId]);
 
   useEffect(() => {
-    fetchInvites();
-  }, [fetchInvites]);
+    let cancelled = false;
+
+    fetch(`/api/teams/invites?team_id=${teamId}`)
+      .then((res) => (res.ok ? res.json() : { items: [] }))
+      .then((data) => {
+        if (!cancelled) setInvites(data.items ?? []);
+      })
+      .finally(() => {
+        if (!cancelled) setLoadingInvites(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [teamId]);
 
   async function sendInvite() {
     if (!email.trim()) return;

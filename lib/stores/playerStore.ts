@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import { normalizeReviewSeekStep } from "@/lib/review/player-policy";
 
 interface PlayerStore {
   // State
@@ -9,6 +10,7 @@ interface PlayerStore {
   volume: number;
   playbackRate: number;
   frameRate: number;
+  seekStepSeconds: number;
 
   // Actions
   setCurrentTime: (t: number) => void;
@@ -20,6 +22,7 @@ interface PlayerStore {
   setVolume: (v: number) => void;
   setPlaybackRate: (r: number) => void;
   setFrameRate: (fps: number) => void;
+  setSeekStepSeconds: (seconds: number) => void;
   reset: () => void;
 
   // Derived helpers
@@ -67,6 +70,7 @@ export const usePlayerStore = create<PlayerStore>((set, get) => ({
   volume: 1,
   playbackRate: 1,
   frameRate: 30,
+  seekStepSeconds: 1,
 
   setCurrentTime: (t) => set({ currentTime: t }),
   setDuration: (d) => set({ duration: d }),
@@ -77,6 +81,7 @@ export const usePlayerStore = create<PlayerStore>((set, get) => ({
   setVolume: (v) => set({ volume: v, muted: v === 0 }),
   setPlaybackRate: (r) => set({ playbackRate: r }),
   setFrameRate: (fps) => set({ frameRate: fps }),
+  setSeekStepSeconds: (seconds) => set({ seekStepSeconds: normalizeReviewSeekStep(seconds) }),
   reset: () =>
     set({
       currentTime: 0,
@@ -86,6 +91,7 @@ export const usePlayerStore = create<PlayerStore>((set, get) => ({
       volume: 1,
       playbackRate: 1,
       frameRate: 30,
+      seekStepSeconds: 1,
     }),
 
   currentFrame: () => Math.floor(get().currentTime * get().frameRate),

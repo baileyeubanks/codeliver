@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireAuth } from "@/lib/auth";
-import { getSupabase } from "@/lib/supabase";
+import { requireAuthWithClient } from "@/lib/auth-client";
 import { requireTeamRole } from "@/lib/middleware/rbac";
 
 interface AuditEntry {
@@ -14,9 +13,33 @@ interface AuditEntry {
   created_at: string;
 }
 
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+const ACTION_PATTERN = /^[a-z0-9][a-z0-9._:-]{0,119}$/i;
+const SEARCH_PATTERN = /^[a-z0-9 @._:'/-]{1,100}$/i;
+
+function parseBoundedInteger(
+  value: string | null,
+  fallback: number,
+  minimum: number,
+  maximum: number,
+) {
+  if (value === null) return fallback;
+  if (!/^\d+$/.test(value)) return null;
+  const parsed = Number(value);
+  return Number.isSafeInteger(parsed) && parsed >= minimum && parsed <= maximum
+    ? parsed
+    : null;
+}
+
+function parseDate(value: string | null) {
+  if (value === null) return null;
+  const date = new Date(value);
+  return Number.isNaN(date.valueOf()) ? undefined : date.toISOString();
+}
+
 /* ── GET — query audit log for a team or project ── */
 export async function GET(request: NextRequest) {
-  const user = await requireAuth();
+  const { user, supabase } = await requireAuthWithClient();
   if (!user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
@@ -28,9 +51,11 @@ export async function GET(request: NextRequest) {
   const actorFilter = params.get("actor");
   const dateFrom = params.get("from");
   const dateTo = params.get("to");
-  const search = params.get("q");
-  const limit = Math.min(parseInt(params.get("limit") ?? "50", 10), 200);
-  const offset = parseInt(params.get("offset") ?? "0", 10);
+  const search = params.get("q")?.trim() || null;
+  const limit = parseBoundedInteger(params.get("limit"), 50, 1, 200);
+  const offset = parseBoundedInteger(params.get("offset"), 0, 0, 100_000);
+  const from = parseDate(dateFrom);
+  const to = parseDate(dateTo);
 
   if (!teamId && !projectId) {
     return NextResponse.json(
@@ -39,13 +64,37 @@ export async function GET(request: NextRequest) {
     );
   }
 
-  const supabase = getSupabase();
+  if (
+    (teamId !== null && !UUID_PATTERN.test(teamId)) ||
+    (projectId !== null && !UUID_PATTERN.test(projectId)) ||
+    (actorFilter !== null && !UUID_PATTERN.test(actorFilter)) ||
+    (actionFilter !== null && !ACTION_PATTERN.test(actionFilter)) ||
+    (search !== null && !SEARCH_PATTERN.test(search)) ||
+    limit === null ||
+    offset === null ||
+    from === undefined ||
+    to === undefined ||
+    (from !== null && to !== null && from > to)
+  ) {
+    return NextResponse.json({ error: "Invalid audit filter" }, { status: 400 });
+  }
 
-  // If team_id is provided, verify the user has analytics.view permission
   if (teamId) {
-    const check = await requireTeamRole(teamId, user.id, "member");
+    const check = await requireTeamRole(teamId, user.id, "member", supabase);
     if (!check.allowed) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+  }
+
+  if (projectId) {
+    let projectQuery = supabase
+      .from("projects")
+      .select("id, team_id")
+      .eq("id", projectId);
+    if (teamId) projectQuery = projectQuery.eq("team_id", teamId);
+    const { data: project, error: projectError } = await projectQuery.maybeSingle();
+    if (projectError || !project) {
+      return NextResponse.json({ error: "Project not found" }, { status: 404 });
     }
   }
 
@@ -57,12 +106,7 @@ export async function GET(request: NextRequest) {
     .range(offset, offset + limit - 1);
 
   if (teamId) {
-    // Get all projects belonging to this team's scope
-    // Filter by team-level actions stored in details.team_id
-    // or by projects associated with the team
-    query = query.or(
-      `details->team_id.eq.${teamId},details->>team_id.eq.${teamId}`
-    );
+    query = query.contains("details", { team_id: teamId });
   }
 
   if (projectId) {
@@ -77,12 +121,12 @@ export async function GET(request: NextRequest) {
     query = query.eq("actor_id", actorFilter);
   }
 
-  if (dateFrom) {
-    query = query.gte("created_at", dateFrom);
+  if (from) {
+    query = query.gte("created_at", from);
   }
 
-  if (dateTo) {
-    query = query.lte("created_at", dateTo);
+  if (to) {
+    query = query.lte("created_at", to);
   }
 
   if (search) {

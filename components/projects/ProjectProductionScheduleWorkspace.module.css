@@ -1,0 +1,877 @@
+.workspace {
+  --schedule-accent: var(--cockpit-accent, #145bb8);
+  --schedule-accent-soft: #eef5ff;
+  --schedule-border: var(--cockpit-border, #dfe4ec);
+  --schedule-ink: var(--cockpit-ink, #18223e);
+  --schedule-copy: var(--cockpit-copy, #3f4962);
+  --schedule-muted: var(--cockpit-muted, #707b91);
+  width: 100%;
+  min-width: 0;
+  overflow: visible;
+  border: 1px solid var(--schedule-border);
+  border-radius: 8px;
+  background: #fff;
+  color: var(--schedule-copy);
+}
+
+.srOnly {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+}
+
+.topbar,
+.sourceBar,
+.settingsBar,
+.workflow,
+.agendaHeader,
+.daySettings,
+.addBannerBar {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+}
+
+.topbar {
+  min-height: 58px;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 10px 13px;
+  border-bottom: 1px solid var(--schedule-border);
+}
+
+.titleGroup {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+}
+
+.icon {
+  width: 31px;
+  height: 31px;
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid #c6d9f2;
+  border-radius: 7px;
+  background: var(--schedule-accent-soft);
+  color: var(--schedule-accent);
+}
+
+.titleGroup > div {
+  min-width: 0;
+  display: grid;
+  gap: 1px;
+}
+
+.titleGroup span,
+.agendaHeader span,
+.settingsBar label > span,
+.daySettings label > span,
+.itemFields label > span,
+.revisionFields label > span {
+  color: var(--schedule-muted);
+  font-size: 8px;
+  font-weight: 750;
+  line-height: 1.2;
+  text-transform: uppercase;
+}
+
+.titleGroup h3,
+.agendaHeader h4 {
+  overflow: hidden;
+  margin: 0;
+  color: var(--schedule-ink);
+  font-size: 13px;
+  line-height: 1.25;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.statusGroup {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 5px;
+  flex-wrap: wrap;
+}
+
+.revisionBadge,
+.statusBadge,
+.staleBadge,
+.activeBadge,
+.historyMenu > summary {
+  min-height: 25px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  border: 1px solid var(--schedule-border);
+  border-radius: 6px;
+  padding: 3px 7px;
+  background: #fff;
+  color: var(--schedule-muted);
+  font-size: 9px;
+  font-weight: 750;
+  line-height: 1;
+  text-transform: capitalize;
+}
+
+.revisionBadge {
+  border-color: #b9cef0;
+  background: var(--schedule-accent-soft);
+  color: var(--schedule-accent);
+  text-transform: none;
+}
+
+.statusBadge[data-state="submitted"] {
+  border-color: #b9cef0;
+  background: #edf4ff;
+  color: #145bb8;
+}
+
+.statusBadge[data-state="approved"],
+.activeBadge {
+  border-color: #b9dfcc;
+  background: #edf8f2;
+  color: #21764f;
+}
+
+.statusBadge[data-state="changes_requested"],
+.staleBadge {
+  border-color: #e7cda5;
+  background: #fff7e8;
+  color: #8b5a10;
+}
+
+.historyMenu {
+  position: relative;
+}
+
+.historyMenu > summary {
+  cursor: pointer;
+  list-style: none;
+}
+
+.historyMenu > summary::-webkit-details-marker {
+  display: none;
+}
+
+.historyMenu > div {
+  position: absolute;
+  z-index: 8;
+  top: calc(100% + 6px);
+  right: 0;
+  width: 190px;
+  max-height: 240px;
+  overflow-y: auto;
+  border: 1px solid var(--schedule-border);
+  border-radius: 7px;
+  padding: 5px;
+  background: #fff;
+  box-shadow: 0 12px 28px rgb(18 34 58 / 16%);
+}
+
+.historyMenu > div > span {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 7px;
+  border-bottom: 1px solid #edf1f6;
+}
+
+.historyMenu > div > span:last-child {
+  border-bottom: 0;
+}
+
+.historyMenu strong {
+  color: var(--schedule-accent);
+  font-size: 10px;
+}
+
+.historyMenu small {
+  color: var(--schedule-muted);
+  font-size: 8px;
+  text-transform: capitalize;
+}
+
+.demoNotice,
+.loadingState,
+.errorState {
+  min-width: 0;
+  padding: 8px 13px;
+  border-bottom: 1px solid var(--schedule-border);
+  font-size: 9px;
+  line-height: 1.4;
+}
+
+.demoNotice {
+  background: #f7faff;
+  color: #52617a;
+}
+
+.loadingState,
+.errorState {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.loadingState {
+  color: var(--schedule-muted);
+}
+
+.errorState {
+  border-color: #efd1d1;
+  background: #fff5f5;
+  color: #8f2929;
+}
+
+.errorState span {
+  min-width: 0;
+  flex: 1;
+}
+
+.errorState button,
+.primaryButton,
+.secondaryButton,
+.approveButton,
+.addDayButton {
+  min-height: 31px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  border-radius: 6px;
+  padding: 6px 10px;
+  font: inherit;
+  font-size: 10px;
+  font-weight: 750;
+  cursor: pointer;
+}
+
+.primaryButton {
+  border: 1px solid var(--schedule-accent);
+  background: var(--schedule-accent);
+  color: #fff;
+  box-shadow: 0 2px 6px rgb(20 91 184 / 18%);
+}
+
+.secondaryButton,
+.errorState button,
+.addDayButton {
+  border: 1px solid #cbd5e2;
+  background: #fff;
+  color: var(--schedule-copy);
+}
+
+.approveButton {
+  border: 1px solid #2f8a62;
+  background: #2f8a62;
+  color: #fff;
+}
+
+.workspace button:disabled,
+.workspace input:disabled,
+.workspace select:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.emptyState {
+  min-height: 164px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 11px;
+  padding: 30px;
+  color: var(--schedule-accent);
+}
+
+.emptyState > div {
+  max-width: 540px;
+  display: grid;
+  gap: 4px;
+}
+
+.emptyState strong {
+  color: var(--schedule-ink);
+  font-size: 13px;
+}
+
+.emptyState p {
+  margin: 0;
+  color: var(--schedule-muted);
+  font-size: 10px;
+  line-height: 1.5;
+}
+
+.sourceBar {
+  min-height: 34px;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 6px 13px;
+  border-bottom: 1px solid var(--schedule-border);
+  background: #fbfdff;
+  color: var(--schedule-muted);
+  font-size: 9px;
+}
+
+.sourceBar span {
+  min-width: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.sourceBar strong {
+  color: var(--schedule-accent);
+  font-size: 9px;
+}
+
+.sourceBar > div {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.sourceBar button {
+  min-height: 28px;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  border: 1px solid #cbd5e2;
+  border-radius: 6px;
+  padding: 4px 8px;
+  background: #fff;
+  color: var(--schedule-accent);
+  font: inherit;
+  font-size: 9px;
+  font-weight: 750;
+  cursor: pointer;
+}
+
+.settingsBar {
+  align-items: end;
+  gap: 10px;
+  padding: 10px 13px;
+  border-bottom: 1px solid var(--schedule-border);
+}
+
+.settingsBar label,
+.daySettings label,
+.itemFields label,
+.revisionFields label {
+  min-width: 0;
+  display: grid;
+  gap: 4px;
+}
+
+.settingsBar label:first-child {
+  flex: 1 1 260px;
+}
+
+.settingsBar label:nth-child(2) {
+  flex: 0 1 220px;
+}
+
+.workspace input,
+.workspace select {
+  width: 100%;
+  min-width: 0;
+  height: 32px;
+  border: 1px solid #cbd5e2;
+  border-radius: 6px;
+  padding: 5px 8px;
+  background: #fff;
+  color: var(--schedule-ink);
+  font: inherit;
+  font-size: 10px;
+}
+
+.workspace input:focus-visible,
+.workspace select:focus-visible,
+.workspace button:focus-visible,
+.historyMenu > summary:focus-visible {
+  outline: 2px solid var(--schedule-accent);
+  outline-offset: 2px;
+}
+
+.authorityBoundary {
+  max-width: 320px;
+  color: var(--schedule-muted);
+  font-size: 8px;
+  line-height: 1.45;
+}
+
+.body {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: 190px minmax(0, 1fr);
+  min-height: 480px;
+}
+
+.dayRail {
+  min-width: 0;
+  border-right: 1px solid var(--schedule-border);
+  background: #fbfcfe;
+}
+
+.railHeading {
+  height: 42px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 11px;
+  border-bottom: 1px solid var(--schedule-border);
+  color: var(--schedule-muted);
+  font-size: 9px;
+  font-weight: 750;
+  text-transform: uppercase;
+}
+
+.railHeading strong {
+  min-width: 22px;
+  border-radius: 5px;
+  padding: 2px 5px;
+  background: var(--schedule-accent-soft);
+  color: var(--schedule-accent);
+  text-align: center;
+}
+
+.dayList {
+  display: grid;
+}
+
+.dayList button {
+  min-width: 0;
+  min-height: 54px;
+  display: grid;
+  grid-template-columns: 24px minmax(0, 1fr) 13px;
+  align-items: center;
+  gap: 7px;
+  padding: 8px 9px;
+  border: 0;
+  border-bottom: 1px solid #edf1f6;
+  background: transparent;
+  color: var(--schedule-copy);
+  text-align: left;
+  cursor: pointer;
+}
+
+.dayList button[aria-current="true"] {
+  background: var(--schedule-accent-soft);
+  box-shadow: inset 3px 0 0 var(--schedule-accent);
+}
+
+.dayList button > span {
+  color: var(--schedule-accent);
+  font-size: 9px;
+  font-weight: 780;
+  text-align: center;
+}
+
+.dayList button > div {
+  min-width: 0;
+  display: grid;
+  gap: 3px;
+}
+
+.dayList strong,
+.dayList small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dayList strong {
+  color: var(--schedule-ink);
+  font-size: 10px;
+}
+
+.dayList small {
+  color: var(--schedule-muted);
+  font-size: 8px;
+}
+
+.addDayButton {
+  width: calc(100% - 18px);
+  margin: 9px;
+}
+
+.agenda {
+  min-width: 0;
+  background: #fff;
+}
+
+.agendaHeader {
+  min-height: 54px;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 10px 13px;
+  border-bottom: 1px solid var(--schedule-border);
+}
+
+.agendaHeader > div {
+  min-width: 0;
+  display: grid;
+  gap: 2px;
+}
+
+.iconButton,
+.itemActions button {
+  width: 30px;
+  height: 30px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid #d7dee8;
+  border-radius: 6px;
+  background: #fff;
+  color: var(--schedule-muted);
+  cursor: pointer;
+}
+
+.dayActions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.daySettings {
+  align-items: end;
+  gap: 9px;
+  padding: 9px 13px;
+  border-bottom: 1px solid var(--schedule-border);
+  background: #fbfdff;
+}
+
+.daySettings label {
+  flex: 0 1 150px;
+}
+
+.daySettings .dayNotes {
+  flex: 1 1 240px;
+}
+
+.itemList {
+  min-width: 0;
+  display: grid;
+}
+
+.scheduleItem {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: 46px minmax(0, 1fr);
+  border-bottom: 1px solid #e7ecf2;
+}
+
+.scheduleItem[data-kind="meal"],
+.scheduleItem[data-kind="break"],
+.scheduleItem[data-kind="company_move"] {
+  background: #fffaf0;
+}
+
+.itemOrder {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  border-right: 1px solid #edf1f6;
+  color: #9aa4b5;
+}
+
+.itemOrder strong {
+  color: var(--schedule-accent);
+  font-size: 9px;
+}
+
+.itemContent {
+  min-width: 0;
+  padding: 10px 12px;
+}
+
+.itemContent > header {
+  min-width: 0;
+  display: flex;
+  align-items: start;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.itemContent > header > div:first-child {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 3px 7px;
+}
+
+.kindBadge {
+  border-radius: 4px;
+  padding: 3px 5px;
+  background: var(--schedule-accent-soft);
+  color: var(--schedule-accent);
+  font-size: 8px;
+  font-weight: 760;
+  text-transform: uppercase;
+}
+
+.itemContent header strong {
+  overflow: hidden;
+  color: var(--schedule-ink);
+  font-size: 11px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.itemContent header small {
+  grid-column: 2;
+  overflow: hidden;
+  color: var(--schedule-muted);
+  font-size: 8px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.itemActions {
+  flex: 0 0 auto;
+  display: flex;
+  gap: 4px;
+}
+
+.itemFields {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: 92px 74px minmax(125px, 0.8fr) minmax(150px, 1fr);
+  gap: 7px;
+  margin-top: 8px;
+}
+
+.itemFields .itemLabel,
+.itemFields .itemNotes {
+  grid-column: span 2;
+}
+
+.addBannerBar {
+  justify-content: flex-end;
+  gap: 7px;
+  padding: 9px 13px;
+  border-bottom: 1px solid var(--schedule-border);
+  background: #fbfdff;
+}
+
+.addBannerBar select {
+  width: 150px;
+}
+
+.noItems {
+  min-height: 118px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  color: var(--schedule-muted);
+}
+
+.noItems strong {
+  color: var(--schedule-copy);
+  font-size: 10px;
+}
+
+.workflow {
+  align-items: end;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 11px 13px;
+  border-top: 1px solid var(--schedule-border);
+  background: #fbfcfe;
+}
+
+.revisionFields {
+  min-width: 0;
+  flex: 1;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.workflowActions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.spinner {
+  animation: spin 900ms linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+@media (max-width: 900px) {
+  .settingsBar {
+    flex-wrap: wrap;
+  }
+
+  .authorityBoundary {
+    max-width: none;
+    flex-basis: 100%;
+  }
+
+  .itemFields {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .workflow {
+    align-items: stretch;
+    flex-direction: column;
+  }
+}
+
+@media (max-width: 760px) {
+  .topbar,
+  .sourceBar {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .sourceBar > div {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .statusGroup {
+    width: 100%;
+    justify-content: flex-start;
+  }
+
+  .body {
+    display: block;
+    min-height: 0;
+  }
+
+  .dayRail {
+    overflow-x: auto;
+    border-right: 0;
+    border-bottom: 1px solid var(--schedule-border);
+  }
+
+  .railHeading {
+    display: none;
+  }
+
+  .dayList {
+    width: max-content;
+    min-width: 100%;
+    display: flex;
+  }
+
+  .dayList button {
+    width: 166px;
+    min-height: 48px;
+    flex: 0 0 auto;
+    border-right: 1px solid #edf1f6;
+    border-bottom: 0;
+  }
+
+  .dayList button[aria-current="true"] {
+    box-shadow: inset 0 -3px 0 var(--schedule-accent);
+  }
+
+  .addDayButton {
+    width: auto;
+    min-height: 42px;
+    margin: 7px 9px;
+  }
+
+  .itemContent > header {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .itemActions {
+    justify-content: flex-start;
+  }
+
+  .itemActions button,
+  .iconButton {
+    width: 40px;
+    height: 40px;
+  }
+}
+
+@media (max-width: 520px) {
+  .settingsBar,
+  .daySettings,
+  .revisionFields {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .settingsBar label,
+  .daySettings label,
+  .daySettings .dayNotes {
+    width: 100%;
+  }
+
+  .scheduleItem {
+    grid-template-columns: 34px minmax(0, 1fr);
+  }
+
+  .itemContent {
+    padding: 10px 9px;
+  }
+
+  .itemFields {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .itemFields .itemLabel,
+  .itemFields .itemNotes,
+  .itemFields .assignment {
+    grid-column: 1 / -1;
+  }
+
+  .addBannerBar {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .addBannerBar select,
+  .addBannerBar button,
+  .workflowActions,
+  .workflowActions button {
+    width: 100%;
+  }
+
+  .workflowActions {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .primaryButton,
+  .secondaryButton,
+  .approveButton,
+  .addDayButton {
+    min-height: 42px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .spinner { animation: none; }
+}

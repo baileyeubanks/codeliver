@@ -1,6 +1,37 @@
-import { getSupabase } from "@/lib/supabase";
-import { canPerform, isAtLeast } from "@/lib/utils/permissions";
+import {
+  getSupabase,
+  type DataSupabaseClient,
+} from "@/lib/supabase";
+import { canPerform } from "@/lib/utils/permissions";
 import type { TeamRole } from "@/lib/types/codeliver";
+
+export type TeamAuthorityRole =
+  | TeamRole
+  | "producer"
+  | "editor"
+  | "reviewer";
+
+type DataClient = DataSupabaseClient;
+
+const TEAM_AUTHORITY_RANK: Record<TeamAuthorityRole, number> = {
+  viewer: 10,
+  reviewer: 30,
+  member: 50,
+  editor: 60,
+  producer: 70,
+  admin: 80,
+  owner: 100,
+};
+
+function isTeamAuthorityRole(value: unknown): value is TeamAuthorityRole {
+  return typeof value === "string" && value in TEAM_AUTHORITY_RANK;
+}
+
+function permissionRole(role: TeamAuthorityRole): TeamRole {
+  if (role === "producer" || role === "editor") return "member";
+  if (role === "reviewer") return "viewer";
+  return role;
+}
 
 type Action =
   | "project.create"
@@ -35,22 +66,11 @@ type Action =
 export async function checkTeamPermission(
   teamId: string,
   userId: string,
-  action: Action
+  action: Action,
+  client?: DataClient,
 ): Promise<boolean> {
-  const supabase = getSupabase();
-
-  const { data: membership, error } = await supabase
-    .from("team_members")
-    .select("role")
-    .eq("team_id", teamId)
-    .eq("user_id", userId)
-    .single();
-
-  if (error || !membership) {
-    return false;
-  }
-
-  return canPerform(membership.role as TeamRole, action);
+  const role = await getTeamRole(teamId, userId, client);
+  return role ? canPerform(permissionRole(role), action) : false;
 }
 
 /**
@@ -58,22 +78,22 @@ export async function checkTeamPermission(
  */
 export async function getTeamRole(
   teamId: string,
-  userId: string
-): Promise<TeamRole | null> {
-  const supabase = getSupabase();
+  userId: string,
+  client?: DataClient,
+): Promise<TeamAuthorityRole | null> {
+  const supabase = client ?? getSupabase();
 
-  const { data: membership, error } = await supabase
+  const membership = await supabase
     .from("team_members")
     .select("role")
     .eq("team_id", teamId)
     .eq("user_id", userId)
-    .single();
+    .maybeSingle();
 
-  if (error || !membership) {
-    return null;
-  }
-
-  return membership.role as TeamRole;
+  if (membership.error) return null;
+  return isTeamAuthorityRole(membership.data?.role)
+    ? membership.data.role
+    : null;
 }
 
 /**
@@ -92,16 +112,18 @@ export async function getTeamRole(
 export async function requireTeamRole(
   teamId: string,
   userId: string,
-  minimumRole: TeamRole
-): Promise<{ allowed: boolean; role: TeamRole | null }> {
-  const role = await getTeamRole(teamId, userId);
+  minimumRole: TeamAuthorityRole,
+  client?: DataClient,
+): Promise<{ allowed: boolean; role: TeamAuthorityRole | null }> {
+  const role = await getTeamRole(teamId, userId, client);
 
   if (!role) {
     return { allowed: false, role: null };
   }
 
   return {
-    allowed: isAtLeast(role, minimumRole),
+    allowed:
+      TEAM_AUTHORITY_RANK[role] >= TEAM_AUTHORITY_RANK[minimumRole],
     role,
   };
 }

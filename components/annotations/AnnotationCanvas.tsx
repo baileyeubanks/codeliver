@@ -19,7 +19,7 @@ export default function AnnotationCanvas({
   frameNumber,
   onAnnotationComplete,
 }: AnnotationCanvasProps) {
-  const { activeTool, color, opacity, strokeWidth, annotations, drawingAnnotation, setDrawingAnnotation } =
+  const { activeTool, color, opacity, strokeWidth, annotations, setDrawingAnnotation } =
     useAnnotationStore();
 
   const isDrawing = useRef(false);
@@ -218,7 +218,7 @@ export default function AnnotationCanvas({
 
   // Render in-progress drawing preview
   const renderDrawingPreview = () => {
-    if (!isDrawing.current || !drawStart || !drawEnd) return null;
+    if (!drawStart || !drawEnd) return null;
 
     switch (activeTool) {
       case "rectangle": {

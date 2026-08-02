@@ -1,0 +1,55 @@
+{
+  "schemaVersion": 1,
+  "kind": "pillar",
+  "id": "co-credit-commercial-controls",
+  "title": "Co-Credit metering, budgets, usage receipts, and commercial controls",
+  "horizons": [1, 2, 3],
+  "owner": "Commerce and platform",
+  "objective": "Meter expensive compute with explicit estimates, reservations, caps, settlement, and auditable integer Co-Unit receipts while collaboration remains free.",
+  "authorityDomains": ["identity", "tenant", "project", "permission", "billing", "audit"],
+  "surfaces": [
+    { "kind": "api", "pattern": "/api/ai/**" },
+    { "kind": "api", "pattern": "/api/media/transcode" },
+    { "kind": "api", "pattern": "/api/transcode" },
+    { "kind": "api", "pattern": "/api/transcode/**" },
+    { "kind": "api", "pattern": "/api/usage/**" },
+    { "kind": "api", "pattern": "/api/analytics/export" },
+    { "kind": "api", "pattern": "/api/analytics/export/pdf" }
+  ],
+  "obligations": [
+    {
+      "id": "billing.h1.usage-authority",
+      "title": "Billable operations estimate, reserve, commit actual usage or release, and issue a receipt",
+      "category": "usage-accounting",
+      "severity": "critical",
+      "horizon": 1,
+      "proofTtlDays": 7,
+      "checks": ["billing.usage-contract", "billing.budget-enforcement", "billing.receipt-audit", "billing.no-direct-payment-mutation"],
+      "residualRisk": "Expensive operations can run without consent, budget authority, or an explainable usage record."
+    },
+    {
+      "id": "billing.h2.concurrent-settlement",
+      "title": "Reservations, retries, provider reconciliation, caps, and shared budgets remain exact under concurrency",
+      "category": "billing-scale",
+      "severity": "critical",
+      "horizon": 2,
+      "proofTtlDays": 7,
+      "checks": ["billing.budget-enforcement", "billing.usage-at-most-once", "resilience.concurrency-idempotency", "resilience.provider-portability"],
+      "residualRisk": "Parallel jobs and retries can overspend caps or double-charge a project."
+    },
+    {
+      "id": "billing.h3.commercial-governance",
+      "title": "Rate versions, entitlements, grants, receipts, disputes, and agent spend are immutable and replayable",
+      "category": "commercial-governance",
+      "severity": "critical",
+      "horizon": 3,
+      "proofTtlDays": 30,
+      "checks": ["billing.receipt-audit", "billing.client-grant-continuity", "governance.immutable-audit-ledger", "media.deterministic-replay-proof"],
+      "residualRisk": "Commercial decisions cannot be reconstructed or disputed fairly without immutable rate and usage lineage."
+    }
+  ],
+  "slos": [
+    { "id": "unreceipted-billable-operation", "indicator": "Completed billable operations without a settled usage receipt", "target": 0, "windowDays": 30, "errorBudgetMinutes": 0 },
+    { "id": "cap-overrun", "indicator": "Operations exceeding an owner-approved maximum", "target": 0, "windowDays": 30, "errorBudgetMinutes": 0 }
+  ]
+}

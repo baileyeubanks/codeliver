@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { hasSupabasePublicConfig } from "@/lib/public-env";
 import { createSupabaseBrowser } from "@/lib/supabase-browser";
 
 interface PresenceUser {
@@ -17,6 +18,7 @@ interface PresenceState {
 
 const HEARTBEAT_INTERVAL = 10_000; // 10 seconds
 const STALE_THRESHOLD = 30_000; // 30 seconds
+const HAS_SUPABASE_CONFIG = hasSupabasePublicConfig();
 
 export function useRealtimePresence(
   assetId: string,
@@ -37,7 +39,7 @@ export function useRealtimePresence(
   }, []);
 
   useEffect(() => {
-    if (!assetId || !userId) return;
+    if (!assetId || !userId || !HAS_SUPABASE_CONFIG) return;
 
     const supabase = createSupabaseBrowser();
 

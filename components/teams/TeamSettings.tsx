@@ -52,7 +52,6 @@ export default function TeamSettings({ teamId }: Props) {
   const [deleting, setDeleting] = useState(false);
 
   const fetchTeam = useCallback(async () => {
-    setLoading(true);
     const res = await fetch(`/api/teams?team_id=${teamId}`);
     if (res.ok) {
       const data = await res.json();
@@ -63,8 +62,24 @@ export default function TeamSettings({ teamId }: Props) {
   }, [teamId]);
 
   useEffect(() => {
-    fetchTeam();
-  }, [fetchTeam]);
+    let cancelled = false;
+
+    fetch(`/api/teams?team_id=${teamId}`)
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (!cancelled && data) {
+          setTeam(data);
+          setNameValue(data.name);
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [teamId]);
 
   async function saveName() {
     if (!nameValue.trim() || nameValue === team?.name) {

@@ -6,7 +6,7 @@ export async function GET() {
   return NextResponse.json(
     {
       status: "ok",
-      service: "co-deliver",
+      service: "co-videopro",
       port: 4103,
     },
     { status: 200 },

@@ -1,20 +1,12 @@
+// @ts-expect-error TS5097: Node's native TypeScript test runner requires explicit extensions.
+import { resolveSurfaceOrigin } from "./surface-origins.ts";
+
 function requireValue(value: string | undefined, name: string): string {
   if (!value) {
     throw new Error(`Missing required environment variable: ${name}`);
   }
 
   return value;
-}
-
-function normalizeUrl(value: string, name: string): string {
-  const trimmed = value.trim();
-  const withProtocol = /^https?:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`;
-
-  try {
-    return new URL(withProtocol).toString().replace(/\/$/, "");
-  } catch {
-    throw new Error(`Invalid URL in ${name}: ${value}`);
-  }
 }
 
 export function getSupabaseServiceUrl(): string {
@@ -26,25 +18,37 @@ export function getSupabaseServiceKey(): string {
   return requireValue(process.env.SUPABASE_SERVICE_KEY, "SUPABASE_SERVICE_KEY");
 }
 
+export function getAdminSiteUrl(): string {
+  return resolveSurfaceOrigin({
+    surface: "admin",
+    candidates: [
+      { name: "ADMIN_SITE_URL", value: process.env.ADMIN_SITE_URL },
+      {
+        name: "NEXT_PUBLIC_ADMIN_SITE_URL",
+        value: process.env.NEXT_PUBLIC_ADMIN_SITE_URL,
+      },
+    ],
+    environment: process.env.NODE_ENV,
+    localPort: process.env.PORT,
+  });
+}
+
+export function getClientSiteUrl(): string {
+  return resolveSurfaceOrigin({
+    surface: "client",
+    candidates: [
+      { name: "CLIENT_SITE_URL", value: process.env.CLIENT_SITE_URL },
+      {
+        name: "NEXT_PUBLIC_CLIENT_SITE_URL",
+        value: process.env.NEXT_PUBLIC_CLIENT_SITE_URL,
+      },
+    ],
+    environment: process.env.NODE_ENV,
+    localPort: process.env.PORT,
+  });
+}
+
+// Kept for internal callers while they migrate to the explicit surface name.
 export function getSiteUrl(): string {
-  const candidates: Array<[string, string | undefined]> = [
-    ["SITE_URL", process.env.SITE_URL],
-    ["NEXT_PUBLIC_SITE_URL", process.env.NEXT_PUBLIC_SITE_URL],
-    ["APP_URL", process.env.APP_URL],
-    ["PUBLIC_URL", process.env.PUBLIC_URL],
-    ["DEPLOY_PRIME_URL", process.env.DEPLOY_PRIME_URL],
-    ["URL", process.env.URL],
-  ];
-
-  for (const [name, value] of candidates) {
-    if (value) {
-      return normalizeUrl(value, name);
-    }
-  }
-
-  if (process.env.NODE_ENV === "production") {
-    return "https://deliver.contentco-op.com";
-  }
-
-  return `http://localhost:${process.env.PORT ?? "4103"}`;
+  return getAdminSiteUrl();
 }

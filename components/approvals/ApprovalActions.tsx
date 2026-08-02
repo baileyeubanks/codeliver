@@ -36,11 +36,11 @@ export default function ApprovalActions({
 
   return (
     <div className="flex flex-col gap-3">
-      <div className="flex gap-2">
+      <div className="grid grid-cols-3 gap-2">
         <button
           onClick={handleQuickApprove}
           disabled={loading || !!activeAction}
-          className="flex-1 flex items-center justify-center gap-2 px-4 py-2 rounded-[var(--radius-sm)] bg-[var(--green)] text-white text-sm font-medium hover:brightness-110 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+          className="flex min-h-12 items-center justify-center gap-2 rounded-[var(--radius-sm)] bg-[var(--green)] px-2 py-2 text-center text-xs font-medium text-white transition-all hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-50"
         >
           {loading && !activeAction && (
             <Loader2 className="w-4 h-4 animate-spin" />
@@ -50,14 +50,14 @@ export default function ApprovalActions({
         <button
           onClick={() => setActiveAction("approved_with_changes")}
           disabled={loading || !!activeAction}
-          className="flex-1 px-4 py-2 rounded-[var(--radius-sm)] border border-[var(--green)] text-[var(--green)] text-sm font-medium hover:bg-[var(--green)]/10 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+          className="min-h-12 rounded-[var(--radius-sm)] border border-[var(--green)] px-2 py-2 text-center text-xs font-medium text-[var(--green)] transition-all hover:bg-[var(--green)]/10 disabled:cursor-not-allowed disabled:opacity-50"
         >
           Approve with Changes
         </button>
         <button
           onClick={() => setActiveAction("changes_requested")}
           disabled={loading || !!activeAction}
-          className="flex-1 flex items-center justify-center gap-2 px-4 py-2 rounded-[var(--radius-sm)] bg-[var(--red)] text-white text-sm font-medium hover:brightness-110 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+          className="flex min-h-12 items-center justify-center gap-2 rounded-[var(--radius-sm)] bg-[var(--red)] px-2 py-2 text-center text-xs font-medium text-white transition-all hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-50"
         >
           Request Changes
         </button>

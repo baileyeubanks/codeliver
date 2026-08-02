@@ -12,22 +12,43 @@ import {
   mkdirSync,
   writeFileSync,
   readFileSync,
+  readdirSync,
   unlinkSync,
   renameSync,
-  statSync,
   appendFileSync,
 } from "fs";
-import { join, resolve, extname } from "path";
+import { join, extname } from "path";
 import { randomUUID } from "crypto";
 import { getSupabase } from "@/lib/supabase";
+import { sanitizeMediaFilename } from "@/lib/storage/safe-media-path";
 import { detectFileType } from "@/lib/utils/media";
+import {
+  ensureUploadStagingDirectory,
+  isSafeUploadId,
+  requireConfiguredMediaRoot,
+  resolveMediaPath,
+  uploadStagingDirectory,
+} from "@/lib/storage/media-root";
 
-const MEDIA_ROOT = process.env.NAS_MEDIA_ROOT || "/volume1/media";
-const UPLOAD_DIR = join(MEDIA_ROOT, ".tus-uploads");
+const LEGACY_ASSET_RETURN_COLUMNS =
+  "id, project_id, folder_id, title, file_type, file_url, status, nas_path, file_size, uploaded_by, created_at";
 
-// Ensure upload staging directory exists
-if (!existsSync(UPLOAD_DIR)) {
-  mkdirSync(UPLOAD_DIR, { recursive: true });
+function allowlistedAssetRow(value: unknown): Record<string, unknown> | null {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  const row = value as Record<string, unknown>;
+  return {
+    id: row.id,
+    project_id: row.project_id,
+    folder_id: row.folder_id,
+    title: row.title,
+    file_type: row.file_type,
+    file_url: row.file_url,
+    status: row.status,
+    nas_path: row.nas_path,
+    file_size: row.file_size,
+    uploaded_by: row.uploaded_by,
+    created_at: row.created_at,
+  };
 }
 
 export interface TusUploadMeta {
@@ -46,11 +67,19 @@ export interface TusUploadMeta {
 }
 
 function metaPath(uploadId: string): string {
-  return join(UPLOAD_DIR, `${uploadId}.json`);
+  if (!isSafeUploadId(uploadId)) throw new Error("Invalid upload id");
+  return join(
+    uploadStagingDirectory(requireConfiguredMediaRoot()),
+    `${uploadId}.json`,
+  );
 }
 
 function chunkPath(uploadId: string): string {
-  return join(UPLOAD_DIR, `${uploadId}.bin`);
+  if (!isSafeUploadId(uploadId)) throw new Error("Invalid upload id");
+  return join(
+    uploadStagingDirectory(requireConfiguredMediaRoot()),
+    `${uploadId}.bin`,
+  );
 }
 
 export function createUpload(params: {
@@ -61,10 +90,14 @@ export function createUpload(params: {
   folderId?: string;
   userId: string;
 }): TusUploadMeta {
+  if (params.folderId && !params.projectId) {
+    throw new Error("Folder id requires an authorized project id");
+  }
+  ensureUploadStagingDirectory();
   const id = randomUUID();
   const meta: TusUploadMeta = {
     id,
-    filename: params.filename,
+    filename: sanitizeMediaFilename(params.filename),
     filetype: params.filetype,
     size: params.size,
     offset: 0,
@@ -81,6 +114,7 @@ export function createUpload(params: {
 }
 
 export function getUpload(uploadId: string): TusUploadMeta | null {
+  if (!isSafeUploadId(uploadId)) return null;
   const path = metaPath(uploadId);
   if (!existsSync(path)) return null;
   try {
@@ -134,13 +168,13 @@ export async function finalizeUpload(
 
   // Determine destination folder
   const folder = meta.projectId || "uploads";
-  const destDir = resolve(join(MEDIA_ROOT, folder));
+  const destDir = resolveMediaPath(folder, requireConfiguredMediaRoot());
   if (!existsSync(destDir)) {
     mkdirSync(destDir, { recursive: true });
   }
 
   // Generate unique filename
-  let fileName = meta.filename;
+  let fileName = sanitizeMediaFilename(meta.filename);
   const destPath = join(destDir, fileName);
   if (existsSync(destPath)) {
     const ext = extname(fileName);
@@ -159,12 +193,12 @@ export async function finalizeUpload(
   // Create asset record in Supabase if projectId given
   let assetRecord = null;
   if (meta.projectId) {
-    const fileType = detectFileType(meta.filename);
+    const fileType = detectFileType(fileName);
     try {
       const { data, error } = await getSupabase()
         .from("assets")
         .insert({
-          title: meta.filename.replace(/\.[^.]+$/, ""),
+          title: fileName.replace(/\.[^.]+$/, ""),
           file_type: fileType,
           file_url: streamUrl,
           project_id: meta.projectId,
@@ -174,11 +208,11 @@ export async function finalizeUpload(
           file_size: meta.size,
           uploaded_by: meta.userId,
         })
-        .select()
+        .select(LEGACY_ASSET_RETURN_COLUMNS)
         .single();
 
-      if (!error) {
-        assetRecord = data;
+      if (!error && data) {
+        assetRecord = allowlistedAssetRow(data);
         meta.assetId = data.id;
         meta.finalPath = relativePath;
         writeFileSync(metaPath(uploadId), JSON.stringify(meta, null, 2));
@@ -225,8 +259,12 @@ export function deleteUpload(uploadId: string): boolean {
   if (!meta) return false;
 
   try {
-    if (existsSync(chunkPath(uploadId))) unlinkSync(chunkPath(uploadId));
-    if (existsSync(metaPath(uploadId))) unlinkSync(metaPath(uploadId));
+    if (existsSync(chunkPath(uploadId))) {
+      unlinkSync(chunkPath(uploadId));
+    }
+    if (existsSync(metaPath(uploadId))) {
+      unlinkSync(metaPath(uploadId));
+    }
     return true;
   } catch {
     return false;
@@ -238,9 +276,9 @@ export function deleteUpload(uploadId: string): boolean {
  * Called by cleanup cron or on-demand.
  */
 export function cleanStaleUploads(maxAgeMs: number = 24 * 60 * 60 * 1000): number {
-  if (!existsSync(UPLOAD_DIR)) return 0;
-  const { readdirSync } = require("fs");
-  const files = readdirSync(UPLOAD_DIR) as string[];
+  const uploadDirectory = uploadStagingDirectory(requireConfiguredMediaRoot());
+  if (!existsSync(uploadDirectory)) return 0;
+  const files = readdirSync(uploadDirectory);
   let cleaned = 0;
   const now = Date.now();
 

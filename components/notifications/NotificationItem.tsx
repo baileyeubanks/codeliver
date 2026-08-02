@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   MessageSquare,
@@ -12,7 +13,7 @@ import type { Notification, NotificationType } from "@/lib/types/codeliver";
 
 interface NotificationItemProps {
   notification: Notification;
-  onMarkRead: (id: string) => void;
+  onMarkRead: (id: string) => Promise<boolean>;
 }
 
 const ICON_MAP: Record<NotificationType, React.ReactNode> = {
@@ -54,32 +55,59 @@ function timeAgo(dateStr: string): string {
   return new Date(dateStr).toLocaleDateString();
 }
 
+function notificationDestination(notification: Notification): string | null {
+  const actionUrl = notification.data.action_url;
+  if (typeof actionUrl === "string" && actionUrl.length <= 2_048 && actionUrl.startsWith("/")) {
+    try {
+      const target = new URL(actionUrl, "https://co-videopro.local");
+      if (target.origin === "https://co-videopro.local") {
+        return `${target.pathname}${target.search}${target.hash}`;
+      }
+    } catch {
+      // Fall through to canonical project context.
+    }
+  }
+
+  const projectId = notification.data.project_id;
+  const assetId = notification.data.asset_id;
+  if (typeof projectId !== "string" || !projectId) return null;
+  if (typeof assetId === "string" && assetId) {
+    return `/projects/${encodeURIComponent(projectId)}/assets/${encodeURIComponent(assetId)}`;
+  }
+  return `/projects/${encodeURIComponent(projectId)}`;
+}
+
 export default function NotificationItem({
   notification,
   onMarkRead,
 }: NotificationItemProps) {
   const router = useRouter();
+  const [pending, setPending] = useState(false);
+  const [readError, setReadError] = useState(false);
 
-  function handleClick() {
+  async function handleClick() {
+    if (pending) return;
+    setReadError(false);
     if (!notification.read) {
-      onMarkRead(notification.id);
+      setPending(true);
+      const persisted = await onMarkRead(notification.id).catch(() => false);
+      setPending(false);
+      if (!persisted) {
+        setReadError(true);
+        return;
+      }
     }
 
-    // Navigate if we have project/asset context
-    const projectId = notification.data.project_id as string | undefined;
-    const assetId = notification.data.asset_id as string | undefined;
-
-    if (projectId && assetId) {
-      router.push(`/projects/${projectId}/assets/${assetId}`);
-    } else if (projectId) {
-      router.push(`/projects/${projectId}`);
-    }
+    const destination = notificationDestination(notification);
+    if (destination) router.push(destination);
   }
 
   return (
     <button
       type="button"
-      onClick={handleClick}
+      onClick={() => void handleClick()}
+      disabled={pending}
+      aria-busy={pending}
       className="flex w-full items-start gap-3 px-4 py-3 text-left transition-colors hover:bg-[var(--surface-2)]/50"
     >
       {/* Unread indicator */}
@@ -109,6 +137,11 @@ export default function NotificationItem({
         <p className="mt-1 text-[11px] text-[var(--dim)]">
           {timeAgo(notification.created_at)}
         </p>
+        {readError ? (
+          <p className="mt-1 text-[11px] font-medium text-[var(--red)]" role="status">
+            Could not mark as read. Try again.
+          </p>
+        ) : null}
       </div>
     </button>
   );

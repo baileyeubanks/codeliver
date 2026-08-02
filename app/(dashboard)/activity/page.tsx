@@ -5,10 +5,11 @@ import {
   MessageSquare,
   CheckCircle2,
   Upload,
-  FolderOpen,
   AlertTriangle,
   Clock,
 } from "lucide-react";
+import { useDemoMode } from "@/lib/demo/mode";
+import { useDemoWorkspace } from "@/lib/demo/workspace-store";
 
 interface ActivityItem {
   id: string;
@@ -42,16 +43,22 @@ function formatDate(iso: string) {
 }
 
 export default function ActivityPage() {
-  const [items, setItems] = useState<ActivityItem[]>([]);
-  const [loading, setLoading] = useState(true);
+  const demoMode = useDemoMode();
+  const demoWorkspace = useDemoWorkspace();
+  const [remoteItems, setRemoteItems] = useState<ActivityItem[]>([]);
+  const [remoteLoading, setRemoteLoading] = useState(true);
+  const items = demoMode ? demoWorkspace.activity : remoteItems;
+  const loading = demoMode ? false : remoteLoading;
 
   useEffect(() => {
+    if (demoMode) return;
+
     fetch("/api/activity")
       .then((r) => r.json())
-      .then((d) => setItems(d.items ?? []))
+      .then((d) => setRemoteItems(d.items ?? []))
       .catch(() => {})
-      .finally(() => setLoading(false));
-  }, []);
+      .finally(() => setRemoteLoading(false));
+  }, [demoMode]);
 
   return (
     <div className="p-6 max-w-4xl mx-auto">

@@ -1,0 +1,61 @@
+{
+  "schemaVersion": 1,
+  "collection": "Co-VideoPro marketing photography",
+  "primaryProjectCover": "/brand/marketing/co-videopro-product-promo-cover.jpg",
+  "assets": [
+    {
+      "id": "product-promo-cover",
+      "path": "/brand/marketing/co-videopro-product-promo-cover.jpg",
+      "width": 3136,
+      "height": 1344,
+      "aspectRatio": "7:3",
+      "role": "project-cover",
+      "alt": "Co-VideoPro production suite overview with create, connect, and convert branding"
+    },
+    {
+      "id": "headphones",
+      "path": "/brand/marketing/co-videopro-headphones.png",
+      "width": 1365,
+      "height": 768,
+      "aspectRatio": "16:9",
+      "role": "audio-feature",
+      "alt": "Co-VideoPro audio workflow represented by headphones and production tools"
+    },
+    {
+      "id": "desk-brand",
+      "path": "/brand/marketing/co-videopro-desk-brand.png",
+      "width": 1365,
+      "height": 768,
+      "aspectRatio": "16:9",
+      "role": "workspace-brand",
+      "alt": "Co-VideoPro branded creative workspace with production application icons"
+    },
+    {
+      "id": "mobile-dashboard",
+      "path": "/brand/marketing/co-videopro-mobile-dashboard.png",
+      "width": 1365,
+      "height": 768,
+      "aspectRatio": "16:9",
+      "role": "mobile-product",
+      "alt": "Co-VideoPro mobile dashboard shown on a phone in a creative workspace"
+    },
+    {
+      "id": "notepad",
+      "path": "/brand/marketing/co-videopro-notepad.png",
+      "width": 1365,
+      "height": 768,
+      "aspectRatio": "16:9",
+      "role": "copy-background",
+      "alt": "Minimal notepad workspace surrounded by colorful Co-VideoPro production icons"
+    },
+    {
+      "id": "create-collaborate-convert",
+      "path": "/brand/marketing/co-videopro-create-collaborate-convert.png",
+      "width": 7296,
+      "height": 4096,
+      "aspectRatio": "16:9",
+      "role": "brand-lockup",
+      "alt": "Co-VideoPro logo with the message create, collaborate, convert"
+    }
+  ]
+}

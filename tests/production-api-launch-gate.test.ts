@@ -318,6 +318,28 @@ test("production API launch gate fails closed before public, auth, and demo bypa
       }
     });
 
+    await t.test("version endpoint is public deployment truth on both production surfaces", async () => {
+      runtimeState.__ccoLaunchGateGetUserCalls = 0;
+      runtimeState.__ccoLaunchGateUser = null;
+
+      for (const host of [ADMIN_HOST, CLIENT_HOST]) {
+        const response = await proxy(request(host, "/api/version"));
+        assert.equal(response.status, 200, host);
+        assert.equal(response.headers.get("x-middleware-next"), "1", host);
+      }
+      // Public like /api/health: no interactive auth lookup for a deployment-truth curl.
+      assert.equal(runtimeState.__ccoLaunchGateGetUserCalls, 0);
+
+      // The allowlist entry is exact: lookalike paths stay closed.
+      for (const pathname of ["/api/version/extra", "/api/versionevil", "/api/versions"]) {
+        await assertLaunchGated(
+          await proxy(request(ADMIN_HOST, pathname)),
+          `admin ${pathname}`,
+        );
+      }
+      assert.equal(runtimeState.__ccoLaunchGateGetUserCalls, 0);
+    });
+
     await t.test("service endpoints require credential-bearing requests on the admin host", async () => {
       runtimeState.__ccoLaunchGateGetUserCalls = 0;
       runtimeState.__ccoLaunchGateUser = null;

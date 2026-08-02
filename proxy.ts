@@ -32,6 +32,7 @@ const PUBLIC_EXACT_ROUTES = [
   "/auth/callback",
   "/auth/confirm",
   "/api/notifications/provider-events",
+  "/api/version", // G2 deployment truth: unauthenticated build SHA, same posture as /api/health
 ];
 const PUBLIC_ROUTE_PREFIXES = [
   "/api/auth",
@@ -49,6 +50,7 @@ const UUID_PATH_SEGMENT =
 const CLIENT_API_ROUTE_PATTERNS = [
   /^\/api\/auth\/(?:login|logout|session|signup|resend|password\/(?:forgot|reset))$/,
   /^\/api\/health(?:\/(?:dependencies|live|ready))?$/,
+  /^\/api\/version$/, // G2 deployment truth; exact match, no subroutes exist
   /^\/api\/review\/[^/]+(?:\/(?:admission|approvals|comments|edit-decisions))?$/,
   new RegExp(`^/api/review/media/${UUID_PATH_SEGMENT}$`),
 ];

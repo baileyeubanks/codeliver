@@ -18,12 +18,22 @@ const sha =
   process.env.NEXT_PUBLIC_GIT_SHA ||
   "unknown";
 
+// builtAt follows the same injection contract: BUILD_TIME /
+// NEXT_PUBLIC_BUILD_TIME are set by CI at build time (ISO-8601); "unknown"
+// means local dev without injection. Vercel exposes no build-timestamp env,
+// so hosts that want this field must inject it.
+const builtAt =
+  process.env.BUILD_TIME || process.env.NEXT_PUBLIC_BUILD_TIME || "unknown";
+
 export async function GET() {
   return NextResponse.json(
     {
       sha,
+      builtAt,
       branch: process.env.VERCEL_GIT_COMMIT_REF || "unknown",
-      product: "co-videopro",
+      // CCO_GOAL §4 DECIDED #3: the product name is "Co-VideoPro"; any other
+      // casing is a defect. This endpoint exists to prove product identity.
+      product: "Co-VideoPro",
     },
     { status: 200, headers: { "Cache-Control": "no-store" } },
   );

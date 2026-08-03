@@ -31,9 +31,18 @@ test("the workspace rail brand slot carries the monogram, wordmark, and microcop
 test("the auth shell brand hero shows the monogram and the CVP tagline", () => {
   const authShell = source("components/auth/AuthShell.tsx");
   assert.match(authShell, /<CvpMonogram\b/);
-  assert.match(authShell, /CREATE/);
-  assert.match(authShell, /COLLABORATE/);
-  assert.match(authShell, /CONQUER/);
+  assert.match(authShell, /Brief/);
+  assert.match(authShell, /shoot/);
+  assert.match(authShell, /delivery/);
+});
+
+test("welcome public door uses a real review player face, not a centered card", () => {
+  const welcome = source("app/welcome/page.tsx");
+  assert.match(welcome, /ica-ceo-preview\.mp4/);
+  assert.match(welcome, /ica-review-filmstrip\.jpg/);
+  assert.match(welcome, /brandSignal/);
+  assert.match(welcome, /Request access/);
+  assert.doesNotMatch(welcome, /demo=1/);
 });
 
 test("the app icon is the CVP monogram, not a generic play button", () => {

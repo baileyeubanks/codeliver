@@ -85,11 +85,13 @@ export default function AuthShell({ children, demoMode, loginHref }: AuthShellPr
           <div className={styles.brandHero}>
             <CvpMonogram size={30} title="CVP monogram" />
             <p className={styles.tagline}>
-              CREATE
-              <span className={styles.taglineDot} aria-hidden="true"> • </span>
-              COLLABORATE
-              <span className={styles.taglineDot} aria-hidden="true"> • </span>
-              CONQUER
+              Brief
+              <span className={styles.taglineDot} aria-hidden="true"> → </span>
+              shoot
+              <span className={styles.taglineDot} aria-hidden="true"> → </span>
+              cut
+              <span className={styles.taglineDot} aria-hidden="true"> → </span>
+              delivery
             </p>
           </div>
           {children}

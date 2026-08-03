@@ -272,4 +272,4 @@ if kill -0 "$TREE_CHILD_PID" >/dev/null 2>&1; then
   fail_test "canary supervisor left a child process running"
 fi
 
-printf 'PASS: runtime shell tests cover env permissions, mounted storage, immutable links, explicit rollback, exact Hosts, and fail-closed readiness.\n'
+printf 'PASS: runtime shell tests cover env permissions, mounted storage, immutable links, explicit rollback, exact Hosts, and fail-closed unauth health/version.\n'

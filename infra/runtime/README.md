@@ -74,9 +74,10 @@ the gate to `1` also makes `RESEND_API_KEY` mandatory.
 ```
 
 The shell suite uses loopback mock servers only. It tests exact admin/client
-Host headers, rejects an unknown Host, fails when either surface is not ready,
-tests env permissions and missing mount/root behavior, and exercises atomic
-promotion plus explicit rollback without starting Next or launchd.
+Host headers, rejects an unknown Host, fails when either surface fails the
+unauth health/version contract, tests env permissions and missing mount/root
+behavior, and exercises atomic promotion plus explicit rollback without
+starting Next or launchd.
 
 ## Future M4 installation
 
@@ -112,10 +113,12 @@ not repository-validation commands.
    use `restart-runtime.sh` after promotion. That script restarts only
    `com.contentcoop.codeliver-runtime` and requires production health to pass.
 
-Health verification calls both `/api/health/live` and `/api/health/ready` with
-each exact Host header. It requires the expected Git SHA from the release
-manifest and also requires `untrusted.invalid` to return `HOST_FORBIDDEN`. It
-does not follow redirects.
+Health verification calls unauth `/api/health`, `/api/health/live`, and
+`/api/version` with each exact Host header. It requires `status: ok` plus the
+expected Git SHA and product `Co-VideoPro` (legacy `co-deliver` accepted) from
+`/api/version`. It does **not** call staff-auth `/api/health/ready`. It also
+requires `untrusted.invalid` to return `HOST_FORBIDDEN`. It does not follow
+redirects.
 
 ## Explicit rollback
 

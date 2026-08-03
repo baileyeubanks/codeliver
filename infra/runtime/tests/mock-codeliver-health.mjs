@@ -30,23 +30,32 @@ const server = http.createServer((request, response) => {
     return;
   }
 
-  if (request.url === "/api/health/live") {
-    send(response, 200, {
-      status: "ok",
-      service: "co-deliver",
-      probe: "liveness",
-      release,
-    });
+  if (request.url === "/api/health" || request.url === "/api/health/live") {
+    const healthy = !(mode === "client-not-ready" && host === "client.contentco-op.com");
+    if (!healthy) {
+      send(response, 503, { status: "unhealthy" });
+      return;
+    }
+    send(response, 200, { status: "ok" });
     return;
   }
 
-  if (request.url === "/api/health/ready") {
-    const ready = !(mode === "client-not-ready" && host === "client.contentco-op.com");
-    send(response, ready ? 200 : 503, {
-      status: ready ? "degraded" : "unhealthy",
-      ready,
-      service: "co-deliver",
-      probe: "readiness",
+  if (request.url === "/api/version") {
+    const healthy = !(mode === "client-not-ready" && host === "client.contentco-op.com");
+    if (!healthy) {
+      send(response, 200, {
+        sha: "ffffffffffffffffffffffffffffffffffffffff",
+        builtAt: "unknown",
+        branch: "unknown",
+        product: "Co-VideoPro",
+      });
+      return;
+    }
+    send(response, 200, {
+      sha: release,
+      builtAt: "unknown",
+      branch: "unknown",
+      product: "Co-VideoPro",
     });
     return;
   }

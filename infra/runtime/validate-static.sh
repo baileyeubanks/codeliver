@@ -112,8 +112,14 @@ require_literal "$SCRIPT_DIR/lib/canary-supervisor.mjs" 'process.kill(-child.pid
 require_literal "$COMMON" 'ADMIN_HOST="admin.contentco-op.com"'
 require_literal "$COMMON" 'CLIENT_HOST="client.contentco-op.com"'
 require_literal "$SCRIPT_DIR/verify-health.sh" "'untrusted.invalid'"
+require_literal "$SCRIPT_DIR/verify-health.sh" "'/api/health'"
 require_literal "$SCRIPT_DIR/verify-health.sh" "'/api/health/live'"
-require_literal "$SCRIPT_DIR/verify-health.sh" "'/api/health/ready'"
+require_literal "$SCRIPT_DIR/verify-health.sh" "'/api/version'"
+require_literal "$SCRIPT_DIR/verify-health.sh" 'Co-VideoPro'
+# /api/health/ready stays staff-auth; the unauth probe must never require it.
+if /usr/bin/grep -Fq -- "'/api/health/ready'" "$SCRIPT_DIR/verify-health.sh"; then
+  fail_static "verify-health.sh must not probe staff-auth /api/health/ready"
+fi
 
 ALL_INTERFACES_PATTERN='0.0.'"0.0"
 if /usr/bin/grep -R -Fq -- "$ALL_INTERFACES_PATTERN" "$SCRIPT_DIR"; then

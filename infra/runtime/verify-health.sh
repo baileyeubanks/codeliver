@@ -54,33 +54,44 @@ request_json() {
   [[ "$RESPONSE_CONTENT_TYPE" == application/json* ]] || return 1
 }
 
-validate_probe_body() {
-  local expected_probe="$1"
+# Unauth liveness: bare {"status":"ok"} on /api/health and /api/health/live.
+# Do not call /api/health/ready — that endpoint is staff-auth and must stay gated.
+validate_health_body() {
   printf '%s' "$RESPONSE_BODY" | "$NODE_BIN" -e '
     const fs = require("node:fs");
-    const [probe, release] = process.argv.slice(1);
     let body;
     try { body = JSON.parse(fs.readFileSync(0, "utf8")); } catch { process.exit(2); }
-    if (!body || body.service !== "co-deliver" || body.probe !== probe) process.exit(3);
-    if (probe === "liveness") {
-      if (body.status !== "ok" || body.release !== release) process.exit(4);
-    } else if (probe === "readiness") {
-      if (body.ready !== true || !["healthy", "degraded"].includes(body.status)) process.exit(5);
-    } else {
-      process.exit(6);
-    }
-  ' "$expected_probe" "$EXPECTED_RELEASE"
+    if (!body || body.status !== "ok") process.exit(3);
+  '
+}
+
+# Deployment truth: /api/version must expose the promoted release SHA.
+# Accept product "Co-VideoPro" (canonical) or legacy "co-deliver".
+validate_version_body() {
+  printf '%s' "$RESPONSE_BODY" | "$NODE_BIN" -e '
+    const fs = require("node:fs");
+    const [release] = process.argv.slice(1);
+    let body;
+    try { body = JSON.parse(fs.readFileSync(0, "utf8")); } catch { process.exit(2); }
+    if (!body || typeof body.sha !== "string" || body.sha !== release) process.exit(3);
+    const allowed = new Set(["Co-VideoPro", "co-deliver"]);
+    if (!allowed.has(body.product)) process.exit(4);
+  ' "$EXPECTED_RELEASE"
 }
 
 check_host() {
   local host="$1"
-  request_json "$host" '/api/health/live' || { printf 'health: %s liveness request failed\n' "$host" >&2; return 1; }
-  [[ "$RESPONSE_STATUS" == "200" ]] || { printf 'health: %s liveness returned HTTP %s\n' "$host" "$RESPONSE_STATUS" >&2; return 1; }
-  validate_probe_body liveness || { printf 'health: %s liveness body failed contract\n' "$host" >&2; return 1; }
+  request_json "$host" '/api/health' || { printf 'health: %s /api/health request failed\n' "$host" >&2; return 1; }
+  [[ "$RESPONSE_STATUS" == "200" ]] || { printf 'health: %s /api/health returned HTTP %s\n' "$host" "$RESPONSE_STATUS" >&2; return 1; }
+  validate_health_body || { printf 'health: %s /api/health body failed contract\n' "$host" >&2; return 1; }
 
-  request_json "$host" '/api/health/ready' || { printf 'health: %s readiness request failed\n' "$host" >&2; return 1; }
-  [[ "$RESPONSE_STATUS" == "200" ]] || { printf 'health: %s readiness returned HTTP %s\n' "$host" "$RESPONSE_STATUS" >&2; return 1; }
-  validate_probe_body readiness || { printf 'health: %s readiness body failed contract\n' "$host" >&2; return 1; }
+  request_json "$host" '/api/health/live' || { printf 'health: %s /api/health/live request failed\n' "$host" >&2; return 1; }
+  [[ "$RESPONSE_STATUS" == "200" ]] || { printf 'health: %s /api/health/live returned HTTP %s\n' "$host" "$RESPONSE_STATUS" >&2; return 1; }
+  validate_health_body || { printf 'health: %s /api/health/live body failed contract\n' "$host" >&2; return 1; }
+
+  request_json "$host" '/api/version' || { printf 'health: %s /api/version request failed\n' "$host" >&2; return 1; }
+  [[ "$RESPONSE_STATUS" == "200" ]] || { printf 'health: %s /api/version returned HTTP %s\n' "$host" "$RESPONSE_STATUS" >&2; return 1; }
+  validate_version_body || { printf 'health: %s /api/version body failed contract\n' "$host" >&2; return 1; }
 }
 
 check_rejected_host() {
@@ -103,7 +114,7 @@ verify_once() {
 attempt=1
 while (( attempt <= ATTEMPTS )); do
   if verify_once; then
-    printf 'PASS: Co-Deliver %s is ready on 127.0.0.1:%s for %s and %s; untrusted Host is rejected.\n' \
+    printf 'PASS: Co-VideoPro %s is healthy on 127.0.0.1:%s for %s and %s; untrusted Host is rejected.\n' \
       "$EXPECTED_RELEASE" "$CHECK_PORT" "$ADMIN_HOST" "$CLIENT_HOST"
     exit 0
   fi

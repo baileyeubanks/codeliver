@@ -1,10 +1,10 @@
 @import "tailwindcss";
 @import "./brand-tokens.css";
 
-/* Co‑VideoPro design system — CVP Enterprise brand canon (P12, re-canonized).
-   Default: cool white canvas, white cards, canon navy ink, canon Primary Blue
-   signal (#156BFF). No lime, no tan. Dark is opt-in (stage surfaces only),
-   never the shell. */
+/* Co‑VideoPro design system — Sapphire Light (Dialect B).
+   Default: cool white canvas, white cards, ink #040F1C, sapphire #0057FF.
+   No lime, no tan, no rainbow phase chrome. Dark is opt-in (player / stage
+   surfaces only), never the public door shell. */
 
 :root {
   --bg: var(--cvp-canvas);
@@ -20,14 +20,14 @@
   --dim: #98a2b5;
   --border: var(--cvp-border);
   --border-light: #c9d2e0;
-  --border-active: rgba(21, 107, 255, 0.45);
+  --border-active: rgba(0, 87, 255, 0.45);
   --accent: var(--cvp-blue);
-  --accent-hover: #0052cc;
-  --accent-dim: rgba(21, 107, 255, 0.10);
-  --accent-glow: rgba(21, 107, 255, 0.16);
+  --accent-hover: var(--cvp-deep-blue, #0033a0);
+  --accent-dim: rgba(0, 87, 255, 0.10);
+  --accent-glow: rgba(0, 87, 255, 0.16);
   --blue: var(--cvp-blue);
-  --blue-dim: rgba(21, 107, 255, 0.12);
-  --blue-hover: #0a56e0;
+  --blue-dim: rgba(0, 87, 255, 0.12);
+  --blue-hover: #0046cc;
   --orange: #b45309;
   --orange-dim: rgba(245, 158, 11, 0.14);
   --red: #b23a2c;
@@ -53,7 +53,7 @@
 
 /* Brand selection + focus ring */
 ::selection {
-  background: rgba(21, 107, 255, 0.18);
+  background: rgba(0, 87, 255, 0.18);
   color: var(--cvp-ink-deep);
 }
 

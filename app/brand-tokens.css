@@ -1,89 +1,83 @@
 /**
- * Co-VideoPro brand tokens — Arc III (P11) foundation.
+ * Co-VideoPro brand tokens — Sapphire Light (Dialect B).
  * Sources (in priority order):
- *  1. BRAND CANON (Bailey, 2026-07-25): three CVP Enterprise brand guides —
- *     Primary Blue #156BFF, Deep Blue #0A1D3D, Cool Gray #E6E9EF,
- *     Charcoal #0D0F14, White; Inter / Inter Display. NO lime, NO tan.
- *  2. LIVE BRAND from co-videopro.com production CSS (extracted 2026-07-25)
+ *  1. CO_VIDEOPRO_CANON / design-quality Dialect B:
+ *     sapphire #0057FF, deep-blue #0033A0, sky #4DA3FF, ice #EAF2FF,
+ *     canvas #F7F9FC, ink #040F1C. Inter only. No rainbow phase chrome.
+ *  2. Semantic green / amber / red report health — never phase identity.
  *
  * Keep values in sync with ROADMAP_40.md when editing.
  */
 
 :root {
-  /* ── Canon brand core (CVP Enterprise guides) ── */
-  --cvp-blue: #156bff;            /* canon Primary Blue */
-  --cvp-blue-soft: #5b93ff;       /* canon-derived lighter step */
-  --cvp-blue-tint: #e9f1ff;       /* blue tint surface */
-  --cvp-accent: #156bff;          /* signature action = canon Primary Blue (lime removed) */
-  --cvp-accent-hover: #0052cc;    /* canon VP Blue (guide 3) */
-  --cvp-accent-dim: #156bff1f;
-  --cvp-accent-glow: #156bff2e;
+  /* ── Sapphire brand core ── */
+  --cvp-blue: #0057ff;            /* sapphire */
+  --cvp-blue-soft: #4da3ff;       /* sky */
+  --cvp-blue-tint: #eaf2ff;       /* ice */
+  --cvp-deep-blue: #0033a0;       /* deep-blue */
+  --cvp-accent: #0057ff;          /* signature action = sapphire */
+  --cvp-accent-hover: #0033a0;    /* deep-blue */
+  --cvp-accent-dim: #0057ff1f;
+  --cvp-accent-glow: #0057ff2e;
 
-  /* Ink — canon navy family */
-  --cvp-ink: #0a1d3d;             /* canon Deep Blue */
-  --cvp-ink-deep: #07132b;
-  --cvp-ink-soft: #3d4a68;
-  --cvp-ink-faint: #6d7a94;
+  /* Ink */
+  --cvp-ink: #040f1c;
+  --cvp-ink-deep: #040f1c;
+  --cvp-ink-soft: #334155;        /* gray-700 */
+  --cvp-ink-faint: #64748b;
 
-  /* Canvas + surfaces (canon grays) */
-  --cvp-canvas: #f2f4f7;          /* canon Light Gray */
-  --cvp-surface: #ffffff;         /* canon White */
-  --cvp-surface-alt: #eaeef4;
-  --cvp-surface-sunken: #e6e9ef;  /* canon Cool Gray */
-  --cvp-border: #d6dce6;
+  /* Canvas + surfaces */
+  --cvp-canvas: #f7f9fc;
+  --cvp-surface: #ffffff;
+  --cvp-surface-alt: #f1f5f9;
+  --cvp-surface-sunken: #e8eef6;
+  --cvp-border: #cbd5e1;          /* gray-300 */
 
-  /* Status */
-  --cvp-success: #267553;
-  --cvp-success-bright: #26915b;
-
-  /* ── 4-color phase coding (from CVP ribbon monogram) ──
-     Strategy → Pre-Production → Production → Post → Delivery.
-     Used for chips, whiteboard flows, gradient ribbon — never large fills. */
-  --cvp-red: #e8442e;
+  /* Status — semantic only (health), never phase identity */
+  --cvp-success: #16a34a;
+  --cvp-success-bright: #22c55e;
+  --cvp-red: #dc2626;
   --cvp-green: #16a34a;
   --cvp-amber: #f59e0b;
-  --cvp-phase-strategy: var(--cvp-red);
-  --cvp-phase-preproduction: var(--cvp-amber);
+  --cvp-red-tint: #fef2f2;
+  --cvp-green-tint: #ecfdf5;
+  --cvp-amber-tint: #fffbeb;
+
+  /* Phase labels use sapphire family ink — not a four-colour rainbow map.
+     "There is no rainbow." Phase is named in words; colour reports health. */
+  --cvp-phase-strategy: var(--cvp-ink);
+  --cvp-phase-preproduction: var(--cvp-deep-blue);
   --cvp-phase-production: var(--cvp-blue);
-  --cvp-phase-post: var(--cvp-green);
-  --cvp-phase-delivery: var(--cvp-ink);
-  --cvp-red-tint: #fdeae7;
-  --cvp-green-tint: #e5f6ec;
-  --cvp-amber-tint: #fdf1da;
+  --cvp-phase-post: var(--cvp-blue-soft);
+  --cvp-phase-delivery: var(--cvp-ink-soft);
 
-  /* Signature accents */
-  --cvp-gradient-ribbon: linear-gradient(
-    90deg,
-    var(--cvp-red) 0%,
-    var(--cvp-amber) 33%,
-    var(--cvp-green) 66%,
-    var(--cvp-blue) 100%
-  );
-  --cvp-copilot-bg: #0a1d3d;      /* canon Deep Blue floating AI Copilot panel */
-  --cvp-copilot-ink: #e5e9f2;
+  /* Logo / premium accent only — never large UI chrome fills.
+     Solid sapphire replaces the retired four-stop phase ribbon. */
+  --cvp-gradient-ribbon: var(--cvp-blue);
+  --cvp-copilot-bg: #0033a0;
+  --cvp-copilot-ink: #eaf2ff;
   --cvp-copilot-border: #ffffff1a;
-  --cvp-unsaved-bar: var(--cvp-amber-tint); /* "N unsaved changes" strip */
+  --cvp-unsaved-bar: var(--cvp-amber-tint);
 
-  /* Typography (canon: Inter family) */
-  --cvp-font-display: "Inter Display", "Inter", -apple-system, sans-serif;
+  /* Typography — Inter only on product surfaces */
+  --cvp-font-display: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   --cvp-font-body: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
 
-  /* Shape (live brand radii) + elevation */
-  --cvp-radius-sm: 6px;
+  /* Shape — canon 12 / 8 / 999 */
+  --cvp-radius-sm: 8px;
   --cvp-radius-md: 8px;
   --cvp-radius-lg: 12px;
   --cvp-radius-pill: 999px;
-  --cvp-shadow-card: 0 1px 2px rgb(10 29 61 / 0.05),
-    0 8px 24px rgb(10 29 61 / 0.07);
-  --cvp-shadow-popover: 0 4px 12px rgb(10 29 61 / 0.09),
-    0 16px 48px rgb(10 29 61 / 0.13);
+  --cvp-shadow-card: 0 1px 2px rgb(4 15 28 / 0.05),
+    0 8px 24px rgb(4 15 28 / 0.07);
+  --cvp-shadow-popover: 0 4px 12px rgb(4 15 28 / 0.09),
+    0 16px 48px rgb(4 15 28 / 0.13);
 
-  /* Focus — WCAG 2.4.7: one ring token for the whole system.
-     Component CSS must never zero this out on :focus-visible. */
+  /* Focus — WCAG 2.4.7 */
   --cvp-focus-ring: 2px solid var(--cvp-blue);
   --cvp-focus-ring-offset: 2px;
 
-  /* Motion — ribbon spirit: quick, eased, reduced-motion safe */
+  /* Motion */
   --cvp-motion-fast: 120ms;
   --cvp-motion-med: 200ms;
   --cvp-motion-ease: cubic-bezier(0.2, 0.8, 0.2, 1);

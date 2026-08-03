@@ -308,7 +308,7 @@ export default function BrandSettings({
                   <input
                     className={styles.colorInput}
                     type="color"
-                    value={normalizeHexColor(values.primaryColor) ?? "#156bff"}
+                    value={normalizeHexColor(values.primaryColor) ?? "#0057ff"}
                     aria-label="Action color picker"
                     disabled={!demoMode || !canManage || !overrides.primaryColor}
                     onChange={(event) => setEdits((current) => ({ ...current, primaryColor: event.target.value }))}
@@ -446,7 +446,7 @@ export default function BrandSettings({
                 <span
                   className={styles.previewAction}
                   style={{
-                    backgroundColor: normalizeHexColor(values.primaryColor) ?? "#156bff",
+                    backgroundColor: normalizeHexColor(values.primaryColor) ?? "#0057ff",
                     borderRadius: Math.min(values.cornerRadius, 6),
                     color: foreground,
                     display: "inline-flex",

@@ -74,8 +74,9 @@ test("admin and client hosts share one Content Co-op branded login", () => {
   assert.match(authShell, /aria-label="Co‑VideoPro by Content Co-op sign in"/);
   assert.match(authShell, /<strong>Co‑VideoPro<\/strong>/);
   assert.match(authShell, /aria-label="Access readiness"/);
-  assert.match(authShell, /Verified session required/);
-  assert.match(authShell, /Local paths only/);
+  assert.match(authShell, /Sign-in required/);
+  assert.match(authShell, /Stays on this site/);
+  assert.doesNotMatch(authShell, /Verified session required|Local paths only/);
   assert.doesNotMatch(frontDoorSource, /\/(?:admin|client)\/login\b/);
 
   assert.equal(resolveAuthHostContext(ADMIN_HOST).kind, "admin");

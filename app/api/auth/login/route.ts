@@ -85,7 +85,7 @@ export async function POST(req: Request) {
       await supabase.auth.signOut({ scope: "local" });
       return apiJson(
         {
-          error: "This account belongs to a different Co‑ProVideo portal.",
+          error: "This account belongs to a different Co‑VideoPro portal.",
           code: "AUTH_SURFACE_FORBIDDEN",
           required_surface: surfaceForRole(role),
         },

@@ -28,7 +28,7 @@ test("team invite acceptance uses the polished auth shell and invitation readine
   assert.match(invite, /Invitation closed/);
 
   assert.match(styles, /\.loadingRow\s*\{[\s\S]*?border-radius:\s*8px/);
-  assert.match(styles, /\.secondaryAction\s*\{[\s\S]*?border-radius:\s*7px/);
+  assert.match(styles, /\.secondaryAction\s*\{[\s\S]*?border-radius:\s*8px/);
   assert.match(styles, /\.spinIcon\s*\{[\s\S]*?animation:\s*authSpin/);
   assert.doesNotMatch(invite, /rounded-xl|card wall|marketing|hero/i);
 });

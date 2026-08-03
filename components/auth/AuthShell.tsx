@@ -40,12 +40,12 @@ export default function AuthShell({ children, demoMode, loginHref }: AuthShellPr
     },
     {
       label: "Session",
-      value: demoMode ? "Local browser only" : "Verified session required",
+      value: demoMode ? "Saved in this browser" : "Sign-in required",
       icon: ShieldCheck,
     },
     {
       label: "Return",
-      value: "Local paths only",
+      value: "Stays on this site",
       icon: PanelsTopLeft,
     },
   ];
@@ -86,9 +86,9 @@ export default function AuthShell({ children, demoMode, loginHref }: AuthShellPr
             <CvpMonogram size={30} title="CVP monogram" />
             <p className={styles.tagline}>
               CREATE
-              <span className={`${styles.taglineDot} ${styles.dotRed}`} aria-hidden="true"> • </span>
+              <span className={styles.taglineDot} aria-hidden="true"> • </span>
               COLLABORATE
-              <span className={`${styles.taglineDot} ${styles.dotAmber}`} aria-hidden="true"> • </span>
+              <span className={styles.taglineDot} aria-hidden="true"> • </span>
               CONQUER
             </p>
           </div>

@@ -1,79 +1,56 @@
 import Link from "next/link";
 import { ArrowRight } from "lucide-react";
 import CoProductionBrand from "@/components/brand/CoProductionBrand";
-import { ShowreelStage, type ShowreelClip } from "@/components/brand/ShowreelStage";
+import styles from "./welcome.module.css";
 
 /**
- * Studio Home — the public front door (master spec §I.Home).
- *
- * A moving editorial introduction: full-bleed selected film imagery, slow
- * crop drift, low film grain, a deep midnight overlay, monumental warm-ivory
- * type in deliberate negative space, a tactile ivory invitation, a
- * smoked-glass studio entrance, and a discreet private client entrance.
- * The composition replaces the interim Canva-gradient hero per the
- * Co‑VideoPro design bible, tranche 2.
+ * Public product door — Sapphire Light, consistent with /login and /signup.
+ * Dark cinematic reel is reserved for player chrome only.
  */
-const REEL: readonly ShowreelClip[] = [
-  {
-    src: "/demo/ambient-products.mp4",
-    poster: "/demo/refinery-sunset.jpg",
-    label: "REEL 01 — THE ATMOSPHERE",
-  },
-  {
-    poster: "/demo/crew-field-shoot.jpg",
-    label: "REEL 02 — THE FIELD",
-  },
-  {
-    src: "/demo/ica-ceo-preview.mp4",
-    poster: "/demo/ceraweek-speaker.jpg",
-    label: "REEL 03 — THE VOICE",
-  },
-];
-
 export default function WelcomePage() {
   return (
-    <main className="cpv-reel cpv-vignette">
-      <div className="cpv-reel__shade" aria-hidden="true" />
-      <div className="cpv-reel__grain" aria-hidden="true" />
-      <div className="cpv-leak" aria-hidden="true" />
+    <main className={styles.shell}>
+      <a className={styles.skipLink} href="#welcome-content">
+        Skip to welcome
+      </a>
 
-      <header className="cpv-reel__chrome">
-        <span style={{ color: "var(--ivory)" }}>
-          <CoProductionBrand priority />
-        </span>
-        <nav aria-label="Studio">
-          <Link href="/login" className="cpv-reel__client">
-            Client sign in
+      <header className={styles.header}>
+        <Link
+          className={styles.brand}
+          href="/login"
+          aria-label="Co‑VideoPro by Content Co-op sign in"
+        >
+          <CoProductionBrand className={styles.brandLockup} priority />
+        </Link>
+        <div className={styles.product}>
+          <span>Video production workspace</span>
+          <strong>Co‑VideoPro</strong>
+        </div>
+        <nav className={styles.nav} aria-label="Account">
+          <Link href="/login" className={styles.navLink}>
+            Sign in
           </Link>
         </nav>
       </header>
 
-      <section className="cpv-reel__copy">
-        <p className="cpv-eyebrow cpv-reveal">A Content Co-op studio · Est. for the work</p>
-        <h1 className="cpv-display cpv-reveal cpv-reveal--1">
-          The cinematic operating world for modern brand storytelling.
-        </h1>
-        <p className="cpv-deck cpv-reveal cpv-reveal--2">
-          Part independent film journal, part private client screening room,
-          part studio command center — beautiful work, clear creative
-          direction, and calm client confidence in one connected record.
-        </p>
-        <div className="cpv-reel__actions cpv-reveal cpv-reveal--3">
-          <Link href="/signup" className="cpv-btn cpv-btn--ivory">
-            Start a project <ArrowRight size={16} aria-hidden="true" />
-          </Link>
-          <Link href="/login?demo=1" className="cpv-btn cpv-btn--glass">
-            Enter the studio
-          </Link>
+      <section className={styles.workspace} id="welcome-content" tabIndex={-1} aria-label="Welcome">
+        <div className={styles.panel}>
+          <p className={styles.eyebrow}>Content Co-op</p>
+          <h1 className={styles.title}>Production and review in one workspace.</h1>
+          <p className={styles.deck}>
+            Plan shoots, share cuts, collect approvals, and deliver finals —
+            with a clear record from brief to handoff.
+          </p>
+          <div className={styles.actions}>
+            <Link href="/login" className={styles.primary}>
+              Sign in <ArrowRight size={16} aria-hidden="true" />
+            </Link>
+            <Link href="/signup" className={styles.secondary}>
+              Request access
+            </Link>
+          </div>
         </div>
       </section>
-
-      <ShowreelStage clips={REEL} />
-
-      <footer className="cpv-reel__foot">
-        <span>Create · Connect · Convert</span>
-        <span>Inquiry → Brief → Proposal → Production → Edit → Review → Delivery</span>
-      </footer>
     </main>
   );
 }

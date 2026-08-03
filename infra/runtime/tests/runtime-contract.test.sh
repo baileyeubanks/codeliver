@@ -155,10 +155,11 @@ SHA_B="bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
 create_release_fixture() {
   local release_id="$1"
   local sha="$2"
+  local package_name="${3:-co-deliver}"
   local release_dir="$APP_ROOT/releases/$release_id"
   local cache_dir="$APP_ROOT/state/cache/$release_id"
   /bin/mkdir -p "$release_dir/.next" "$release_dir/node_modules/next/dist/bin" "$cache_dir"
-  printf '{"name":"co-deliver"}\n' >"$release_dir/package.json"
+  printf '{"name":"%s"}\n' "$package_name" >"$release_dir/package.json"
   printf '{}\n' >"$release_dir/package-lock.json"
   printf '%s\n' "build-$release_id" >"$release_dir/.next/BUILD_ID"
   printf '%s\n' '#!/usr/bin/env node' >"$release_dir/node_modules/next/dist/bin/next"
@@ -173,6 +174,16 @@ create_release_fixture() {
 /bin/mkdir -p "$APP_ROOT/releases" "$APP_ROOT/state/cache"
 create_release_fixture release-a "$SHA_A"
 create_release_fixture release-b "$SHA_B"
+
+create_release_fixture release-videopro "$SHA_A" co-videopro
+env "${BASE_ENV[@]}" /bin/bash -c \
+  'source "$1"; validate_release release-videopro' _ "$RUNTIME_DIR/lib/runtime-common.sh" >/dev/null
+
+create_release_fixture release-unknown "$SHA_A" not-the-product
+if env "${BASE_ENV[@]}" /bin/bash -c \
+  'source "$1"; validate_release release-unknown' _ "$RUNTIME_DIR/lib/runtime-common.sh" >/dev/null 2>&1; then
+  fail_test "release name gate accepted an unknown package name"
+fi
 
 SWITCH_ENV=("${BASE_ENV[@]}" "CODELIVER_TEST_CANARY_COMMAND=/usr/bin/true")
 env "${SWITCH_ENV[@]}" "$RUNTIME_DIR/promote-release.sh" --release release-a --expected-current none >/dev/null

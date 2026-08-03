@@ -295,7 +295,8 @@ validate_release() {
   [[ -d "$expected_cache" && -w "$expected_cache" ]] || fail "external release cache must be writable"
 
   package_name="$("$NODE_BIN" -e 'const p=require(process.argv[1]); process.stdout.write(String(p.name || ""))' "$release_dir/package.json")"
-  [[ "$package_name" == "co-deliver" ]] || fail "release package name must be co-deliver"
+  [[ "$package_name" == "co-videopro" || "$package_name" == "co-deliver" ]] || \
+    fail "release package name must be co-videopro or co-deliver"
 
   if /usr/bin/find "$release_dir" -type f \( -name '.env' -o -name '.env.local' -o -name '.env.production' \) -print -quit | /usr/bin/grep -q .; then
     fail "release contains a private environment file"

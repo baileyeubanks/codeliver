@@ -117,6 +117,13 @@ interface ReviewPayload {
   watermark_enabled: boolean;
   watermark_text: string | null;
   workflow_mode: WorkflowMode | null;
+  /** Locked-delivery block (6.4); present only when the pinned version is in
+   * a locked delivery. */
+  delivery?: {
+    locked: boolean;
+    locked_at: string | null;
+    sha256: string | null;
+  } | null;
   invite: {
     id: string;
     view_count: number;
@@ -193,6 +200,7 @@ export default function PublicReviewPage() {
   const [permissions, setPermissions] = useState<SharePermission>("view");
   const [shareIntent, setShareIntent] = useState<ShareIntent>("client_review");
   const [workflowMode, setWorkflowMode] = useState<WorkflowMode | null>(null);
+  const [delivery, setDelivery] = useState<ReviewPayload["delivery"]>(null);
   const [reviewerName, setReviewerName] = useState("");
   const [reviewerEmail, setReviewerEmail] = useState<string | null>(null);
   const [selectedCommentId, setSelectedCommentId] = useState<string | null>(null);
@@ -560,6 +568,7 @@ export default function PublicReviewPage() {
         setPermissions(review.permissions);
         setShareIntent(review.share_intent);
         setWorkflowMode(review.workflow_mode);
+        setDelivery(review.delivery ?? null);
         setReviewerName(review.reviewer_name ?? "");
         setSelectedCommentId(initialSelection);
       } catch (loadError) {
@@ -1359,8 +1368,21 @@ export default function PublicReviewPage() {
               <span className="client-review-state-badge">
               {reviewState.label}
               </span>
+              {delivery?.locked ? (
+                <span
+                  className="client-review-state-badge"
+                  title={delivery.sha256 ? `Checksum ${delivery.sha256}` : undefined}
+                >
+                  Locked final delivery
+                </span>
+              ) : null}
               <span>{shareMeta.permissionsLabel}</span>
             </div>
+            {delivery?.locked && delivery.sha256 ? (
+              <p className="client-review-reviewer">
+                Checksum <strong>{delivery.sha256.slice(0, 12)}…</strong>
+              </p>
+            ) : null}
             {reviewerName || invite?.reviewer_name ? (
               <p className="client-review-reviewer">
                 Reviewing as <strong>{reviewerName || invite?.reviewer_name}</strong>

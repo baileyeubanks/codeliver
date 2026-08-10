@@ -26,9 +26,13 @@ export default function DeliveryList({ deliveries, projectNames }: DeliveryListP
                 {delivery.deliveredAt
                   ? ` · Delivered ${formatPortalDate(delivery.deliveredAt)}`
                   : ""}
+                {delivery.locked ? " · Locked" : ""}
               </p>
-              {delivery.formatChips.length > 0 ? (
+              {delivery.locked || delivery.formatChips.length > 0 ? (
                 <span className={styles.formatChips}>
+                  {delivery.locked ? (
+                    <span className={styles.formatChip}>Locked</span>
+                  ) : null}
                   {delivery.formatChips.map((chip) => (
                     <span className={styles.formatChip} key={chip}>
                       {chip}

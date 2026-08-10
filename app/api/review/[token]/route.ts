@@ -105,6 +105,43 @@ async function getReview(_req: Request, { params }: { params: Promise<{ token: s
     workflowMode: workflowResult.data?.mode ?? null,
   });
 
+  // Locked delivery (6.4): when the invite's pinned version is bound into a
+  // locked deliverable, the client sees the lock state and checksum.
+  const deliveryItemsResult = await supabase
+    .from("deliverable_items")
+    .select("deliverable_id, sha256")
+    .eq("version_id", versionLookup.version.id);
+  if (deliveryItemsResult.error) {
+    return reviewBackendUnavailable();
+  }
+  const deliveryItems = deliveryItemsResult.data ?? [];
+  let delivery: { locked: boolean; locked_at: string | null; sha256: string | null } | null =
+    null;
+  if (deliveryItems.length > 0) {
+    const deliverablesResult = await supabase
+      .from("deliverables")
+      .select("id, locked_at")
+      .in("id", [...new Set(deliveryItems.map((item) => item.deliverable_id))]);
+    if (deliverablesResult.error) {
+      return reviewBackendUnavailable();
+    }
+    const lockedAtByDeliverable = new Map(
+      (deliverablesResult.data ?? [])
+        .filter((row) => row.locked_at != null)
+        .map((row) => [row.id, row.locked_at as string]),
+    );
+    const lockedItem = deliveryItems.find((item) =>
+      lockedAtByDeliverable.has(item.deliverable_id),
+    );
+    if (lockedItem) {
+      delivery = {
+        locked: true,
+        locked_at: lockedAtByDeliverable.get(lockedItem.deliverable_id) ?? null,
+        sha256: lockedItem.sha256 ?? null,
+      };
+    }
+  }
+
   const mediaUrl = `/api/review/media/${authority.claims.admissionId}`;
 
   return reviewJson({
@@ -159,6 +196,7 @@ async function getReview(_req: Request, { params }: { params: Promise<{ token: s
     }),
     reviewer_name: invite.reviewer_name,
     expires_at: invite.expires_at,
+    delivery,
     download_enabled: invite.download_enabled ?? false,
     watermark_enabled: invite.watermark_enabled ?? true,
     watermark_text: invite.watermark_text,

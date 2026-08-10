@@ -45,6 +45,8 @@ export interface PortalDeliverableRef {
   spec: { resolution: string; codec: string; aspect: string };
   status: string;
   delivered_at: string | null;
+  /** Locked-delivery stamp (6.4); absent on records predating the lock. */
+  locked_at?: string | null;
 }
 
 export interface PortalShareLinkViewRef {
@@ -237,6 +239,8 @@ export interface PortalDelivery {
   projectId: string;
   formatChips: string[];
   deliveredAt: string | null;
+  /** True when the delivery was sealed by the locked-delivery command (6.4). */
+  locked: boolean;
   /** Real file under /public only; null renders "Available on request". */
   downloadHref: string | null;
 }
@@ -264,6 +268,7 @@ export function recentDeliveries(input: {
         deliverable.spec.resolution,
       ].filter(Boolean),
       deliveredAt: deliverable.delivered_at,
+      locked: deliverable.locked_at != null,
       downloadHref: null,
     });
   }
@@ -279,6 +284,7 @@ export function recentDeliveries(input: {
         (chip): chip is string => Boolean(chip),
       ),
       deliveredAt: asset.created_at,
+      locked: false,
       downloadHref: asset.file_url ?? null,
     });
   }

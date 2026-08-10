@@ -236,7 +236,7 @@ capability, not duplicate ownership.
 
 | Capability | Readiness | Route intent | Permission | Primary record | Audit |
 | --- | --- | --- | --- | --- | --- |
-| `delivery-assets.deliverables` | unavailable | none | `delivery:manage` | `planned.delivery_record` | unavailable |
+| `delivery-assets.deliverables` | guarded | project page | `delivery:manage` | `delivery_record` | after commit |
 | `delivery-assets.asset-library` | operational | library | `media:read` | `asset` | read-only |
 | `delivery-assets.permissions-sharing` | guarded | asset review action | `reviews:comment` | `review_invite` | after commit |
 | `delivery-assets.distribution` | unavailable | none | `delivery:manage` | `planned.distribution_record` | unavailable |

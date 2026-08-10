@@ -2,6 +2,10 @@ import { NextResponse } from "next/server";
 
 import { getProjectAccess } from "@/lib/access-control";
 import { getSupabaseDataSchema } from "@/lib/data-authority";
+import {
+  assertAssetNotLocked,
+  isAssetDeliveryLockedError,
+} from "@/lib/delivery/lock";
 import { getSupabase } from "@/lib/supabase";
 import { detectFileType } from "@/lib/utils/media";
 import {
@@ -246,6 +250,22 @@ export async function ensureCatalogAsset(
         "UPLOAD_STATE",
         "Committed upload is not clean and receipt-bound for V1 catalog attachment",
       );
+    }
+
+    // Locked-delivery guard (6.4): the only version-creation chokepoint
+    // refuses to add a version to an asset frozen in a locked delivery.
+    if (current.assetId) {
+      try {
+        await assertAssetNotLocked(current.assetId, supabase);
+      } catch (error) {
+        if (isAssetDeliveryLockedError(error)) {
+          throw new UploadOrchestrationError(
+            "UPLOAD_CONFLICT",
+            "Asset is part of a locked delivery",
+          );
+        }
+        throw error;
+      }
     }
 
     const { data, error } = await supabase

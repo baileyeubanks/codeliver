@@ -3,6 +3,10 @@ import {
   getAssetAccess,
   PROJECT_ROLE_RANK,
 } from "@/lib/access-control";
+import {
+  assertAssetNotLocked,
+  isAssetDeliveryLockedError,
+} from "@/lib/delivery/lock";
 import { getSupabase } from "@/lib/supabase";
 import { apiError, apiJson, backendUnavailable } from "@/lib/api/responses";
 
@@ -102,6 +106,17 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
   if (!assetAccess.ok) {
     if (assetAccess.status >= 500) return backendUnavailable();
     return apiError("Asset not found", "ASSET_ACCESS_DENIED", assetAccess.status);
+  }
+
+  // Locked-delivery guard (6.4): an asset frozen in a locked delivery accepts
+  // no further edits — this is the workflow GOVERNED_ASSET_STATUSES points at.
+  try {
+    await assertAssetNotLocked(id, supabase);
+  } catch (error) {
+    if (isAssetDeliveryLockedError(error)) {
+      return apiError("Asset is part of a locked delivery", "ASSET_LOCKED", 409);
+    }
+    return backendUnavailable();
   }
 
   const updates: Record<string, unknown> = {};
@@ -212,6 +227,23 @@ export async function DELETE(_req: Request, { params }: { params: Promise<{ id: 
   if (!assetAccess.ok) {
     if (assetAccess.status >= 500) return backendUnavailable();
     return apiError("Asset not found", "ASSET_ACCESS_DENIED", assetAccess.status);
+  }
+
+  // Locked-delivery guard (6.4): an asset frozen in a locked delivery cannot
+  // be deleted; the delivery's checksum record would outlive its media.
+  let supabase;
+  try {
+    supabase = getSupabase();
+  } catch {
+    return backendUnavailable();
+  }
+  try {
+    await assertAssetNotLocked(id, supabase);
+  } catch (error) {
+    if (isAssetDeliveryLockedError(error)) {
+      return apiError("Asset is part of a locked delivery", "ASSET_LOCKED", 409);
+    }
+    return backendUnavailable();
   }
 
   let result;

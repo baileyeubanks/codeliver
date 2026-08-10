@@ -36,7 +36,18 @@ const supabaseStubUrl = `data:text/javascript,${encodeURIComponent(`
         globalThis.__ccoUploadCatalogRpcCalls.push({ name, args });
         return globalThis.__ccoUploadCatalogRpcResult;
       },
-      from() {
+      from(table) {
+        // The locked-delivery guard may look up the asset's delivery state;
+        // every other table read must stay inside the one atomic RPC.
+        if (table === "deliverable_items" || table === "deliverables") {
+          const chain = {
+            select: () => chain,
+            eq: () => chain,
+            in: () => chain,
+            then: (resolve) => resolve({ data: [], error: null }),
+          };
+          return chain;
+        }
         throw new Error("upload catalog reconciliation must use one atomic RPC");
       }
     };

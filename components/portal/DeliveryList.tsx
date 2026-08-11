@@ -33,6 +33,11 @@ export default function DeliveryList({ deliveries, projectNames }: DeliveryListP
                   {delivery.locked ? (
                     <span className={styles.formatChip}>Locked</span>
                   ) : null}
+                  {delivery.locked && delivery.checksum ? (
+                    <span className={styles.formatChip}>
+                      sha256 {delivery.checksum.slice(0, 12)}…
+                    </span>
+                  ) : null}
                   {delivery.formatChips.map((chip) => (
                     <span className={styles.formatChip} key={chip}>
                       {chip}

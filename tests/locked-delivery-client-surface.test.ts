@@ -246,7 +246,7 @@ test("the public review page renders the locked badge and checksum for locked de
 
 /* ── portal projections ────────────────────────────────────────────────── */
 
-test("recentDeliveries marks locked delivery records and leaves others unlocked", async () => {
+test("recentDeliveries marks locked delivery records and carries their checksum", async () => {
   const { recentDeliveries } = await import("../lib/portal/views.ts");
   const deliveries = recentDeliveries({
     deliverables: [
@@ -258,6 +258,7 @@ test("recentDeliveries marks locked delivery records and leaves others unlocked"
         status: "delivered",
         delivered_at: "2026-08-11T12:00:00.000Z",
         locked_at: lockedAt,
+        items: [{ asset_id: "a1", version_id: "v1", sha256: checksum }],
       },
       {
         id: "del-legacy",
@@ -271,12 +272,25 @@ test("recentDeliveries marks locked delivery records and leaves others unlocked"
     assets: [],
   });
 
-  assert.equal(deliveries.find((delivery) => delivery.id === "del-locked")?.locked, true);
-  assert.equal(deliveries.find((delivery) => delivery.id === "del-legacy")?.locked, false);
+  const locked = deliveries.find((delivery) => delivery.id === "del-locked");
+  assert.equal(locked?.locked, true);
+  assert.equal(locked?.checksum, checksum);
+  const legacy = deliveries.find((delivery) => delivery.id === "del-legacy");
+  assert.equal(legacy?.locked, false);
+  assert.equal(legacy?.checksum, null);
 });
 
-test("the portal delivery list renders a lock indicator for locked deliveries", () => {
+test("the portal delivery list renders a lock indicator and checksum for locked deliveries", () => {
   const list = source("components/portal/DeliveryList.tsx");
   assert.match(list, /delivery\.locked/);
   assert.match(list, /Locked/);
+  assert.match(list, /delivery\.checksum/);
+  assert.match(list, /sha256/);
+});
+
+test("the portal home feeds deliveries from the canonical deliverables API", () => {
+  const home = source("components/portal/PortalHome.tsx");
+  assert.match(home, /fetch\(`\/api\/projects\/\$\{[^}]+\}\/deliverables`/);
+  const deliveriesBlock = home.match(/recentDeliveries\(\{[\s\S]*?\}\)/)?.[0] ?? "";
+  assert.doesNotMatch(deliveriesBlock, /workspace\.deliverables/);
 });

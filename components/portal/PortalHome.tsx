@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useDemoWorkspace } from "@/lib/demo/workspace-store";
 import { deriveActionItems } from "@/lib/portal/actions.ts";
 import { clientSafeActivity } from "@/lib/portal/activity.ts";
@@ -9,6 +9,7 @@ import {
   latestReviews,
   recentDeliveries,
   resolveClientIdentity,
+  type PortalDeliverableRef,
 } from "@/lib/portal/views.ts";
 import ActionItemsPanel from "./ActionItemsPanel";
 import ActivityFeed from "./ActivityFeed";
@@ -60,13 +61,45 @@ export default function PortalHome() {
       }),
     [workspace.assets, workspace.shareLinks],
   );
+  // Locked delivery (6.4): delivered packages — including their lock state
+  // and checksums — come from the canonical deliverables API for each active
+  // project, not the demo store. Unavailable/auth-less views degrade to the
+  // asset-driven rows only.
+  const [deliverables, setDeliverables] = useState<PortalDeliverableRef[]>([]);
+  useEffect(() => {
+    let cancelled = false;
+    const ids = projects.map((project) => project.id);
+    if (ids.length === 0) {
+      setDeliverables([]);
+      return;
+    }
+    Promise.all(
+      ids.map((id) =>
+        fetch(`/api/projects/${id}/deliverables`, { cache: "no-store" })
+          .then((response) =>
+            response.ok ? response.json() : { deliverables: [] },
+          )
+          .then(
+            (body: { deliverables?: PortalDeliverableRef[] }) =>
+              body.deliverables ?? [],
+          )
+          .catch(() => [] as PortalDeliverableRef[]),
+      ),
+    ).then((lists) => {
+      if (!cancelled) setDeliverables(lists.flat());
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [projects]);
+
   const deliveries = useMemo(
     () =>
       recentDeliveries({
-        deliverables: workspace.deliverables,
+        deliverables,
         assets: workspace.assets,
       }),
-    [workspace.deliverables, workspace.assets],
+    [deliverables, workspace.assets],
   );
   const events = useMemo(
     () => clientSafeActivity(workspace.activity),

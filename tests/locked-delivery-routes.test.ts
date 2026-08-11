@@ -243,8 +243,11 @@ type DeliveryTestGlobal = typeof globalThis & {
 
 const state = globalThis as DeliveryTestGlobal;
 
-function configure(tables: Record<string, Row[]> = {}) {
-  const supabase = new FakeSupabase(tables);
+function configure(
+  tables: Record<string, Row[]> = {},
+  errors: Record<string, string> = {},
+) {
+  const supabase = new FakeSupabase(tables, errors);
   state.__ccoDeliveryRouteUser = { id: "user-a", email: "user-a@example.test" };
   state.__ccoDeliverySupabase = supabase;
   state.__ccoDeliveryProjectAccessCalls = [];
@@ -558,6 +561,61 @@ test("the lock command requires a concluded approval workflow on every bound ass
     assert.equal(body.code, "DELIVERY_APPROVAL_REQUIRED");
     assert.equal(supabase.writes.length, 0, blockingStatus);
   }
+});
+
+test("an empty delivery cannot be locked", async () => {
+  const supabase = configure({
+    deliverables: [speccedDeliverable()],
+    deliverable_items: [],
+  });
+  const { PATCH } = await detailRoute();
+
+  const response = await PATCH(
+    jsonRequest(`/api/projects/${projectId}/deliverables/${deliverableId}`, "PATCH", {
+      status: "delivered",
+    }),
+    { params: Promise.resolve({ id: projectId, deliverableId }) },
+  );
+
+  assert.equal(response.status, 409);
+  const body = await response.json();
+  assert.equal(body.code, "DELIVERY_EMPTY");
+  assert.equal(supabase.writes.length, 0);
+});
+
+test("a failed audit append rolls the lock back", async () => {
+  const supabase = configure(
+    {
+      deliverables: [speccedDeliverable()],
+      deliverable_items: [
+        { id: "item-1", deliverable_id: deliverableId, asset_id: assetA, version_id: versionA },
+      ],
+      approvals: approvedApprovals(),
+    },
+    { "activity_log:insert": "audit sink unavailable" },
+  );
+  const { PATCH } = await detailRoute();
+
+  const response = await PATCH(
+    jsonRequest(`/api/projects/${projectId}/deliverables/${deliverableId}`, "PATCH", {
+      status: "delivered",
+    }),
+    { params: Promise.resolve({ id: projectId, deliverableId }) },
+  );
+
+  assert.equal(response.status, 503);
+  // The lock write went out, the audit failed, and the compensating write
+  // restored the pre-lock row: no lock without a receipt.
+  const deliverableWrites = supabase.writes.filter(
+    (write) => write.table === "deliverables",
+  );
+  assert.equal(deliverableWrites.length, 2);
+  assert.equal((deliverableWrites[1]?.payload as Row).locked_at, null);
+  assert.equal((deliverableWrites[1]?.payload as Row).status, "ready");
+  const row = supabase.tables.deliverables[0]!;
+  assert.equal(row.status, "ready");
+  assert.equal(row.locked_at, null);
+  assert.equal(row.approval_id, null);
 });
 
 test("an already-locked delivery cannot be re-locked", async () => {  const supabase = configure({

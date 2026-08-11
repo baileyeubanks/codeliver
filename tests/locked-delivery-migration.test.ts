@@ -57,6 +57,19 @@ test("a locked delivery's item set is immutable via trigger", () => {
   );
 });
 
+test("the item guard checks both the OLD and NEW parent on UPDATE", () => {
+  // An UPDATE that re-parents an item must not escape the lock by checking
+  // only the target delivery (F5).
+  assert.match(
+    migration,
+    /TG_OP IN \('UPDATE', 'DELETE'\)[\s\S]*OLD\.deliverable_id[\s\S]*d\.locked_at IS NOT NULL/,
+  );
+  assert.match(
+    migration,
+    /TG_OP IN \('INSERT', 'UPDATE'\)[\s\S]*NEW\.deliverable_id[\s\S]*d\.locked_at IS NOT NULL/,
+  );
+});
+
 test("deliverable_items is RLS-forced with an owner-scoped select policy", () => {
   assert.match(
     migration,

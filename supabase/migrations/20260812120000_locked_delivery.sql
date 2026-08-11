@@ -37,19 +37,25 @@ CREATE INDEX IF NOT EXISTS idx_deliverable_items_version
   ON co_production.deliverable_items(version_id);
 
 -- A locked delivery's version set is immutable: no INSERT, UPDATE, or DELETE
--- on its items once locked_at is stamped.
+-- on its items once locked_at is stamped. UPDATE checks both parents so an
+-- item can neither escape a locked delivery nor be moved into one.
 CREATE OR REPLACE FUNCTION co_production.reject_locked_deliverable_item_mutation()
 RETURNS trigger
 LANGUAGE plpgsql
 AS $$
-DECLARE
-  parent_id uuid := COALESCE(NEW.deliverable_id, OLD.deliverable_id);
 BEGIN
-  IF EXISTS (
+  IF TG_OP IN ('UPDATE', 'DELETE') AND EXISTS (
     SELECT 1 FROM co_production.deliverables d
-    WHERE d.id = parent_id AND d.locked_at IS NOT NULL
+    WHERE d.id = OLD.deliverable_id AND d.locked_at IS NOT NULL
   ) THEN
-    RAISE EXCEPTION 'deliverable % is locked; its version set is immutable', parent_id
+    RAISE EXCEPTION 'deliverable % is locked; its version set is immutable', OLD.deliverable_id
+      USING ERRCODE = '23514';
+  END IF;
+  IF TG_OP IN ('INSERT', 'UPDATE') AND EXISTS (
+    SELECT 1 FROM co_production.deliverables d
+    WHERE d.id = NEW.deliverable_id AND d.locked_at IS NOT NULL
+  ) THEN
+    RAISE EXCEPTION 'deliverable % is locked; its version set is immutable', NEW.deliverable_id
       USING ERRCODE = '23514';
   END IF;
   RETURN COALESCE(NEW, OLD);

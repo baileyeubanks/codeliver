@@ -743,7 +743,10 @@ test("bulk move rejects a destination folder from another project", async () => 
   );
 
   assert.equal(response.status, 404);
-  assert.deepEqual(supabase.reads[1]?.filters, [
+  // reads[0] authorizes the selection; the locked-delivery guard reads
+  // deliverable_items/deliverables next (6.4); the folder tenant check is last.
+  const folderRead = supabase.reads.find((read) => read.table === "folders");
+  assert.deepEqual(folderRead?.filters, [
     { operator: "eq", column: "id", value: "folder-b" },
     { operator: "eq", column: "project_id", value: projectA },
   ]);

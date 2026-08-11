@@ -58,6 +58,9 @@ registerHooks({
     if (specifier === "@/lib/access-control") return nextResolve(accessStubUrl, context);
     if (specifier === "@/lib/supabase") return nextResolve(supabaseStubUrl, context);
     if (specifier === "@/lib/data-authority") return nextResolve(dataAuthorityStubUrl, context);
+    if (specifier.endsWith("asset-route-boundary")) {
+      return nextResolve(`${specifier}.ts`, context);
+    }
     if (specifier.startsWith("@/")) {
       const base = resolve(repositoryRoot, specifier.slice(2));
       const path = extname(base)
@@ -111,6 +114,12 @@ class FakeQuery {
   }
 
   insert(payload: unknown) {
+    this.operation = "insert";
+    this.payload = payload;
+    return this;
+  }
+
+  upsert(payload: unknown) {
     this.operation = "insert";
     this.payload = payload;
     return this;
@@ -529,4 +538,92 @@ test("DELETE on an unlocked asset still applies", async () => {
   );
 
   assert.equal(response.status, 200);
+});
+
+/* ── bulk asset route guards (F1) ──────────────────────────────────────── */
+
+const assetB = "asset-b";
+
+async function bulkRoute() {
+  return import(
+    pathToFileURL(resolve(repositoryRoot, "app/api/assets/bulk/route.ts")).href
+  );
+}
+
+function bulkRequest(body: unknown) {
+  return new NextRequest("https://admin.contentco-op.com/api/assets/bulk", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify(body),
+  });
+}
+
+function bulkTables() {
+  return {
+    assets: [
+      { id: assetA, project_id: projectA, title: "Locked master", status: "approved" },
+      { id: assetB, project_id: projectA, title: "Working cut", status: "in_review" },
+    ],
+    folders: [{ id: "folder-a", project_id: projectA }],
+    tags: [{ id: "tag-a", project_id: projectA, name: "Launch" }],
+    deliverables: [
+      {
+        id: deliverableId,
+        project_id: projectA,
+        status: "delivered",
+        locked_at: "2026-08-11T12:00:00.000Z",
+      },
+    ],
+    deliverable_items: [
+      { id: "item-1", deliverable_id: deliverableId, asset_id: assetA, version_id: versionA },
+    ],
+  };
+}
+
+for (const action of ["move", "delete", "restore"] as const) {
+  test(`bulk ${action} rejects locked assets with 409 ASSET_LOCKED and performs no writes`, async () => {
+    const supabase = configure(bulkTables());
+    const { POST } = await bulkRoute();
+
+    const response = await POST(
+      bulkRequest({
+        action,
+        asset_ids: [assetA, assetB],
+        ...(action === "move" ? { folder_id: "folder-a" } : {}),
+      }),
+    );
+
+    assert.equal(response.status, 409, action);
+    const body = await response.json();
+    assert.equal(body.code, "ASSET_LOCKED");
+    assert.deepEqual(body.asset_ids, [assetA]);
+    assert.equal(supabase.writes.length, 0, `${action} must not write`);
+    assert.equal(supabase.tables.assets[0]?.deleted_at, undefined);
+    assert.equal(supabase.tables.assets[1]?.deleted_at, undefined);
+  });
+}
+
+test("bulk move still applies when no selected asset is locked", async () => {
+  const supabase = configure(bulkTables());
+  const { POST } = await bulkRoute();
+
+  const response = await POST(
+    bulkRequest({ action: "move", asset_ids: [assetB], folder_id: "folder-a" }),
+  );
+
+  assert.equal(response.status, 200);
+  assert.equal(supabase.tables.assets[1]?.folder_id, "folder-a");
+});
+
+test("bulk tag does not mutate the asset record and stays allowed on locked assets", async () => {
+  const supabase = configure(bulkTables());
+  const { POST } = await bulkRoute();
+
+  const response = await POST(
+    bulkRequest({ action: "tag", asset_ids: [assetA], tag_id: "tag-a" }),
+  );
+
+  assert.equal(response.status, 200);
+  assert.equal(supabase.writes.length, 1);
+  assert.equal(supabase.writes[0]?.table, "asset_tags");
 });

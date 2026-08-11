@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getProjectAccess } from "@/lib/access-control";
 import { requireAuth } from "@/lib/auth";
+import { findLockedAssetIds } from "@/lib/delivery/lock";
 import { getSupabase } from "@/lib/supabase";
 import { apiError, apiJson } from "@/lib/api/responses";
 import { withAssetRouteBoundary } from "../asset-route-boundary";
@@ -201,6 +202,28 @@ async function POSTHandler(request: NextRequest) {
   const supabase = getSupabase();
   const access = await authorizeBulkAssets(assetIds, user.id, supabase);
   if (!access.ok) return access.response;
+
+  // Locked-delivery guard (6.4): bulk mutations of the asset record reject
+  // any selection bound into a locked delivery. Tagging writes asset_tags
+  // rows, not the asset record, so it stays allowed.
+  if (action !== "tag") {
+    let lockedAssetIds: string[];
+    try {
+      lockedAssetIds = await findLockedAssetIds(access.assetIds, supabase);
+    } catch {
+      return errorResponse("Unable to process bulk asset request", 500);
+    }
+    if (lockedAssetIds.length > 0) {
+      return apiJson(
+        {
+          error: "Assets are part of a locked delivery",
+          code: "ASSET_LOCKED",
+          asset_ids: lockedAssetIds,
+        },
+        { status: 409 },
+      );
+    }
+  }
 
   if (action === "move" && folderId) {
     const destination = await validateDestination(

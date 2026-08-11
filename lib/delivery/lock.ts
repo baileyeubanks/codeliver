@@ -27,28 +27,48 @@ export function isAssetDeliveryLockedError(
   return error instanceof AssetDeliveryLockedError;
 }
 
-export async function assertAssetNotLocked(
-  assetId: string,
+export async function findLockedAssetIds(
+  assetIds: string[],
   client: DataClient,
-): Promise<void> {
+): Promise<string[]> {
+  if (assetIds.length === 0) return [];
+
   const items = await client
     .from("deliverable_items")
-    .select("deliverable_id")
-    .eq("asset_id", assetId);
+    .select("asset_id, deliverable_id")
+    .in("asset_id", assetIds);
   if (items.error) throw new BackendUnavailableError("Locked delivery lookup");
 
-  const deliverableIds = [
-    ...new Set((items.data ?? []).map((row) => row.deliverable_id as string)),
-  ];
-  if (deliverableIds.length === 0) return;
+  const rows = items.data ?? [];
+  if (rows.length === 0) return [];
 
+  const deliverableIds = [
+    ...new Set(rows.map((row) => row.deliverable_id as string)),
+  ];
   const { data, error } = await client
     .from("deliverables")
     .select("id, locked_at")
     .in("id", deliverableIds);
   if (error) throw new BackendUnavailableError("Locked delivery lookup");
 
-  if ((data ?? []).some((row) => row.locked_at != null)) {
-    throw new AssetDeliveryLockedError(assetId);
-  }
+  const lockedDeliverableIds = new Set(
+    (data ?? [])
+      .filter((row) => row.locked_at != null)
+      .map((row) => row.id as string),
+  );
+  return [
+    ...new Set(
+      rows
+        .filter((row) => lockedDeliverableIds.has(row.deliverable_id as string))
+        .map((row) => row.asset_id as string),
+    ),
+  ];
+}
+
+export async function assertAssetNotLocked(
+  assetId: string,
+  client: DataClient,
+): Promise<void> {
+  const locked = await findLockedAssetIds([assetId], client);
+  if (locked.length > 0) throw new AssetDeliveryLockedError(assetId);
 }

@@ -315,14 +315,12 @@ test("brief panel edit creates a new version through saveBrief (append, never ov
 /* Deliverables panel                                                         */
 /* -------------------------------------------------------------------------- */
 
-test("deliverables panel rolls up statuses and links rows to the real review surface", () => {
+test("deliverables panel feeds export rows from the canonical API and media rows from the store", () => {
   fixtureWorkspace = baseWorkspace();
   const markup = render(resolve(repositoryRoot, "components/projects/ProjectDeliverablesPanel.tsx"), { projectId: "ica" });
 
-  assert.ok(markup.includes("ICA_ROADSHOW_MASTER_16x9.mov"), "export row renders");
+  // Media rows project live assets from the workspace store.
   assert.ok(markup.includes("Denie McDonald_v4"), "media row renders");
-  assert.ok(markup.includes("1 delivered"), "rollup counts delivered");
-  assert.ok(markup.includes("1 in qc"), "rollup counts QC");
   assert.ok(
     markup.includes('href="/projects/ica?demo=1&amp;asset=ica-roadshow-final&amp;view=review"'),
     "review link points at the real review surface",
@@ -330,6 +328,12 @@ test("deliverables panel rolls up statuses and links rows to the real review sur
   assert.ok(markup.includes("1:11"), "duration formats as m:ss");
   assert.ok(markup.includes("Not scheduled"), "no invented due dates");
   assert.ok(!/markup_pct|margin|unit_rate/i.test(markup), "no internal margin vocabulary");
+
+  // Locked delivery (6.4): export rows come from the deliverables API (SSR
+  // markup carries no effect-fed rows), never from the demo store.
+  const source = readFileSync(resolve(repositoryRoot, "components/projects/ProjectDeliverablesPanel.tsx"), "utf8");
+  assert.match(source, /fetch\(`\/api\/projects\/\$\{projectId\}\/deliverables`/);
+  assert.doesNotMatch(source, /workspace\.deliverables/);
 });
 
 /* -------------------------------------------------------------------------- */

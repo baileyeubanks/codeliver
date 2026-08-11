@@ -70,7 +70,17 @@ registerHooks({
           : `${base}.tsx`;
       return nextResolve(pathToFileURL(path).href, context);
     }
-    return nextResolve(specifier, context);
+    try {
+      return nextResolve(specifier, context);
+    } catch (error) {
+      if (
+        (specifier.startsWith("./") || specifier.startsWith("../")) &&
+        !extname(specifier)
+      ) {
+        return nextResolve(`${specifier}.ts`, context);
+      }
+      throw error;
+    }
   },
 });
 
@@ -207,7 +217,8 @@ class FakeQuery {
       const rows = (Array.isArray(this.payload) ? this.payload : [this.payload]) as Row[];
       this.database.tables[this.table] ??= [];
       for (const row of rows) this.database.tables[this.table].push({ ...row });
-      return { data: rows.map((row) => ({ ...row })), error: null };
+      const data = rows.map((row) => ({ ...row }));
+      return { data: single ? (data[0] ?? null) : data, error: null };
     }
 
     const matches = new Set(this.matchingRows());
@@ -626,4 +637,74 @@ test("bulk tag does not mutate the asset record and stays allowed on locked asse
   assert.equal(response.status, 200);
   assert.equal(supabase.writes.length, 1);
   assert.equal(supabase.writes[0]?.table, "asset_tags");
+});
+
+/* ── transcode enqueue guard (F2) ──────────────────────────────────────── */
+
+const transcodeAsset = "33333333-3333-4333-8333-333333333333";
+
+async function transcodeRoute() {
+  return import(
+    pathToFileURL(resolve(repositoryRoot, "app/api/media/transcode/route.ts")).href
+  );
+}
+
+function transcodeTables(locked: boolean) {
+  return {
+    assets: [
+      {
+        id: transcodeAsset,
+        project_id: projectA,
+        title: "Master",
+        status: "approved",
+        nas_path: "tenants/a/master.mov",
+        file_url: null,
+      },
+    ],
+    deliverables: [
+      {
+        id: deliverableId,
+        project_id: projectA,
+        status: locked ? "delivered" : "ready",
+        locked_at: locked ? "2026-08-11T12:00:00.000Z" : null,
+      },
+    ],
+    deliverable_items: [
+      { id: "item-1", deliverable_id: deliverableId, asset_id: transcodeAsset, version_id: versionA },
+    ],
+  };
+}
+
+function transcodeRequest() {
+  return new NextRequest("https://admin.contentco-op.com/api/media/transcode", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ assetId: transcodeAsset }),
+  });
+}
+
+test("transcode enqueue rejects an asset in a locked delivery with 409 and no writes", async () => {
+  const supabase = configure(transcodeTables(true));
+  const { POST } = await transcodeRoute();
+
+  const response = await POST(transcodeRequest());
+
+  assert.equal(response.status, 409);
+  const body = await response.json();
+  assert.equal(body.code, "ASSET_LOCKED");
+  assert.equal(supabase.writes.length, 0, "no job insert and no status flip");
+});
+
+test("transcode enqueue still applies when the asset is not locked", async () => {
+  const supabase = configure(transcodeTables(false));
+  const { POST } = await transcodeRoute();
+
+  const response = await POST(transcodeRequest());
+
+  assert.equal(response.status, 202);
+  assert.ok(
+    supabase.writes.some((write) => write.table === "transcode_jobs"),
+    "job enqueued",
+  );
+  assert.equal(supabase.tables.assets[0]?.status, "processing");
 });

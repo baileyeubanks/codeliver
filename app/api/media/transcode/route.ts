@@ -12,6 +12,7 @@ import { apiJson } from "@/lib/api/responses";
 
 import { getAssetAccess } from "@/lib/access-control";
 import { requireAuth } from "@/lib/auth";
+import { isAssetDeliveryLockedError } from "@/lib/delivery/lock";
 import { getSupabase } from "@/lib/supabase";
 import {
   claimNextJob,
@@ -50,8 +51,11 @@ type SafeTranscodeJob = Pick<
 >;
 
 class JsonRequestError extends Error {
-  constructor(readonly status: 400 | 413 | 415) {
+  readonly status: 400 | 413 | 415;
+
+  constructor(status: 400 | 413 | 415) {
     super("Invalid JSON request");
+    this.status = status;
   }
 }
 
@@ -325,7 +329,13 @@ export async function POST(req: NextRequest) {
     }
 
     return json({ job: safeJob(job) }, 202);
-  } catch {
+  } catch (error) {
+    if (isAssetDeliveryLockedError(error)) {
+      return json(
+        { error: "Asset is part of a locked delivery", code: "ASSET_LOCKED" },
+        409,
+      );
+    }
     return json({ error: "Transcode request is unavailable" }, 503);
   }
 }

@@ -243,6 +243,14 @@ capability, not duplicate ownership.
 | `delivery-assets.project-archive` | operational | archive | `projects:read` | `project` | read-only |
 | `delivery-assets.archive-compliance` | unavailable | none | `delivery:manage` | `planned.compliance_record` | unavailable |
 
+Locked-delivery residual gap (6.4): approval steps are asset-scoped, not
+version-scoped. The lock command requires every bound asset to have a
+concluded, positive approval workflow (no pending or blocking steps), but a
+version uploaded after that conclusion still inherits the asset's approval
+state until the upload lock guard applies. The lock binds exact
+`version_id`s with checksums, so the delivered bytes are frozen; what the
+schema cannot yet express is per-version sign-off.
+
 ### Human + Agent Loop
 
 | Capability | Readiness | Route intent | Permission | Primary record | Audit |

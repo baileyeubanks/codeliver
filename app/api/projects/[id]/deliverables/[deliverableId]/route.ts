@@ -5,6 +5,13 @@ import { getSupabase } from "@/lib/supabase";
 
 const POSITIVE_APPROVAL_STATUSES = new Set(["approved", "approved_with_changes"]);
 
+// A workflow is only concluded when no step is still open or blocking.
+const UNCONCLUDED_APPROVAL_STATUSES = new Set([
+  "pending",
+  "changes_requested",
+  "rejected",
+]);
+
 async function authenticatedUser() {
   try {
     const user = await requireAuth();
@@ -85,9 +92,11 @@ export async function PATCH(
       );
     }
 
-    // 6.3 evidence: every bound asset needs a positive approval before the
-    // delivery can lock; the most recent positive approval is recorded as
-    // the lock's approval_id.
+    // 6.3 evidence: every bound asset needs a concluded, positive approval
+    // workflow before the delivery can lock — a positive step alongside a
+    // pending or blocking step does not count. Approvals are asset-scoped
+    // (not version-scoped); the residual gap is documented in
+    // docs/strategy/co-produce-lifecycle-contract.md.
     const assetIds = [...new Set(items.map((item) => item.asset_id))];
     const { data: approvals, error: approvalsError } = await supabase
       .from("approvals")
@@ -95,19 +104,32 @@ export async function PATCH(
       .in("asset_id", assetIds);
     if (approvalsError) return backendUnavailable();
 
-    const positiveApprovals = (approvals ?? []).filter((approval) =>
-      POSITIVE_APPROVAL_STATUSES.has(approval.status as string),
-    );
-    const approvedAssetIds = new Set(
-      positiveApprovals.map((approval) => approval.asset_id),
-    );
-    if (assetIds.some((assetId) => !approvedAssetIds.has(assetId))) {
+    const approvalsByAsset = new Map<string, NonNullable<typeof approvals>>();
+    for (const assetId of assetIds) approvalsByAsset.set(assetId, []);
+    for (const approval of approvals ?? []) {
+      approvalsByAsset.get(approval.asset_id as string)?.push(approval);
+    }
+    const inconclusive = assetIds.filter((assetId) => {
+      const steps = approvalsByAsset.get(assetId) ?? [];
+      return (
+        !steps.some((step) =>
+          POSITIVE_APPROVAL_STATUSES.has(step.status as string),
+        ) ||
+        steps.some((step) =>
+          UNCONCLUDED_APPROVAL_STATUSES.has(step.status as string),
+        )
+      );
+    });
+    if (inconclusive.length > 0) {
       return apiError(
-        "Every asset in a locked delivery requires a positive approval",
+        "Every asset in a locked delivery requires a concluded, positive approval workflow",
         "DELIVERY_APPROVAL_REQUIRED",
         409,
       );
     }
+    const positiveApprovals = (approvals ?? []).filter((approval) =>
+      POSITIVE_APPROVAL_STATUSES.has(approval.status as string),
+    );
     const evidenceApproval = [...positiveApprovals].sort((left, right) =>
       String(right.decided_at ?? "").localeCompare(String(left.decided_at ?? "")),
     )[0];

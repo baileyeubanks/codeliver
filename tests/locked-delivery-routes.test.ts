@@ -520,8 +520,47 @@ test("the lock command requires a positive approval on every bound asset", async
   assert.equal(supabase.tables.deliverables[0]?.locked_at, null);
 });
 
-test("an already-locked delivery cannot be re-locked", async () => {
-  const supabase = configure({
+test("the lock command requires a concluded approval workflow on every bound asset", async () => {
+  // F3: a positive step does not conclude the workflow while another step on
+  // the same asset is pending or blocking.
+  for (const blockingStatus of ["changes_requested", "pending"] as const) {
+    const supabase = configure({
+      deliverables: [speccedDeliverable()],
+      deliverable_items: [
+        { id: "item-1", deliverable_id: deliverableId, asset_id: assetA, version_id: versionA },
+      ],
+      approvals: [
+        {
+          id: approvalA,
+          asset_id: assetA,
+          status: "approved",
+          decided_at: "2026-08-11T10:00:00.000Z",
+        },
+        {
+          id: "approval-blocking",
+          asset_id: assetA,
+          status: blockingStatus,
+          decided_at: blockingStatus === "pending" ? null : "2026-08-11T11:00:00.000Z",
+        },
+      ],
+    });
+    const { PATCH } = await detailRoute();
+
+    const response = await PATCH(
+      jsonRequest(`/api/projects/${projectId}/deliverables/${deliverableId}`, "PATCH", {
+        status: "delivered",
+      }),
+      { params: Promise.resolve({ id: projectId, deliverableId }) },
+    );
+
+    assert.equal(response.status, 409, blockingStatus);
+    const body = await response.json();
+    assert.equal(body.code, "DELIVERY_APPROVAL_REQUIRED");
+    assert.equal(supabase.writes.length, 0, blockingStatus);
+  }
+});
+
+test("an already-locked delivery cannot be re-locked", async () => {  const supabase = configure({
     deliverables: [
       speccedDeliverable({
         status: "delivered",

@@ -1,4 +1,7 @@
 -- Co-VideoPro — Migration: Commercial handoff fields
+-- (Amended in place 2026-08-11, pre-application: added the partial unique
+-- indexes below. Safe only because this file has never been applied anywhere —
+-- do NOT amend after it lands on any environment.)
 -- Task 4.1: CCO OS hands accepted commercial packages to Co-VideoPro by
 -- writing co_production organizations/contacts/inquiries/projects through the
 -- shared Supabase project's service role (mirrors the inquiry→project convert

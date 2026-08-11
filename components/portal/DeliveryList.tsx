@@ -34,7 +34,7 @@ export default function DeliveryList({ deliveries, projectNames }: DeliveryListP
                     <span className={styles.formatChip}>Locked</span>
                   ) : null}
                   {delivery.locked && delivery.checksum ? (
-                    <span className={styles.formatChip}>
+                    <span className={styles.formatChip} title={`Checksum ${delivery.checksum}`}>
                       sha256 {delivery.checksum.slice(0, 12)}…
                     </span>
                   ) : null}

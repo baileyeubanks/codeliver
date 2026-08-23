@@ -458,6 +458,11 @@ export async function proxy(req: NextRequest) {
       );
     }
 
+    const approvedHost = resolveApprovedSurfaceHost(host);
+    if (pathname === "/" && approvedHost) {
+      return NextResponse.redirect(new URL("/welcome", `https://${approvedHost}`));
+    }
+
     const loginUrl = buildLoginUrl(req);
     loginUrl.searchParams.set("next", pathnameWithSanitizedQuery);
     return NextResponse.redirect(loginUrl);

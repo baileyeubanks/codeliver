@@ -178,6 +178,104 @@ test("one login path carries only a safe local return target", () => {
   );
 });
 
+test("signed-out production root opens welcome without weakening workspace boundaries", async () => {
+  const previousUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const previousKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  process.env.NEXT_PUBLIC_SUPABASE_URL = "https://auth.test";
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = "test-anon-key";
+
+  try {
+    const { proxy } = await import(
+      pathToFileURL(resolve(repositoryRoot, "proxy.ts")).href
+    );
+
+    runtimeState.__ccoHostSurfaceGetUserCalls = 0;
+    runtimeState.__ccoHostSurfaceError = null;
+    runtimeState.__ccoHostSurfaceUser = null;
+
+    const signedOutRoot = await proxy(
+      new NextRequest(`https://${LEGACY_ADMIN_SURFACE_HOST}/`, {
+        headers: { host: LEGACY_ADMIN_SURFACE_HOST },
+      }),
+    );
+    assert.equal(signedOutRoot.status, 307);
+    assert.equal(
+      signedOutRoot.headers.get("location"),
+      `https://${LEGACY_ADMIN_SURFACE_HOST}/welcome`,
+    );
+    assert.equal(runtimeState.__ccoHostSurfaceGetUserCalls, 1);
+
+    runtimeState.__ccoHostSurfaceUser = {
+      app_metadata: { content_coop_role: "staff" },
+    };
+    const signedInRoot = await proxy(
+      new NextRequest(`https://${LEGACY_ADMIN_SURFACE_HOST}/`, {
+        headers: { host: LEGACY_ADMIN_SURFACE_HOST },
+      }),
+    );
+    assert.equal(signedInRoot.status, 200);
+    assert.equal(signedInRoot.headers.get("x-middleware-next"), "1");
+
+    runtimeState.__ccoHostSurfaceUser = null;
+    const protectedPage = await proxy(
+      new NextRequest(`https://${LEGACY_ADMIN_SURFACE_HOST}/projects/active?view=review`, {
+        headers: { host: LEGACY_ADMIN_SURFACE_HOST },
+      }),
+    );
+    assert.equal(protectedPage.status, 307);
+    assert.equal(
+      protectedPage.headers.get("location"),
+      `https://${LEGACY_ADMIN_SURFACE_HOST}/login?next=%2Fprojects%2Factive%3Fview%3Dreview`,
+    );
+
+    const protectedApi = await proxy(
+      new NextRequest(`https://${LEGACY_ADMIN_SURFACE_HOST}/api/projects`, {
+        headers: { host: LEGACY_ADMIN_SURFACE_HOST },
+      }),
+    );
+    assert.equal(protectedApi.status, 401);
+    assert.equal(protectedApi.headers.get("cache-control"), "no-store");
+    assert.deepEqual(await protectedApi.json(), {
+      error: "Authentication required",
+      code: "AUTH_REQUIRED",
+    });
+
+    const authCallsBeforePublicWelcome = runtimeState.__ccoHostSurfaceGetUserCalls;
+    const publicWelcome = await proxy(
+      new NextRequest(`https://${LEGACY_ADMIN_SURFACE_HOST}/welcome`, {
+        headers: { host: LEGACY_ADMIN_SURFACE_HOST },
+      }),
+    );
+    assert.equal(publicWelcome.status, 200);
+    assert.equal(publicWelcome.headers.get("x-middleware-next"), "1");
+    assert.equal(
+      runtimeState.__ccoHostSurfaceGetUserCalls,
+      authCallsBeforePublicWelcome,
+    );
+
+    const authCallsBeforeUnapprovedHost = runtimeState.__ccoHostSurfaceGetUserCalls;
+    const unapprovedRoot = await proxy(
+      new NextRequest("https://deliver.contentco-op.com/", {
+        headers: { host: "deliver.contentco-op.com" },
+      }),
+    );
+    assert.equal(unapprovedRoot.status, 403);
+    assert.equal(unapprovedRoot.headers.get("location"), null);
+    assert.equal(
+      runtimeState.__ccoHostSurfaceGetUserCalls,
+      authCallsBeforeUnapprovedHost,
+    );
+  } finally {
+    runtimeState.__ccoHostSurfaceGetUserCalls = undefined;
+    runtimeState.__ccoHostSurfaceUser = undefined;
+    runtimeState.__ccoHostSurfaceError = undefined;
+    if (previousUrl === undefined) delete process.env.NEXT_PUBLIC_SUPABASE_URL;
+    else process.env.NEXT_PUBLIC_SUPABASE_URL = previousUrl;
+    if (previousKey === undefined) delete process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+    else process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = previousKey;
+  }
+});
+
 test("proxy routes verified identities and denies untrusted managed-surface access", async () => {
   const previousUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const previousKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
@@ -449,7 +547,7 @@ test("proxy routes verified identities and denies untrusted managed-surface acce
     assert.equal(missingCookie.status, 307);
     assert.equal(
       new URL(missingCookie.headers.get("location") ?? "").pathname,
-      LOGIN_PATH,
+      "/welcome",
     );
 
     runtimeState.__ccoHostSurfaceError = new Error("provider unavailable");

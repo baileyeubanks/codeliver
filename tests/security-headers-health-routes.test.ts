@@ -116,6 +116,24 @@ test("global headers remove framework metadata and preserve review media capabil
   assert.equal(headers.get("Permissions-Policy"), "camera=(), geolocation=(), microphone=()");
 
   const contentSecurityPolicy = headers.get("Content-Security-Policy") ?? "";
+  assert.equal(
+    contentSecurityPolicy,
+    [
+      "default-src 'self'",
+      "base-uri 'self'",
+      "form-action 'self'",
+      "object-src 'none'",
+      "script-src 'self' 'unsafe-inline' https://static.cloudflareinsights.com",
+      "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+      "font-src 'self' data: https://fonts.gstatic.com",
+      "img-src 'self' blob: data: https:",
+      "media-src 'self' blob: data: https:",
+      "connect-src 'self' https: wss: https://cloudflareinsights.com",
+      "worker-src 'self' blob:",
+      "frame-src 'self' blob: data: https:",
+      "frame-ancestors 'none'",
+    ].join("; "),
+  );
   assert.match(contentSecurityPolicy, /media-src 'self' blob: data: https:/);
   assert.match(contentSecurityPolicy, /worker-src 'self' blob:/);
   assert.match(contentSecurityPolicy, /frame-src 'self' blob: data: https:/);

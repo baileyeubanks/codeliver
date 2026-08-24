@@ -33,6 +33,7 @@ test("Projects is project-first and removes the mobile zero-stat media dashboard
 
 test("Projects renders loading, error, empty, and success from response status", () => {
   const projectsPage = source("app/(dashboard)/projects/page.tsx");
+  const projectsCollection = source("lib/api/projects-collection.ts");
 
   assert.match(projectsPage, /type ProjectsLoadState/);
   assert.match(projectsPage, /status: "loading"/);
@@ -40,12 +41,13 @@ test("Projects renders loading, error, empty, and success from response status",
   assert.match(projectsPage, /status: "empty"/);
   assert.match(projectsPage, /status: "success"/);
   assert.match(projectsPage, /fixture === "loading"/);
-  assert.match(projectsPage, /response\.status/);
-  assert.match(projectsPage, /function isProject\(value:\s*unknown\):\s*value is Project/);
-  assert.match(projectsPage, /typeof value\.stage === "string"/);
-  assert.match(projectsPage, /function isMediaAsset\(value:\s*unknown\):\s*value is MediaAsset/);
-  assert.match(projectsPage, /items\.every\(isItem\)/);
-  assert.match(projectsPage, /if \(!nextProjects \|\| !nextAssets\)[\s\S]*status:\s*"error"/);
+  assert.match(projectsPage, /loadProjectsRemoteState/);
+  assert.match(projectsCollection, /failedResponse\.status/);
+  assert.match(projectsCollection, /function isProjectCollectionItem/);
+  assert.match(projectsCollection, /value\.stage === null/);
+  assert.match(projectsCollection, /function isMediaAssetCollectionItem/);
+  assert.match(projectsCollection, /payload\.items\.every\(isItem\)/);
+  assert.match(projectsCollection, /status: "error"/);
   assert.match(projectsPage, /Projects unavailable/);
   assert.match(projectsPage, /Create your first project/);
   assert.match(projectsPage, /Retry/);
@@ -85,4 +87,33 @@ test("Projects interior locks the Sapphire Light canon and 44px actions", () => 
   assert.match(projectsCss, /projects-primary-action[\s\S]*background:\s*var\(--cvp-blue\)/);
   assert.match(projectsCss, /projects-action[\s\S]*min-height:\s*44px/);
   assert.match(projectsPage, /projects-primary-action/);
+});
+
+test("Projects state gates suppress unrelated actions and indefinite reduced-motion animation", () => {
+  const projectsPage = source("app/(dashboard)/projects/page.tsx");
+  const shell = source("components/Shell.tsx");
+  const projectsCss = source("app/(dashboard)/projects/projects.module.css");
+
+  assert.match(projectsPage, /loadState\.status === "success"[\s\S]*?projects-header-actions/);
+  assert.match(projectsPage, /demoRetrying[\s\S]*?status: "loading"/);
+  assert.match(projectsPage, /const remoteLoadEpoch = useRef\(0\)/);
+  assert.match(projectsPage, /const loadEpoch = \+\+remoteLoadEpoch\.current/);
+  assert.match(projectsPage, /if \(loadEpoch !== remoteLoadEpoch\.current\) return/);
+  assert.match(projectsPage, /useReportProjectsAvailability\(/);
+  assert.match(projectsPage, /normalizeProjectsFixture\(/);
+  assert.match(projectsPage, /projectsStateFromCollections\(/);
+  assert.match(shell, /ProjectsAvailabilityReporter/);
+  assert.match(shell, /normalizeProjectsFixture\(/);
+  assert.match(shell, /areProjectsActionsUnavailable\(/);
+  assert.match(
+    shell,
+    /const projectsFixture = normalizeProjectsFixture\([\s\S]*?demoSuffix && pathname === "\/projects"/,
+  );
+  assert.match(shell, /uploadOpen && demoSuffix && !projectsActionsUnavailable/);
+  assert.match(shell, /if \(!demoSuffix \|\| projectsActionsUnavailable\) return \[\]/);
+  assert.match(shell, /demoSuffix && !projectsActionsUnavailable[\s\S]*?demoWorkspace\.projects\.map/);
+  assert.match(shell, /demoSuffix && !projectsActionsUnavailable[\s\S]*?demoWorkspace\.assets\.map/);
+  assert.match(shell, /roleCan\(workspaceRole, "projects:create"\) && !projectsActionsUnavailable/);
+  assert.match(projectsCss, /@media \(prefers-reduced-motion: reduce\)[\s\S]*?projects-state-heading svg[\s\S]*?animation:\s*none/);
+  assert.match(projectsCss, /@media \(prefers-reduced-motion: reduce\)[\s\S]*?projects-loading-grid span[\s\S]*?animation:\s*none/);
 });

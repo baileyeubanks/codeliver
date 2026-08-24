@@ -380,6 +380,13 @@
   100% { background-position: -100% 0; }
 }
 
+@media (prefers-reduced-motion: reduce) {
+  .scope :global(.projects-state-heading svg),
+  .scope :global(.projects-loading-grid span) {
+    animation: none;
+  }
+}
+
 @media (max-width: 760px) {
   .scope :global(.projects-content) {
     width: 100%;

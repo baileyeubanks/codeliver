@@ -15,6 +15,22 @@ async function openProjects(page: Page, fixture: "loading" | "populated" | "empt
   await expect(page.getByRole("heading", { name: "Projects", exact: true })).toBeVisible();
 }
 
+async function expectWorkspaceDataActionsSuppressed(page: Page) {
+  await page.getByRole("button", { name: "Search commands, projects, and media" }).click();
+  const palette = page.getByRole("dialog", { name: "Command palette" });
+  await expect(palette).toBeVisible();
+  await expect(palette.getByRole("option", { name: /New project/ })).toHaveCount(0);
+  await expect(palette.getByText("Open project cockpit")).toHaveCount(0);
+  await expect(palette.getByRole("option", { name: /Charles Drummond_v5/ })).toHaveCount(0);
+  await palette.getByRole("button", { name: "Close command palette" }).click();
+
+  await page.getByRole("button", { name: "More workspace navigation" }).click();
+  const drawer = page.getByRole("dialog", { name: "Workspace navigation" });
+  await expect(drawer).toBeVisible();
+  await expect(drawer.getByText("Recent projects")).toHaveCount(0);
+  await drawer.getByRole("button", { name: "Close workspace navigation" }).click();
+}
+
 test.describe("Projects mobile interior geometry", () => {
   test("contains storage status without overlapping the first project card", async ({ page }) => {
     await openProjects(page);
@@ -100,6 +116,9 @@ test.describe("Projects mobile interior geometry", () => {
 });
 
 test.describe("Projects response states", () => {
+  const projectsActions = (page: Page) => page.locator('[data-projects-action="true"]');
+  const shellUpload = (page: Page) => page.getByRole("button", { name: "Upload media to a project" });
+
   test("keeps loading distinct from populated, empty, and error", async ({ page }) => {
     await openProjects(page, "loading");
     const loadingState = page.locator('[data-projects-state="loading"]');
@@ -108,22 +127,70 @@ test.describe("Projects response states", () => {
     await expect(page.locator('[data-projects-state="error"]')).toHaveCount(0);
     await expect(page.locator('[data-projects-state="empty"]')).toHaveCount(0);
     await expect(page.getByTestId("project-list")).toHaveCount(0);
+    await expect(projectsActions(page)).toHaveCount(0);
+    await expect(shellUpload(page)).toHaveCount(0);
+    await expectWorkspaceDataActionsSuppressed(page);
   });
 
-  test("error is visibly distinct from a legitimate empty workspace", async ({ page }) => {
+  test("failure exposes Retry only and retry-in-flight exposes zero domain actions", async ({ page }) => {
     await openProjects(page, "error");
     const errorState = page.locator('[data-projects-state="error"]');
     await expect(errorState).toBeVisible();
     await expect(errorState.getByRole("heading", { name: "Projects unavailable" })).toBeVisible();
     await expect(errorState.getByRole("button", { name: "Retry" })).toBeVisible();
     await expect(page.getByText("Create your first project")).toHaveCount(0);
+    await expect(projectsActions(page)).toHaveCount(1);
+    await expect(projectsActions(page).first()).toHaveText("Retry");
+    await expect(shellUpload(page)).toHaveCount(0);
+    await expectWorkspaceDataActionsSuppressed(page);
 
-    await page.goto("/projects?demo=1&projectsFixture=empty");
+    await errorState.getByRole("button", { name: "Retry" }).click();
+    await expect(page.locator('[data-projects-state="loading"]')).toBeVisible();
+    await expect(projectsActions(page)).toHaveCount(0);
+    await expect(shellUpload(page)).toHaveCount(0);
+    await expect(page.getByTestId("project-list")).toBeVisible();
+  });
+
+  test("legitimate empty exposes exactly one New project CTA", async ({ page }) => {
+    await openProjects(page, "empty");
     const emptyState = page.locator('[data-projects-state="empty"]');
     await expect(emptyState).toBeVisible();
     await expect(emptyState.getByRole("heading", { name: "Create your first project" })).toBeVisible();
     await expect(page.getByRole("heading", { name: "Projects unavailable" })).toHaveCount(0);
+    await expect(page.getByRole("link", { name: "New project", exact: true })).toHaveCount(1);
+    await expect(projectsActions(page)).toHaveCount(1);
+    await expect(shellUpload(page)).toHaveCount(0);
+    await expectWorkspaceDataActionsSuppressed(page);
   });
+
+  test("populated Projects preserves its actions and demo Upload", async ({ page }) => {
+    await openProjects(page);
+    await expect(page.getByTestId("project-list")).toBeVisible();
+    await expect(page.getByRole("link", { name: "New project", exact: true })).toHaveCount(1);
+    await expect(shellUpload(page)).toBeVisible();
+  });
+
+  test("an open Upload dialog stays closed across unavailable and recovered states", async ({ page }) => {
+    await openProjects(page);
+    await shellUpload(page).click();
+    const uploadDialog = page.getByRole("dialog", { name: "Upload media" });
+    await expect(uploadDialog).toBeVisible();
+
+    await page.evaluate(() => {
+      window.history.pushState({}, "", "/projects?demo=1&projectsFixture=loading");
+      window.dispatchEvent(new PopStateEvent("popstate"));
+    });
+    await expect(page.locator('[data-projects-state="loading"]')).toBeVisible();
+    await expect(uploadDialog).toHaveCount(0);
+
+    await page.evaluate(() => {
+      window.history.pushState({}, "", "/projects?demo=1");
+      window.dispatchEvent(new PopStateEvent("popstate"));
+    });
+    await expect(page.getByTestId("project-list")).toBeVisible();
+    await expect(uploadDialog).toHaveCount(0);
+  });
+
 
   test("uses Sapphire Light canon tokens", async ({ page }) => {
     await openProjects(page);

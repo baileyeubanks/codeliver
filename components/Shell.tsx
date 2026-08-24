@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 import {
   Bell,
   BriefcaseBusiness,
@@ -38,6 +38,12 @@ import { createSupabaseBrowser } from "@/lib/supabase-browser";
 import { useDemoSuffix } from "@/lib/demo/mode";
 import { signOutDemoSession, setDemoSessionRole, useDemoWorkspace } from "@/lib/demo/workspace-store";
 import { orderProjectsByActivity } from "@/lib/demo/recent-projects.ts";
+import {
+  normalizeProjectsFixture,
+  ProjectsAvailabilityReporter,
+  projectsActionsUnavailable as areProjectsActionsUnavailable,
+  type ProjectsAvailabilityReport,
+} from "@/lib/api/projects-availability";
 import styles from "./Shell.module.css";
 
 function activityLabel(action: string) {
@@ -77,11 +83,13 @@ function asWorkspaceRole(value: unknown): WorkspaceRole {
 
 export default function Shell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
+  const searchParams = useSearchParams();
   const demoSuffix = useDemoSuffix();
   const demoWorkspace = useDemoWorkspace();
   const online = useOnlineStatus();
   const [commandOpen, setCommandOpen] = useState(false);
   const [uploadOpen, setUploadOpen] = useState(false);
+  const [projectsAvailability, setProjectsAvailability] = useState<ProjectsAvailabilityReport | null>(null);
   const [accountOpen, setAccountOpen] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [navigationOpen, setNavigationOpen] = useState(false);
@@ -89,6 +97,23 @@ export default function Shell({ children }: { children: React.ReactNode }) {
   const [remoteNotifications, setRemoteNotifications] = useState<RemoteNotification[]>([]);
   const [storageDegraded, setStorageDegraded] = useState(false);
   const isProjectCockpit = /^\/projects\/(?!new$|archive$|trash$)[^/]+$/.test(pathname);
+  const projectsFixture = normalizeProjectsFixture(
+    demoSuffix && pathname === "/projects"
+      ? searchParams.get("projectsFixture")
+      : null,
+  );
+  const projectsAvailabilityKey = demoSuffix
+    ? `demo:${projectsFixture ?? "default"}`
+    : "remote";
+  const projectsActionsUnavailable = areProjectsActionsUnavailable(
+    pathname,
+    projectsAvailabilityKey,
+    projectsAvailability,
+  );
+  const reportProjectsAvailability = useCallback((report: ProjectsAvailabilityReport | null) => {
+    setProjectsAvailability(report);
+    if (report?.status !== "success") setUploadOpen(false);
+  }, []);
   // Remote identity and role come from the authenticated session; until it
   // resolves (or if it fails) the shell stays fail-closed at viewer.
   const workspaceRole: WorkspaceRole = demoSuffix
@@ -123,9 +148,9 @@ export default function Shell({ children }: { children: React.ReactNode }) {
     .join("") || "CC";
 
   const recentProjects = useMemo(() => {
-    if (!demoSuffix) return [];
+    if (!demoSuffix || projectsActionsUnavailable) return [];
     return orderProjectsByActivity(demoWorkspace.projects, demoWorkspace.activity);
-  }, [demoSuffix, demoWorkspace]);
+  }, [demoSuffix, demoWorkspace, projectsActionsUnavailable]);
 
   const commandItems = useMemo<CommandPaletteItem[]>(() => {
     const navigationCommands = visibleNavigation(workspaceRole).flatMap((section) =>
@@ -140,7 +165,7 @@ export default function Shell({ children }: { children: React.ReactNode }) {
       })),
     );
 
-    const projectCommands: CommandPaletteItem[] = demoSuffix
+    const projectCommands: CommandPaletteItem[] = demoSuffix && !projectsActionsUnavailable
       ? demoWorkspace.projects.map((project) => ({
           id: `project-${project.id}`,
           label: project.name,
@@ -152,7 +177,7 @@ export default function Shell({ children }: { children: React.ReactNode }) {
         }))
       : [];
 
-    const assetCommands: CommandPaletteItem[] = demoSuffix
+    const assetCommands: CommandPaletteItem[] = demoSuffix && !projectsActionsUnavailable
       ? demoWorkspace.assets.map((asset) => ({
           id: `asset-${asset.id}`,
           label: asset.title,
@@ -165,7 +190,7 @@ export default function Shell({ children }: { children: React.ReactNode }) {
         }))
       : [];
 
-    const createCommand: CommandPaletteItem[] = roleCan(workspaceRole, "projects:create")
+    const createCommand: CommandPaletteItem[] = roleCan(workspaceRole, "projects:create") && !projectsActionsUnavailable
       ? [{
           id: "create-project",
           label: "New project",
@@ -178,7 +203,7 @@ export default function Shell({ children }: { children: React.ReactNode }) {
       : [];
 
     return [...createCommand, ...navigationCommands, ...projectCommands, ...assetCommands];
-  }, [demoSuffix, demoWorkspace.assets, demoWorkspace.projects, workspaceRole]);
+  }, [demoSuffix, demoWorkspace.assets, demoWorkspace.projects, projectsActionsUnavailable, workspaceRole]);
 
   useEffect(() => {
     // The workspace wears the contentco-op.com cream editorial law; dark is
@@ -272,7 +297,8 @@ export default function Shell({ children }: { children: React.ReactNode }) {
   }
 
   return (
-    <div className={`workspace-shell ${styles.shell}`} data-online={online}>
+    <ProjectsAvailabilityReporter report={reportProjectsAvailability}>
+      <div className={`workspace-shell ${styles.shell}`} data-online={online}>
       <a className={styles.skipLink} href="#workspace-content">Skip to workspace content</a>
 
       <header className="workspace-header">
@@ -323,7 +349,7 @@ export default function Shell({ children }: { children: React.ReactNode }) {
         </button>
 
         <div className="workspace-actions">
-          {demoSuffix ? (
+          {demoSuffix && !projectsActionsUnavailable ? (
             <button
               className="btn btn-primary workspace-upload-button"
               type="button"
@@ -495,7 +521,7 @@ export default function Shell({ children }: { children: React.ReactNode }) {
         </main>
       </div>
 
-      {uploadOpen && demoSuffix ? (
+      {uploadOpen && demoSuffix && !projectsActionsUnavailable ? (
         <GlobalUploadDialog querySuffix={demoSuffix} onClose={() => setUploadOpen(false)} />
       ) : null}
 
@@ -507,6 +533,7 @@ export default function Shell({ children }: { children: React.ReactNode }) {
           returnFocusRef={commandButtonRef}
         />
       ) : null}
-    </div>
+      </div>
+    </ProjectsAvailabilityReporter>
   );
 }

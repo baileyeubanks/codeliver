@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { createServerClient } from "@supabase/ssr";
-import { isAuthSessionMissingError } from "@supabase/supabase-js";
+import { isAuthApiError, isAuthSessionMissingError } from "@supabase/supabase-js";
 import {
   buildProtectedReturnPath,
   LOGIN_PATH,
@@ -154,6 +154,20 @@ function backendUnavailableResponse() {
       headers: { "Cache-Control": "no-store" },
     },
   );
+}
+
+function isSignedOutAuthError(error: unknown): boolean {
+  return (
+    isAuthSessionMissingError(error) ||
+    (isAuthApiError(error) && error.code === "refresh_token_not_found")
+  );
+}
+
+function copyResponseCookies(source: NextResponse, target: NextResponse): NextResponse {
+  for (const cookie of source.cookies.getAll()) {
+    target.cookies.set(cookie);
+  }
+  return target;
 }
 
 function isApiLikePath(pathname: string): boolean {
@@ -436,7 +450,7 @@ export async function proxy(req: NextRequest) {
       },
     );
     const identity = await supabase.auth.getUser();
-    if (isAuthSessionMissingError(identity.error)) {
+    if (isSignedOutAuthError(identity.error)) {
       user = null;
     } else if (identity.error) {
       return backendUnavailableResponse();
@@ -449,23 +463,29 @@ export async function proxy(req: NextRequest) {
 
   if (!user) {
     if (pathname.startsWith("/api/")) {
-      return NextResponse.json(
-        { error: "Authentication required", code: "AUTH_REQUIRED" },
-        {
-          status: 401,
-          headers: { "Cache-Control": "no-store" },
-        },
+      return copyResponseCookies(
+        res,
+        NextResponse.json(
+          { error: "Authentication required", code: "AUTH_REQUIRED" },
+          {
+            status: 401,
+            headers: { "Cache-Control": "no-store" },
+          },
+        ),
       );
     }
 
     const approvedHost = resolveApprovedSurfaceHost(host);
     if (pathname === "/" && approvedHost) {
-      return NextResponse.redirect(new URL("/welcome", `https://${approvedHost}`));
+      return copyResponseCookies(
+        res,
+        NextResponse.redirect(new URL("/welcome", `https://${approvedHost}`)),
+      );
     }
 
     const loginUrl = buildLoginUrl(req);
     loginUrl.searchParams.set("next", pathnameWithSanitizedQuery);
-    return NextResponse.redirect(loginUrl);
+    return copyResponseCookies(res, NextResponse.redirect(loginUrl));
   }
 
   if (hostSurface) {

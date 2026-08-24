@@ -6,7 +6,7 @@ import test from "node:test";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { unstable_doesMiddlewareMatch } from "next/dist/experimental/testing/server/middleware-testing-utils.js";
 import { NextRequest } from "next/server.js";
-import { AuthSessionMissingError } from "@supabase/supabase-js";
+import { AuthApiError, AuthSessionMissingError } from "@supabase/supabase-js";
 
 import {
   ADMIN_SURFACE_HOST,
@@ -24,12 +24,16 @@ import {
 
 const repositoryRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const supabaseStubUrl = `data:text/javascript,${encodeURIComponent(`
-  export function createServerClient() {
+  export function createServerClient(_url, _key, options) {
     return {
       auth: {
         async getUser() {
           globalThis.__ccoHostSurfaceGetUserCalls =
             (globalThis.__ccoHostSurfaceGetUserCalls ?? 0) + 1;
+          const cookiesToSet = globalThis.__ccoHostSurfaceCookiesToSet ?? [];
+          if (cookiesToSet.length > 0) {
+            options.cookies.setAll(cookiesToSet);
+          }
           return {
             data: { user: globalThis.__ccoHostSurfaceUser ?? null },
             error: globalThis.__ccoHostSurfaceError ?? null,
@@ -67,6 +71,11 @@ const runtimeState = globalThis as typeof globalThis & {
   __ccoHostSurfaceGetUserCalls?: number;
   __ccoHostSurfaceUser?: StubIdentity;
   __ccoHostSurfaceError?: Error | null;
+  __ccoHostSurfaceCookiesToSet?: Array<{
+    name: string;
+    value: string;
+    options?: { path?: string; maxAge?: number; sameSite?: "lax" };
+  }>;
 };
 
 test("managed hosts are recognized exactly without suffix or credential confusion", () => {
@@ -269,6 +278,60 @@ test("signed-out production root opens welcome without weakening workspace bound
     runtimeState.__ccoHostSurfaceGetUserCalls = undefined;
     runtimeState.__ccoHostSurfaceUser = undefined;
     runtimeState.__ccoHostSurfaceError = undefined;
+    if (previousUrl === undefined) delete process.env.NEXT_PUBLIC_SUPABASE_URL;
+    else process.env.NEXT_PUBLIC_SUPABASE_URL = previousUrl;
+    if (previousKey === undefined) delete process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+    else process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = previousKey;
+  }
+});
+
+test("stale refresh tokens clear the cookie and open the signed-out root", async () => {
+  const previousUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const previousKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  process.env.NEXT_PUBLIC_SUPABASE_URL = "https://auth.test";
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = "test-anon-key";
+
+  try {
+    const { proxy } = await import(
+      pathToFileURL(resolve(repositoryRoot, "proxy.ts")).href
+    );
+
+    runtimeState.__ccoHostSurfaceUser = null;
+    runtimeState.__ccoHostSurfaceError = new AuthApiError(
+      "Invalid Refresh Token: Refresh Token Not Found",
+      400,
+      "refresh_token_not_found",
+    );
+    runtimeState.__ccoHostSurfaceCookiesToSet = [
+      {
+        name: "sb-live-auth-token",
+        value: "",
+        options: { path: "/", maxAge: 0, sameSite: "lax" },
+      },
+    ];
+
+    const response = await proxy(
+      new NextRequest(`https://${LEGACY_ADMIN_SURFACE_HOST}/`, {
+        headers: {
+          host: LEGACY_ADMIN_SURFACE_HOST,
+          cookie: "sb-live-auth-token=expired-session",
+        },
+      }),
+    );
+
+    assert.equal(response.status, 307);
+    assert.equal(
+      response.headers.get("location"),
+      `https://${LEGACY_ADMIN_SURFACE_HOST}/welcome`,
+    );
+    assert.match(
+      response.headers.get("set-cookie") ?? "",
+      /sb-live-auth-token=;.*Max-Age=0/i,
+    );
+  } finally {
+    runtimeState.__ccoHostSurfaceUser = undefined;
+    runtimeState.__ccoHostSurfaceError = undefined;
+    runtimeState.__ccoHostSurfaceCookiesToSet = undefined;
     if (previousUrl === undefined) delete process.env.NEXT_PUBLIC_SUPABASE_URL;
     else process.env.NEXT_PUBLIC_SUPABASE_URL = previousUrl;
     if (previousKey === undefined) delete process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;

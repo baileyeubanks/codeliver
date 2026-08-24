@@ -110,11 +110,13 @@ export default function ProjectsPage() {
   const fixtureAssets = fixture === "empty" || fixture === "error" ? [] : demoWorkspace.assets;
   const projects = (demoMode ? fixtureProjects : remoteProjects) as Project[];
   const assets = (demoMode ? fixtureAssets : remoteAssets) as MediaAsset[];
-  const demoLoadState: ProjectsLoadState = fixture === "error"
-    ? { status: "error", responseStatus: 503 }
-    : projects.length === 0
-      ? { status: "empty" }
-      : { status: "success" };
+  const demoLoadState: ProjectsLoadState = fixture === "loading"
+    ? { status: "loading" }
+    : fixture === "error"
+      ? { status: "error", responseStatus: 503 }
+      : projects.length === 0
+        ? { status: "empty" }
+        : { status: "success" };
   const loadState = demoMode ? demoLoadState : remoteLoadState;
 
   const loadRemoteProjects = useCallback(async () => {

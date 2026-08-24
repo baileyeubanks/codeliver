@@ -3,7 +3,7 @@ import { signInDemoWorkspace } from "./demo-auth";
 
 const MOBILE = { width: 390, height: 844 };
 
-async function openProjects(page: Page, fixture: "populated" | "empty" | "error" = "populated") {
+async function openProjects(page: Page, fixture: "loading" | "populated" | "empty" | "error" = "populated") {
   await page.setViewportSize(MOBILE);
   await page.route("**/api/health/ready", (route) => route.fulfill({
     status: 503,
@@ -100,6 +100,16 @@ test.describe("Projects mobile interior geometry", () => {
 });
 
 test.describe("Projects response states", () => {
+  test("keeps loading distinct from populated, empty, and error", async ({ page }) => {
+    await openProjects(page, "loading");
+    const loadingState = page.locator('[data-projects-state="loading"]');
+    await expect(loadingState).toBeVisible();
+    await expect(loadingState).toContainText("Loading projects");
+    await expect(page.locator('[data-projects-state="error"]')).toHaveCount(0);
+    await expect(page.locator('[data-projects-state="empty"]')).toHaveCount(0);
+    await expect(page.getByTestId("project-list")).toHaveCount(0);
+  });
+
   test("error is visibly distinct from a legitimate empty workspace", async ({ page }) => {
     await openProjects(page, "error");
     const errorState = page.locator('[data-projects-state="error"]');

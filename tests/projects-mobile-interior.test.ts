@@ -39,6 +39,7 @@ test("Projects renders loading, error, empty, and success from response status",
   assert.match(projectsPage, /status: "error"/);
   assert.match(projectsPage, /status: "empty"/);
   assert.match(projectsPage, /status: "success"/);
+  assert.match(projectsPage, /fixture === "loading"/);
   assert.match(projectsPage, /response\.status/);
   assert.match(projectsPage, /function isProject\(value:\s*unknown\):\s*value is Project/);
   assert.match(projectsPage, /typeof value\.stage === "string"/);

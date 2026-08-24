@@ -482,8 +482,13 @@ export default function Shell({ children }: { children: React.ReactNode }) {
             </div>
           ) : null}
           {storageDegraded ? (
-            <div className={styles.offlineNotice} role="status">
-              <DatabaseZap size={15} /> Backend storage is unreachable — work stays in this browser until the readiness probe recovers.
+            <div
+              className={styles.offlineNotice}
+              role="status"
+              data-testid="workspace-storage-notice"
+            >
+              <DatabaseZap size={15} />
+              <span>Project storage is temporarily unavailable.</span>
             </div>
           ) : null}
           <div className={styles.content}>{children}</div>

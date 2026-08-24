@@ -85,26 +85,19 @@ test("demo uploads bind their new asset href to the internal route builder", () 
   assert.doesNotMatch(uploadAssetFactory[0], /["'`]\/review\/demo/);
 });
 
-test("dashboard demo uploads bind their new asset href to the internal route builder", () => {
+test("dashboard project list defers uploads until a project cockpit is chosen", () => {
   const projectsPageSource = readFileSync(
     resolve(repositoryRoot, "app/(dashboard)/projects/page.tsx"),
     "utf8",
   );
-  const uploadAssetFactory = projectsPageSource.match(
-    /const added: MediaAsset\[\] = Array\.from\(files\)\.map\(\(file, index\) => \{[\s\S]*?\n\s*\}\);/,
-  );
 
-  assert.ok(uploadAssetFactory, "could not locate the dashboard demo upload constructor");
+  assert.doesNotMatch(projectsPageSource, /const added: MediaAsset\[\]/);
+  assert.doesNotMatch(projectsPageSource, /<AssetUpload/);
+  assert.doesNotMatch(projectsPageSource, />Upload media</);
   assert.match(
-    uploadAssetFactory[0],
-    /const assetId = `local-upload-\$\{uploadStartedAt\}-\$\{index\}`/,
+    projectsPageSource,
+    /href=\{`\/projects\/\$\{encodeURIComponent\(project\.id\)\}\$\{demoSuffix\}`\}/,
   );
-  assert.match(uploadAssetFactory[0], /id:\s*assetId/);
-  assert.match(
-    uploadAssetFactory[0],
-    /href:\s*buildInternalDemoAssetHref\(projectId,\s*assetId\)/,
-  );
-  assert.doesNotMatch(uploadAssetFactory[0], /["'`]\/review\/demo/);
 });
 
 test("restored demo assets migrate to cockpit hrefs without changing public share links", () => {

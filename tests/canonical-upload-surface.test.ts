@@ -10,20 +10,22 @@ function source(relativePath: string) {
   return readFileSync(resolve(repositoryRoot, relativePath), "utf8");
 }
 
-test("the production Projects library uses the canonical TUS uploader only", () => {
+test("the selected-project cockpit owns the canonical TUS uploader", () => {
   const projectsPage = source("app/(dashboard)/projects/page.tsx");
+  const projectWorkspace = source("components/projects/ProjectWorkspaceClient.tsx");
   const uploader = source("components/assets/AssetUpload.tsx");
 
-  assert.match(projectsPage, /import AssetUpload from "@\/components\/assets\/AssetUpload"/);
-  assert.match(projectsPage, /<AssetUpload\b/);
-  assert.match(projectsPage, /inputId=\{AUTHORITATIVE_UPLOAD_INPUT_ID\}/);
-  assert.match(projectsPage, /onUploadComplete=\{refreshRemoteAssets\}/);
-  assert.match(
-    projectsPage,
-    /remoteProjects\.some\(\(project\) => project\.id === activeProject\)/,
-  );
-  assert.match(projectsPage, /remoteProjects\.map\(\(project\) => \(\{/);
-  assert.doesNotMatch(projectsPage, /fetch\(["']\/api\/folders["']/);
+  assert.doesNotMatch(projectsPage, /import AssetUpload/);
+  assert.doesNotMatch(projectsPage, /<AssetUpload\b/);
+  assert.doesNotMatch(projectsPage, />Upload media</);
+  assert.match(projectsPage, /href=\{`\/projects\/\$\{encodeURIComponent\(project\.id\)\}\$\{demoSuffix\}`\}/);
+
+  assert.match(projectWorkspace, /import AssetUpload from "@\/components\/assets\/AssetUpload"/);
+  assert.match(projectWorkspace, /<AssetUpload\b/);
+  assert.match(projectWorkspace, /projectId=\{id\}/);
+  assert.match(projectWorkspace, /inputId=\{authoritativeUploadInputId\}/);
+  assert.match(projectWorkspace, /onUploadComplete=\{refreshRemoteAssets\}/);
+  assert.match(projectWorkspace, /onUpload=\{\(\) => document\.getElementById\(authoritativeUploadInputId\)\?\.click\(\)\}/);
   assert.match(uploader, /endpoint:\s*"\/api\/upload\/tus"/);
 
   assert.doesNotMatch(projectsPage, /createSupabaseBrowser/);

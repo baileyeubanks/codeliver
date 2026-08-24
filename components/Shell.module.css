@@ -54,6 +54,7 @@
 .main {
   position: relative;
   scroll-padding-top: 42px;
+  scroll-padding-bottom: calc(84px + env(safe-area-inset-bottom));
 }
 
 .content {
@@ -62,21 +63,34 @@
 }
 
 .offlineNotice {
-  position: sticky;
-  top: 0;
-  z-index: 90;
-  min-height: 34px;
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  min-height: 44px;
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: center;
   gap: 8px;
-  padding: 7px 14px;
+  padding: 11px 16px;
   border-bottom: 1px solid color-mix(in srgb, var(--orange, #c97b20) 28%, var(--border, #dfe4ec));
   background: color-mix(in srgb, var(--orange-dim, rgba(201, 123, 32, 0.13)) 68%, var(--surface, #fff));
   color: var(--ink-secondary, #3f4962);
-  font-size: 0.68rem;
-  font-weight: 620;
-  text-align: center;
+  font-size: 0.72rem;
+  font-weight: 650;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+  text-align: left;
+}
+
+.offlineNotice > svg {
+  flex: 0 0 auto;
+  margin-top: 1px;
+}
+
+.main > .offlineNotice {
+  height: auto;
+  min-height: 44px;
+  flex: 0 0 auto;
 }
 
 .accountRole {
@@ -95,12 +109,32 @@
 }
 
 @media (max-width: 760px) {
+  .shell :global(.workspace-body) {
+    grid-template-columns: minmax(0, 1fr);
+    padding-bottom: calc(64px + env(safe-area-inset-bottom));
+  }
+
+  .shell ~ :global(.cvp-copilot-pill) {
+    right: 12px;
+    bottom: calc(76px + env(safe-area-inset-bottom));
+    min-height: 44px;
+  }
+
   .brandLockup {
     --co-production-brand-width: 132px;
   }
 
+  .menuButton {
+    display: none !important;
+  }
+
   .main {
-    padding-bottom: calc(58px + env(safe-area-inset-bottom));
+    padding-bottom: 0;
+  }
+
+  .offlineNotice {
+    justify-content: flex-start;
+    padding-inline: 14px;
   }
 
   .searchButton::after {

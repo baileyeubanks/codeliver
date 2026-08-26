@@ -7,7 +7,10 @@ import {
 } from "react";
 
 export type ProjectsAvailabilityStatus =
-  "loading" | "error" | "empty" | "success";
+  | "loading"
+  | "error"
+  | "empty"
+  | "success";
 export type ProjectsFixture = "loading" | "error" | "empty";
 
 export function normalizeProjectsFixture(

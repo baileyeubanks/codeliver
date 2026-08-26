@@ -61,16 +61,30 @@ test("mobile shell exposes one menu affordance and reserves safe bottom space", 
   const shell = source("components/Shell.tsx");
   const projectsPage = source("app/(dashboard)/projects/page.tsx");
   const shellCss = source("components/Shell.module.css");
-  const navigationCss = source("components/navigation/WorkspaceNavigation.module.css");
+  const navigationCss = source(
+    "components/navigation/WorkspaceNavigation.module.css",
+  );
   const projectsCss = source("app/(dashboard)/projects/projects.module.css");
 
   assert.match(shell, /data-testid="workspace-storage-notice"/);
   assert.match(shellCss, /\.offlineNotice[\s\S]*align-items:\s*flex-start/);
   assert.match(shellCss, /overflow-wrap:\s*anywhere/);
-  assert.match(shellCss, /\.main\s*>\s*\.offlineNotice\s*\{[\s\S]*min-height:\s*44px/);
-  assert.match(shellCss, /@media \(max-width: 760px\)[\s\S]*\.shell\s+:global\(\.workspace-body\)[\s\S]*grid-template-columns:\s*minmax\(0,\s*1fr\)[\s\S]*padding-bottom:\s*calc\(64px\s*\+\s*env\(safe-area-inset-bottom\)\)/);
-  assert.match(shellCss, /@media \(max-width: 760px\)[\s\S]*\.shell\s*~\s*:global\(\.cvp-copilot-pill\)[\s\S]*bottom:\s*calc\(76px\s*\+\s*env\(safe-area-inset-bottom\)\)[\s\S]*min-height:\s*44px/);
-  assert.match(shellCss, /@media \(max-width: 760px\)[\s\S]*\.menuButton\s*\{[\s\S]*display:\s*none/);
+  assert.match(
+    shellCss,
+    /\.main\s*>\s*\.offlineNotice\s*\{[\s\S]*min-height:\s*44px/,
+  );
+  assert.match(
+    shellCss,
+    /@media \(max-width: 760px\)[\s\S]*\.shell\s+:global\(\.workspace-body\)[\s\S]*grid-template-columns:\s*minmax\(0,\s*1fr\)[\s\S]*padding-bottom:\s*calc\(64px\s*\+\s*env\(safe-area-inset-bottom\)\)/,
+  );
+  assert.match(
+    shellCss,
+    /@media \(max-width: 760px\)[\s\S]*\.shell\s*~\s*:global\(\.cvp-copilot-pill\)[\s\S]*bottom:\s*calc\(76px\s*\+\s*env\(safe-area-inset-bottom\)\)[\s\S]*min-height:\s*44px/,
+  );
+  assert.match(
+    shellCss,
+    /@media \(max-width: 760px\)[\s\S]*\.menuButton\s*\{[\s\S]*display:\s*none/,
+  );
   assert.match(navigationCss, /\.mobileBar a,[\s\S]*min-height:\s*44px/);
   assert.match(projectsCss, /\.scope[\s\S]*--mobile-nav-clearance/);
   assert.match(projectsPage, /data-testid="projects-end"/);
@@ -83,8 +97,14 @@ test("Projects interior locks the Sapphire Light canon and 44px actions", () => 
 
   assert.match(tokens, /--cvp-canvas:\s*#f7f9fc/i);
   assert.match(tokens, /--cvp-blue:\s*#0057ff/i);
-  assert.match(projectsCss, /projects-content[\s\S]*background:\s*var\(--cvp-canvas\)/);
-  assert.match(projectsCss, /projects-primary-action[\s\S]*background:\s*var\(--cvp-blue\)/);
+  assert.match(
+    projectsCss,
+    /projects-content[\s\S]*background:\s*var\(--cvp-canvas\)/,
+  );
+  assert.match(
+    projectsCss,
+    /projects-primary-action[\s\S]*background:\s*var\(--cvp-blue\)/,
+  );
   assert.match(projectsCss, /projects-action[\s\S]*min-height:\s*44px/);
   assert.match(projectsPage, /projects-primary-action/);
 });
@@ -94,11 +114,17 @@ test("Projects state gates suppress unrelated actions and indefinite reduced-mot
   const shell = source("components/Shell.tsx");
   const projectsCss = source("app/(dashboard)/projects/projects.module.css");
 
-  assert.match(projectsPage, /loadState\.status === "success"[\s\S]*?projects-header-actions/);
+  assert.match(
+    projectsPage,
+    /loadState\.status === "success"[\s\S]*?projects-header-actions/,
+  );
   assert.match(projectsPage, /demoRetrying[\s\S]*?status: "loading"/);
   assert.match(projectsPage, /const remoteLoadEpoch = useRef\(0\)/);
   assert.match(projectsPage, /const loadEpoch = \+\+remoteLoadEpoch\.current/);
-  assert.match(projectsPage, /if \(loadEpoch !== remoteLoadEpoch\.current\) return/);
+  assert.match(
+    projectsPage,
+    /if \(loadEpoch !== remoteLoadEpoch\.current\) return/,
+  );
   assert.match(projectsPage, /useReportProjectsAvailability\(/);
   assert.match(projectsPage, /normalizeProjectsFixture\(/);
   assert.match(projectsPage, /projectsStateFromCollections\(/);
@@ -109,11 +135,32 @@ test("Projects state gates suppress unrelated actions and indefinite reduced-mot
     shell,
     /const projectsFixture = normalizeProjectsFixture\([\s\S]*?demoSuffix && pathname === "\/projects"/,
   );
-  assert.match(shell, /uploadOpen && demoSuffix && !projectsActionsUnavailable/);
-  assert.match(shell, /if \(!demoSuffix \|\| projectsActionsUnavailable\) return \[\]/);
-  assert.match(shell, /demoSuffix && !projectsActionsUnavailable[\s\S]*?demoWorkspace\.projects\.map/);
-  assert.match(shell, /demoSuffix && !projectsActionsUnavailable[\s\S]*?demoWorkspace\.assets\.map/);
-  assert.match(shell, /roleCan\(workspaceRole, "projects:create"\) && !projectsActionsUnavailable/);
-  assert.match(projectsCss, /@media \(prefers-reduced-motion: reduce\)[\s\S]*?projects-state-heading svg[\s\S]*?animation:\s*none/);
-  assert.match(projectsCss, /@media \(prefers-reduced-motion: reduce\)[\s\S]*?projects-loading-grid span[\s\S]*?animation:\s*none/);
+  assert.match(
+    shell,
+    /uploadOpen && demoSuffix && !projectsActionsUnavailable/,
+  );
+  assert.match(
+    shell,
+    /if \(!demoSuffix \|\| projectsActionsUnavailable\) return \[\]/,
+  );
+  assert.match(
+    shell,
+    /demoSuffix && !projectsActionsUnavailable[\s\S]*?demoWorkspace\.projects\.map/,
+  );
+  assert.match(
+    shell,
+    /demoSuffix && !projectsActionsUnavailable[\s\S]*?demoWorkspace\.assets\.map/,
+  );
+  assert.match(
+    shell,
+    /roleCan\(workspaceRole, "projects:create"\) && !projectsActionsUnavailable/,
+  );
+  assert.match(
+    projectsCss,
+    /@media \(prefers-reduced-motion: reduce\)[\s\S]*?projects-state-heading svg[\s\S]*?animation:\s*none/,
+  );
+  assert.match(
+    projectsCss,
+    /@media \(prefers-reduced-motion: reduce\)[\s\S]*?projects-loading-grid span[\s\S]*?animation:\s*none/,
+  );
 });

@@ -14,8 +14,9 @@ test("Projects Shell actions fail closed until the matching page state succeeds"
     "Projects page and Shell must share one availability contract",
   );
 
-  const { normalizeProjectsFixture, projectsActionsUnavailable } =
-    await import("../lib/api/projects-availability.ts");
+  const { normalizeProjectsFixture, projectsActionsUnavailable } = await import(
+    "../lib/api/projects-availability.ts"
+  );
 
   assert.equal(
     typeof normalizeProjectsFixture,

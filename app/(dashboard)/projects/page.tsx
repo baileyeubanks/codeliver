@@ -32,7 +32,12 @@ type ProjectsLoadState =
   | { status: "empty" }
   | { status: "success" };
 
-const REVIEW_READY_STATUSES = new Set(["in_review", "needs_changes", "approved", "final"]);
+const REVIEW_READY_STATUSES = new Set([
+  "in_review",
+  "needs_changes",
+  "approved",
+  "final",
+]);
 
 function stageLabel(stage?: string | null) {
   if (typeof stage !== "string" || !stage) return "In production";
@@ -48,7 +53,9 @@ export default function ProjectsPage() {
   const demoWorkspace = useDemoWorkspace();
   const remoteLoadEpoch = useRef(0);
   const [demoRetrying, setDemoRetrying] = useState(false);
-  const [remoteState, setRemoteState] = useState<ProjectsRemoteState>({ status: "loading" });
+  const [remoteState, setRemoteState] = useState<ProjectsRemoteState>({
+    status: "loading",
+  });
 
   const fixture = normalizeProjectsFixture(
     demoMode ? searchParams.get("projectsFixture") : null,
@@ -57,20 +64,22 @@ export default function ProjectsPage() {
     if (demoRetrying || fixture === "loading") return { status: "loading" };
     if (fixture === "error") return { status: "error", responseStatus: 503 };
     if (fixture === "empty") return { status: "empty" };
-    return projectsStateFromCollections(demoWorkspace.projects, demoWorkspace.assets);
+    return projectsStateFromCollections(
+      demoWorkspace.projects,
+      demoWorkspace.assets,
+    );
   }, [demoRetrying, demoWorkspace.assets, demoWorkspace.projects, fixture]);
   const activeState = demoMode ? demoState : remoteState;
   const projects = useMemo(
-    () => activeState.status === "success" ? activeState.projects : [],
+    () => (activeState.status === "success" ? activeState.projects : []),
     [activeState],
   );
   const assets = useMemo(
-    () => activeState.status === "success" ? activeState.assets : [],
+    () => (activeState.status === "success" ? activeState.assets : []),
     [activeState],
   );
-  const loadState: ProjectsLoadState = activeState.status === "success"
-    ? { status: "success" }
-    : activeState;
+  const loadState: ProjectsLoadState =
+    activeState.status === "success" ? { status: "success" } : activeState;
   const availabilityKey = demoMode ? `demo:${fixture ?? "default"}` : "remote";
   useReportProjectsAvailability(availabilityKey, loadState.status);
 
@@ -100,20 +109,34 @@ export default function ProjectsPage() {
     return () => window.clearTimeout(timeout);
   }, [demoRetrying]);
 
+  const projectCards = useMemo(
+    () =>
+      projects.map((project) => {
+        const projectAssets = assets.filter(
+          (asset) => asset.project_id === project.id,
+        );
+        return {
+          ...project,
+          assetCount: projectAssets.length,
+          reviewReadyCount: projectAssets.filter((asset) =>
+            REVIEW_READY_STATUSES.has(asset.status),
+          ).length,
+        };
+      }),
+    [assets, projects],
+  );
 
-  const projectCards = useMemo(() => projects.map((project) => {
-    const projectAssets = assets.filter((asset) => asset.project_id === project.id);
-    return {
-      ...project,
-      assetCount: projectAssets.length,
-      reviewReadyCount: projectAssets.filter((asset) => REVIEW_READY_STATUSES.has(asset.status)).length,
-    };
-  }), [assets, projects]);
-
-  const recentAssets = useMemo(() => [...assets]
-    .sort((left, right) => new Date(right.created_at).getTime() - new Date(left.created_at).getTime())
-    .slice(0, 6), [assets]);
-
+  const recentAssets = useMemo(
+    () =>
+      [...assets]
+        .sort(
+          (left, right) =>
+            new Date(right.created_at).getTime() -
+            new Date(left.created_at).getTime(),
+        )
+        .slice(0, 6),
+    [assets],
+  );
 
   function retryProjects() {
     if (demoMode) {
@@ -147,7 +170,11 @@ export default function ProjectsPage() {
         </header>
 
         {loadState.status === "loading" ? (
-          <section className="projects-state projects-loading" data-projects-state="loading" aria-busy="true">
+          <section
+            className="projects-state projects-loading"
+            data-projects-state="loading"
+            aria-busy="true"
+          >
             <div className="projects-state-heading">
               <LoaderCircle size={20} />
               <span>Loading projects</span>
@@ -161,11 +188,23 @@ export default function ProjectsPage() {
         ) : null}
 
         {loadState.status === "error" ? (
-          <section className="projects-state projects-error" data-projects-state="error" role="alert">
-            <span className="projects-state-icon" aria-hidden="true"><AlertTriangle size={22} /></span>
+          <section
+            className="projects-state projects-error"
+            data-projects-state="error"
+            role="alert"
+          >
+            <span className="projects-state-icon" aria-hidden="true">
+              <AlertTriangle size={22} />
+            </span>
             <div>
               <h2>Projects unavailable</h2>
-              <p>Couldn’t load your projects{loadState.responseStatus ? ` · ${loadState.responseStatus}` : ""}.</p>
+              <p>
+                Couldn’t load your projects
+                {loadState.responseStatus
+                  ? ` · ${loadState.responseStatus}`
+                  : ""}
+                .
+              </p>
             </div>
             <button
               type="button"
@@ -179,8 +218,13 @@ export default function ProjectsPage() {
         ) : null}
 
         {loadState.status === "empty" ? (
-          <section className="projects-state projects-empty" data-projects-state="empty">
-            <span className="projects-state-icon" aria-hidden="true"><FolderPlus size={22} /></span>
+          <section
+            className="projects-state projects-empty"
+            data-projects-state="empty"
+          >
+            <span className="projects-state-icon" aria-hidden="true">
+              <FolderPlus size={22} />
+            </span>
             <div>
               <h2>Create your first project</h2>
               <p>Start with the production workspace.</p>
@@ -198,7 +242,10 @@ export default function ProjectsPage() {
 
         {loadState.status === "success" ? (
           <>
-            <section className="projects-section" aria-labelledby="project-list-heading">
+            <section
+              className="projects-section"
+              aria-labelledby="project-list-heading"
+            >
               <div className="projects-section-heading">
                 <div>
                   <h2 id="project-list-heading">All projects</h2>
@@ -215,17 +262,31 @@ export default function ProjectsPage() {
 
               <div className="project-list" data-testid="project-list">
                 {projectCards.map((project) => (
-                  <article className="project-card" data-testid="project-card" key={project.id}>
+                  <article
+                    className="project-card"
+                    data-testid="project-card"
+                    key={project.id}
+                  >
                     <span className="project-card-mark" aria-hidden="true">
                       <BriefcaseBusiness size={20} />
                     </span>
                     <div className="project-card-copy">
                       <div className="project-card-title-row">
                         <h3>{project.name}</h3>
-                        <span className="project-stage">{stageLabel(project.stage)}</span>
+                        <span className="project-stage">
+                          {stageLabel(project.stage)}
+                        </span>
                       </div>
-                      <div className="project-card-facts" aria-label={`${project.name} project activity`}>
-                        <span><Clapperboard size={15} /> {project.assetCount} {project.assetCount === 1 ? "deliverable" : "deliverables"}</span>
+                      <div
+                        className="project-card-facts"
+                        aria-label={`${project.name} project activity`}
+                      >
+                        <span>
+                          <Clapperboard size={15} /> {project.assetCount}{" "}
+                          {project.assetCount === 1
+                            ? "deliverable"
+                            : "deliverables"}
+                        </span>
                         <span>{project.reviewReadyCount} review-ready</span>
                       </div>
                     </div>
@@ -244,7 +305,10 @@ export default function ProjectsPage() {
             </section>
 
             {recentAssets.length > 0 ? (
-              <section className="projects-section projects-recent" aria-labelledby="recent-media-heading">
+              <section
+                className="projects-section projects-recent"
+                aria-labelledby="recent-media-heading"
+              >
                 <div className="projects-section-heading">
                   <div>
                     <h2 id="recent-media-heading">Recent media</h2>
@@ -253,22 +317,34 @@ export default function ProjectsPage() {
                 </div>
                 <div className="projects-media-list">
                   {recentAssets.map((asset) => {
-                    const projectName = projects.find((project) => project.id === asset.project_id)?.name ?? "Project";
+                    const projectName =
+                      projects.find(
+                        (project) => project.id === asset.project_id,
+                      )?.name ?? "Project";
                     return (
                       <Link
                         key={asset.id}
-                        href={demoMode && asset.href
-                          ? asset.href
-                          : `/projects/${encodeURIComponent(asset.project_id)}/assets/${encodeURIComponent(asset.id)}${demoSuffix}`}
+                        href={
+                          demoMode && asset.href
+                            ? asset.href
+                            : `/projects/${encodeURIComponent(asset.project_id)}/assets/${encodeURIComponent(asset.id)}${demoSuffix}`
+                        }
                         className="projects-media-row"
                         data-projects-action="true"
                       >
-                        <span className="projects-media-icon" aria-hidden="true"><FileVideo2 size={19} /></span>
+                        <span
+                          className="projects-media-icon"
+                          aria-hidden="true"
+                        >
+                          <FileVideo2 size={19} />
+                        </span>
                         <span className="projects-media-copy">
                           <strong>{asset.title}</strong>
                           <small>{projectName}</small>
                         </span>
-                        <span className="projects-media-status">{stageLabel(asset.status)}</span>
+                        <span className="projects-media-status">
+                          {stageLabel(asset.status)}
+                        </span>
                         <ArrowRight size={17} />
                       </Link>
                     );

@@ -1,3 +1,5 @@
+import { PROJECT_STAGES } from "../covideopro/record.ts";
+
 export type Project = {
   id: string;
   name: string;
@@ -51,6 +53,30 @@ function isNonEmptyString(value: unknown): value is string {
   return typeof value === "string" && value.trim().length > 0;
 }
 
+const SAFE_ENTITY_ID_PATTERN = /^[A-Za-z0-9][A-Za-z0-9_-]{0,127}$/;
+const PROJECT_STAGE_SET = new Set<string>(PROJECT_STAGES);
+const ASSET_FILE_TYPES = new Set(["video", "image", "audio", "document", "other"]);
+const ASSET_STATUSES = new Set([
+  "draft",
+  "in_review",
+  "approved",
+  "needs_changes",
+  "final",
+  "processing",
+  "ready",
+  "failed",
+]);
+
+function isSafeEntityId(value: unknown): value is string {
+  return typeof value === "string" && SAFE_ENTITY_ID_PATTERN.test(value);
+}
+
+function isBoundedNonEmptyString(value: unknown, maximumLength: number): value is string {
+  return typeof value === "string"
+    && value.trim().length > 0
+    && value.trim().length <= maximumLength;
+}
+
 const ISO_TIMESTAMP_PATTERN =
   /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})(?:\.\d+)?(?:Z|[+-](\d{2}):(\d{2}))$/;
 
@@ -102,11 +128,11 @@ export function isProjectCollectionItem(
   value: unknown,
 ): value is ProjectCollectionItem {
   return isRecord(value)
-    && isNonEmptyString(value.id)
-    && isNonEmptyString(value.name)
+    && isSafeEntityId(value.id)
+    && isBoundedNonEmptyString(value.name, 240)
     && (value.stage === undefined
       || value.stage === null
-      || isNonEmptyString(value.stage));
+      || (typeof value.stage === "string" && PROJECT_STAGE_SET.has(value.stage)));
 }
 
 export function normalizeProjectCollectionItem(
@@ -123,11 +149,13 @@ export function isMediaAssetCollectionItem(
   value: unknown,
 ): value is MediaAssetCollectionItem {
   return isRecord(value)
-    && isNonEmptyString(value.id)
-    && isNonEmptyString(value.project_id)
-    && isNonEmptyString(value.title)
-    && isNonEmptyString(value.file_type)
-    && isNonEmptyString(value.status)
+    && isSafeEntityId(value.id)
+    && isSafeEntityId(value.project_id)
+    && isBoundedNonEmptyString(value.title, 500)
+    && typeof value.file_type === "string"
+    && ASSET_FILE_TYPES.has(value.file_type)
+    && typeof value.status === "string"
+    && ASSET_STATUSES.has(value.status)
     && isIsoTimestamp(value.created_at)
     && isNullableInternalProjectHref(value.href);
 }

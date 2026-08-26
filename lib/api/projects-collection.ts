@@ -74,7 +74,7 @@ function isSafeEntityId(value: unknown): value is string {
 function isBoundedNonEmptyString(value: unknown, maximumLength: number): value is string {
   return typeof value === "string"
     && value.trim().length > 0
-    && value.trim().length <= maximumLength;
+    && value.length <= maximumLength;
 }
 
 const ISO_TIMESTAMP_PATTERN =

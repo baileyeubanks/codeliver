@@ -40,7 +40,10 @@ type ProjectsCollectionModule = {
     created_at: string;
     href?: string;
   };
-  projectsStateFromCollections(projects: unknown, assets: unknown):
+  projectsStateFromCollections(
+    projects: unknown,
+    assets: unknown,
+  ):
     | { status: "error"; responseStatus: null }
     | { status: "empty" }
     | {
@@ -83,7 +86,9 @@ async function loadModule(): Promise<ProjectsCollectionModule> {
     true,
     "Projects must route backend data through a reusable runtime contract",
   );
-  return import(pathToFileURL(helperPath).href) as Promise<ProjectsCollectionModule>;
+  return import(
+    pathToFileURL(helperPath).href
+  ) as Promise<ProjectsCollectionModule>;
 }
 
 function validProject(overrides: Partial<ProjectInput> = {}): ProjectInput {
@@ -121,25 +126,31 @@ function fixedResponses(input: {
 }) {
   return async (url: string, init?: RequestInit): Promise<Response> => {
     assert.deepEqual(init, { cache: "no-store" });
-    if (url === "/api/projects") return (input.projects ?? (() => jsonResponse({ items: [] })))();
-    if (url === "/api/assets") return (input.assets ?? (() => jsonResponse({ items: [] })))();
+    if (url === "/api/projects")
+      return (input.projects ?? (() => jsonResponse({ items: [] })))();
+    if (url === "/api/assets")
+      return (input.assets ?? (() => jsonResponse({ items: [] })))();
     throw new Error(`Unexpected URL: ${url}`);
   };
 }
 
 test("project validation covers id, name, and nullable stage before rendering", async () => {
-  const {
-    isProjectCollectionItem,
-    normalizeProjectCollectionItem,
-  } = await loadModule();
+  const { isProjectCollectionItem, normalizeProjectCollectionItem } =
+    await loadModule();
 
   assert.equal(isProjectCollectionItem(validProject()), true);
   assert.equal(isProjectCollectionItem(validProject({ stage: null })), true);
-  assert.equal(isProjectCollectionItem({ id: "project-a", name: "Launch campaign" }), true);
-  assert.deepEqual(normalizeProjectCollectionItem(validProject({ stage: null })), {
-    id: "project-a",
-    name: "Launch campaign",
-  });
+  assert.equal(
+    isProjectCollectionItem({ id: "project-a", name: "Launch campaign" }),
+    true,
+  );
+  assert.deepEqual(
+    normalizeProjectCollectionItem(validProject({ stage: null })),
+    {
+      id: "project-a",
+      name: "Launch campaign",
+    },
+  );
 
   for (const malformed of [
     null,
@@ -166,13 +177,14 @@ test("project validation covers id, name, and nullable stage before rendering", 
 });
 
 test("media validation covers every field consumed by the mobile Projects surface", async () => {
-  const {
-    isMediaAssetCollectionItem,
-    normalizeMediaAssetCollectionItem,
-  } = await loadModule();
+  const { isMediaAssetCollectionItem, normalizeMediaAssetCollectionItem } =
+    await loadModule();
 
   assert.equal(isMediaAssetCollectionItem(validAsset()), true);
-  assert.deepEqual(normalizeMediaAssetCollectionItem(validAsset()), validAsset());
+  assert.deepEqual(
+    normalizeMediaAssetCollectionItem(validAsset()),
+    validAsset(),
+  );
 
   const nullableHref = validAsset({ href: null });
   assert.equal(isMediaAssetCollectionItem(nullableHref), true);
@@ -204,15 +216,30 @@ test("media validation covers every field consumed by the mobile Projects surfac
     ["status", validAsset({ status: "" })],
     ["status domain", validAsset({ status: "bad_status" })],
     ["created_at parse", validAsset({ created_at: "not-a-date" })],
-    ["created_at calendar", validAsset({ created_at: "2026-02-30T00:00:00.000Z" })],
+    [
+      "created_at calendar",
+      validAsset({ created_at: "2026-02-30T00:00:00.000Z" }),
+    ],
     ["created_at hour", validAsset({ created_at: "2026-01-01T24:00:00.000Z" })],
-    ["created_at minute", validAsset({ created_at: "2026-01-01T23:60:00.000Z" })],
-    ["created_at second", validAsset({ created_at: "2026-01-01T23:59:60.000Z" })],
+    [
+      "created_at minute",
+      validAsset({ created_at: "2026-01-01T23:60:00.000Z" }),
+    ],
+    [
+      "created_at second",
+      validAsset({ created_at: "2026-01-01T23:59:60.000Z" }),
+    ],
     ["href type", validAsset({ href: 42 as unknown as string })],
     ["href authority", validAsset({ href: "https://attacker.invalid/review" })],
-    ["href synthetic authority", validAsset({ href: "https://co-videopro.invalid/projects/project-a" })],
+    [
+      "href synthetic authority",
+      validAsset({ href: "https://co-videopro.invalid/projects/project-a" }),
+    ],
     ["href traversal", validAsset({ href: "/projects/../settings" })],
-    ["href encoded traversal", validAsset({ href: "/projects/%2e%2e/settings" })],
+    [
+      "href encoded traversal",
+      validAsset({ href: "/projects/%2e%2e/settings" }),
+    ],
   ];
   for (const [label, malformed] of malformedCases) {
     assert.equal(
@@ -227,16 +254,20 @@ test("non-OK projects and assets responses become failure rather than empty or s
   const { loadProjectsRemoteState } = await loadModule();
 
   assert.deepEqual(
-    await loadProjectsRemoteState(fixedResponses({
-      projects: () => jsonResponse({ code: "BACKEND_UNAVAILABLE" }, 503),
-    })),
+    await loadProjectsRemoteState(
+      fixedResponses({
+        projects: () => jsonResponse({ code: "BACKEND_UNAVAILABLE" }, 503),
+      }),
+    ),
     { status: "error", responseStatus: 503 },
   );
   assert.deepEqual(
-    await loadProjectsRemoteState(fixedResponses({
-      projects: () => jsonResponse({ items: [validProject()] }),
-      assets: () => jsonResponse({ code: "AUTH_REQUIRED" }, 401),
-    })),
+    await loadProjectsRemoteState(
+      fixedResponses({
+        projects: () => jsonResponse({ items: [validProject()] }),
+        assets: () => jsonResponse({ code: "AUTH_REQUIRED" }, 401),
+      }),
+    ),
     { status: "error", responseStatus: 401 },
   );
 });
@@ -248,45 +279,57 @@ test("malformed 200 payloads and malformed items become failure rather than empt
     fixedResponses({ projects: () => jsonResponse({ items: null }) }),
     fixedResponses({ projects: () => jsonResponse([]) }),
     fixedResponses({ assets: () => jsonResponse({ unexpected: [] }) }),
-    fixedResponses({ projects: () => new Response("not-json", { status: 200 }) }),
     fixedResponses({
-      projects: () => jsonResponse({ items: [validProject({ stage: 7 as unknown as string })] }),
+      projects: () => new Response("not-json", { status: 200 }),
+    }),
+    fixedResponses({
+      projects: () =>
+        jsonResponse({
+          items: [validProject({ stage: 7 as unknown as string })],
+        }),
     }),
     fixedResponses({
       projects: () => jsonResponse({ items: [validProject()] }),
-      assets: () => jsonResponse({ items: [validAsset({ file_type: null as unknown as string })] }),
+      assets: () =>
+        jsonResponse({
+          items: [validAsset({ file_type: null as unknown as string })],
+        }),
     }),
   ]) {
-    assert.deepEqual(
-      await loadProjectsRemoteState(request),
-      { status: "error", responseStatus: null },
-    );
+    assert.deepEqual(await loadProjectsRemoteState(request), {
+      status: "error",
+      responseStatus: null,
+    });
   }
 });
 
 test("legitimate empty and validated success remain distinct", async () => {
   const { loadProjectsRemoteState } = await loadModule();
 
+  assert.deepEqual(await loadProjectsRemoteState(fixedResponses({})), {
+    status: "empty",
+  });
   assert.deepEqual(
-    await loadProjectsRemoteState(fixedResponses({})),
-    { status: "empty" },
-  );
-  assert.deepEqual(
-    await loadProjectsRemoteState(fixedResponses({
-      projects: () => jsonResponse({ items: [validProject({ stage: null })] }),
-      assets: () => jsonResponse({ items: [validAsset({ href: null })] }),
-    })),
+    await loadProjectsRemoteState(
+      fixedResponses({
+        projects: () =>
+          jsonResponse({ items: [validProject({ stage: null })] }),
+        assets: () => jsonResponse({ items: [validAsset({ href: null })] }),
+      }),
+    ),
     {
       status: "success",
       projects: [{ id: "project-a", name: "Launch campaign" }],
-      assets: [{
-        id: "asset-a",
-        project_id: "project-a",
-        title: "Launch cut",
-        file_type: "video",
-        status: "in_review",
-        created_at: "2026-08-23T20:00:00.000Z",
-      }],
+      assets: [
+        {
+          id: "asset-a",
+          project_id: "project-a",
+          title: "Launch cut",
+          file_type: "video",
+          status: "in_review",
+          created_at: "2026-08-23T20:00:00.000Z",
+        },
+      ],
     },
   );
 });
@@ -314,7 +357,10 @@ test("a failed reload cannot expose prior success data and a retry can recover",
 
   const retry = await loadProjectsRemoteState(request);
   assert.equal(retry.status, "success");
-  assert.equal(retry.status === "success" ? retry.projects[0]?.id : null, "project-a");
+  assert.equal(
+    retry.status === "success" ? retry.projects[0]?.id : null,
+    "project-a",
+  );
 });
 
 test("collection integrity rejects duplicate ids and orphan assets for remote and demo parity", async () => {
@@ -327,7 +373,10 @@ test("collection integrity rejects duplicate ids and orphan assets for remote an
 
   const failure = { status: "error", responseStatus: null } as const;
   assert.deepEqual(
-    collection.projectsStateFromCollections([validProject(), validProject()], []),
+    collection.projectsStateFromCollections(
+      [validProject(), validProject()],
+      [],
+    ),
     failure,
   );
   assert.deepEqual(
@@ -344,8 +393,13 @@ test("collection integrity rejects duplicate ids and orphan assets for remote an
     ),
     failure,
   );
-  assert.deepEqual(collection.projectsStateFromCollections([], [validAsset()]), failure);
-  assert.deepEqual(collection.projectsStateFromCollections([], []), { status: "empty" });
+  assert.deepEqual(
+    collection.projectsStateFromCollections([], [validAsset()]),
+    failure,
+  );
+  assert.deepEqual(collection.projectsStateFromCollections([], []), {
+    status: "empty",
+  });
 
   const success = collection.projectsStateFromCollections(
     [validProject()],

@@ -2,7 +2,10 @@ import assert from "node:assert/strict";
 import { existsSync } from "node:fs";
 import test from "node:test";
 
-const availabilityModuleUrl = new URL("../lib/api/projects-availability.ts", import.meta.url);
+const availabilityModuleUrl = new URL(
+  "../lib/api/projects-availability.ts",
+  import.meta.url,
+);
 
 test("Projects Shell actions fail closed until the matching page state succeeds", async () => {
   assert.equal(
@@ -11,10 +14,8 @@ test("Projects Shell actions fail closed until the matching page state succeeds"
     "Projects page and Shell must share one availability contract",
   );
 
-  const {
-    normalizeProjectsFixture,
-    projectsActionsUnavailable,
-  } = await import("../lib/api/projects-availability.ts");
+  const { normalizeProjectsFixture, projectsActionsUnavailable } =
+    await import("../lib/api/projects-availability.ts");
 
   assert.equal(
     typeof normalizeProjectsFixture,
@@ -29,23 +30,38 @@ test("Projects Shell actions fail closed until the matching page state succeeds"
 
   assert.equal(projectsActionsUnavailable("/projects", "remote", null), true);
   assert.equal(
-    projectsActionsUnavailable("/projects", "remote", { key: "remote", status: "loading" }),
+    projectsActionsUnavailable("/projects", "remote", {
+      key: "remote",
+      status: "loading",
+    }),
     true,
   );
   assert.equal(
-    projectsActionsUnavailable("/projects", "remote", { key: "remote", status: "error" }),
+    projectsActionsUnavailable("/projects", "remote", {
+      key: "remote",
+      status: "error",
+    }),
     true,
   );
   assert.equal(
-    projectsActionsUnavailable("/projects", "remote", { key: "remote", status: "empty" }),
+    projectsActionsUnavailable("/projects", "remote", {
+      key: "remote",
+      status: "empty",
+    }),
     true,
   );
   assert.equal(
-    projectsActionsUnavailable("/projects", "remote", { key: "remote", status: "success" }),
+    projectsActionsUnavailable("/projects", "remote", {
+      key: "remote",
+      status: "success",
+    }),
     false,
   );
   assert.equal(
-    projectsActionsUnavailable("/projects", "demo:loading", { key: "demo:default", status: "success" }),
+    projectsActionsUnavailable("/projects", "demo:loading", {
+      key: "demo:default",
+      status: "success",
+    }),
     true,
     "a stale report from another fixture cannot enable actions",
   );

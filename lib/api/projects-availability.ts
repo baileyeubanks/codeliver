@@ -6,10 +6,13 @@ import {
   type ReactNode,
 } from "react";
 
-export type ProjectsAvailabilityStatus = "loading" | "error" | "empty" | "success";
+export type ProjectsAvailabilityStatus =
+  "loading" | "error" | "empty" | "success";
 export type ProjectsFixture = "loading" | "error" | "empty";
 
-export function normalizeProjectsFixture(value: string | null): ProjectsFixture | null {
+export function normalizeProjectsFixture(
+  value: string | null,
+): ProjectsFixture | null {
   return value === "loading" || value === "error" || value === "empty"
     ? value
     : null;
@@ -24,15 +27,18 @@ type ReportProjectsAvailability = (
   report: ProjectsAvailabilityReport | null,
 ) => void;
 
-const ProjectsAvailabilityContext = createContext<ReportProjectsAvailability | null>(null);
+const ProjectsAvailabilityContext =
+  createContext<ReportProjectsAvailability | null>(null);
 
 export function projectsActionsUnavailable(
   pathname: string,
   expectedKey: string,
   report: ProjectsAvailabilityReport | null,
 ): boolean {
-  return pathname === "/projects"
-    && (report?.key !== expectedKey || report.status !== "success");
+  return (
+    pathname === "/projects" &&
+    (report?.key !== expectedKey || report.status !== "success")
+  );
 }
 
 export function ProjectsAvailabilityReporter({
@@ -42,7 +48,11 @@ export function ProjectsAvailabilityReporter({
   report: ReportProjectsAvailability;
   children: ReactNode;
 }) {
-  return createElement(ProjectsAvailabilityContext.Provider, { value: report }, children);
+  return createElement(
+    ProjectsAvailabilityContext.Provider,
+    { value: report },
+    children,
+  );
 }
 
 export function useReportProjectsAvailability(

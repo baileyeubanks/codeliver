@@ -55,7 +55,13 @@ function isNonEmptyString(value: unknown): value is string {
 
 const SAFE_ENTITY_ID_PATTERN = /^[A-Za-z0-9][A-Za-z0-9_-]{0,127}$/;
 const PROJECT_STAGE_SET = new Set<string>(PROJECT_STAGES);
-const ASSET_FILE_TYPES = new Set(["video", "image", "audio", "document", "other"]);
+const ASSET_FILE_TYPES = new Set([
+  "video",
+  "image",
+  "audio",
+  "document",
+  "other",
+]);
 const ASSET_STATUSES = new Set([
   "draft",
   "in_review",
@@ -71,10 +77,15 @@ function isSafeEntityId(value: unknown): value is string {
   return typeof value === "string" && SAFE_ENTITY_ID_PATTERN.test(value);
 }
 
-function isBoundedNonEmptyString(value: unknown, maximumLength: number): value is string {
-  return typeof value === "string"
-    && value.trim().length > 0
-    && value.length <= maximumLength;
+function isBoundedNonEmptyString(
+  value: unknown,
+  maximumLength: number,
+): value is string {
+  return (
+    typeof value === "string" &&
+    value.trim().length > 0 &&
+    value.length <= maximumLength
+  );
 }
 
 const ISO_TIMESTAMP_PATTERN =
@@ -94,31 +105,51 @@ function isIsoTimestamp(value: unknown): value is string {
   const offsetHour = match[7] === undefined ? 0 : Number(match[7]);
   const offsetMinute = match[8] === undefined ? 0 : Number(match[8]);
   const leapYear = year % 4 === 0 && (year % 100 !== 0 || year % 400 === 0);
-  const daysInMonth = [31, leapYear ? 29 : 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
-  return month >= 1
-    && month <= 12
-    && day >= 1
-    && day <= daysInMonth[month - 1]!
-    && hour <= 23
-    && minute <= 59
-    && second <= 59
-    && offsetHour <= 23
-    && offsetMinute <= 59;
+  const daysInMonth = [
+    31,
+    leapYear ? 29 : 28,
+    31,
+    30,
+    31,
+    30,
+    31,
+    31,
+    30,
+    31,
+    30,
+    31,
+  ];
+  return (
+    month >= 1 &&
+    month <= 12 &&
+    day >= 1 &&
+    day <= daysInMonth[month - 1]! &&
+    hour <= 23 &&
+    minute <= 59 &&
+    second <= 59 &&
+    offsetHour <= 23 &&
+    offsetMinute <= 59
+  );
 }
 
 function isNullableInternalProjectHref(
   value: unknown,
 ): value is string | null | undefined {
   if (value === undefined || value === null) return true;
-  if (typeof value !== "string"
-    || !/^\/projects(?:[/?#]|$)/.test(value)
-    || /%(?:25)*(?:2e|2f|5c)/i.test(value)) return false;
+  if (
+    typeof value !== "string" ||
+    !/^\/projects(?:[/?#]|$)/.test(value) ||
+    /%(?:25)*(?:2e|2f|5c)/i.test(value)
+  )
+    return false;
 
   try {
     const origin = "https://co-videopro.invalid";
     const href = new URL(value, origin);
-    return href.origin === origin
-      && (href.pathname === "/projects" || href.pathname.startsWith("/projects/"));
+    return (
+      href.origin === origin &&
+      (href.pathname === "/projects" || href.pathname.startsWith("/projects/"))
+    );
   } catch {
     return false;
   }
@@ -127,12 +158,14 @@ function isNullableInternalProjectHref(
 export function isProjectCollectionItem(
   value: unknown,
 ): value is ProjectCollectionItem {
-  return isRecord(value)
-    && isSafeEntityId(value.id)
-    && isBoundedNonEmptyString(value.name, 240)
-    && (value.stage === undefined
-      || value.stage === null
-      || (typeof value.stage === "string" && PROJECT_STAGE_SET.has(value.stage)));
+  return (
+    isRecord(value) &&
+    isSafeEntityId(value.id) &&
+    isBoundedNonEmptyString(value.name, 240) &&
+    (value.stage === undefined ||
+      value.stage === null ||
+      (typeof value.stage === "string" && PROJECT_STAGE_SET.has(value.stage)))
+  );
 }
 
 export function normalizeProjectCollectionItem(
@@ -148,16 +181,18 @@ export function normalizeProjectCollectionItem(
 export function isMediaAssetCollectionItem(
   value: unknown,
 ): value is MediaAssetCollectionItem {
-  return isRecord(value)
-    && isSafeEntityId(value.id)
-    && isSafeEntityId(value.project_id)
-    && isBoundedNonEmptyString(value.title, 500)
-    && typeof value.file_type === "string"
-    && ASSET_FILE_TYPES.has(value.file_type)
-    && typeof value.status === "string"
-    && ASSET_STATUSES.has(value.status)
-    && isIsoTimestamp(value.created_at)
-    && isNullableInternalProjectHref(value.href);
+  return (
+    isRecord(value) &&
+    isSafeEntityId(value.id) &&
+    isSafeEntityId(value.project_id) &&
+    isBoundedNonEmptyString(value.title, 500) &&
+    typeof value.file_type === "string" &&
+    ASSET_FILE_TYPES.has(value.file_type) &&
+    typeof value.status === "string" &&
+    ASSET_STATUSES.has(value.status) &&
+    isIsoTimestamp(value.created_at) &&
+    isNullableInternalProjectHref(value.href)
+  );
 }
 
 export function normalizeMediaAssetCollectionItem(
@@ -178,10 +213,12 @@ export function projectsStateFromCollections(
   projectItems: unknown,
   assetItems: unknown,
 ): ProjectsRemoteState {
-  if (!Array.isArray(projectItems)
-    || !projectItems.every(isProjectCollectionItem)
-    || !Array.isArray(assetItems)
-    || !assetItems.every(isMediaAssetCollectionItem)) {
+  if (
+    !Array.isArray(projectItems) ||
+    !projectItems.every(isProjectCollectionItem) ||
+    !Array.isArray(assetItems) ||
+    !assetItems.every(isMediaAssetCollectionItem)
+  ) {
     return { status: "error", responseStatus: null };
   }
 
@@ -189,9 +226,11 @@ export function projectsStateFromCollections(
   const assets = assetItems.map(normalizeMediaAssetCollectionItem);
   const projectIds = new Set(projects.map((project) => project.id));
   const assetIds = new Set(assets.map((asset) => asset.id));
-  if (projectIds.size !== projects.length
-    || assetIds.size !== assets.length
-    || assets.some((asset) => !projectIds.has(asset.project_id))) {
+  if (
+    projectIds.size !== projects.length ||
+    assetIds.size !== assets.length ||
+    assets.some((asset) => !projectIds.has(asset.project_id))
+  ) {
     return { status: "error", responseStatus: null };
   }
 
@@ -216,9 +255,11 @@ async function readApiCollection<T>(
     throw new ApiCollectionError(resource, null);
   }
 
-  if (!isRecord(payload)
-    || !Array.isArray(payload.items)
-    || !payload.items.every(isItem)) {
+  if (
+    !isRecord(payload) ||
+    !Array.isArray(payload.items) ||
+    !payload.items.every(isItem)
+  ) {
     throw new ApiCollectionError(resource, null);
   }
 

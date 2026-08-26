@@ -33,7 +33,11 @@ test("login and signup carry one safe nested return target through local demo ac
   assert.equal(login.searchParams.get("demo"), "1");
   assert.equal(login.searchParams.get("next"), target);
 
-  const signupHref = buildAuthPageHref("/signup", login.searchParams.get("next"), true);
+  const signupHref = buildAuthPageHref(
+    "/signup",
+    login.searchParams.get("next"),
+    true,
+  );
   const signup = new URL(signupHref, "https://co-deliver.test");
   assert.equal(signup.searchParams.get("next"), target);
   assert.equal(
@@ -47,25 +51,47 @@ test("login and signup carry one safe nested return target through local demo ac
     "/login?next=/projects/ica",
     "/auth/callback?code=secret",
   ]) {
-    const href = new URL(buildAuthPageHref("/login", unsafe, false), "https://co-deliver.test");
+    const href = new URL(
+      buildAuthPageHref("/login", unsafe, false),
+      "https://co-deliver.test",
+    );
     assert.equal(href.searchParams.get("next"), "/projects");
   }
 });
 
 test("every desktop and mobile navigation target resolves to the same role-filtered route state", () => {
-  const roles: WorkspaceRole[] = ["owner", "producer", "editor", "reviewer", "viewer"];
+  const roles: WorkspaceRole[] = [
+    "owner",
+    "producer",
+    "editor",
+    "reviewer",
+    "viewer",
+  ];
 
   for (const role of roles) {
     const visible = visibleNavigation(role).flatMap((section) => section.items);
     const visibleIds = new Set(visible.map((item) => item.id));
-    assert.equal(visibleIds.size, visible.length, `${role} navigation contains duplicate ids`);
+    assert.equal(
+      visibleIds.size,
+      visible.length,
+      `${role} navigation contains duplicate ids`,
+    );
 
-    for (const item of [...primaryNavigation(role), ...mobileNavigation(role)]) {
-      assert.equal(visibleIds.has(item.id), true, `${role}:${item.id} escaped role filtering`);
+    for (const item of [
+      ...primaryNavigation(role),
+      ...mobileNavigation(role),
+    ]) {
+      assert.equal(
+        visibleIds.has(item.id),
+        true,
+        `${role}:${item.id} escaped role filtering`,
+      );
       assert.equal(activeNavigationId(`${item.href}/nested`, role), item.id);
       assert.equal(
-        new URL(withWorkspaceQuery(item.href, "?demo=1"), "https://co-deliver.test")
-          .searchParams.getAll("demo").length,
+        new URL(
+          withWorkspaceQuery(item.href, "?demo=1"),
+          "https://co-deliver.test",
+        ).searchParams.getAll("demo").length,
         1,
       );
     }
@@ -90,7 +116,10 @@ test("dashboard, review, account, notification, signout, and offline shells reta
   assert.doesNotMatch(reviewLayout, /Shell|DemoSessionGuard/);
 
   assert.match(shell, /buildSettingsHref\("account", Boolean\(demoSuffix\)\)/);
-  assert.match(shell, /buildSettingsHref\("preferences", Boolean\(demoSuffix\)\)/);
+  assert.match(
+    shell,
+    /buildSettingsHref\("preferences", Boolean\(demoSuffix\)\)/,
+  );
   assert.match(shell, /withWorkspaceQuery\("\/activity", demoSuffix\)/);
   assert.match(shell, /<Bell size=\{19\} \/>/);
   assert.doesNotMatch(
@@ -101,17 +130,34 @@ test("dashboard, review, account, notification, signout, and offline shells reta
   assert.match(shell, /signOutDemoSession\(\)/);
   assert.match(shell, /window\.location\.href = "\/login\?demo=1"/);
   assert.match(shell, /await supabase\.auth\.signOut\(\)/);
-  assert.match(shell, /Offline\. Changes that require the server are paused\./);
+  assert.match(
+    shell,
+    /Offline\.\s*Changes that require the server\s*are\s*paused\./,
+  );
 });
 
 test("managed authentication redirects preserve the protected route after sign-in", () => {
   const proxySource = source("proxy.ts");
   const unauthenticatedStart = proxySource.indexOf("if (!user)");
-  const unauthenticatedEnd = proxySource.indexOf("\n  return res;", unauthenticatedStart);
+  const unauthenticatedEnd = proxySource.indexOf(
+    "\n  return res;",
+    unauthenticatedStart,
+  );
 
-  assert.notEqual(unauthenticatedStart, -1, "could not locate the managed unauthenticated branch");
-  assert.notEqual(unauthenticatedEnd, -1, "could not bound the managed unauthenticated branch");
-  const unauthenticatedBranch = proxySource.slice(unauthenticatedStart, unauthenticatedEnd);
+  assert.notEqual(
+    unauthenticatedStart,
+    -1,
+    "could not locate the managed unauthenticated branch",
+  );
+  assert.notEqual(
+    unauthenticatedEnd,
+    -1,
+    "could not bound the managed unauthenticated branch",
+  );
+  const unauthenticatedBranch = proxySource.slice(
+    unauthenticatedStart,
+    unauthenticatedEnd,
+  );
 
   assert.match(
     unauthenticatedBranch,

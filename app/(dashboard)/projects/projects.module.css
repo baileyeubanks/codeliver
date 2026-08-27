@@ -365,7 +365,12 @@
 .scope :global(.projects-loading-grid span) {
   height: 88px;
   border-radius: var(--cvp-radius-md);
-  background: linear-gradient(90deg, var(--cvp-surface-alt), var(--cvp-blue-tint), var(--cvp-surface-alt));
+  background: linear-gradient(
+    90deg,
+    var(--cvp-surface-alt),
+    var(--cvp-blue-tint),
+    var(--cvp-surface-alt)
+  );
   background-size: 200% 100%;
   animation: projects-loading 1.4s ease-in-out infinite;
 }
@@ -376,8 +381,19 @@
 }
 
 @keyframes projects-loading {
-  0% { background-position: 100% 0; }
-  100% { background-position: -100% 0; }
+  0% {
+    background-position: 100% 0;
+  }
+  100% {
+    background-position: -100% 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .scope :global(.projects-state-heading svg),
+  .scope :global(.projects-loading-grid span) {
+    animation: none;
+  }
 }
 
 @media (max-width: 760px) {

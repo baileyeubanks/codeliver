@@ -32,6 +32,10 @@ const CLIENT_ORIGIN_ALLOWLIST = new Map<string, string>([
   ["components/auth/auth-context.ts", "client-portal host detection for the login surface"],
   ["components/auth/auth-policy.ts", "auth portal origin policy"],
   ["lib/email.ts", "getBaseUrl() is the account-portal base; review links use publicReviewUrl()"],
+  [
+    "app/api/notifications/send/route.ts",
+    "getBaseUrl() is used as the same-origin VALIDATION origin for message.action_url, never as a link base",
+  ],
 ]);
 
 /**
@@ -42,7 +46,14 @@ const CLIENT_ORIGIN_ALLOWLIST = new Map<string, string>([
  * points at `/projects/<id>/assets/<id>` — an authenticated in-app deep link for a logged-in
  * teammate, which legitimately belongs on the account portal, not on the public review surface.
  */
-const REVIEW_LINK_HINT = /\/review\/|public_url|publicReviewUrl|shareUrl|share_url/;
+const REVIEW_LINK_HINT = /\/review\/|\/invite\/|public_url|publicReviewUrl|shareUrl|share_url|acceptUrl|accept_url/;
+
+/**
+ * A line that prefixes an ORIGIN onto a RELATIVE destination that arrived from elsewhere
+ * (`${origin}${actionUrl}`). The destination is unknowable from the line, so the origin must
+ * still be the surface that actually serves this app's paths.
+ */
+const RELATIVE_DESTINATION_HINT = /actionUrl|action_url|relativeUrl|destinationPath/;
 
 const CLIENT_ORIGIN_TOKENS = [
   "client.contentco-op.com",
@@ -51,6 +62,10 @@ const CLIENT_ORIGIN_TOKENS = [
   "getBrowserClientSiteUrl",
   "toClientSiteUrl",
   "getClientSiteUrl",
+  // Added 2026-09-09: `getBaseUrl()` is `getClientSiteUrl()` under another name, so a link
+  // minted from it lands on the dead client host. Only the two allow-listed files above may
+  // name it — one defines it, the other uses it purely as a validation origin.
+  "getBaseUrl",
 ];
 
 function collectSourceFiles(): string[] {
@@ -145,6 +160,18 @@ const ORIGIN_CAPTURES: Array<{ pattern: RegExp; requiresReviewHint: boolean }> =
   { pattern: /buildSurfaceUrl\(\s*([^,\n]+?)\s*,/g, requiresReviewHint: true },
   // { baseUrl: origin } handed to the share-notification builder
   { pattern: /\bbaseUrl:\s*([^,;\n]+?)\s*,?\s*$/g, requiresReviewHint: false },
+  // `${origin}/invite/<token>` — team invites are served by /invite/[token] in THIS app.
+  { pattern: /\$\{([^}]+)\}\/invite\//g, requiresReviewHint: false },
+  // origin + "/invite/..."
+  { pattern: /([A-Za-z_$][\w$.]*(?:\([^()]*\))?)\s*\+\s*["'`]\/invite\//g, requiresReviewHint: false },
+];
+
+/** Captures gated on RELATIVE_DESTINATION_HINT rather than REVIEW_LINK_HINT. */
+const RELATIVE_DESTINATION_CAPTURES: RegExp[] = [
+  // `${origin}${someRelativePath}`
+  /\$\{([^}]+)\}\$\{[^}]+\}/g,
+  // origin + relativePath
+  /\$\{([^}]+)\}["'`]?\s*\+\s*[A-Za-z_$][\w$.]*\b/g,
 ];
 
 const TYPE_ANNOTATION = /^(string|number|boolean|null|undefined|unknown|any)$/;
@@ -173,6 +200,8 @@ function judgeOriginExpression(
   if (!expr || TYPE_ANNOTATION.test(expr)) return { ok: true };
   // A relative destination carries no origin at all — always safe.
   if (/^["'`]\//.test(expr)) return { ok: true };
+  // `url.pathname` / `url.search` / `url.hash` are the path halves of a URL, not an origin.
+  if (/\.(pathname|search|hash)$/.test(expr)) return { ok: true };
 
   if (/https?:\/\//.test(expr)) {
     return expr.includes(APPROVED_ORIGIN_LITERAL)
@@ -233,6 +262,20 @@ test("every public review/share URL is minted from a KNOWN review-origin produce
         }
       }
 
+      if (RELATIVE_DESTINATION_HINT.test(line)) {
+        for (const pattern of RELATIVE_DESTINATION_CAPTURES) {
+          pattern.lastIndex = 0;
+          let match: RegExpExecArray | null;
+          while ((match = pattern.exec(line))) {
+            const verdict = judgeOriginExpression(match[1], source, relativePath);
+            if (verdict.ok) continue;
+            offenders.push(
+              `${relativePath}:${index + 1} — ${verdict.reason} — prefixes a relative destination — ${line.trim()}`,
+            );
+          }
+        }
+      }
+
       // A review-hint line that hard-codes any other absolute origin is a defect on its face.
       if (hasReviewHint) {
         const literal = line.match(/https?:\/\/[^"'`\s)]+/);
@@ -251,12 +294,16 @@ test("every public review/share URL is minted from a KNOWN review-origin produce
   );
 });
 
-test("the three previously-broken call sites use the review-site helper", () => {
+test("every previously-broken call site uses the review-site helper", () => {
   const expectations: Array<[string, RegExp]> = [
     ["components/projects/ProjectCockpit.tsx", /getReviewSiteUrl\(window\.location\.origin\)/],
     ["app/(dashboard)/reviews/page.tsx", /toReviewSiteUrl\(value, runtimeOrigin\)/],
     ["app/api/assets/[id]/approvals/route.ts", /\$\{getReviewSiteUrl\(\)\}\/review\//],
     ["app/api/approvals/notify/route.ts", /\$\{getReviewSiteUrl\(\)\}\/review\//],
+    // 2026-09-09: team invite acceptance links pointed at the dead client host.
+    ["app/api/teams/invites/route.ts", /\$\{getReviewSiteUrl\(\)\}\/invite\//],
+    // 2026-09-09: notification emails prefixed relative action URLs with the dead client host.
+    ["lib/notifications/adapters.ts", /\$\{getReviewSiteUrl\(\)\}\$\{actionUrl\}/],
   ];
 
   for (const [file, pattern] of expectations) {

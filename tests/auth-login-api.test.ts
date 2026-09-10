@@ -149,3 +149,14 @@ test("login routes a verified but unprovisioned identity into onboarding", async
     destination: "/onboarding?next=%2Fprojects%2Fica%3Fview%3Dreview",
   });
 });
+
+
+test("company-email reviewers return to exact review without workspace provisioning", async () => {
+  state.__ccoLoginIdentity = { data: { user: { app_metadata: {} } }, error: null };
+  const next = "/review/7239cd32-6d7f-428c-b949-648931a9f8c4";
+  const response = await login({ email: "client@company.example", password: "secret-password", next });
+  assert.deepEqual(await response.json(), { success: true, destination: next });
+  assert.deepEqual(state.__ccoLoginIdentity.data.user?.app_metadata, {});
+  state.__ccoLoginIdentity = { data: { user: null }, error: null };
+  assert.equal((await login({ email: "client@company.example", password: "secret-password", next })).status, 503);
+});

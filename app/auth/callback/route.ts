@@ -6,6 +6,7 @@ import {
   surfaceForRole,
   type HostSurface,
 } from "@/lib/auth/host-surface";
+import { resolveReviewAuthReturn } from "@/lib/auth/review-return";
 import { resolveProvisionedRole } from "@/lib/auth/provisioning";
 import { buildPendingAccessPath } from "@/lib/auth/flow";
 import { createSupabaseAuth } from "@/lib/supabase-auth";
@@ -67,6 +68,13 @@ export async function GET(request: Request) {
 
     if (flow === "recovery") {
       return noStoreRedirect(new URL("/reset-password", origin));
+    }
+
+    // A public review is not a workspace entitlement. Its admission cookie and
+    // invite permissions remain mandatory in the review handlers.
+    const reviewTarget = resolveReviewAuthReturn(requestedTarget);
+    if (reviewTarget && resolveHostSurface(requestUrl.host)) {
+      return noStoreRedirect(new URL(reviewTarget, origin));
     }
 
     const role = resolveProvisionedRole(identity.data.user);

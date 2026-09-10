@@ -1,3 +1,4 @@
+import { resolveReviewAuthReturn } from "@/lib/auth/review-return";
 import { apiJson } from "@/lib/api/responses";
 import {
   isValidCredentialEmail,
@@ -69,6 +70,11 @@ export async function POST(req: Request) {
     const identity = await supabase.auth.getUser();
     if (identity.error || !identity.data.user) {
       return apiJson(AUTH_UNAVAILABLE, { status: 503 });
+    }
+
+    const reviewTarget = resolveReviewAuthReturn(body.next);
+    if (reviewTarget) {
+      return apiJson({ success: true, destination: reviewTarget });
     }
 
     const role = resolveProvisionedRole(identity.data.user);

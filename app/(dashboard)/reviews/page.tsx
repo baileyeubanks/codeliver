@@ -22,7 +22,7 @@ import {
   setDemoShareLinkActive,
   useDemoWorkspace,
 } from "@/lib/demo/workspace-store";
-import { toClientSiteUrl, toDemoSiteUrl } from "@/lib/surface-origins";
+import { toDemoSiteUrl, toReviewSiteUrl } from "@/lib/surface-origins";
 
 interface ShareLink {
   id: string;
@@ -52,7 +52,7 @@ function timeAgo(iso: string) {
 function resolvePublicLink(value: string, demoMode: boolean, runtimeOrigin?: string): string | null {
   try {
     if (demoMode && runtimeOrigin) return toDemoSiteUrl(value, runtimeOrigin);
-    return toClientSiteUrl(value, runtimeOrigin);
+    return toReviewSiteUrl(value, runtimeOrigin);
   } catch {
     return null;
   }

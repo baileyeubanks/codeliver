@@ -106,7 +106,7 @@ import {
 import { useDemoMediaObjectUrl } from "@/lib/demo/media-blob-store";
 import { formatSmpteTimecode } from "@/components/player/timecode";
 import { normalizeReviewSeekStep, normalizeReviewShortcutKey, shouldIgnoreReviewShortcut } from "@/lib/review/player-policy";
-import { buildSurfaceUrl, getBrowserClientSiteUrl } from "@/lib/surface-origins";
+import { buildSurfaceUrl, getReviewSiteUrl } from "@/lib/surface-origins";
 import type { EditDecision } from "@/lib/types/codeliver";
 import styles from "./ProjectCockpit.module.css";
 
@@ -360,7 +360,7 @@ function normalizeLiveActivity(record: Record<string, unknown>): DemoActivityIte
 function normalizeLiveShareLink(
   record: Record<string, unknown>,
   assetId: string,
-  clientOrigin: string,
+  reviewOrigin: string,
 ): DemoShareLink | null {
   const id = recordString(record, "id");
   const token = recordString(record, "token");
@@ -392,7 +392,7 @@ function normalizeLiveShareLink(
     max_views: typeof record.max_views === "number" ? record.max_views : null,
     notification_status: "links_only",
     is_active: record.authority_status === "active",
-    public_url: buildSurfaceUrl(clientOrigin, `/review/${encodeURIComponent(token)}`),
+    public_url: buildSurfaceUrl(reviewOrigin, `/review/${encodeURIComponent(token)}`),
   };
 }
 
@@ -860,11 +860,11 @@ export default function ProjectCockpit({
         })),
     );
 
-    const clientOrigin = getBrowserClientSiteUrl(window.location.origin);
+    const reviewOrigin = getReviewSiteUrl(window.location.origin);
     const linkItems = Array.isArray(linksPayload.items) ? linksPayload.items : [];
     setLiveShareLinks(
       linkItems.flatMap((item: Record<string, unknown>) => {
-        const link = normalizeLiveShareLink(item, assetId, clientOrigin);
+        const link = normalizeLiveShareLink(item, assetId, reviewOrigin);
         return link ? [link] : [];
       }),
     );

@@ -224,14 +224,7 @@ test("wrong-surface callbacks clear the local session and return to same-origin 
   const staffOnUnmanagedPort = await GET(new Request(
     "https://admin.contentco-op.com:8443/auth/callback?code=ok&next=/settings",
   ));
-  const unmanagedPortLocation = new URL(staffOnUnmanagedPort.headers.get("location") ?? "");
-  assert.equal(unmanagedPortLocation.origin, "https://admin.contentco-op.com:8443");
-  assert.equal(unmanagedPortLocation.pathname, "/login");
-  assert.equal(unmanagedPortLocation.searchParams.get("access"), "surface_mismatch");
-  assert.equal(unmanagedPortLocation.searchParams.get("required_surface"), "admin");
-  assert.deepEqual(state.__ccoSignOutCalls, [
-    { scope: "local" },
-    { scope: "local" },
-    { scope: "local" },
-  ]);
+  assert.equal(staffOnUnmanagedPort.status, 400);
+  assert.equal(staffOnUnmanagedPort.headers.get("location"), null);
+  assert.deepEqual(state.__ccoSignOutCalls, [{ scope: "local" }, { scope: "local" }]);
 });

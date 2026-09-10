@@ -1,5 +1,5 @@
 import { requireAuth } from "@/lib/auth";
-import { getBaseUrl } from "@/lib/email";
+import { getReviewSiteUrl } from "@/lib/surface-origins";
 import { getExternalNotificationAdapters } from "@/lib/notifications/adapters";
 import { executeShareManifest } from "@/lib/sharing/share-api";
 import {
@@ -46,7 +46,7 @@ async function POSTHandler(req: Request) {
     manifest: parsed.value,
     user,
     client: getSupabase(),
-    baseUrl: getBaseUrl(),
+    baseUrl: getReviewSiteUrl(),
     adapters: getExternalNotificationAdapters(),
   });
   const headers = new Headers();

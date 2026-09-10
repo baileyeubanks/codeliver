@@ -1,7 +1,7 @@
 import { apiError, apiJson } from "@/lib/api/responses";
 import { getAssetAccess, PROJECT_ROLE_RANK } from "@/lib/access-control";
 import { requireAuth } from "@/lib/auth";
-import { getBaseUrl } from "@/lib/email";
+import { getReviewSiteUrl } from "@/lib/surface-origins";
 import { getExternalNotificationAdapters } from "@/lib/notifications/adapters";
 import {
   recoverOpaqueToken,
@@ -133,7 +133,7 @@ async function POSTHandler(req: Request, { params }: { params: Promise<{ id: str
     manifest: parsed.value,
     user,
     client: getSupabase(),
-    baseUrl: getBaseUrl(),
+    baseUrl: getReviewSiteUrl(),
     adapters: getExternalNotificationAdapters(),
   });
   const responseBody = singleShareResponseBody(execution.body as Record<string, unknown>);

@@ -87,6 +87,38 @@ test("review mutations require exact-origin JSON before authority or body work",
   );
 });
 
+test("review origin uses the approved ingress Host when Next exposes its loopback URL", () => {
+  const request = mutationRequest({
+    Host: "co-videopro.com",
+    Origin: "https://co-videopro.com",
+  }, "https://localhost:4103/api/review/opaque-token/admission");
+  assert.deepEqual(validateReviewMutationRequest(request), { ok: true });
+  assert.deepEqual(validateReviewReadRequest(request), { ok: true });
+
+  for (const overrides of [
+    { Origin: "https://client.contentco-op.com" },
+    { Origin: "https://localhost:4103" },
+    { Origin: "http://co-videopro.com" },
+    { Origin: "https://co-videopro.com", Host: "evil.example" },
+    { Origin: "https://co-videopro.com", Host: "co-videopro.com.evil.example" },
+    { Origin: "https://co-videopro.com", Host: "co-videopro.com:444" },
+    { Origin: "https://co-videopro.com", "Sec-Fetch-Site": "same-site" },
+    { Origin: "https://co-videopro.com", "Sec-Fetch-Site": "cross-site" },
+    { Origin: "https://evil.example", "X-Forwarded-Host": "evil.example", "X-Forwarded-Proto": "https" },
+    { Origin: "https://co-videopro.com", Host: "evil.example", "X-Forwarded-Host": "co-videopro.com", "X-Forwarded-Proto": "https" },
+  ]) {
+    const rejected = mutationRequest({ Host: "co-videopro.com", ...overrides }, "https://localhost:4103/api/review/opaque-token/admission");
+    assert.equal(validateReviewMutationRequest(rejected).ok, false);
+    assert.equal(validateReviewReadRequest(rejected).ok, false);
+  }
+});
+
+test("local review development retains exact-origin behavior without trusting forwarded headers", () => {
+  const url = "http://localhost:4103/api/review/opaque-token/admission";
+  assert.deepEqual(validateReviewMutationRequest(mutationRequest({ Host: "localhost:4103", Origin: "http://localhost:4103" }, url)), { ok: true });
+  assert.equal(validateReviewMutationRequest(mutationRequest({ Host: "localhost:4103", Origin: "https://co-videopro.com", "X-Forwarded-Host": "co-videopro.com", "X-Forwarded-Proto": "https" }, url)).ok, false);
+});
+
 test("review JSON parsing distinguishes malformed input from a chunked oversized body", async () => {
   const oversized = mutationRequest(
     {

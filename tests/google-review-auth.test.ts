@@ -43,3 +43,11 @@ test('callback allows verified reviewer return without role elevation and preser
  state.authUser={id:'client',app_metadata:{content_coop_role:'client'}};assert.match((await call('/projects')).headers.get('location')!,/surface_mismatch/);
  state.authUser=null;assert.match((await call(target)).headers.get('location')!,/session_missing/);
 });
+
+test('public-host authentication survives the internal Next loopback URL',async()=>{
+ const {GET}=await import('../app/auth/callback/route.ts');
+ state.authUser={id:'reviewer',app_metadata:{}};
+ const next='/review/'+'b'.repeat(64);
+ const response=await GET(new Request('https://localhost:4103/auth/callback?code=test&next='+encodeURIComponent(next),{headers:{host:'co-videopro.com'}}));
+ assert.equal(response.headers.get('location'),'https://co-videopro.com'+next);
+});

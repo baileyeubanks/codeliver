@@ -5,7 +5,7 @@
 
 import { formatShareIntentMeta, type ShareIntent } from "@/lib/sharing/share-intent";
 import { getAdminSiteUrl, getClientSiteUrl } from "@/lib/server-env";
-import { buildSurfaceUrl } from "@/lib/surface-origins";
+import { buildSurfaceUrl, getReviewSiteUrl } from "@/lib/surface-origins";
 
 export interface EmailPayload {
   to: string;
@@ -56,7 +56,7 @@ export function getAdminBaseUrl(): string {
 }
 
 function publicReviewUrl(value: string): string {
-  return buildSurfaceUrl(getClientSiteUrl(), value);
+  return buildSurfaceUrl(getReviewSiteUrl(), value);
 }
 
 function internalAppUrl(value: string): string {

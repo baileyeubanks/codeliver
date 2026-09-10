@@ -100,6 +100,7 @@ export default function NotificationAuthorityControl({
         {(["none", "preview", "send"] as const).map((action) => (
           <button
             key={action}
+            aria-pressed={value.action === action}
             type="button"
             onClick={() => update({ action, confirmLiveSend: false })}
             className={`min-h-9 px-2 text-xs font-medium capitalize transition-colors ${

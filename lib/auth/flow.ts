@@ -9,7 +9,7 @@ const LOCAL_AUTH_HOSTS = new Set(["localhost", "127.0.0.1", "[::1]"]);
 
 export function resolveAuthRequestOrigin(request: Request): string | null {
   const requestUrl = new URL(request.url);
-  const approvedHost = resolveApprovedSurfaceHost(requestUrl.host);
+  const approvedHost = resolveApprovedSurfaceHost(request.headers.get("host") ?? requestUrl.host);
   if (approvedHost) return `https://${approvedHost}`;
 
   if (

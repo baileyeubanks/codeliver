@@ -1,4 +1,4 @@
-const REVIEW_RETURN = /^\/review\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const REVIEW_RETURN = /^\/review\/[A-Za-z0-9_-]{16,256}$/;
 
 /** Authentication returns here; the independent review admission still grants access. */
 export function resolveReviewAuthReturn(value: unknown): string | null {

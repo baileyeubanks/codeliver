@@ -288,7 +288,8 @@ test("production approval and version labels come from indexed records", () => {
     projectAssetsRouteSource,
     /approvals\(id, status, step_order, role_label, assignee_email\)/,
   );
-  assert.match(projectAssetsRouteSource, /versions\(count\)/);
+  assert.match(projectAssetsRouteSource, /versions\(id\)/);
+  assert.match(projectAssetsRouteSource, /count: asset\.versions\?\.length \?\? 0/);
   assert.match(cockpitSource, /approval\.role_label \|\| "Approval"/);
   assert.doesNotMatch(cockpitSource, /Assigned reviewer/);
   assert.match(cockpitSource, /Version not indexed/);

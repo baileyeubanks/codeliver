@@ -324,6 +324,12 @@
     grid-template-columns: 56px minmax(0, 1fr) auto;
   }
 
+  /* The stage chip is a fourth grid item in a three-track phone header.
+     Stage remains available in the Lifecycle drawer. */
+  .shell .stageChip {
+    display: none;
+  }
+
   .shell :global(.cockpit-brand) {
     width: 56px;
     height: 64px;

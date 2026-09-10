@@ -27,10 +27,11 @@ test("AssetUpload preserves received bytes when tus completes into ready or quar
   assert.match(uploader, /Upload-Original-Ready/);
 });
 
-test("AssetUpload queues selection during unavailable readiness as an actionable error", () => {
+test("AssetUpload keeps selected files pending while confirming readiness", () => {
   assert.doesNotMatch(uploader, /disabled=\{storage\.phase !== "ready"\}/);
-  assert.match(uploader, /const readinessError = storage\.phase === "ready" \? undefined/);
-  assert.match(uploader, /status: tooLarge \|\| readinessError \? "error" : "pending"/);
+  assert.match(uploader, /void refreshStorageReadiness\(\)\.then\(begin\)/);
+  assert.match(uploader, /startTusUpload\(item, readiness\)/);
+  assert.doesNotMatch(uploader, /Storage readiness is still being checked. Retry/);
   assert.match(uploader, /refreshStorageReadiness/);
   assert.match(uploader, /aria-label="Retry upload"/);
   assert.match(uploader, /aria-label="Remove failed upload"/);

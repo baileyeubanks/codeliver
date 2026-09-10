@@ -37,7 +37,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
     const { data, error } = await authSupabase
       .from("assets")
       .select(
-        "id, project_id, folder_id, title, file_type, file_url, thumbnail_url, proxy_url, file_size, duration_seconds, status, position, uploaded_by, created_at, updated_at, comments(count), approvals(id, status, step_order, role_label, assignee_email), versions(count)",
+        "id, project_id, folder_id, title, file_type, file_url, thumbnail_url, proxy_url, file_size, duration_seconds, status, position, uploaded_by, created_at, updated_at, comments(count), approvals(id, status, step_order, role_label, assignee_email), versions(id)",
       )
       .eq("project_id", id)
       .is("deleted_at", null)
@@ -46,7 +46,10 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
     if (error) {
       return backendUnavailable();
     }
-    return apiJson({ items: data ?? [] });
+    // Count only permitted version IDs; count(*) requires grants on protected columns.
+    return apiJson({ items: (data ?? []).map((asset) => ({
+      ...asset, versions: [{ count: asset.versions?.length ?? 0 }],
+    })) });
   } catch {
     return backendUnavailable();
   }

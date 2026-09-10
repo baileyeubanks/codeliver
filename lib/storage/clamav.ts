@@ -5,9 +5,9 @@ import { isAbsolute } from "node:path";
 import { Transform } from "node:stream";
 import { pipeline } from "node:stream/promises";
 import type { MalwareScanHook, MalwareScanInput, MalwareScanResult } from "./malware.ts";
+import { CLAMAV_MAX_SCAN_BYTES } from "./scanner-limits.ts";
 
 // ClamAV has a 2 GB engine boundary. Never silently skip a larger upload.
-const MAX_SCAN_BYTES = 2_000_000_000;
 const MAX_OUTPUT_BYTES = 64 * 1024;
 
 export class ClamAvScanHook implements MalwareScanHook {
@@ -37,7 +37,7 @@ export class ClamAvScanHook implements MalwareScanHook {
     const result = (verdict: MalwareScanResult["verdict"], detail: string): MalwareScanResult => ({
       verdict, detail, engine: "clamav", signature: null, scannedAt: new Date().toISOString(),
     });
-    if (!this.readiness.configured || input.signal?.aborted || !Number.isSafeInteger(input.size) || input.size <= 0 || input.size > MAX_SCAN_BYTES) {
+    if (!this.readiness.configured || input.signal?.aborted || !Number.isSafeInteger(input.size) || input.size <= 0 || input.size > CLAMAV_MAX_SCAN_BYTES) {
       return result("error", "Scanner unavailable, scan cancelled, or file exceeds scanner limits");
     }
     const controller = new AbortController();

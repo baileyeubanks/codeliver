@@ -116,9 +116,10 @@ export default function ProjectWorkspaceClient() {
     ])
       .then(async ([projectResponse, assetsResponse, projectsResponse, sessionResponse]) => {
         if (!projectResponse.ok) throw new Error("Project could not be loaded.");
+        if (!assetsResponse.ok) throw new Error("Project media could not be loaded. Please retry.");
         const [projectPayload, assetsPayload, projectsPayload, sessionPayload] = await Promise.all([
           projectResponse.json(),
-          assetsResponse.ok ? assetsResponse.json() : { items: [] },
+          assetsResponse.json(),
           projectsResponse.ok ? projectsResponse.json() : { items: [] },
           sessionResponse.ok ? sessionResponse.json() : {},
         ]);
@@ -300,14 +301,13 @@ export default function ProjectWorkspaceClient() {
     }
   }
 
-  function refreshRemoteAssets() {
-    void fetch(`/api/projects/${id}/assets`, { cache: "no-store" })
-      .then(async (response) => {
-        if (!response.ok) return;
-        const payload = (await response.json()) as { items?: Asset[] };
-        setRemoteAssets(payload.items ?? []);
-      })
-      .catch(() => undefined);
+  async function refreshRemoteAssets() {
+    const response = await fetch(`/api/projects/${id}/assets`, {
+      cache: "no-store", signal: AbortSignal.timeout(20_000),
+    });
+    if (!response.ok) throw new Error("File saved. The media list could not refresh. Reload this project to try again.");
+    const payload = (await response.json()) as { items?: Asset[] };
+    setRemoteAssets(payload.items ?? []);
   }
 
   if (loading) {
@@ -416,6 +416,7 @@ export default function ProjectWorkspaceClient() {
         inputId={authoritativeUploadInputId}
         variant="cockpit"
         onUploadComplete={refreshRemoteAssets}
+        resumeScope={viewer.email}
       />
     </>
   );

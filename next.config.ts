@@ -47,8 +47,10 @@ const nextConfig: NextConfig = {
   images: {
     unoptimized: true,
   },
-  // Allow large request bodies for tus resumable uploads (up to 500MB per chunk)
+  // The proxy buffers PATCH bodies independently of Server Actions. Match the
+  // storage maximum; the browser sends smaller 8 MiB chunks.
   experimental: {
+    proxyClientMaxBodySize: "64mb",
     serverActions: {
       bodySizeLimit: "500mb",
     },

@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import { formatFileSize } from "@/lib/utils/media";
 import * as tus from "tus-js-client";
+import { TransferIntent, setTransferTimeout } from "@/lib/uploads/transfer-intent";
 import styles from "./AssetUpload.module.css";
 import type { Tag } from "@/lib/types/codeliver";
 
@@ -102,7 +103,7 @@ export default function AssetUpload({
 }) {
   const [items, setItems] = useState<UploadItem[]>([]);
   const [minimized, setMinimized] = useState(false);
-  const cancelled = useRef(new Set<string>());
+  const intent = useRef(new TransferIntent());
   const uploads = useRef(new Map<string, tus.Upload>());
   const mounted = useRef(true);
   const [dragOver, setDragOver] = useState(false);
@@ -179,7 +180,8 @@ export default function AssetUpload({
 
   const updateItem = useCallback(
     (id: string, patch: Partial<UploadItem>) => {
-      if (!mounted.current || cancelled.current.has(id)) return;
+      if (!mounted.current || intent.current.isCancelled(id)) return;
+      if (intent.current.isPaused(id) && (patch.status === "uploading" || patch.status === "processing")) return;
       setItems((prev) =>
         prev.map((i) => (i.id === id ? { ...i, ...patch } : i))
       );
@@ -189,7 +191,7 @@ export default function AssetUpload({
 
   const startTusUpload = useCallback(
     (item: UploadItem, readiness: StorageReadiness = storage) => {
-      if (!mounted.current || cancelled.current.has(item.id)) return;
+      if (!mounted.current || intent.current.isCancelled(item.id)) return;
       if (readiness.phase !== "ready") {
         updateItem(item.id, {
           status: "error",
@@ -202,7 +204,10 @@ export default function AssetUpload({
       const upload = new tus.Upload(item.file, {
         endpoint: "/api/upload/tus",
         chunkSize: readiness.maxChunkBytes,
-        requestTimeout: 180_000,
+        onBeforeRequest(request) {
+          const xhr = request.getUnderlyingObject();
+          if (xhr instanceof XMLHttpRequest) setTransferTimeout(xhr);
+        },
         fingerprint: async (file) => JSON.stringify(["cvp-v2", projectId, resumeScope, folderId ?? "", file.name, file.size, file.type, file.lastModified]),
         retryDelays: [0, 1000, 3000, 5000, 10000],
         removeFingerprintOnSuccess: true,
@@ -276,11 +281,12 @@ export default function AssetUpload({
       void upload
         .findPreviousUploads()
         .then((previousUploads) => {
-          if (!mounted.current || cancelled.current.has(item.id)) return;
+          if (!mounted.current || intent.current.isCancelled(item.id)) return;
           if (previousUploads.length > 0) {
             upload.resumeFromPreviousUpload(previousUploads[0]);
           }
-          upload.start();
+          intent.current.ready(item.id);
+          if (intent.current.canStart(item.id)) upload.start();
         })
         .catch((error: unknown) => {
           updateItem(item.id, {
@@ -310,7 +316,7 @@ export default function AssetUpload({
       setItems((prev) => [...prev, ...newItems]);
       const begin = (readiness: StorageReadiness | null) => {
         newItems.forEach((item) => {
-          if (!mounted.current || cancelled.current.has(item.id)) return;
+          if (!mounted.current || intent.current.isCancelled(item.id)) return;
           if (!readiness || readiness.phase !== "ready") {
             updateItem(item.id, {
               status: "error",
@@ -339,6 +345,7 @@ export default function AssetUpload({
     (id: string) => {
       const item = items.find((current) => current.id === id);
       if (!item?.tusUpload) return;
+      intent.current.pause(id);
       updateItem(id, { status: "pausing" });
       void item.tusUpload.abort()
         .then(() => updateItem(id, { status: "paused" }))
@@ -356,7 +363,8 @@ export default function AssetUpload({
     (id: string) => {
       const item = items.find((current) => current.id === id);
       if (!item?.tusUpload) return;
-      item.tusUpload.start();
+      intent.current.resume(id);
+      if (intent.current.canStart(id)) item.tusUpload.start();
       updateItem(id, { status: "uploading" });
     },
     [items, updateItem]
@@ -366,6 +374,7 @@ export default function AssetUpload({
     (id: string) => {
       const item = items.find((i) => i.id === id);
       if (item) {
+        intent.current.reset(id);
         const retryItem: UploadItem = {
           ...item,
           attemptId: crypto.randomUUID(),
@@ -410,7 +419,7 @@ export default function AssetUpload({
   );
 
   const removeUploadItem = useCallback((id: string) => {
-    cancelled.current.add(id);
+    intent.current.cancel(id);
     uploads.current.delete(id);
     setItems((prev) => prev.filter((item) => item.id !== id));
   }, []);
@@ -423,9 +432,11 @@ export default function AssetUpload({
         return;
       }
       updateItem(id, { status: "cancelling" });
+      intent.current.cancel(id);
       void item.tusUpload.abort(true)
         .then(() => removeUploadItem(id))
         .catch((error: unknown) => {
+          intent.current.cancellationFailed(id);
           updateItem(id, {
             status: "error",
             error: error instanceof Error ? error.message : "Unable to cancel upload",

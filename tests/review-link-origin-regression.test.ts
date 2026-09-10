@@ -29,8 +29,6 @@ const CLIENT_ORIGIN_ALLOWLIST = new Map<string, string>([
   ["lib/surface-origins.ts", "defines the canonical constant and the client/admin/review helpers"],
   ["lib/server-env.ts", "env-var registry; names the vars, does not mint links"],
   ["lib/auth/host-surface.ts", "Host-header surface derivation (reviewed and correct)"],
-  ["lib/auth/flow.ts", "auth redirect flow (reviewed and correct)"],
-  ["lib/review/request-boundary.ts", "same-origin request boundary (reviewed and correct)"],
   ["components/auth/auth-context.ts", "client-portal host detection for the login surface"],
   ["components/auth/auth-policy.ts", "auth portal origin policy"],
   ["lib/email.ts", "getBaseUrl() is the account-portal base; review links use publicReviewUrl()"],
@@ -101,28 +99,155 @@ test("no source file outside the allow-list references a client-origin link help
   );
 });
 
-test("no review or share URL is built from a client-origin value, even inside allow-listed files", () => {
+/**
+ * ALLOW-WHAT-IS-KNOWN scan (inverted, per review #2 FINDING 5).
+ *
+ * The deny-list scan above can only fire on names it already knows, so a NEW helper
+ * (`getShareOrigin()` returning CLIENT_PRODUCTION_ORIGIN) or a two-line variable binding
+ * defeats it. This scan works the other way round: it finds every place that prefixes a
+ * PUBLIC review/share destination with an ORIGIN EXPRESSION, resolves that expression back
+ * through its bindings in the same file, and requires it to come from a KNOWN-GOOD producer.
+ * Anything else — any name, however new — fails.
+ *
+ * Matching is on the URL PATH, not on variable names: `app/api/assets/[id]/comments/route.ts`
+ * and `app/api/review/[token]/comments/route.ts` assign a variable called `reviewUrl` that
+ * points at `/projects/<id>/assets/<id>`, an authenticated in-app deep link.
+ */
+const APPROVED_ORIGIN_PRODUCER =
+  /\b(getReviewSiteUrl|toReviewSiteUrl|publicReviewUrl|LEGACY_UNIFIED_PRODUCTION_ORIGIN|getDemoSiteUrl|toDemoSiteUrl)\b/;
+
+/** The only origin literal a public review/share link may carry. */
+const APPROVED_ORIGIN_LITERAL = "https://co-videopro.com";
+
+/**
+ * Origins that arrive as a function parameter and therefore cannot be resolved inside the
+ * file. Each is safe only because this same test checks the value at every call site (the
+ * `baseUrl:` capture below), so widening this map without that guarantee reopens the hole.
+ */
+const PARAMETER_ORIGIN_ALLOWLIST = new Map<string, string>([
+  [
+    "lib/sharing/share-notifications.ts:baseUrl",
+    "required parameter; both callers pass getReviewSiteUrl() and are checked by the baseUrl: rule",
+  ],
+  [
+    "lib/sharing/share-api.ts:baseUrl",
+    "required parameter; both share routes pass getReviewSiteUrl() and are checked by the baseUrl: rule",
+  ],
+]);
+
+/** Each capture pulls the ORIGIN half out of a line that builds a public review destination. */
+const ORIGIN_CAPTURES: Array<{ pattern: RegExp; requiresReviewHint: boolean }> = [
+  // `${origin}/review/<token>`
+  { pattern: /\$\{([^}]+)\}\/review\//g, requiresReviewHint: false },
+  // origin + "/review/..."
+  { pattern: /([A-Za-z_$][\w$.]*(?:\([^()]*\))?)\s*\+\s*["'`]\/review\//g, requiresReviewHint: false },
+  // buildSurfaceUrl(origin, "/review/...")
+  { pattern: /buildSurfaceUrl\(\s*([^,\n]+?)\s*,/g, requiresReviewHint: true },
+  // { baseUrl: origin } handed to the share-notification builder
+  { pattern: /\bbaseUrl:\s*([^,;\n]+?)\s*,?\s*$/g, requiresReviewHint: false },
+];
+
+const TYPE_ANNOTATION = /^(string|number|boolean|null|undefined|unknown|any)$/;
+
+function bindingsFor(identifier: string, source: string): string[] {
+  const escaped = identifier.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const found: string[] = [];
+  const declaration = new RegExp(`\\b(?:const|let|var)\\s+${escaped}\\b[^=;]*=([\\s\\S]*?);`, "g");
+  const assignment = new RegExp(`^[ \\t]*${escaped}\\s*=([\\s\\S]*?);`, "gm");
+  for (const pattern of [declaration, assignment]) {
+    let match: RegExpExecArray | null;
+    while ((match = pattern.exec(source))) found.push(match[1]);
+  }
+  return found;
+}
+
+type Verdict = { ok: true } | { ok: false; reason: string };
+
+function judgeOriginExpression(
+  expression: string,
+  source: string,
+  relativePath: string,
+  depth = 0,
+): Verdict {
+  const expr = expression.trim().replace(/^\(|\)$/g, "").trim();
+  if (!expr || TYPE_ANNOTATION.test(expr)) return { ok: true };
+  // A relative destination carries no origin at all — always safe.
+  if (/^["'`]\//.test(expr)) return { ok: true };
+
+  if (/https?:\/\//.test(expr)) {
+    return expr.includes(APPROVED_ORIGIN_LITERAL)
+      ? { ok: true }
+      : { ok: false, reason: `hard-coded non-review origin in ${expr}` };
+  }
+  if (APPROVED_ORIGIN_PRODUCER.test(expr)) return { ok: true };
+
+  // A string-normalizing chain (`baseUrl.replace(/\/$/, "")`) does not change the origin;
+  // judge the receiver instead.
+  const chained = expr.match(/^([A-Za-z_$][\w$]*)\.(?:replace|replaceAll|trim|slice|toString)\(/);
+  if (chained && depth < 3) {
+    return judgeOriginExpression(chained[1], source, relativePath, depth + 1);
+  }
+
+  const identifier = /^[A-Za-z_$][\w$]*$/.test(expr) ? expr : null;
+  if (identifier) {
+    if (PARAMETER_ORIGIN_ALLOWLIST.has(`${relativePath}:${identifier}`)) return { ok: true };
+    if (depth < 3) {
+      const bindings = bindingsFor(identifier, source);
+      if (bindings.length) {
+        for (const binding of bindings) {
+          const verdict = judgeOriginExpression(binding, source, relativePath, depth + 1);
+          if (!verdict.ok) {
+            return { ok: false, reason: `${identifier} is bound to ${binding.trim()} — ${verdict.reason}` };
+          }
+        }
+        return { ok: true };
+      }
+    }
+    return { ok: false, reason: `${identifier} has no resolvable origin binding in this file` };
+  }
+
+  return { ok: false, reason: `origin expression ${expr} is not a known review-origin producer` };
+}
+
+test("every public review/share URL is minted from a KNOWN review-origin producer", () => {
   const offenders: string[] = [];
 
   for (const absolute of collectSourceFiles()) {
     const relativePath = relative(repositoryRoot, absolute).split("\\").join("/");
     if (relativePath === "lib/surface-origins.ts") continue; // the helpers themselves
 
-    const lines = readFileSync(absolute, "utf8").split("\n");
+    const source = readFileSync(absolute, "utf8");
+    const lines = source.split("\n");
+
     lines.forEach((line, index) => {
-      if (!REVIEW_LINK_HINT.test(line)) return;
-      const token = [...CLIENT_ORIGIN_TOKENS, "getBaseUrl("].find((candidate) =>
-        line.includes(candidate),
-      );
-      if (!token) return;
-      offenders.push(`${relativePath}:${index + 1} mints a review link from ${token} — ${line.trim()}`);
+      const hasReviewHint = REVIEW_LINK_HINT.test(line);
+
+      for (const { pattern, requiresReviewHint } of ORIGIN_CAPTURES) {
+        if (requiresReviewHint && !hasReviewHint) continue;
+        pattern.lastIndex = 0;
+        let match: RegExpExecArray | null;
+        while ((match = pattern.exec(line))) {
+          const verdict = judgeOriginExpression(match[1], source, relativePath);
+          if (verdict.ok) continue;
+          offenders.push(`${relativePath}:${index + 1} — ${verdict.reason} — ${line.trim()}`);
+        }
+      }
+
+      // A review-hint line that hard-codes any other absolute origin is a defect on its face.
+      if (hasReviewHint) {
+        const literal = line.match(/https?:\/\/[^"'`\s)]+/);
+        if (literal && !literal[0].startsWith(APPROVED_ORIGIN_LITERAL)) {
+          offenders.push(`${relativePath}:${index + 1} — hard-coded origin ${literal[0]} on a review link`);
+        }
+      }
     });
   }
 
   assert.deepEqual(
     offenders,
     [],
-    `A review/share link is being minted against the dead client origin.\n${offenders.join("\n")}`,
+    `A public review/share link is minted from an origin this test cannot prove is the review site. ` +
+      `Mint it with getReviewSiteUrl()/toReviewSiteUrl().\n${offenders.join("\n")}`,
   );
 });
 

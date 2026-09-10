@@ -5,7 +5,8 @@ import {
   getAssetComment,
   PROJECT_ROLE_RANK,
 } from "@/lib/access-control";
-import { sendEmail, emailTemplates, getBaseUrl } from "@/lib/email";
+import { sendEmail, emailTemplates } from "@/lib/email";
+import { getReviewSiteUrl } from "@/lib/surface-origins";
 import { getSupabase } from "@/lib/supabase";
 import { withAssetRouteBoundary } from "../../asset-route-boundary";
 import { resolveAssetVersion } from "@/lib/versions";
@@ -178,7 +179,7 @@ async function POSTHandler(req: Request, { params }: { params: Promise<{ id: str
     if (project.data && project.data.owner_id !== user.id) {
       const owner = await getSupabase().auth.admin.getUserById(project.data.owner_id);
       if (owner.data?.user?.email) {
-        const reviewUrl = `${getBaseUrl()}/projects/${asset.data.project_id}/assets/${id}`;
+        const reviewUrl = `${getReviewSiteUrl()}/projects/${asset.data.project_id}/assets/${id}`;
         const emailPayload = emailTemplates.commentNotification(
           owner.data.user.email,
           authorName,

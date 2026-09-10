@@ -475,7 +475,7 @@ function ShareModalContent({
         </header>
         <div className={styles.body}>
           {!link ? <>
-            <div className={styles.intents} aria-label="Review purpose">
+            <div className={styles.intents} role="group" aria-label="Review purpose">
               {SHARE_INTENTS.map((intent) => <button key={intent.value} type="button"
                 aria-pressed={shareIntent === intent.value} onClick={() => selectShareIntent(intent.value)}>
                 {INTENT_ICONS[intent.value]}<span>{{ internal_review: "Internal", client_review: "Review", approval_needed: "Approval", final_delivery: "Delivery" }[intent.value]}</span>

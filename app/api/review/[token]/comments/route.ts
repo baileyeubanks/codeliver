@@ -1,6 +1,7 @@
 import crypto from "crypto";
 import { getAssetComment } from "@/lib/access-control";
-import { sendEmail, emailTemplates, getBaseUrl } from "@/lib/email";
+import { sendEmail, emailTemplates } from "@/lib/email";
+import { getReviewSiteUrl } from "@/lib/surface-origins";
 import { demoReviewPayload } from "@/lib/review/demoReview";
 import {
   authorizeAdmittedReviewInvite,
@@ -304,7 +305,7 @@ async function postComment(req: Request, { params }: { params: Promise<{ token: 
     if (project.data) {
       const owner = await getSupabase().auth.admin.getUserById(project.data.owner_id);
       if (owner.data?.user?.email) {
-        const reviewUrl = `${getBaseUrl()}/projects/${asset.data.project_id}/assets/${invite.asset_id}`;
+        const reviewUrl = `${getReviewSiteUrl()}/projects/${asset.data.project_id}/assets/${invite.asset_id}`;
         const emailPayload = emailTemplates.commentNotification(
           owner.data.user.email,
           reviewerName,

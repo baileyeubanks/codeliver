@@ -1,25 +1,25 @@
 .dock { position:fixed; right:24px; bottom:24px; z-index:800; width:min(460px,calc(100vw - 32px)); pointer-events:none; }
-.panel { --ink:#f7f9ff; --dim:#a5b2cb; --muted:#a5b2cb; --surface:#172034; --surface-2:#28334a; --border:#33405a; --accent:#568bff; --red:#ff9b9b; --green:#82e5b4; --orange:#ffd18c; pointer-events:auto; padding:22px; color:var(--ink); background:#101827; border:1px solid #34415a; border-radius:20px; box-shadow:0 20px 70px #06102450; max-height:min(640px,80dvh); overflow:auto; font-size:14px; }
-.toolbar { display:flex; align-items:center; justify-content:space-between; gap:12px; color:#a5b2cb; font-size:10px; font-weight:700; letter-spacing:.12em; }
+.panel { --ink:var(--cvp-ink); --dim:var(--cvp-ink-faint); --muted:var(--cvp-ink-faint); --surface:var(--cvp-surface); --surface-2:var(--cvp-surface-alt); --border:var(--cvp-border); --accent:var(--cvp-accent); --red:var(--cvp-red); --green:var(--cvp-green); --orange:var(--cvp-amber); pointer-events:auto; padding:22px; color:var(--ink); background:var(--cvp-surface); border:1px solid var(--cvp-border); border-radius:var(--cvp-radius-lg); box-shadow:var(--cvp-shadow-popover); max-height:min(640px,80dvh); overflow:auto; font-size:14px; }
+.toolbar { display:flex; align-items:center; justify-content:space-between; gap:12px; color:var(--cvp-ink-faint); font-size:10px; font-weight:700; letter-spacing:.12em; }
 .panel button { min-width:44px; min-height:44px; border-radius:10px; cursor:pointer; }
-.panel button:hover { background:#29364e; }
-.panel button:focus-visible { outline:2px solid #8badff; outline-offset:3px; }
+.panel button:hover { background:var(--cvp-blue-tint); }
+.panel button:focus-visible { outline:var(--cvp-focus-ring); outline-offset:3px; }
 .panel h2 { font-size:25px; line-height:1.2; letter-spacing:-.04em; margin:10px 0; font-weight:600; }
-.panel > strong { display:block; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:#bac7de; font-size:13px; font-weight:400; }
+.panel > strong { display:block; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:var(--cvp-ink-soft); font-size:13px; font-weight:400; }
 .panel :global(.cockpit-upload-icon) { display:none; }
-.panel :global(.cockpit-upload-progress) { height:6px; border-radius:8px; background:#2b3650; margin:22px 0 12px; overflow:hidden; }
-.panel :global(.cockpit-upload-progress) > span { display:block; height:100%; background:linear-gradient(90deg,#3974ff,#8cadff); border-radius:inherit; transition:width .2s ease; }
-.panel :global(.cockpit-upload-progress-copy) { display:flex; gap:14px; justify-content:space-between; font-size:12px; line-height:1.6; color:#b7c4dc; }
-.panel :global(.cockpit-upload-progress-copy) b { color:#f7f9ff; font-variant-numeric:tabular-nums; }
+.panel :global(.cockpit-upload-progress) { height:6px; border-radius:8px; background:var(--cvp-surface-sunken); margin:22px 0 12px; overflow:hidden; }
+.panel :global(.cockpit-upload-progress) > span { display:block; height:100%; background:var(--cvp-accent); border-radius:inherit; transition:width .2s ease; }
+.panel :global(.cockpit-upload-progress-copy) { display:flex; gap:14px; justify-content:space-between; font-size:12px; line-height:1.6; color:var(--cvp-ink-soft); }
+.panel :global(.cockpit-upload-progress-copy) b { color:var(--cvp-ink); font-variant-numeric:tabular-nums; }
 .queue { margin-top:18px; }
 .queue > div { padding:12px 8px; gap:8px; }
 .queue > div > div:first-of-type > div:first-child { flex-wrap:wrap; gap:5px; }
 .queue > div > div:first-of-type > div:first-child > span:last-child { margin-left:0; }
-.panel footer { display:flex; align-items:center; justify-content:space-between; gap:14px; padding-top:16px; margin-top:16px; border-top:1px solid #303d55; font-size:11px; color:#a5b2cb; }
+.panel footer { display:flex; align-items:center; justify-content:space-between; gap:14px; padding-top:16px; margin-top:16px; border-top:1px solid var(--cvp-border); font-size:11px; color:var(--cvp-ink-faint); }
 .panel footer small { max-width:170px; line-height:1.5; }
-.panel footer button { background:#376fff; color:white; padding:0 16px; font-size:12px; font-weight:600; }
+.panel footer button { background:var(--cvp-accent); color:white; padding:0 16px; font-size:12px; font-weight:600; }
 .minimized > :not(.toolbar):not(h2):not(:global(.cockpit-upload-progress)) { display:none; }
 .minimized h2 { font-size:17px; margin:0; }
 .minimized :global(.cockpit-upload-progress) { margin:12px 0 0; }
-@media(max-width:700px) { .dock { right:12px; bottom:calc(90px + env(safe-area-inset-bottom)); width:calc(100vw - 24px); } .panel { padding:16px; border-radius:18px; max-height:calc(100dvh - 190px); } }
+@media(max-width:700px) { .dock { right:12px; bottom:calc(90px + env(safe-area-inset-bottom)); width:calc(100vw - 24px); } .panel { padding:16px; border-radius:var(--cvp-radius-lg); max-height:calc(100dvh - 190px); } }
 @media(prefers-reduced-motion:reduce) { .panel * { transition:none!important; animation:none!important; } }

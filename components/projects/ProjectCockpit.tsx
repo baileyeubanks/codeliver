@@ -1534,7 +1534,6 @@ export default function ProjectCockpit({
       <header className="cockpit-header">
         <Link className="cockpit-brand" href={demoMode ? "/projects?demo=1" : "/projects"} aria-label="Co‑VideoPro projects">
           <CoProductionBrand className={styles.brandLockup} priority />
-          <CoProductionBrand className={styles.brandMark} variant="compact-mark" label="Co‑VideoPro" />
         </Link>
 
         <div className="cockpit-project-switcher">

@@ -36,12 +36,8 @@
   min-width: 0;
 }
 
-.brandMark {
-  display: none;
-}
-
 .brandLockup {
-  --co-production-brand-width: 172px;
+  width: 180px;
 }
 
 .shell :global(.cockpit-header) {
@@ -79,14 +75,8 @@
   padding: 8px;
 }
 
-.shell[data-rail="compact"] .brandLockup {
-  display: none;
-}
-
-.shell[data-rail="compact"] .brandMark {
-  --co-production-brand-width: 40px;
-  display: block;
-}
+.shell[data-rail="compact"] .brandLockup { width:44px; height:34px; }
+.shell[data-rail="compact"] .brandLockup img { width:110px; max-width:none; }
 
 .shell[data-rail="compact"] :global(.cockpit-sidebar) {
   padding-inline: 8px;
@@ -285,14 +275,8 @@
     grid-template-columns: 64px 230px auto minmax(180px, 1fr) auto;
   }
 
-  .shell .brandLockup {
-    display: none;
-  }
-
-  .shell .brandMark {
-    --co-production-brand-width: 40px;
-    display: block;
-  }
+  .shell .brandLockup { width:44px; height:34px; }
+  .shell .brandLockup img { width:110px; max-width:none; }
 
   .shell :global(.cockpit-brand) {
     justify-content: center;
@@ -338,14 +322,8 @@
     padding: 8px;
   }
 
-  .shell .brandLockup {
-    display: none;
-  }
-
-  .shell .brandMark {
-    --co-production-brand-width: 40px;
-    display: block;
-  }
+  .shell .brandLockup { width:44px; height:34px; }
+  .shell .brandLockup img { width:110px; max-width:none; }
 
   .toolbarSlot {
     grid-column: 1;

@@ -448,6 +448,7 @@ export default function ProjectCockpit({
   const [simulatedPlayback, setSimulatedPlayback] = useState(false);
   const [nativeVideoActive, setNativeVideoActive] = useState(false);
   const [isMuted, setIsMuted] = useState(false);
+  const [playbackSpeed, setPlaybackSpeed] = useState(1);
   const [volume, setVolume] = useState(1);
   const [hasEnded, setHasEnded] = useState(false);
   const [commentBody, setCommentBody] = useState("");
@@ -1883,6 +1884,7 @@ export default function ProjectCockpit({
                         onLoadedMetadata={(event) => {
                           if (Number.isFinite(event.currentTarget.duration)) {
                             setNativeDuration(event.currentTarget.duration);
+                            event.currentTarget.playbackRate = playbackSpeed;
                           }
                         }}
                         onPlay={() => {
@@ -1945,7 +1947,7 @@ export default function ProjectCockpit({
                           <MapPin size={14} fill="currentColor" />
                         </span>
                       ) : null}
-                      <div className="cockpit-video-controls">
+                      <div className={`cockpit-video-controls ${styles.playerControls}`}>
                         <button type="button" onClick={togglePlayback} aria-label={isPlaying ? "Pause" : "Play"}>
                           {isPlaying ? <Pause size={20} fill="currentColor" /> : <Play size={20} fill="currentColor" />}
                         </button>
@@ -1957,6 +1959,7 @@ export default function ProjectCockpit({
                           step={0.01}
                           value={Math.min(currentTime, previewDuration)}
                           onChange={(event) => seekTo(Number(event.target.value))}
+                          className={styles.playerSeek}
                           aria-label="Review playback position"
                         />
                         <select
@@ -1990,9 +1993,23 @@ export default function ProjectCockpit({
                           onChange={(event) => changeVolume(Number(event.target.value))}
                           aria-label="Volume"
                         />
+                        <select aria-label="Playback speed" value={playbackSpeed}
+                          onChange={(event) => {
+                            const rate = Number(event.target.value);
+                            setPlaybackSpeed(rate);
+                            if (videoRef.current) videoRef.current.playbackRate = rate;
+                          }}>
+                          {[0.5, 0.75, 1, 1.25, 1.5, 2].map((rate) => <option key={rate} value={rate}>{rate}×</option>)}
+                        </select>
                         <button
                           type="button"
-                          onClick={() => videoRef.current?.requestFullscreen?.()}
+                          onClick={() => {
+                            const video = videoRef.current as (HTMLVideoElement & { webkitEnterFullscreen?: () => void }) | null;
+                            const nativeFullscreen = () => { try { video?.webkitEnterFullscreen?.(); } catch { /* Browser may require a new gesture. */ } };
+                            if (document.fullscreenElement) void document.exitFullscreen().catch(() => undefined);
+                            else if (video?.requestFullscreen) void video.requestFullscreen().catch(nativeFullscreen);
+                            else nativeFullscreen();
+                          }}
                           aria-label="Enter fullscreen"
                         >
                           <Maximize2 size={18} />

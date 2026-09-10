@@ -48,7 +48,7 @@ const UUID_PATH_SEGMENT =
   "[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12}";
 
 const CLIENT_API_ROUTE_PATTERNS = [
-  /^\/api\/auth\/(?:login|logout|session|signup|resend|password\/(?:forgot|reset))$/,
+  /^\/api\/auth\/(?:login|logout|session|signup|resend|google|password\/(?:forgot|reset))$/,
   /^\/api\/health(?:\/(?:dependencies|live|ready))?$/,
   /^\/api\/version$/, // G2 deployment truth; exact match, no subroutes exist
   /^\/api\/review\/[^/]+(?:\/(?:admission|approvals|comments|edit-decisions))?$/,

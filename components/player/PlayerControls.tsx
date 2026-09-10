@@ -1,6 +1,7 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState, type RefObject } from "react";
+import { useCallback, useEffect, useRef, useState, type CSSProperties, type RefObject } from "react";
+import styles from "./PlayerControls.module.css";
 import { useOverlay } from "@/components/overlay/useOverlay";
 import {
   Play,
@@ -55,8 +56,7 @@ export default function PlayerControls({ videoRef }: PlayerControlsProps) {
     align: "end",
     offset: 8,
   });
-  const progressRef = useRef<HTMLDivElement>(null);
-  const volumeRef = useRef<HTMLDivElement>(null);
+
 
   const progress = duration > 0 ? (currentTime / duration) * 100 : 0;
   const loopClosed = loopIn != null && loopOut != null && loopOut > loopIn && duration > 0;
@@ -94,36 +94,22 @@ export default function PlayerControls({ videoRef }: PlayerControlsProps) {
     [videoRef, duration],
   );
 
-  const handleProgressClick = useCallback(
-    (e: React.MouseEvent<HTMLDivElement>) => {
-      const bar = progressRef.current;
-      if (!bar) return;
-      const rect = bar.getBoundingClientRect();
-      const ratio = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
-      seekTo(ratio * duration);
-    },
-    [duration, seekTo],
-  );
-
-  const handleVolumeClick = useCallback(
-    (e: React.MouseEvent<HTMLDivElement>) => {
-      const bar = volumeRef.current;
-      if (!bar) return;
-      const rect = bar.getBoundingClientRect();
-      const ratio = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
-      setVolume(ratio);
-    },
-    [setVolume],
-  );
-
   const handleFullscreen = useCallback(() => {
-    const container = videoRef.current?.closest("[data-player-root]") as HTMLElement | null;
+    const container = videoRef.current?.closest(".review-video-surface") as HTMLElement | null;
     const target = container ?? videoRef.current?.parentElement;
     if (!target) return;
     if (document.fullscreenElement) {
-      document.exitFullscreen();
+      void document.exitFullscreen().catch(() => undefined);
     } else {
-      target.requestFullscreen();
+      if (target.requestFullscreen) {
+        void target.requestFullscreen().catch(() => {
+          const video = videoRef.current as (HTMLVideoElement & { webkitEnterFullscreen?: () => void }) | null;
+          try { video?.webkitEnterFullscreen?.(); } catch { /* A new gesture may be required. */ }
+        });
+      } else {
+        const video = videoRef.current as (HTMLVideoElement & { webkitEnterFullscreen?: () => void }) | null;
+        try { video?.webkitEnterFullscreen?.(); } catch { /* A new gesture may be required. */ }
+      }
     }
   }, [videoRef]);
 
@@ -155,43 +141,27 @@ export default function PlayerControls({ videoRef }: PlayerControlsProps) {
   }, [videoRef]);
 
   return (
-    <div className="flex flex-col gap-3 rounded-b-[var(--radius)] bg-[var(--surface)] px-3 py-3 sm:px-4">
-      {/* Progress bar */}
-      <div
-        ref={progressRef}
-        className="group relative h-2 cursor-pointer rounded-full bg-[var(--surface-2)]"
-        onClick={handleProgressClick}
-      >
-        {/* Buffered */}
-        <div
-          className="absolute left-0 top-0 h-full rounded-full bg-[var(--dim)] opacity-40"
-          style={{ width: `${bufferedPct}%` }}
-        />
-        {/* A/B loop region */}
+    <div className={styles.controls} aria-label="Video controls">
+      <div className={styles.seekTrack} style={{ "--progress": `${progress}%`, "--buffered": `${bufferedPct}%` } as CSSProperties}>
         {loopClosed ? (
-          <div
-            data-loop-region
-            className="absolute top-0 h-full rounded-full bg-[var(--accent)]/25"
-            style={{
-              left: `${((loopIn as number) / duration) * 100}%`,
-              width: `${(((loopOut as number) - (loopIn as number)) / duration) * 100}%`,
-            }}
-          />
+          <span data-loop-region className={styles.loopRegion} style={{ left: `${((loopIn as number) / duration) * 100}%`, width: `${(((loopOut as number) - (loopIn as number)) / duration) * 100}%` }} />
         ) : null}
-        {/* Progress */}
-        <div
-          className="absolute left-0 top-0 h-full rounded-full bg-[var(--accent)]"
-          style={{ width: `${progress}%` }}
-        />
-        {/* Thumb */}
-        <div
-          className="absolute top-1/2 h-3.5 w-3.5 -translate-y-1/2 rounded-full border-2 border-[var(--accent)] bg-[var(--surface)] opacity-0 transition-opacity group-hover:opacity-100"
-          style={{ left: `calc(${progress}% - 7px)` }}
+        <input
+          className={styles.seek}
+          type="range"
+          min={0}
+          max={Number.isFinite(duration) && duration > 0 ? duration : 0}
+          step={1 / frameRate}
+          value={Number.isFinite(currentTime) ? currentTime : 0}
+          disabled={!Number.isFinite(duration) || duration <= 0}
+          aria-label="Seek video"
+          aria-valuetext={`${formatSmpteTimecode(currentTime, frameRate)} of ${formatSmpteTimecode(duration, frameRate)}`}
+          onChange={(event) => seekTo(Number(event.target.value))}
         />
       </div>
 
       {/* Controls row */}
-      <div className="flex flex-wrap items-center gap-3">
+      <div className={styles.row}>
         {/* Transport */}
         <div className="flex items-center gap-1">
           <button
@@ -208,6 +178,7 @@ export default function PlayerControls({ videoRef }: PlayerControlsProps) {
             type="button"
             onClick={handleTogglePlayback}
             className="grid h-11 w-11 place-items-center rounded-[var(--radius-sm)] text-[var(--ink)] transition-colors hover:bg-[var(--surface-2)] sm:h-9 sm:w-9"
+            aria-label={playing ? "Pause" : "Play"}
             title={playing ? "Pause (Space)" : "Play (Space)"}
           >
             {playing ? <Pause size={20} /> : <Play size={20} />}
@@ -227,12 +198,12 @@ export default function PlayerControls({ videoRef }: PlayerControlsProps) {
         {/* Time display */}
         <span
           data-transport-timecode
-          className="order-last w-full font-mono text-xs tabular-nums text-[var(--muted)] sm:order-none sm:w-auto sm:min-w-[80px]"
+          className={styles.timecode}
         >
           {formatSmpteTimecode(currentTime, frameRate)} / {formatSmpteTimecode(duration, frameRate)}
         </span>
 
-        <div className="hidden flex-1 sm:block" />
+        <div className={styles.spacer} />
 
         <select
           aria-label="Keyboard seek interval"
@@ -253,25 +224,19 @@ export default function PlayerControls({ videoRef }: PlayerControlsProps) {
         </select>
 
         {/* Volume */}
-        <div className="hidden items-center gap-2 sm:flex">
+        <div className={styles.volume}>
           <button
             type="button"
             onClick={toggleMute}
             className="rounded-[var(--radius-sm)] p-1.5 text-[var(--muted)] transition-colors hover:bg-[var(--surface-2)] hover:text-[var(--ink)]"
+            aria-label={muted || volume === 0 ? "Unmute" : "Mute"}
             title={muted || volume === 0 ? "Unmute (M)" : "Mute (M)"}
           >
             {muted || volume === 0 ? <VolumeX size={18} /> : <Volume2 size={18} />}
           </button>
-          <div
-            ref={volumeRef}
-            className="h-1.5 w-16 cursor-pointer rounded-full bg-[var(--surface-2)]"
-            onClick={handleVolumeClick}
-          >
-            <div
-              className="h-full rounded-full bg-[var(--ink)]"
-              style={{ width: `${(muted ? 0 : volume) * 100}%` }}
-            />
-          </div>
+          <input type="range" min={0} max={1} step={0.05} value={muted ? 0 : volume}
+            className={styles.volumeSlider} aria-label="Volume"
+            onChange={(event) => { setVolume(Number(event.target.value)); setMuted(false); }} />
         </div>
 
         {/* Playback rate */}
@@ -329,6 +294,7 @@ export default function PlayerControls({ videoRef }: PlayerControlsProps) {
           type="button"
           onClick={handleFullscreen}
           className="grid h-11 w-11 place-items-center rounded-[var(--radius-sm)] text-[var(--muted)] transition-colors hover:bg-[var(--surface-2)] hover:text-[var(--ink)] sm:h-8 sm:w-8"
+          aria-label="Fullscreen"
           title="Fullscreen (F)"
         >
           <Maximize size={18} />

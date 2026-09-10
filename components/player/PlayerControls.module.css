@@ -1,0 +1,44 @@
+.controls {
+  --surface: #fff;
+  --surface-2: #f1f5fb;
+  --ink: #142033;
+  --muted: #52627a;
+  --border: #dce4ef;
+  --accent: #0057ff;
+  --control-ink: var(--cvp-text-primary, #142033);
+  padding: 4px 16px 10px;
+  color: var(--control-ink);
+  background: var(--cvp-surface, #fff);
+  border-radius: 0 0 12px 12px;
+}
+.seekTrack { position: relative; height: 32px; display: flex; align-items: center; }
+.seek { appearance: none; width: 100%; height: 32px; margin: 0; cursor: pointer; background: transparent; accent-color: #0057ff; }
+.seek::-webkit-slider-runnable-track { height: 4px; border-radius: 8px; background: linear-gradient(to right, #0057ff 0 var(--progress), #aab8ce var(--progress) var(--buffered), #e5eaf2 var(--buffered) 100%); }
+.seek::-moz-range-track { height: 4px; border-radius: 8px; background: #e5eaf2; }
+.seek::-moz-range-progress { height: 4px; background: #0057ff; }
+.seek::-webkit-slider-thumb { appearance: none; height: 14px; width: 14px; margin-top: -5px; border: 3px solid #fff; border-radius: 50%; background: #0057ff; box-shadow: 0 0 0 1px #0057ff; }
+.seek::-moz-range-thumb { height: 10px; width: 10px; border: 2px solid #fff; border-radius: 50%; background: #0057ff; box-shadow: 0 0 0 1px #0057ff; }
+.seek:focus-visible { outline: 2px solid #0057ff; outline-offset: 2px; border-radius: 4px; }
+.seek:disabled { opacity: .4; cursor: default; }
+.loopRegion { position: absolute; height: 10px; background: #0057ff33; pointer-events: none; border-radius: 3px; }
+.row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.row button { color: var(--control-ink); }
+.row button:focus-visible, .row select:focus-visible { outline: 2px solid #0057ff; outline-offset: 2px; }
+.timecode { font-family: ui-monospace, monospace; font-size: 11px; font-variant-numeric: tabular-nums; color: #52627a; white-space: nowrap; }
+.spacer { flex: 1; }
+.volume { display: flex; align-items: center; gap: 6px; }
+.volumeSlider { width: 60px; accent-color: #0057ff; }
+@media (max-width: 640px) {
+  .controls {
+  --surface: #fff;
+  --surface-2: #f1f5fb;
+  --ink: #142033;
+  --muted: #52627a;
+  --border: #dce4ef;
+  --accent: #0057ff; padding: 2px 10px 8px; }
+  .row { gap: 2px; }
+  .timecode { order: 2; width: 100%; text-align: center; padding: 2px 0; }
+  .volumeSlider { display: none; }
+  .volume button { min-width: 36px; min-height: 44px; }
+  .row > select { display: none; }
+}

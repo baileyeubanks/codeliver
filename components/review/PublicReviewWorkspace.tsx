@@ -3,12 +3,13 @@
 import Image from "next/image";
 import {
   CircleAlert,
+  Focus,
   Clapperboard,
   ListChecks,
   LoaderCircle,
   MessageSquareText,
 } from "lucide-react";
-import React, { type CSSProperties } from "react";
+import React, { useState, type CSSProperties } from "react";
 import { CoProductionBrand } from "@/components/brand/CoProductionBrand";
 import styles from "./PublicReviewWorkspace.module.css";
 
@@ -99,6 +100,8 @@ export default function PublicReviewWorkspace({
   stage,
   rail,
 }: ReviewWorkspaceProps) {
+  const [focused, setFocused] = useState(false);
+
   if (loading) {
     return (
       <div className={`${styles.shell} ${styles.state}`} role="status" aria-live="polite">
@@ -141,7 +144,7 @@ export default function PublicReviewWorkspace({
 
   return (
     <div
-      className={styles.shell}
+      className={`${styles.shell} ${focused ? styles.focused : ""}`}
       style={
         brand
           ? ({ "--accent": brand.primaryColor } as CSSProperties)
@@ -183,6 +186,12 @@ export default function PublicReviewWorkspace({
         </div>
         <div className={styles.meta}>{header}</div>
       </header>
+      <div className={styles.focusActions}>
+        <button type="button" className={styles.focusButton} aria-pressed={focused}
+          onClick={() => setFocused((value) => !value)}>
+          <Focus size={16} aria-hidden="true" />{focused ? "Show comments" : "Focus"}
+        </button>
+      </div>
 
       <main id="public-review-workspace" className={styles.body} tabIndex={-1}>
         <section className={styles.stage} aria-labelledby="public-review-stage-heading">

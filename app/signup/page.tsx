@@ -4,6 +4,7 @@ import { useEffect, useRef, useState, type FormEvent } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, CheckCircle2, Eye, EyeOff, LoaderCircle, UserPlus } from "lucide-react";
+import GoogleSignIn from "@/components/auth/GoogleSignIn";
 import AuthShell, { authStyles as styles } from "@/components/auth/AuthShell";
 import {
   AUTH_PASSWORD_MIN_LENGTH,
@@ -196,6 +197,8 @@ export default function SignupPage() {
               <h1 id="signup-title">Create your account</h1>
               <p>Use one identity for comments, approvals, and delivery activity.</p>
             </header>
+
+        {!demoMode ? <GoogleSignIn next={returnTarget} /> : null}
 
             {error ? (
               <div

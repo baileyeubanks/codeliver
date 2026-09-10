@@ -1,22 +1,20 @@
 .shell {
-  /* Review Theater (client world) — light gallery around a dark stage.
-     Chrome wears the cream editorial law; the media island stays near-black
-     (audit Surface L: white gallery, dark theater at its heart). */
-  --bg: #f2eee5;
-  --bg-elevated: #faf6ef;
+  /* Sapphire gallery chrome keeps the video as the visual center. */
+  --bg: #f7f9fc;
+  --bg-elevated: #ffffff;
   --surface: #ffffff;
-  --surface-2: #f3ede0;
-  --surface-3: #ece4d3;
-  --surface-hover: #f5efe3;
+  --surface-2: #f1f5fb;
+  --surface-3: #e6edf7;
+  --surface-hover: #f2f6ff;
   --surface-glass: rgba(255, 255, 255, 0.94);
   --ink: #0b1928;
   --ink-secondary: #2c3a4d;
   --muted: #5f6b78;
-  --dim: #8a7f6c;
+  --dim: #66758c;
   --border: rgba(11, 25, 40, 0.12);
   --border-light: rgba(11, 25, 40, 0.2);
   --border-active: rgba(30, 77, 140, 0.45);
-  --accent: #1e4d8c;
+  --accent: #0057ff;
   --accent-hover: color-mix(in srgb, var(--accent) 82%, #0b1928);
   --accent-dim: color-mix(in srgb, var(--accent) 13%, transparent);
   --accent-glow: color-mix(in srgb, var(--accent) 20%, transparent);
@@ -881,3 +879,15 @@
     transform: rotate(360deg);
   }
 }
+
+.focusButton { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 44px; padding: 0 14px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface); color: var(--ink); font: inherit; font-size: 13px; cursor: pointer; }
+.focusButton[aria-pressed="true"] { color: var(--accent); background: var(--accent-dim); }
+.focusButton:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.focused .body { grid-template-columns: minmax(0, 1fr); }
+.focused .rail, .focused .context, .focused .stageHeader { display: none; }
+.focused .stage { width: 100%; max-width: 1600px; margin-inline: auto; }
+.focused .media video { max-height: calc(100svh - 210px); object-fit: contain; }
+
+.focusActions { display: flex; justify-content: flex-end; padding: 8px 20px 0; }
+
+.focused .media :global(.review-video-frame) { max-width: calc((100svh - 210px) * 16 / 9); margin-inline: auto; }

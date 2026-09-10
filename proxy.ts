@@ -199,6 +199,14 @@ function productionApiLaunchGate(
     return null;
   }
 
+  // Managed originals retain normal authentication and per-asset authorization.
+  // Admit only this exact read route; legacy media APIs remain launch-gated.
+  if (hostSurface === "admin" &&
+      new RegExp(`^/api/media/versions/${UUID_PATH_SEGMENT}$`).test(pathname) &&
+      (req.method === "GET" || req.method === "HEAD")) {
+    return null;
+  }
+
   const serviceRoute = SERVICE_API_ROUTES.find((route) => route.pathname === pathname);
   if (serviceRoute) {
     const credential = req.headers.get(serviceRoute.credentialHeader)?.trim();

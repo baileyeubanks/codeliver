@@ -257,6 +257,21 @@ test("production API launch gate fails closed before public, auth, and demo bypa
       assert.equal(runtimeState.__ccoLaunchGateGetUserCalls, 1);
     });
 
+    await t.test("managed version reads require staff authentication and exact route", async () => {
+      runtimeState.__ccoLaunchGateUser = { app_metadata: { content_coop_role: "staff" } };
+      for (const method of ["GET", "HEAD"]) {
+        const response = await proxy(request(ADMIN_HOST, `/api/media/versions/${RESOURCE_ID}`, { method }));
+        assert.equal(response.headers.get("x-middleware-next"), "1");
+      }
+      await assertLaunchGated(await proxy(request(ADMIN_HOST, `/api/media/versions/${RESOURCE_ID}`, { method: "POST" })), "managed write");
+      await assertLaunchGated(await proxy(request(ADMIN_HOST, `/api/media/versions/${RESOURCE_ID}/extra`)), "managed alias");
+      await assertLaunchGated(await proxy(request(ADMIN_HOST, "/api/media/versions/not-a-uuid")), "invalid version");
+      runtimeState.__ccoLaunchGateUser = null;
+      assert.equal((await proxy(request(ADMIN_HOST, `/api/media/versions/${RESOURCE_ID}`))).status, 401);
+      runtimeState.__ccoLaunchGateUser = { app_metadata: { content_coop_role: "client" } };
+      await assertLaunchGated(await proxy(request(CLIENT_HOST, `/api/media/versions/${RESOURCE_ID}`)), "client managed original");
+    });
+
     await t.test("client API access is limited to auth, health, and token review", async () => {
       runtimeState.__ccoLaunchGateGetUserCalls = 0;
       runtimeState.__ccoLaunchGateUser = {

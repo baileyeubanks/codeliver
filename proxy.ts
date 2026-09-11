@@ -354,6 +354,15 @@ function surfaceAccessDenied(pathname: string) {
   );
 }
 
+function isPublicStaticAssetPath(pathname: string): boolean {
+  return (
+    isPathAtOrBelow(pathname, "/_next") ||
+    pathname === "/favicon.ico" ||
+    isPathAtOrBelow(pathname, "/demo") ||
+    isPathAtOrBelow(pathname, "/brand")
+  );
+}
+
 function hostAccessDenied(pathname: string) {
   if (isApiLikePath(pathname)) {
     return NextResponse.json(
@@ -379,26 +388,32 @@ export async function proxy(req: NextRequest) {
   const host = req.headers.get("host");
   const hostSurface = resolveHostSurface(host);
   const localDevelopment = isLocalDevelopmentHost(host);
+  // Next's image optimizer fetches LOCAL images through an internal mocked
+  // request that carries no headers at all — no Host, no cookies (see
+  // next/dist/server/lib/mock-request.js: createRequestResponseMocks defaults
+  // headers to {}). Denying that headerless subrequest made every local
+  // `/_next/image` optimization fail (the 403 text body is not an image, so
+  // the optimizer answered 400 and the July workaround disabled the optimizer
+  // globally). Admit hostless subrequests only to the public static prefixes
+  // already served to every approved host; application and API routes stay
+  // denied, and a PRESENT but unapproved host is still denied everywhere.
+  const hostlessInternalStaticFetch = !host?.trim() && isPublicStaticAssetPath(pathname);
+
+  if (!hostSurface && !localDevelopment && !hostlessInternalStaticFetch) {
+    return hostAccessDenied(pathname);
+  }
+
   const localDemo =
     localDevelopment &&
     isLocalDemoPreviewEnabled() &&
     req.nextUrl.searchParams.get("demo") === "1";
-
-  if (!hostSurface && !localDevelopment) {
-    return hostAccessDenied(pathname);
-  }
 
   if (hostSurface) {
     const launchGateResponse = productionApiLaunchGate(req, hostSurface);
     if (launchGateResponse) return launchGateResponse;
   }
 
-  if (
-    isPathAtOrBelow(pathname, "/_next") ||
-    pathname === "/favicon.ico" ||
-    isPathAtOrBelow(pathname, "/demo") ||
-    isPathAtOrBelow(pathname, "/brand")
-  ) {
+  if (isPublicStaticAssetPath(pathname)) {
     return nextResponse(req);
   }
 

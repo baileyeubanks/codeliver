@@ -41,12 +41,10 @@ const nextConfig: NextConfig = {
       },
     ];
   },
-  // Next 16.2.10's internal local-image response drops the detected MIME type
-  // in this runtime. Serve the validated source assets directly until that
-  // optimizer path is safe to re-enable.
-  images: {
-    unoptimized: true,
-  },
+  // The image optimizer stays enabled: the July `unoptimized` bypass treated
+  // a host-gate defect (the optimizer's headerless internal fetch was denied)
+  // as a Next.js MIME bug. Static and local images flow through `/_next/image`
+  // again; media surfaces that need raw sources opt out per-component.
   // The proxy buffers PATCH bodies independently of Server Actions. Match the
   // storage maximum; the browser sends smaller 8 MiB chunks.
   experimental: {

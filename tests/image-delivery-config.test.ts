@@ -3,10 +3,10 @@ import test from "node:test";
 
 import nextConfig from "../next.config.ts";
 
-test("local media bypasses the broken Next image optimizer", () => {
-  assert.equal(
+test("local media flows through the Next image optimizer", () => {
+  assert.notEqual(
     nextConfig.images?.unoptimized,
     true,
-    "valid local media must render from its source URL instead of /_next/image",
+    "the July 2026 unoptimized bypass is retired: the optimizer's headerless internal fetch is admitted by the host gate, so /_next/image serves local brand and thumbnail assets again",
   );
 });

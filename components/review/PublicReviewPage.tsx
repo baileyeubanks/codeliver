@@ -46,6 +46,7 @@ import {
   bindDemoReviewApprovals,
   demoReviewPayload,
 } from "@/lib/review/demoReview";
+import { resolveDemoReviewerEmail } from "@/lib/review/demo-reviewer-identity";
 import {
   deriveReviewState,
   formatAssetStatusLabel,
@@ -354,17 +355,17 @@ export default function PublicReviewPage() {
               (requestedIntent === "approval_needed"
                 ? demoReviewPayload.reviewer_name
                 : "Client Reviewer"),
-            reviewer_email:
-              requestedDemoShare?.reviewer_email ??
-              (requestedIntent === "approval_needed" ? demoReviewPayload.reviewer_email : null),
+            reviewer_email: resolveDemoReviewerEmail({
+              shareReviewerEmail: requestedDemoShare?.reviewer_email,
+              permissions: requestedDemoShare?.permission ?? intentDefaults.permissions,
+            }),
             approvals: bindDemoReviewApprovals({
               approvals: demoReviewPayload.approvals,
               assetId: publicAssetId,
-              reviewerEmail:
-                requestedDemoShare?.reviewer_email ??
-                (requestedIntent === "approval_needed"
-                  ? demoReviewPayload.reviewer_email
-                  : null),
+              reviewerEmail: resolveDemoReviewerEmail({
+                shareReviewerEmail: requestedDemoShare?.reviewer_email,
+                permissions: requestedDemoShare?.permission ?? intentDefaults.permissions,
+              }),
               permission: requestedDemoShare?.permission ?? intentDefaults.permissions,
             }),
             comments: demoReviewPayload.comments.map((comment) => ({
@@ -1122,9 +1123,10 @@ export default function PublicReviewPage() {
           versionId: version.id,
           reviewInviteId: invite.id,
           reviewerName: actorName,
-          reviewerEmail:
-            requestedDemoShare?.reviewer_email ??
-            (permissions === "approve" ? demoReviewPayload.reviewer_email : null),
+          reviewerEmail: resolveDemoReviewerEmail({
+            shareReviewerEmail: requestedDemoShare?.reviewer_email,
+            permissions,
+          }),
           permission: permissions,
           workflowMode,
           approvals,

@@ -25,6 +25,7 @@ fail_test() {
   exit 1
 }
 
+python3 "$TEST_DIR/prepare-sealing.test.py"
 "$RUNTIME_DIR/validate-static.sh"
 
 FAKE_NODE="$TMP_ROOT/node-v24.14.1"

@@ -48,7 +48,11 @@ CACHE_DIR="$STATE_ROOT/cache/$RELEASE_ID"
 
 /bin/mkdir "$STAGING_DIR"
 preserve_failed_stage() {
-  printf 'Release preparation failed; staged evidence is preserved at %s\n' "$STAGING_DIR" >&2
+  local evidence_dir="$STAGING_DIR"
+  if [[ ! -d "$STAGING_DIR" && -d "$RELEASE_DIR" ]]; then
+    evidence_dir="$RELEASE_DIR"
+  fi
+  printf 'Release preparation failed; evidence is preserved at %s\n' "$evidence_dir" >&2
 }
 trap preserve_failed_stage ERR
 
@@ -86,12 +90,18 @@ printf 'release_id=%s\ngit_sha=%s\nnode_version=%s\nbuilt_at=%s\npackage_lock_sh
   "$RELEASE_ID" "$REQUESTED_SHA" "$EXPECTED_NODE_VERSION" "$BUILT_AT" "$LOCK_SHA" \
   >"$STAGING_DIR/.codeliver-release"
 
-# Preserve executable bits while removing write access from all release-owned content.
-/usr/bin/find "$STAGING_DIR" -type d -exec /bin/chmod a-w {} +
+# Preserve executable bits while sealing contents. macOS needs the staging
+# root writable for rename; seal that root immediately after the move.
+/usr/bin/find "$STAGING_DIR" -mindepth 1 -type d -exec /bin/chmod a-w {} +
 /usr/bin/find "$STAGING_DIR" -type f -exec /bin/chmod a-w {} +
 /bin/mv "$STAGING_DIR" "$RELEASE_DIR"
-trap - ERR
+/bin/chmod a-w "$RELEASE_DIR"
 
-validate_release "$RELEASE_ID"
+# Validation uses explicit fail/exit; report its retained destination even on Bash 3.2.
+if ! (validate_release "$RELEASE_ID"); then
+  preserve_failed_stage
+  exit 1
+fi
+trap - ERR
 printf 'PASS: immutable release %s prepared at %s from %s. No current symlink changed.\n' \
   "$RELEASE_ID" "$RELEASE_DIR" "$REQUESTED_SHA"

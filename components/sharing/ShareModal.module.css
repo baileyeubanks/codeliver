@@ -9,6 +9,7 @@
 .dialog button:disabled { opacity: .5; cursor: default; }
 .dialog button:focus-visible, .dialog a:focus-visible, .dialog summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .body { min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: 16px 20px; display: grid; gap: 14px; overflow-wrap: anywhere; }
+.settings { display: grid; gap: 14px; margin: 0; padding: 0; border: 0; }
 .intents { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
 .intents button { justify-content: flex-start; text-align: left; font-size: 12px; }
 .intents button[aria-pressed="true"] { color: #0057ff; border-color: #0057ff; background: #edf3ff; }

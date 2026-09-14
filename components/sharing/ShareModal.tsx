@@ -474,7 +474,7 @@ function ShareModalContent({
           <button type="button" onClick={onClose} aria-label="Close share modal"><X size={20} /></button>
         </header>
         <div className={styles.body}>
-          {!link ? <>
+          {!link ? <fieldset className={styles.settings} disabled={loading} aria-label="Link settings" aria-busy={loading}>
             <div className={styles.intents} role="group" aria-label="Review purpose">
               {SHARE_INTENTS.map((intent) => <button key={intent.value} type="button"
                 aria-pressed={shareIntent === intent.value} onClick={() => selectShareIntent(intent.value)}>
@@ -519,7 +519,7 @@ function ShareModalContent({
             {previewFingerprint === previewSubjectFingerprint && (notificationPreview || sharePreview) ? <details className={styles.details} open><summary>Link preview</summary>
               <NotificationPreview preview={notificationPreview} /><ShareAuthorityPreview preview={sharePreview} />
             </details> : null}
-          </> : <>
+          </fieldset> : <>
             <p className={styles.ready}><Check size={18} />{intentDefinition.label}</p>
             <div className={styles.linkRow}><input aria-label="Review link" readOnly value={link} onFocus={(event) => event.currentTarget.select()} />
               <button type="button" className={styles.primary} onClick={() => void copyLink()}>{copied ? <Check size={17} /> : <Copy size={17} />}{copied ? "Copied" : "Copy link"}</button>

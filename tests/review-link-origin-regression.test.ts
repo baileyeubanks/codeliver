@@ -32,10 +32,6 @@ const CLIENT_ORIGIN_ALLOWLIST = new Map<string, string>([
   ["components/auth/auth-context.ts", "client-portal host detection for the login surface"],
   ["components/auth/auth-policy.ts", "auth portal origin policy"],
   ["lib/email.ts", "getBaseUrl() is the account-portal base; review links use publicReviewUrl()"],
-  [
-    "app/api/notifications/send/route.ts",
-    "getBaseUrl() is used as the same-origin VALIDATION origin for message.action_url, never as a link base",
-  ],
 ]);
 
 /**
@@ -63,8 +59,8 @@ const CLIENT_ORIGIN_TOKENS = [
   "toClientSiteUrl",
   "getClientSiteUrl",
   // Added 2026-09-09: `getBaseUrl()` is `getClientSiteUrl()` under another name, so a link
-  // minted from it lands on the dead client host. Only the two allow-listed files above may
-  // name it — one defines it, the other uses it purely as a validation origin.
+  // minted from it lands on the dead client host. Only lib/email.ts may define the account-portal helper; notification validation
+  // must use the same CVP origin as the links it accepts.
   "getBaseUrl",
 ];
 

@@ -1,7 +1,7 @@
 import { requireAuthWithClient } from "@/lib/auth-client";
 import { apiError, apiJson, backendUnavailable } from "@/lib/api/responses";
 import { isBackendUnavailableError } from "@/lib/api/backend";
-import { getBaseUrl } from "@/lib/email";
+import { getReviewSiteUrl } from "@/lib/surface-origins";
 import {
   createInAppNotificationAdapter,
   getExternalNotificationAdapters,
@@ -102,7 +102,7 @@ export async function POST(req: Request) {
   };
   const parsed = parseNotificationRequest(normalizedInput, {
     authenticatedTenantId: user.id,
-    allowedOrigin: getBaseUrl(),
+    allowedOrigin: getReviewSiteUrl(),
   });
   if (!parsed.ok) {
     return apiJson({ error: parsed.error, code: "INVALID_REQUEST", field: parsed.field, mutation_performed: false }, { status: 400 });

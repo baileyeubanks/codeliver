@@ -2826,15 +2826,6 @@ a { color: inherit; text-decoration: none; }
     max-height: none;
   }
 
-  .review-inline-comment-card {
-    position: fixed;
-    inset: auto 12px 12px 12px !important;
-    width: auto;
-    transform: none !important;
-  }
-
-  .review-inline-comment-leader { display:none; }
-
   .client-review-rail {
     overflow: visible;
     border-top: 1px solid var(--border);
@@ -3664,13 +3655,14 @@ a { color: inherit; text-decoration: none; }
   outline-offset: 3px;
 }
 
-.cockpit-video-poster { z-index: 1; object-fit: cover; transition: opacity 120ms ease; }
+.cockpit-video-poster { z-index: 1; object-fit: contain; transition: opacity 120ms ease; }
 .cockpit-video-frame > [data-player-root] { position: relative; z-index: 2; width: 100%; height: 100%; border-radius: 0; }
-.cockpit-video-frame video { position: relative; z-index: 2; display: block; width: 100%; height: 100%; object-fit: cover; visibility: hidden; }
+.cockpit-video-frame video { position: relative; z-index: 2; display: block; width: 100%; height: 100%; object-fit: contain; visibility: hidden; }
 .cockpit-video-frame video.active { visibility: visible; }
 .cockpit-video-frame:has(video.active) .cockpit-video-poster { opacity: 0; }
 .cockpit-video-frame > time { position: absolute; top: 12px; right: 12px; z-index: 5; padding: 3px 5px; border-radius: 4px; background: rgba(5, 15, 32, 0.8); color: #fff; font: 600 10px/1.3 ui-monospace, SFMono-Regular, Menlo, monospace; }
 .cockpit-review-overlay { position: absolute; inset: 0 0 48px; z-index: 3; cursor: crosshair; }
+.cockpit-review-canvas { position: absolute; inset: 0 0 48px; z-index: 4; pointer-events: none; }
 .cockpit-frame-pin { position: absolute; z-index: 5; width: 25px; height: 25px; display: inline-flex; align-items: center; justify-content: center; padding: 0; border: 2px solid #fff; border-radius: 50%; background: var(--cockpit-accent); color: #fff; box-shadow: 0 5px 14px rgba(7, 28, 62, 0.28); font-size: 10px; font-weight: 750; transform: translate(-50%, -50%); }
 .cockpit-frame-pin:hover { background: var(--cockpit-accent-strong); transform: translate(-50%, -50%) scale(1.06); }
 .cockpit-frame-pin.pending { pointer-events: none; background: var(--cockpit-panel); color: var(--cockpit-accent); animation: cockpit-pin-in 160ms ease-out; }

@@ -12,6 +12,7 @@ import {
   Volume2,
   VolumeX,
   Maximize,
+  MessageSquareText,
 } from "lucide-react";
 import { usePlayerStore } from "@/lib/stores/playerStore";
 import { nextLoopRegion } from "@/lib/review/frame-review";
@@ -19,13 +20,18 @@ import { formatSmpteTimecode } from "@/components/player/timecode";
 
 interface PlayerControlsProps {
   videoRef: RefObject<HTMLVideoElement | null>;
+  commentNavigation?: {
+    onPrevious: () => void;
+    onNext: () => void;
+    disabled: boolean;
+  };
 }
 
 const PLAYBACK_RATES = [0.25, 0.5, 0.75, 1, 1.25, 1.5, 2];
 const SEEK_INTERVALS = [1, 2, 5, 10];
 const SEEK_INTERVAL_STORAGE_KEY = "codeliver.review.seek-interval";
 
-export default function PlayerControls({ videoRef }: PlayerControlsProps) {
+export default function PlayerControls({ videoRef, commentNavigation }: PlayerControlsProps) {
   const {
     currentTime,
     duration,
@@ -193,6 +199,33 @@ export default function PlayerControls({ videoRef }: PlayerControlsProps) {
           >
             <SkipForward size={18} />
           </button>
+
+          {commentNavigation ? (
+            <div className="ml-1 flex items-center gap-0.5 border-l border-[var(--border)] pl-1" aria-label="Comment navigation">
+              <button
+                type="button"
+                onClick={commentNavigation.onPrevious}
+                disabled={commentNavigation.disabled}
+                className="grid h-11 min-w-11 place-items-center rounded-[var(--radius-sm)] px-1 text-[var(--muted)] transition-colors hover:bg-[var(--surface-2)] hover:text-[var(--ink)] disabled:cursor-not-allowed disabled:opacity-40 sm:h-8 sm:min-w-8"
+                title="Previous comment"
+                aria-label="Previous comment"
+              >
+                <MessageSquareText size={13} />
+                <SkipBack size={14} />
+              </button>
+              <button
+                type="button"
+                onClick={commentNavigation.onNext}
+                disabled={commentNavigation.disabled}
+                className="grid h-11 min-w-11 place-items-center rounded-[var(--radius-sm)] px-1 text-[var(--muted)] transition-colors hover:bg-[var(--surface-2)] hover:text-[var(--ink)] disabled:cursor-not-allowed disabled:opacity-40 sm:h-8 sm:min-w-8"
+                title="Next comment"
+                aria-label="Next comment"
+              >
+                <MessageSquareText size={13} />
+                <SkipForward size={14} />
+              </button>
+            </div>
+          ) : null}
         </div>
 
         {/* Time display */}

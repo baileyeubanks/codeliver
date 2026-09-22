@@ -21,6 +21,8 @@ import {
   BriefcaseBusiness,
   Check,
   CheckCircle2,
+  ChevronLeft,
+  ChevronRight,
   ChevronDown,
   Circle,
   Compass,
@@ -127,7 +129,7 @@ import VideoPlayer from "@/components/player/VideoPlayer";
 import InlineReviewComment from "@/components/review/InlineReviewComment";
 import AnchoredCommentCallout from "@/components/review/AnchoredCommentCallout";
 import { adjacentTimedComment, orderedTimedComments } from "@/lib/review/comment-navigation";
-import { normalizeReviewSeekStep, normalizeReviewShortcutKey, shouldIgnoreReviewShortcut } from "@/lib/review/player-policy";
+import { normalizeReviewSeekStep, normalizeReviewShortcutKey, projectPointIntoMedia, shouldIgnoreReviewShortcut } from "@/lib/review/player-policy";
 import { buildSurfaceUrl, getReviewSiteUrl } from "@/lib/surface-origins";
 import { mayOpenRevisionUploader } from "@/lib/uploads/revision-upload";
 import type { EditDecision, Version } from "@/lib/types/codeliver";
@@ -574,6 +576,8 @@ export default function ProjectCockpit({
   const [toast, setToast] = useState("");
   const [commentSubmitting, setCommentSubmitting] = useState(false);
   const [nativeDuration, setNativeDuration] = useState(0);
+  const [hlsSourceNonce, setHlsSourceNonce] = useState(0);
+  const [hlsResumeTime, setHlsResumeTime] = useState<number | null>(null);
   const [liveComments, setLiveComments] = useState<DemoReviewComment[]>([]);
   const [liveCutMarkers, setLiveCutMarkers] = useState<DemoReviewCutMarker[]>([]);
   const [liveAssetDataKey, setLiveAssetDataKey] = useState<string | null>(null);
@@ -829,6 +833,11 @@ export default function ProjectCockpit({
     )
     : activeLiveReviewKey && liveAssetDataKey === activeLiveReviewKey ? liveCutMarkers : [];
   const rootComments = comments.filter((comment) => !comment.parent_id);
+  const orderedRootReviewComments = orderedTimedComments(rootComments.map((comment) => ({
+    id: comment.id,
+    timecode_seconds: comment.time_seconds,
+    created_at: comment.created_at,
+  })));
   const visibleComments = rootComments.filter((comment) => comment.status === commentStatus);
   const projectTasks = demoMode
     ? workspace.tasks.filter((task) => task.project_id === project.id)
@@ -1563,6 +1572,17 @@ export default function ProjectCockpit({
     setIsPlaying(true);
   }
 
+  function retryPlaybackSource() {
+    const resumeAt = videoRef.current?.currentTime ?? currentTime;
+    setPlaybackError(null);
+    if (hlsMediaActive) {
+      setHlsResumeTime(resumeAt);
+      setHlsSourceNonce((nonce) => nonce + 1);
+      return;
+    }
+    videoRef.current?.load();
+  }
+
   function seekTo(seconds: number) {
     if (!reviewOperationsAllowed) return;
     const normalized = Math.max(0, Math.min(previewDuration, seconds));
@@ -1586,10 +1606,24 @@ export default function ProjectCockpit({
 
   function handleReviewFrameClick(event: ReactMouseEvent<HTMLDivElement>) {
     if (!reviewOperationsAllowed || !activeAsset) return;
-    const frameRect = videoFrameRef.current?.getBoundingClientRect()
-      ?? event.currentTarget.getBoundingClientRect();
-    const x = Math.max(0, Math.min(100, ((event.clientX - frameRect.left) / frameRect.width) * 100));
-    const y = Math.max(0, Math.min(100, ((event.clientY - frameRect.top) / frameRect.height) * 100));
+    const video = videoRef.current;
+    if (
+      !video || video.readyState < HTMLMediaElement.HAVE_METADATA ||
+      video.videoWidth <= 0 || video.videoHeight <= 0
+    ) {
+      setToast("Wait for this version to load before placing a frame comment.");
+      return;
+    }
+    const frameRect = event.currentTarget.getBoundingClientRect();
+    const point = projectPointIntoMedia({
+      localX: event.clientX - frameRect.left,
+      localY: event.clientY - frameRect.top,
+      containerWidth: frameRect.width,
+      containerHeight: frameRect.height,
+      mediaWidth: video.videoWidth,
+      mediaHeight: video.videoHeight,
+    });
+    if (!point) return;
     const wasPlaying = isPlaying;
 
     if (typeof videoRef.current?.pause === "function") videoRef.current.pause();
@@ -1597,21 +1631,18 @@ export default function ProjectCockpit({
     setResumeAfterComment(wasPlaying);
     // Read the media element at the click, not a render-delayed clock. This
     // keeps the persisted anchor at the actual frame for any measured FPS.
-    setPendingPin({ x, y, timeSeconds: videoRef.current?.currentTime ?? currentTime });
+    setPendingPin({ x: point.x, y: point.y, timeSeconds: videoRef.current?.currentTime ?? currentTime });
   }
 
   function selectReviewComment(comment: DemoReviewComment) {
+    videoRef.current?.pause();
+    setIsPlaying(false);
     setSelectedCommentId(comment.id);
     seekTo(comment.time_seconds);
   }
 
   function selectAdjacentReviewComment(direction: -1 | 1) {
-    const ordered = orderedTimedComments(rootComments.map((comment) => ({
-      id: comment.id,
-      timecode_seconds: comment.time_seconds,
-      created_at: comment.created_at,
-    })));
-    const next = adjacentTimedComment(ordered, selectedCommentId, direction);
+    const next = adjacentTimedComment(orderedRootReviewComments, selectedCommentId, direction);
     const target = rootComments.find((comment) => comment.id === next?.id);
     if (target) selectReviewComment(target);
   }
@@ -2380,6 +2411,8 @@ export default function ProjectCockpit({
                           onTimeUpdate={setCurrentTime}
                           onPlaybackError={handleHlsPlaybackError}
                           onPlaybackStart={dismissSelectedCommentForPlayback}
+                          sourceNonce={hlsSourceNonce}
+                          resumeTime={hlsResumeTime}
                           videoRef={videoRef}
                         />
                       ) : (
@@ -2415,7 +2448,7 @@ export default function ProjectCockpit({
                       <time>{formatClock(currentTime)}</time>
                       {playbackError ? (
                         <p role="alert">
-                          {playbackError} <button type="button" onClick={() => { setPlaybackError(null); void togglePlayback(); }}>Retry playback</button>
+                          {playbackError} <button type="button" onClick={retryPlaybackSource}>Retry playback</button>
                         </p>
                       ) : null}
                       <div
@@ -2436,62 +2469,70 @@ export default function ProjectCockpit({
                           Replay
                         </button>
                       ) : null}
-                      {rootComments
-                        .filter((comment) => comment.id === selectedCommentId && comment.pin_x != null && comment.pin_y != null)
-                        .map((comment) => (
-                          <AnchoredCommentCallout
-                            key={comment.id}
-                            comment={{
-                              id: comment.id,
-                              author_name: comment.author_name,
-                              body: comment.body,
-                              timecode_seconds: comment.time_seconds,
-                              pin_x: comment.pin_x ?? null,
-                              pin_y: comment.pin_y ?? null,
+                      <div className="cockpit-review-canvas" aria-live="polite">
+                        {rootComments
+                          .filter((comment) => comment.id === selectedCommentId && comment.pin_x != null && comment.pin_y != null)
+                          .map((comment) => (
+                            <AnchoredCommentCallout
+                              key={comment.id}
+                              comment={{
+                                id: comment.id,
+                                author_name: comment.author_name,
+                                body: comment.body,
+                                timecode_seconds: comment.time_seconds,
+                                pin_x: comment.pin_x ?? null,
+                                pin_y: comment.pin_y ?? null,
+                              }}
+                              threadNumber={orderedRootReviewComments.findIndex((candidate) => candidate.id === comment.id) + 1}
+                              replyCount={comments.filter((candidate) => candidate.parent_id === comment.id).length}
+                              replies={comments.filter((candidate) => candidate.parent_id === comment.id).map((reply) => ({ id: reply.id, author_name: reply.author_name, body: reply.body }))}
+                              canReply={reviewOperationsAllowed}
+                              onClose={() => setSelectedCommentId(null)}
+                              onPrevious={() => selectAdjacentReviewComment(-1)}
+                              onNext={() => selectAdjacentReviewComment(1)}
+                              onReply={(body) => persistExactComment({ body, timecode: comment.time_seconds, parentId: comment.id })}
+                            />
+                          ))}
+                        {pendingPin ? (
+                          <span
+                            className="cockpit-frame-pin pending"
+                            style={{ left: `${pendingPin.x}%`, top: `${pendingPin.y}%` }}
+                            aria-hidden="true"
+                          >
+                            <MapPin size={14} fill="currentColor" />
+                          </span>
+                        ) : null}
+                        {pendingPin ? (
+                          <InlineReviewComment
+                            assetId={activeAsset.id}
+                            assetType={activeAsset.file_type}
+                            versionId={demoMode ? activeDemoVersionId : activeLiveVersion?.id ?? null}
+                            reviewInviteId={null}
+                            reviewerName={viewerName}
+                            onReviewerNameChange={() => undefined}
+                            timecode={pendingPin.timeSeconds}
+                            pin={pendingPin}
+                            onCancel={() => setPendingPin(null)}
+                            onPersist={async ({ body, timecode, pin }) => {
+                              await persistExactComment({ body, timecode, pin });
+                              setPendingPin(null);
+                              setSelectedCommentId(null);
+                              setResumeAfterComment(false);
+                              setCommentStatus("open");
+                              setToast("Timecoded comment added");
                             }}
-                            threadNumber={orderedTimedComments(rootComments.map((candidate) => ({ id: candidate.id, timecode_seconds: candidate.time_seconds, created_at: candidate.created_at }))).findIndex((candidate) => candidate.id === comment.id) + 1}
-                            replyCount={comments.filter((candidate) => candidate.parent_id === comment.id).length}
-                            replies={comments.filter((candidate) => candidate.parent_id === comment.id).map((reply) => ({ id: reply.id, author_name: reply.author_name, body: reply.body }))}
-                            canReply={reviewOperationsAllowed}
-                            onClose={() => setSelectedCommentId(null)}
-                            onPrevious={() => selectAdjacentReviewComment(-1)}
-                            onNext={() => selectAdjacentReviewComment(1)}
-                            onReply={(body) => persistExactComment({ body, timecode: comment.time_seconds, parentId: comment.id })}
                           />
-                        ))}
-                      {pendingPin ? (
-                        <span
-                          className="cockpit-frame-pin pending"
-                          style={{ left: `${pendingPin.x}%`, top: `${pendingPin.y}%` }}
-                          aria-hidden="true"
-                        >
-                          <MapPin size={14} fill="currentColor" />
-                        </span>
-                      ) : null}
-                      {pendingPin ? (
-                        <InlineReviewComment
-                          assetId={activeAsset.id}
-                          assetType={activeAsset.file_type}
-                          versionId={demoMode ? activeDemoVersionId : activeLiveVersion?.id ?? null}
-                          reviewInviteId={null}
-                          reviewerName={viewerName}
-                          onReviewerNameChange={() => undefined}
-                          timecode={pendingPin.timeSeconds}
-                          pin={pendingPin}
-                          onCancel={() => setPendingPin(null)}
-                          onPersist={async ({ body, timecode, pin }) => {
-                            await persistExactComment({ body, timecode, pin });
-                            setPendingPin(null);
-                            setSelectedCommentId(null);
-                            setResumeAfterComment(false);
-                            setCommentStatus("open");
-                            setToast("Timecoded comment added");
-                          }}
-                        />
-                      ) : null}
+                        ) : null}
+                      </div>
                       <div className={`cockpit-video-controls ${styles.playerControls}`}>
                         <button type="button" onClick={togglePlayback} aria-label={isPlaying ? "Pause" : "Play"}>
                           {isPlaying ? <Pause size={20} fill="currentColor" /> : <Play size={20} fill="currentColor" />}
+                        </button>
+                        <button type="button" onClick={() => selectAdjacentReviewComment(-1)} disabled={orderedRootReviewComments.length === 0} aria-label="Previous comment" title="Previous comment">
+                          <ChevronLeft size={18} />
+                        </button>
+                        <button type="button" onClick={() => selectAdjacentReviewComment(1)} disabled={orderedRootReviewComments.length === 0} aria-label="Next comment" title="Next comment">
+                          <ChevronRight size={18} />
                         </button>
                         <span data-transport-time>{formatClock(currentTime)} / {formatClock(previewDuration)}</span>
                         <input

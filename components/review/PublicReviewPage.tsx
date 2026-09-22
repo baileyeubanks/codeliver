@@ -923,6 +923,7 @@ export default function PublicReviewPage({
   }
 
   function handleCommentSelect(comment: ReviewComment) {
+    videoRef.current?.pause();
     setSelectedCommentId(comment.id);
     if (asset?.file_type === "video" && comment.timecode_seconds != null) {
       seekTo(comment.timecode_seconds);
@@ -1761,6 +1762,11 @@ export default function PublicReviewPage({
                 overlay={renderPins()}
                 onFramePin={handleFramePin}
                 onPlaybackStart={dismissSelectedCommentForPlayback}
+                commentNavigation={{
+                  onPrevious: () => selectAdjacentComment(-1),
+                  onNext: () => selectAdjacentComment(1),
+                  disabled: orderedTimedRootComments.length === 0,
+                }}
                 onCutMarker={canComment ? handleCutMarker : undefined}
                 onImagePin={handleImagePin}
                 timeline={{

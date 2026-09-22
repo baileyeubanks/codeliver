@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState, type PointerEvent as ReactPointerEvent, type RefObject } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState, type PointerEvent as ReactPointerEvent, type RefObject } from "react";
 import { clampCalloutDrag } from "@/lib/review/callout-geometry";
 
 export function useCalloutDrag(cardRef: RefObject<HTMLElement | null>) {
@@ -9,6 +9,25 @@ export function useCalloutDrag(cardRef: RefObject<HTMLElement | null>) {
   const drag = useRef<{ pointerX: number; pointerY: number; origin: { x: number; y: number } } | null>(null);
 
   useEffect(() => { offsetRef.current = offset; }, [offset]);
+
+  useLayoutEffect(() => {
+    const frame = window.requestAnimationFrame(() => {
+      const card = cardRef.current?.getBoundingClientRect();
+      if (!card) return;
+      const current = offsetRef.current;
+      const constrained = clampCalloutDrag(
+        current,
+        current,
+        card,
+        { width: window.innerWidth, height: window.innerHeight },
+      );
+      if (constrained.x !== current.x || constrained.y !== current.y) {
+        offsetRef.current = constrained;
+        setOffset(constrained);
+      }
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [cardRef]);
 
   const stopDragging = useCallback(() => {
     drag.current = null;

@@ -1,6 +1,9 @@
+/* The supplied raster is a square artwork with the colored CVP mark occupying
+   a centered 84% × 42% band. Size by that band rather than scaling a square
+   by width: every lockup shows the complete approved mark without redrawing it. */
 .brand { display:inline-flex; align-items:center; justify-content:center; flex:0 0 auto; width:var(--co-production-brand-width,126px); height:48px; max-width:100%; overflow:hidden; contain:layout paint; }
-.mark { display:block; width:100%; max-width:none; height:auto; transform:scale(1.62); pointer-events:none; user-select:none; flex:none; }
+.mark { display:block; width:auto; max-width:none; height:114px; pointer-events:none; user-select:none; flex:none; }
 .compactMark { width:42px; height:34px; }
-.compactMark .mark { width:78px; max-width:none; transform:scale(1.72); }
+.compactMark .mark { width:50px; max-width:none; height:auto; }
 .stacked { width:var(--co-production-brand-width,150px); height:84px; }
-.stacked .mark { transform:scale(1.42); }
+.stacked .mark { width:150px; max-width:none; height:auto; }

@@ -215,6 +215,16 @@ test("AssetUpload preserves received bytes when tus completes into ready or quar
   assert.match(uploader, /Upload-Original-Ready/);
 });
 
+test("AssetUpload retries only timeout security scans against retained bytes", () => {
+  assert.match(uploader, /Upload-Scan-Retryable/);
+  assert.match(uploader, /aria-label="Retry security scan"/);
+  assert.match(uploader, /fetch\(`\$\{uploadUrl\}\/scan`/);
+  assert.match(uploader, /status\.state === "rejected"/);
+  assert.match(uploader, /status: "rejected"/);
+  assert.match(uploader, /No file data is being uploaded again/);
+  assert.doesNotMatch(uploader, /scanRetryable:\s*status\.state === "rejected"/);
+});
+
 test("AssetUpload keeps selected files pending while confirming readiness", () => {
   assert.doesNotMatch(uploader, /disabled=\{storage\.phase !== "ready"\}/);
   assert.match(uploader, /void refreshStorageReadiness\(\)\.then\(begin\)/);

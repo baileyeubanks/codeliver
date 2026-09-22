@@ -43,7 +43,6 @@ export class ClamAvScanHook implements MalwareScanHook {
     const controller = new AbortController();
     const abort = () => controller.abort();
     input.signal?.addEventListener("abort", abort, { once: true });
-    const timer = setTimeout(abort, 120_000);
     const hash = createHash("sha256");
     let bytes = 0;
     let output = "";
@@ -90,7 +89,6 @@ export class ClamAvScanHook implements MalwareScanHook {
     } catch {
       return result("error", "ClamAV scan failed or was cancelled");
     } finally {
-      clearTimeout(timer);
       input.signal?.removeEventListener("abort", abort);
       if (child && child.exitCode === null && child.signalCode === null) child.kill("SIGKILL");
     }

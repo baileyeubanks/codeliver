@@ -12,6 +12,14 @@ test("required ClamAV caps the upload budget before bytes are accepted", () => {
   }
 });
 
+test("large-file malware scans default to the production 15-minute budget", () => {
+  assert.equal(readStorageConfig({}).malwareScanTimeoutMs, 900_000);
+  assert.equal(
+    readStorageConfig({ CODELIVER_MALWARE_SCAN_TIMEOUT_MS: "360000" }).malwareScanTimeoutMs,
+    360_000,
+  );
+});
+
 test("required ClamAV preserves a lower configured upload budget", () => {
   const config = readStorageConfig({
     CODELIVER_CLAMSCAN_PATH: "/opt/homebrew/bin/clamscan",

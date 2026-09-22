@@ -272,6 +272,39 @@ test("recovery HEAD is retriable 503 while asset plus V1 attachment is unavailab
   assert.equal(await response.text(), "");
 });
 
+test("recovery HEAD exposes a restart-interrupted timeout scan as safely retryable", async () => {
+  state.__ccoUploadBoundarySession = {
+    ...committedSession(),
+    state: "verifying",
+    objectKey: null,
+    receipt: null,
+    scan: {
+      verdict: "error",
+      engine: "scanner-timeout",
+      signature: null,
+      detail: "Timed out",
+      scannedAt: now,
+    },
+  };
+  state.__ccoUploadBoundaryCatalogError = null;
+  const { HEAD } = await import(
+    pathToFileURL(
+      resolve(repositoryRoot, "app/api/upload/tus/[uploadId]/route.ts"),
+    ).href
+  );
+  const response = await HEAD(
+    new NextRequest(`https://admin.contentco-op.com/api/upload/tus/${uploadId}`, {
+      method: "HEAD",
+    }),
+    { params: Promise.resolve({ uploadId }) },
+  );
+
+  assert.equal(response.status, 200);
+  assert.equal(response.headers.get("upload-state"), "verifying");
+  assert.equal(response.headers.get("upload-offset"), "7");
+  assert.equal(response.headers.get("upload-scan-retryable"), "true");
+});
+
 test("initial upload rejects non-V1 metadata before storage allocation", async () => {
   state.__ccoUploadBoundarySession = {
     ...committedSession(),

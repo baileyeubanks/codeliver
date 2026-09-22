@@ -51,6 +51,7 @@ type UploadStatus =
   | "cancelling"
   | "processing"
   | "quarantined"
+  | "rejected"
   | "done"
   | "error";
 
@@ -66,6 +67,16 @@ type UploadItem = {
   tusUpload?: tus.Upload;
   asset?: Asset;
   revisionTarget: RevisionUploadTarget | null;
+  scanRetryable?: boolean;
+  uploadUrl?: string;
+};
+
+type ScanRetryStatus = {
+  state?: string;
+  retryable?: boolean;
+  originalReady?: boolean;
+  message?: string;
+  error?: string;
 };
 
 const WARN_EXT = new Set(["exe", "bat", "sh", "cmd", "msi"]);
@@ -215,6 +226,7 @@ export default function AssetUpload({
       }
       let serverState = "receiving";
       let originalReleaseReady = false;
+      let scanRetryable = false;
       let uploadAssetHeader: string | null = null;
       let uploadVersionHeader: string | null = null;
       let receiptStorageKey: string | null = null;
@@ -276,6 +288,7 @@ export default function AssetUpload({
           serverState = response.getHeader("Upload-State") || serverState;
           originalReleaseReady =
             response.getHeader("Upload-Original-Ready") === "true";
+          scanRetryable = response.getHeader("Upload-Scan-Retryable") === "true";
           uploadAssetHeader = response.getHeader("Upload-Asset") ?? uploadAssetHeader;
           uploadVersionHeader = response.getHeader("Upload-Version") ?? uploadVersionHeader;
         },
@@ -303,7 +316,14 @@ export default function AssetUpload({
               },
             }, item.revisionTarget);
             if (quarantined) {
-              updateItem(item.id, { status: "quarantined" });
+              updateItem(item.id, {
+                status: "quarantined",
+                scanRetryable,
+                uploadUrl: upload.url ?? undefined,
+                error: scanRetryable
+                  ? "Security scan timed out. Your verified upload is retained and still quarantined; retry the scan without uploading the file again."
+                  : "Security scanning has not cleared this file. It remains quarantined and unavailable for review.",
+              });
               return;
             }
             if (!completion) {
@@ -495,6 +515,85 @@ export default function AssetUpload({
     [items, refreshStorageReadiness, startTusUpload, storage.phase, updateItem]
   );
 
+  const retrySecurityScan = useCallback(
+    async (id: string) => {
+      const item = items.find((current) => current.id === id);
+      const uploadUrl = item?.uploadUrl ?? item?.tusUpload?.url ?? null;
+      if (!item?.scanRetryable || !uploadUrl) return;
+
+      updateItem(id, {
+        status: "processing",
+        error: "Security scan is running against the retained verified upload. No file data is being uploaded again.",
+      });
+      try {
+        const started = await fetch(`${uploadUrl}/scan`, {
+          method: "POST",
+          cache: "no-store",
+        });
+        let status = (await started.json()) as ScanRetryStatus;
+        if (!started.ok) {
+          updateItem(id, {
+            status: "quarantined",
+            scanRetryable: started.status >= 500,
+            error:
+              status.error ||
+              status.message ||
+              "The security scan could not be restarted. The file remains quarantined.",
+          });
+          return;
+        }
+
+        for (let attempt = 0; attempt < 45; attempt += 1) {
+          if (status.state !== "verifying") break;
+          const response = await fetch(`${uploadUrl}/scan`, { cache: "no-store" });
+          status = (await response.json()) as ScanRetryStatus;
+          if (!response.ok) {
+            updateItem(id, {
+              status: "quarantined",
+              scanRetryable: response.status >= 500,
+              error:
+                status.error ||
+                status.message ||
+                "The security scan status could not be confirmed. The file remains quarantined.",
+            });
+            return;
+          }
+        }
+
+        if (status.state === "committed" && status.originalReady) {
+          retryUpload(id);
+          return;
+        }
+        if (status.state === "rejected") {
+          updateItem(id, {
+            status: "rejected",
+            scanRetryable: false,
+            error: status.message || "Security scan rejected this file. It remains unavailable for review.",
+          });
+          return;
+        }
+        updateItem(id, {
+          status: "quarantined",
+          scanRetryable: status.retryable === true || status.state === "verifying",
+          error:
+            status.state === "verifying"
+              ? "Security scan is still running. Check again without uploading the file again."
+              : status.message || "The file remains quarantined and unavailable for review.",
+        });
+      } catch (error) {
+        updateItem(id, {
+          status: "quarantined",
+          scanRetryable: true,
+          error:
+            error instanceof Error
+              ? `${error.message}. The verified upload remains quarantined; retrying will not upload it again.`
+              : "The verified upload remains quarantined; retrying will not upload it again.",
+        });
+      }
+    },
+    [items, retryUpload, updateItem],
+  );
+
   const removeUploadItem = useCallback((id: string) => {
     intent.current.cancel(id);
     uploads.current.delete(id);
@@ -540,7 +639,9 @@ export default function AssetUpload({
       case "processing":
         return "Verifying & saving…";
       case "quarantined":
-        return "Security scan pending";
+        return "Security scan required";
+      case "rejected":
+        return "Security scan rejected";
       case "done":
         return "Complete";
       case "error":
@@ -554,7 +655,9 @@ export default function AssetUpload({
   const receivedUploadCount = items.filter((item) =>
     item.status === "done" || item.status === "quarantined",
   ).length;
-  const failedUploadCount = items.filter((item) => item.status === "error").length;
+  const failedUploadCount = items.filter((item) =>
+    item.status === "error" || item.status === "rejected",
+  ).length;
   const totalBytes = items.reduce((sum, item) => sum + item.bytesTotal, 0);
   const uploadedBytes = items.reduce((sum, item) => sum + item.bytesUploaded, 0);
   const overallProgress = totalBytes > 0
@@ -568,14 +671,14 @@ export default function AssetUpload({
     : failedUploadCount > 0
       ? "Upload needs attention"
       : items.some((item) => item.status === "quarantined")
-        ? "Upload received"
+        ? "Security scan required"
         : items.some((item) => item.error) ? "Upload saved" : "Ready for review";
   const uploadMessage = activeUploadCount > 0
     ? "Keep this window open while Co‑VideoPro transfers and prepares the review asset."
     : failedUploadCount > 0
       ? "Review the failed item below, then retry or remove it."
       : items.some((item) => item.status === "quarantined")
-        ? "The original is stored safely and will become available after its security scan."
+        ? "The verified original remains quarantined until a security scan passes. Retry below without uploading the file again."
         : "The uploaded media is ready in this project.";
 
   return (
@@ -734,6 +837,8 @@ export default function AssetUpload({
                               ? "text-[var(--accent)]"
                               : item.status === "quarantined"
                                 ? "text-[var(--orange)]"
+                                : item.status === "rejected"
+                                  ? "text-[var(--red)]"
                               : ""
                       }
                     >
@@ -786,12 +891,40 @@ export default function AssetUpload({
                       className="text-[var(--orange)]"
                       aria-label="Security scan pending"
                     />
+                    {item.scanRetryable ? (
+                      <button
+                        type="button"
+                        onClick={() => void retrySecurityScan(item.id)}
+                        className="text-[var(--dim)] hover:text-[var(--accent)]"
+                        title="Retry security scan using retained verified bytes"
+                        aria-label="Retry security scan"
+                      >
+                        <RotateCcw size={16} />
+                      </button>
+                    ) : null}
                         <button
                           type="button"
                           onClick={() => cancelUpload(item.id)}
                           className="text-[var(--dim)] hover:text-[var(--red)]"
                           title="Cancel quarantined upload"
                           aria-label="Cancel quarantined upload"
+                    >
+                      <X size={16} />
+                    </button>
+                  </>
+                ) : item.status === "rejected" ? (
+                  <>
+                    <AlertCircle
+                      size={16}
+                      className="text-[var(--red)]"
+                      aria-label="Security scan rejected"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => cancelUpload(item.id)}
+                      className="text-[var(--dim)] hover:text-[var(--red)]"
+                      title="Remove rejected upload"
+                      aria-label="Remove rejected upload"
                     >
                       <X size={16} />
                     </button>

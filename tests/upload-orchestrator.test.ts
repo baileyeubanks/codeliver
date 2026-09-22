@@ -882,6 +882,122 @@ test("scanner timeout releases the upload lock into quarantine", async () => {
   }
 });
 
+test("timeout quarantine retries the scan against retained verified bytes without another upload", async () => {
+  const root = mkdtempSync(join(tmpdir(), "codeliver-session-scanner-timeout-retry-"));
+  let attempts = 0;
+  const scanner: MalwareScanHook = {
+    async scan() {
+      attempts += 1;
+      if (attempts === 1) return new Promise<never>(() => undefined);
+      return {
+        verdict: "clean",
+        engine: "test-scanner",
+        signature: null,
+        detail: "Retained bytes are clean",
+        scannedAt: new Date().toISOString(),
+      };
+    },
+  };
+  try {
+    const orchestrator = createOrchestrator(root, scanner, {
+      CODELIVER_MALWARE_SCAN_TIMEOUT_MS: "20",
+    });
+    const created = await orchestrator.createSession(createInput());
+    const quarantined = await orchestrator.appendPart({
+      uploadId: created.session.id,
+      tenantId: "tenant-a",
+      offset: 0,
+      chunks: chunks("payload"),
+    });
+    assert.equal(quarantined.session.state, "quarantined");
+    assert.equal(quarantined.session.scan?.engine, "scanner-timeout");
+    assert.equal(quarantined.session.offset, quarantined.session.size);
+
+    const started = await orchestrator.beginMalwareScanRetry(
+      created.session.id,
+      "tenant-a",
+    );
+    assert.equal(started.state, "verifying");
+    assert.equal(started.offset, started.size);
+
+    const recovered = await orchestrator.recoverSession(
+      created.session.id,
+      "tenant-a",
+    );
+    assert.equal(recovered?.state, "verifying");
+    assert.equal(attempts, 1, "ordinary Tus recovery must not run the long retry scan");
+
+    const restarted = await orchestrator.beginMalwareScanRetry(
+      created.session.id,
+      "tenant-a",
+    );
+    assert.equal(restarted.state, "verifying");
+
+    const committed = await orchestrator.resumeMalwareScanRetry(
+      created.session.id,
+      "tenant-a",
+    );
+    assert.equal(committed.state, "committed");
+    assert.equal(committed.scan?.verdict, "clean");
+    assert.equal(committed.offset, committed.size);
+    assert.equal(attempts, 2);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("scan retry is timeout-only and can never retry infected or unrelated scanner errors", async () => {
+  const cases: Array<{ name: string; scanner: MalwareScanHook; expectedState: string }> = [
+    {
+      name: "infected",
+      expectedState: "rejected",
+      scanner: {
+        async scan() {
+          return {
+            verdict: "infected",
+            engine: "test-scanner",
+            signature: "test-signature",
+            detail: "Rejected",
+            scannedAt: new Date().toISOString(),
+          };
+        },
+      },
+    },
+    {
+      name: "scanner-error",
+      expectedState: "quarantined",
+      scanner: {
+        async scan() {
+          throw new Error("scanner offline");
+        },
+      },
+    },
+  ];
+
+  for (const entry of cases) {
+    const root = mkdtempSync(join(tmpdir(), `codeliver-session-no-retry-${entry.name}-`));
+    try {
+      const orchestrator = createOrchestrator(root, entry.scanner);
+      const created = await orchestrator.createSession(createInput({
+        idempotencyKey: entry.name,
+      }));
+      const terminal = await orchestrator.appendPart({
+        uploadId: created.session.id,
+        tenantId: "tenant-a",
+        offset: 0,
+        chunks: chunks("payload"),
+      });
+      assert.equal(terminal.session.state, entry.expectedState);
+      await assert.rejects(
+        () => orchestrator.beginMalwareScanRetry(created.session.id, "tenant-a"),
+        /Only timeout-quarantined uploads can retry the security scan/,
+      );
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  }
+});
+
 test("malformed clean scanner results remain quarantined", async () => {
   const root = mkdtempSync(join(tmpdir(), "codeliver-session-scanner-contract-"));
   const scanner: MalwareScanHook = {

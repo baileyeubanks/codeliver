@@ -1,0 +1,125 @@
+import { setTimeout as delay } from "node:timers/promises";
+
+import { NextRequest } from "next/server";
+
+import { apiJson } from "@/lib/api/responses";
+import { requireAuth } from "@/lib/auth";
+import { readStorageConfig } from "@/lib/storage/config";
+import { createDefaultUploadOrchestrator } from "@/lib/tus/orchestrator";
+import type { UploadSession } from "@/lib/tus/session";
+import {
+  assertUploadStorageConfigured,
+  ensureCatalogAsset,
+  jsonUploadError,
+} from "@/app/api/upload/_shared";
+
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
+
+type RouteParams = { params: Promise<{ uploadId: string }> };
+
+const NO_STORE = { "Cache-Control": "no-store" };
+const STATUS_WAIT_MS = 20_000;
+const STATUS_POLL_MS = 1_000;
+
+function retryable(session: UploadSession): boolean {
+  return (
+    ["quarantined", "verifying"].includes(session.state) &&
+    session.scan?.verdict === "error" &&
+    session.scan.engine === "scanner-timeout"
+  );
+}
+
+function statusPayload(session: UploadSession) {
+  const ready =
+    session.state === "committed" &&
+    session.scan?.verdict === "clean" &&
+    session.catalog.state === "attached" &&
+    Boolean(session.assetId && session.versionId && session.receipt);
+  return {
+    state: session.state,
+    retryable: retryable(session),
+    originalReady: ready,
+    message:
+      session.state === "verifying"
+        ? "Security scan is running against the retained verified upload."
+        : ready
+          ? "Security scan passed and the upload is ready."
+          : retryable(session)
+            ? "Security scan timed out. The verified upload remains quarantined and can be scanned again."
+            : session.state === "rejected"
+              ? "Security scan rejected this file. It remains unavailable for review."
+              : "The upload remains quarantined and unavailable for review.",
+    ...(ready
+      ? {
+          asset: { id: session.assetId },
+          version: {
+            id: session.versionId,
+            number: session.version,
+          },
+        }
+      : {}),
+  };
+}
+
+export async function POST(_request: NextRequest, { params }: RouteParams) {
+  try {
+    const user = await requireAuth();
+    if (!user) {
+      return apiJson({ error: "Unauthorized", code: "UNAUTHORIZED" }, { status: 401, headers: NO_STORE });
+    }
+    assertUploadStorageConfigured(readStorageConfig());
+    const { uploadId } = await params;
+    const orchestrator = createDefaultUploadOrchestrator();
+    const session = await orchestrator.beginMalwareScanRetry(uploadId, user.id);
+
+    // The M2 runtime is a durable Node process. Persist `verifying` before this
+    // detached attempt so a process restart leaves a recoverable, retryable
+    // session rather than accepting or discarding unscanned bytes.
+    void orchestrator
+      .resumeMalwareScanRetry(uploadId, user.id)
+      .then(async (result) => {
+        if (result.state === "committed") {
+          await ensureCatalogAsset(orchestrator, result, user.id);
+        }
+      })
+      .catch((error: unknown) => {
+        console.error(
+          "[upload] Retained-byte security scan retry failed closed:",
+          error instanceof Error ? error.message : "unknown error",
+        );
+      });
+
+    return apiJson(statusPayload(session), { status: 202, headers: NO_STORE });
+  } catch (error) {
+    return jsonUploadError(error, NO_STORE);
+  }
+}
+
+export async function GET(_request: NextRequest, { params }: RouteParams) {
+  try {
+    const user = await requireAuth();
+    if (!user) {
+      return apiJson({ error: "Unauthorized", code: "UNAUTHORIZED" }, { status: 401, headers: NO_STORE });
+    }
+    assertUploadStorageConfigured(readStorageConfig());
+    const { uploadId } = await params;
+    const orchestrator = createDefaultUploadOrchestrator();
+    const deadline = Date.now() + STATUS_WAIT_MS;
+    let session = await orchestrator.getSession(uploadId, user.id);
+    if (!session) {
+      return apiJson({ error: "Upload not found", code: "UPLOAD_NOT_FOUND" }, { status: 404, headers: NO_STORE });
+    }
+    while (session.state === "verifying" && Date.now() < deadline) {
+      await delay(STATUS_POLL_MS);
+      session = (await orchestrator.getSession(uploadId, user.id)) ?? session;
+    }
+    if (session.state === "committed") {
+      await ensureCatalogAsset(orchestrator, session, user.id);
+      session = (await orchestrator.getSession(uploadId, user.id)) ?? session;
+    }
+    return apiJson(statusPayload(session), { status: 200, headers: NO_STORE });
+  } catch (error) {
+    return jsonUploadError(error, NO_STORE);
+  }
+}

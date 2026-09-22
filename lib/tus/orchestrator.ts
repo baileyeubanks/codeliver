@@ -1007,6 +1007,18 @@ export class UploadOrchestrator {
       return session;
     }
 
+    // A retry request persists this state before launching the potentially
+    // long scan. After a process restart, ordinary Tus HEAD/PATCH recovery
+    // must expose the durable retry instead of running ClamAV inside that
+    // request. Only the explicit scan-retry endpoint may resume these bytes.
+    if (
+      session.state === "verifying" &&
+      session.scan?.verdict === "error" &&
+      session.scan.engine === "scanner-timeout"
+    ) {
+      return session;
+    }
+
     if (
       session.state === "verifying" &&
       session.scan?.verdict === "clean" &&
@@ -1130,6 +1142,88 @@ export class UploadOrchestrator {
       if (!session) return null;
       this.assertTenant(session, tenantId);
       return this.recoverLocked(session);
+    });
+  }
+
+  private assertMalwareScanRetryable(session: UploadSession): void {
+    if (
+      !["quarantined", "verifying"].includes(session.state) ||
+      session.scan?.verdict !== "error" ||
+      session.scan.engine !== "scanner-timeout" ||
+      session.offset !== session.size ||
+      !session.computedSha256 ||
+      !/^[0-9a-f]{64}$/.test(session.computedSha256) ||
+      session.receipt !== null ||
+      session.objectKey !== null
+    ) {
+      throw new UploadOrchestrationError(
+        "UPLOAD_STATE",
+        "Only timeout-quarantined uploads can retry the security scan",
+      );
+    }
+  }
+
+  async beginMalwareScanRetry(
+    uploadId: string,
+    tenantId: string,
+  ): Promise<UploadSession> {
+    return this.sessions.withLock(uploadId, async () => {
+      const session = await this.sessions.get(uploadId);
+      if (!session) {
+        throw new UploadOrchestrationError("UPLOAD_NOT_FOUND", "Upload not found");
+      }
+      this.assertTenant(session, tenantId);
+      this.assertMalwareScanRetryable(session);
+      if (session.state === "verifying") return session;
+
+      session.state = "verifying";
+      session.lastError = null;
+      await this.save(session);
+      await this.event(session, "malware-scan-retry-started", {
+        retainedBytes: session.size,
+        sha256: session.computedSha256,
+      });
+      return session;
+    });
+  }
+
+  async resumeMalwareScanRetry(
+    uploadId: string,
+    tenantId: string,
+  ): Promise<UploadSession> {
+    return this.sessions.withLock(uploadId, async () => {
+      const session = await this.sessions.get(uploadId);
+      if (!session) {
+        throw new UploadOrchestrationError("UPLOAD_NOT_FOUND", "Upload not found");
+      }
+      this.assertTenant(session, tenantId);
+      this.assertMalwareScanRetryable(session);
+      if (session.state !== "verifying") {
+        throw new UploadOrchestrationError(
+          "UPLOAD_STATE",
+          "Security scan retry has not been started",
+        );
+      }
+
+      const inspection = await this.adapter.inspectMultipart(session.providerHandle);
+      if (
+        inspection.size !== session.size ||
+        inspection.sha256 !== session.computedSha256 ||
+        (session.expectedSha256 !== null &&
+          inspection.sha256 !== session.expectedSha256)
+      ) {
+        return this.failRecoveryLocked(
+          session,
+          new Error("Retained upload bytes no longer match verified scan evidence"),
+        );
+      }
+
+      const scan = await this.scanVerifiedBytes(
+        session,
+        session.computedSha256,
+        () => this.adapter.openMultipartReadStream(session.providerHandle),
+      );
+      return this.applyScanResult(session, scan);
     });
   }
 

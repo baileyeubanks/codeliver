@@ -43,6 +43,11 @@ function sessionHeaders(
     "Upload-Derivative-State": release.derivativeState,
     "Upload-Original-Ready": String(release.originalReady),
     "Upload-Signed-Delivery-Ready": String(release.signedDeliveryReady),
+    "Upload-Scan-Retryable": String(
+      ["quarantined", "verifying"].includes(session.state) &&
+        session.scan?.verdict === "error" &&
+        session.scan.engine === "scanner-timeout"
+    ),
     ...(session.computedSha256 ? { "Upload-SHA256": session.computedSha256 } : {}),
     ...(session.assetId && session.versionId
       ? {

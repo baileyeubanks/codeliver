@@ -32,6 +32,7 @@ require_runtime_user
 require_pinned_node
 ensure_runtime_directories
 validate_release "$RELEASE_ID"
+validate_daemon_control_matches_release "$RELEASE_ID"
 
 observed_current="$(current_release_id)"
 observed_current="${observed_current:-none}"

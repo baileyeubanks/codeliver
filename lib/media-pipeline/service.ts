@@ -3,6 +3,7 @@ import { createHash, createHmac, timingSafeEqual } from "node:crypto";
 import { createReadStream } from "node:fs";
 import { open, readdir, realpath, rename, stat, unlink, writeFile } from "node:fs/promises";
 import { basename, extname, join, relative, sep } from "node:path";
+import type { Readable } from "node:stream";
 
 import type { MalwareScanHook, MalwareScanResult } from "../storage/malware";
 import type { StorageReadiness } from "../storage/contracts";
@@ -808,6 +809,12 @@ interface PreparedSource {
   path: string;
   sha256: string;
   size: number;
+}
+
+interface ResolvedSource {
+  size: number;
+  openStream: () => Promise<Readable>;
+  postCopyVerificationPath: string | null;
 }
 
 interface RestoreReceiptCatalogEntry {
@@ -3726,7 +3733,7 @@ export class MediaPipelineService {
     };
   }
 
-  private async resolveSource(job: MediaPipelineJob): Promise<string> {
+  private async resolveSource(job: MediaPipelineJob): Promise<ResolvedSource> {
     const configuredRoot = this.runtime.config.filesystemRoot;
     if (!configuredRoot) {
       throw new MediaPipelineError("PIPELINE_NOT_CONFIGURED", "Storage root is not configured");
@@ -3740,7 +3747,7 @@ export class MediaPipelineService {
     }
     await assertSafeRegularFile(canonicalSource);
     const receipt = this.requireValidSourceReceipt(job.source);
-    if (receipt) {
+    if (receipt && this.runtime.adapter.kind !== "ccnas") {
       const inspection = await this.runtime.adapter.inspectStoredObject(receipt.objectKey);
       if (!inspection) {
         throw new MediaPipelineError(
@@ -3775,24 +3782,50 @@ export class MediaPipelineService {
         "Version source exceeds the configured local worker limit"
       );
     }
-    return canonicalSource;
+    if (this.runtime.adapter.kind === "ccnas") {
+      if (!receipt?.providerVersionId) {
+        throw new MediaPipelineError(
+          "PIPELINE_SOURCE_RECEIPT_REQUIRED",
+          "CCNAS pipeline sources require a version-bound storage receipt"
+        );
+      }
+      const providerVersionId = receipt.providerVersionId;
+      return {
+        size: sourceStatus.size,
+        openStream: () => this.runtime.adapter.openStoredObjectReadStream(
+          receipt.objectKey,
+          undefined,
+          {
+            size: receipt.size,
+            sha256: receipt.sha256,
+            providerVersionId,
+          }
+        ),
+        postCopyVerificationPath: null,
+      };
+    }
+    return {
+      size: sourceStatus.size,
+      openStream: async () => createReadStream(canonicalSource),
+      postCopyVerificationPath: canonicalSource,
+    };
   }
 
   private async stageSource(
     job: MediaPipelineJob,
-    sourcePath: string,
+    source: ResolvedSource,
     workspace: string
   ): Promise<PreparedSource> {
-    const sourceStatus = await stat(sourcePath);
     const destination = join(workspace, "source" + (extname(job.source.filename) || ".media"));
     const temporary = destination + ".partial";
     const output = await open(temporary, "wx", 0o600);
     const hash = createHash("sha256");
     let bytes = 0;
     let closed = false;
-    const input = createReadStream(sourcePath);
+    let input: Readable | null = null;
 
     try {
+      input = await source.openStream();
       for await (const chunk of input) {
         await this.throwIfCancelled(job.id);
         const buffer = Buffer.from(chunk);
@@ -3808,7 +3841,7 @@ export class MediaPipelineService {
         bytes += buffer.length;
         await this.store.setProgress(
           job.id,
-          3 + (sourceStatus.size > 0 ? Math.min(1, bytes / sourceStatus.size) * 9 : 9)
+          3 + (source.size > 0 ? Math.min(1, bytes / source.size) * 9 : 9)
         );
       }
       await output.sync();
@@ -3816,12 +3849,12 @@ export class MediaPipelineService {
       closed = true;
       await rename(temporary, destination);
       const sha256 = hash.digest("hex");
-      const postCopySource = await checksumFile(sourcePath);
-      if (
-        postCopySource.size !== bytes ||
-        postCopySource.sha256 !== sha256 ||
-        bytes !== sourceStatus.size
-      ) {
+      const postCopySource = source.postCopyVerificationPath
+        ? await checksumFile(source.postCopyVerificationPath)
+        : null;
+      if (bytes !== source.size || (postCopySource && (
+        postCopySource.size !== bytes || postCopySource.sha256 !== sha256
+      ))) {
         throw new MediaPipelineError(
           "PIPELINE_SOURCE_CHANGED",
           "Version source changed while the worker was staging it",
@@ -3837,7 +3870,7 @@ export class MediaPipelineService {
       }
       return { path: destination, sha256, size: bytes };
     } catch (error) {
-      input.destroy();
+      input?.destroy();
       if (!closed) await output.close().catch(() => undefined);
       await unlink(temporary).catch(() => undefined);
       await unlink(destination).catch(() => undefined);
@@ -4229,8 +4262,8 @@ export class MediaPipelineService {
       const working = await this.store.setStage(job.id, "ingest", 2);
       const workspace = await this.store.workspace(working.id, working.attempt);
       try {
-        const sourcePath = await this.resolveSource(working);
-        const source = await this.stageSource(working, sourcePath, workspace);
+        const resolvedSource = await this.resolveSource(working);
+        const source = await this.stageSource(working, resolvedSource, workspace);
         let current = await this.store.setIngested(working.id, { sha256: source.sha256, size: source.size });
         await this.emit(current, "media_pipeline_bytes_total", source.size, { direction: "ingest" });
 
@@ -5675,7 +5708,12 @@ export function createMediaPipelineService(
   return new MediaPipelineService({
     runtime,
     config,
-    store: new MediaPipelineJobStore({ root: runtime.config.filesystemRoot }),
+    store: new MediaPipelineJobStore({
+      root: runtime.config.filesystemRoot,
+      ...(runtime.config.ccnasReadCacheRoot
+        ? { workspaceRoot: runtime.config.ccnasReadCacheRoot }
+        : {}),
+    }),
     repository,
   });
 }

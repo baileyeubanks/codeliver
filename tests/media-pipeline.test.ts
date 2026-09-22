@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { execFile } from "node:child_process";
 import { createHash } from "node:crypto";
-import { chmodSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { chmodSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { mkdir, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
@@ -23,6 +23,7 @@ import type { MediaPipelineArtifacts, MediaProbe, StoredMediaArtifact } from "..
 import { parseMediaWorkerRequest } from "../lib/media-pipeline/worker-request.ts";
 import type { StorageAdapter } from "../lib/storage/contracts.ts";
 import { createStorageRuntime } from "../lib/storage/runtime.ts";
+import { ccnasContentVersionId } from "../lib/storage/ccnas-read-cache.ts";
 
 const probe: MediaProbe = {
   durationSeconds: 1,
@@ -43,9 +44,10 @@ const fixtureSourceBytes = Buffer.byteLength("fixture-master-v1");
 class FixtureProcessor implements MediaProcessor {
   calls = 0;
   failTranscode = false;
+  inputPaths: string[] = [];
 
   async probe(_inputPath: string, _callbacks: Pick<MediaProcessorCallbacks, "shouldCancel">): Promise<MediaProbe> {
-    void _inputPath;
+    this.inputPaths.push(_inputPath);
     void _callbacks;
     this.calls += 1;
     return probe;
@@ -57,7 +59,7 @@ class FixtureProcessor implements MediaProcessor {
     _probe: MediaProbe,
     callbacks: MediaProcessorCallbacks
   ): Promise<string> {
-    void _inputPath;
+    this.inputPaths.push(_inputPath);
     this.calls += 1;
     if (this.failTranscode) {
       throw new MediaPipelineError("PIPELINE_TIMEOUT", "simulated transient transcode timeout", true);
@@ -76,7 +78,7 @@ class FixtureProcessor implements MediaProcessor {
     _probe: MediaProbe,
     _callbacks: MediaProcessorCallbacks
   ): Promise<string> {
-    void _inputPath;
+    this.inputPaths.push(_inputPath);
     void _probe;
     void _callbacks;
     this.calls += 1;
@@ -90,7 +92,7 @@ class FixtureProcessor implements MediaProcessor {
     _probe: MediaProbe,
     _callbacks: MediaProcessorCallbacks
   ): Promise<string> {
-    void _inputPath;
+    this.inputPaths.push(_inputPath);
     void _probe;
     void _callbacks;
     this.calls += 1;
@@ -104,7 +106,7 @@ class FixtureProcessor implements MediaProcessor {
     _probe: MediaProbe,
     _callbacks: MediaProcessorCallbacks
   ): Promise<CaptionExtraction> {
-    void _inputPath;
+    this.inputPaths.push(_inputPath);
     void _outputPath;
     void _probe;
     void _callbacks;
@@ -5266,6 +5268,128 @@ test("safe local execution probes and renders a real one-second media source", a
     assert.equal(
       existsSync(join(root, result.job!.artifacts!.hls.playlist.objectKey)),
       true
+    );
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("CCNAS pipeline reuses the verified APFS cache and keeps transient work off NAS", async () => {
+  const nasRoot = mkdtempSync(join(tmpdir(), "codeliver-media-pipeline-ccnas-"));
+  const cacheRoot = mkdtempSync(join(tmpdir(), "codeliver-media-pipeline-cache-"));
+  const sourceKey = "sources/v1.mp4";
+  const sourcePath = join(nasRoot, sourceKey);
+  const source = Buffer.from("verified-ccnas-master-v1");
+  const sourceSha256 = createHash("sha256").update(source).digest("hex");
+  const providerVersionId = ccnasContentVersionId({
+    objectKey: sourceKey,
+    size: source.length,
+    sha256: sourceSha256,
+  });
+  const env = {
+    CODELIVER_STORAGE_PROVIDER: "ccnas",
+    NAS_MEDIA_ROOT: nasRoot,
+    CODELIVER_CCNAS_READ_CACHE_ROOT: cacheRoot,
+    CODELIVER_CCNAS_READ_CACHE_RESERVED_BYTES: "0",
+    CODELIVER_CCNAS_READ_CACHE_MAX_BYTES: "1048576",
+    CODELIVER_STORAGE_WRITE_ENABLED: "1",
+    CODELIVER_STORAGE_RESERVED_BYTES: "0",
+    CODELIVER_MALWARE_POLICY: "required",
+    CODELIVER_MEDIA_PIPELINE_MAX_ATTEMPTS: "1",
+  };
+  mkdirSync(dirname(sourcePath), { recursive: true });
+  writeFileSync(sourcePath, source, { mode: 0o400 });
+
+  try {
+    const runtime = createStorageRuntime(env);
+    const cached = await runtime.adapter.openStoredObjectReadStream(
+      sourceKey,
+      undefined,
+      { size: source.length, sha256: sourceSha256, providerVersionId },
+    );
+    for await (const _chunk of cached) void _chunk;
+    chmodSync(sourcePath, 0o000);
+
+    const processor = new FixtureProcessor();
+    const store = new MediaPipelineJobStore({ root: nasRoot, workspaceRoot: cacheRoot });
+    const service = new MediaPipelineService({
+      runtime,
+      config: readMediaPipelineConfig(runtime.config, env),
+      store,
+      processor,
+      repository: new NoopMediaPipelineRepository(),
+      scanner: {
+        async scan() {
+          return {
+            verdict: "clean",
+            engine: "fixture",
+            signature: null,
+            detail: "verified test fixture",
+            scannedAt: "2026-09-22T00:00:00.000Z",
+          };
+        },
+      },
+      metrics: { emit() {} },
+    });
+    const job = await service.enqueue({
+      assetId: "16e2efda-1599-4c30-8c34-5fbd4aba56a5",
+      versionId: "a1737f75-5662-4e02-89bd-050a283d1582",
+      projectId: "ed17384b-6d79-47ea-8c72-22cc85d75fa5",
+      source: {
+        objectKey: sourceKey,
+        filename: "fixture.mp4",
+        versionNumber: 1,
+        expectedSize: source.length,
+        expectedSha256: sourceSha256,
+        receipt: {
+          provider: "ccnas",
+          objectKey: sourceKey,
+          size: source.length,
+          sha256: sourceSha256,
+          providerVersionId,
+          committedAt: "2026-09-22T00:00:00.000Z",
+        },
+      },
+    });
+
+    const result = await service.runJob(job.id);
+    assert.equal(result.outcome, "published");
+    assert.equal(result.job?.sourceSha256, sourceSha256);
+    assert.equal(result.job?.sourceSize, source.length);
+    assert.ok(processor.inputPaths.length > 0);
+    assert.equal(
+      processor.inputPaths.every((inputPath) => inputPath.startsWith(`${realpathSync(cacheRoot)}/`)),
+      true,
+      JSON.stringify(processor.inputPaths),
+    );
+    assert.equal(
+      existsSync(join(nasRoot, ".codeliver-ingest/control/media-pipeline/work")),
+      false,
+    );
+    assert.equal(
+      existsSync(join(cacheRoot, ".codeliver-media-pipeline-work", job.id, "attempt-1")),
+      false,
+    );
+  } finally {
+    chmodSync(sourcePath, 0o400);
+    rmSync(nasRoot, { recursive: true, force: true });
+    rmSync(cacheRoot, { recursive: true, force: true });
+  }
+});
+
+test("local pipeline workspace remains under the durable control root", async () => {
+  const root = mkdtempSync(join(tmpdir(), "codeliver-media-pipeline-local-workspace-"));
+  const store = new MediaPipelineJobStore({ root, workspaceRoot: root });
+  try {
+    const workspace = await store.workspace(
+      "694a70ce-9e75-4d0d-adae-9594be85fae7",
+      1,
+    );
+    assert.equal(
+      workspace.startsWith(
+        `${realpathSync(root)}/.codeliver-ingest/control/media-pipeline/work/`,
+      ),
+      true,
     );
   } finally {
     rmSync(root, { recursive: true, force: true });

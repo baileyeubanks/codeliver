@@ -8,6 +8,7 @@ import {
   REVIEW_RESPONSE_HEADERS,
   readReviewJsonObject,
   reviewAdmissionNetworkBucket,
+  validateReviewMultipartMutationRequest,
   validateReviewMutationRequest,
   validateReviewReadRequest,
 } from "../lib/review/request-boundary.ts";
@@ -85,6 +86,53 @@ test("review mutations require exact-origin JSON before authority or body work",
       code: "REVIEW_REQUEST_TOO_LARGE",
     },
   );
+});
+
+test("review image mutations require exact-origin bounded multipart bodies", () => {
+  const request = mutationRequest({
+    "Content-Type": "multipart/form-data; boundary=test-boundary",
+    "Content-Length": "2048",
+  });
+  assert.deepEqual(
+    validateReviewMultipartMutationRequest(request, { maxBytes: 4096 }),
+    { ok: true },
+  );
+  for (const candidate of [
+    mutationRequest({
+      Origin: "https://evil.example",
+      "Content-Type": "multipart/form-data; boundary=test-boundary",
+      "Content-Length": "2048",
+    }),
+    mutationRequest({
+      "Sec-Fetch-Site": "cross-site",
+      "Content-Type": "multipart/form-data; boundary=test-boundary",
+      "Content-Length": "2048",
+    }),
+  ]) {
+    assert.deepEqual(
+      validateReviewMultipartMutationRequest(candidate, { maxBytes: 4096 }),
+      { ok: false, status: 403, code: "REVIEW_ORIGIN_FORBIDDEN" },
+    );
+  }
+  assert.deepEqual(
+    validateReviewMultipartMutationRequest(
+      mutationRequest({ "Content-Type": "application/json" }),
+      { maxBytes: 4096 },
+    ),
+    { ok: false, status: 415, code: "REVIEW_MULTIPART_REQUIRED" },
+  );
+  for (const contentLength of ["", "invalid", "0", "4097"]) {
+    assert.deepEqual(
+      validateReviewMultipartMutationRequest(
+        mutationRequest({
+          "Content-Type": "multipart/form-data; boundary=test-boundary",
+          "Content-Length": contentLength,
+        }),
+        { maxBytes: 4096 },
+      ),
+      { ok: false, status: 413, code: "REVIEW_REQUEST_TOO_LARGE" },
+    );
+  }
 });
 
 test("review origin uses the approved ingress Host when Next exposes its loopback URL", () => {

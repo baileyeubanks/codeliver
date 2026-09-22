@@ -374,6 +374,7 @@ test("production API launch gate fails closed before public, auth, and demo bypa
         "/api/review/public-token",
         "/api/review/public-token/admission",
         "/api/review/public-token/comments",
+        "/api/review/public-token/comments/attachments",
         "/api/review/public-token/approvals",
         "/api/review/public-token/edit-decisions",
         `/api/review/media/${RESOURCE_ID}`,
@@ -386,6 +387,36 @@ test("production API launch gate fails closed before public, auth, and demo bypa
         assert.equal(response.headers.get("x-middleware-next"), "1", pathname);
       }
       assert.equal(runtimeState.__ccoLaunchGateGetUserCalls, 0);
+
+      runtimeState.__ccoLaunchGateUser = {
+        app_metadata: { content_coop_role: "staff" },
+      };
+      const internalAttachments = await proxy(
+        request(
+          ADMIN_HOST,
+          `/api/assets/${RESOURCE_ID}/comments/attachments`,
+          { method: "POST" },
+        ),
+      );
+      assert.equal(internalAttachments.status, 200);
+      assert.equal(internalAttachments.headers.get("x-middleware-next"), "1");
+      assert.equal(runtimeState.__ccoLaunchGateGetUserCalls, 1);
+
+      await assertLaunchGated(
+        await proxy(
+          request(
+            ADMIN_HOST,
+            `/api/assets/${RESOURCE_ID}/comments/attachments/extra`,
+            { method: "POST" },
+          ),
+        ),
+        "internal attachment route suffix",
+      );
+
+      runtimeState.__ccoLaunchGateGetUserCalls = 0;
+      runtimeState.__ccoLaunchGateUser = {
+        app_metadata: { content_coop_role: "client" },
+      };
 
       for (const pathname of [
         "/api/projects",

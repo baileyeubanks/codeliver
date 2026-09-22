@@ -54,7 +54,7 @@ const CLIENT_API_ROUTE_PATTERNS = [
   /^\/api\/auth\/(?:login|logout|session|signup|resend|google|password\/(?:forgot|reset))$/,
   /^\/api\/health(?:\/(?:dependencies|live|ready))?$/,
   /^\/api\/version$/, // G2 deployment truth; exact match, no subroutes exist
-  /^\/api\/review\/[^/]+(?:\/(?:admission|approvals|comments|edit-decisions))?$/,
+  /^\/api\/review\/[^/]+(?:\/(?:admission|approvals|comments(?:\/attachments)?|edit-decisions))?$/,
   new RegExp(`^/api/review/media/${UUID_PATH_SEGMENT}$`),
   new RegExp(
     `^/api/review/media/${HLS_UUID_PATH_SEGMENT}/hls/(?:playlist\\.m3u8|segments/${HLS_SEGMENT_INDEX})$`,
@@ -73,7 +73,7 @@ const ADMIN_API_ROUTE_PATTERNS = [
   /^\/api\/billing\/checkout$/,
   new RegExp(`^/api/assets/${UUID_PATH_SEGMENT}$`),
   new RegExp(
-    `^/api/assets/${UUID_PATH_SEGMENT}/(?:approvals|comments|edit-decisions|export|share|versions)$`,
+    `^/api/assets/${UUID_PATH_SEGMENT}/(?:approvals|comments(?:/attachments)?|edit-decisions|export|share|versions)$`,
   ),
   new RegExp(
     `^/api/assets/${HLS_UUID_PATH_SEGMENT}/versions/${HLS_UUID_PATH_SEGMENT}/hls/(?:playlist\\.m3u8|segments/${HLS_SEGMENT_INDEX})$`,

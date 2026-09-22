@@ -68,6 +68,7 @@ type UploadItem = {
   asset?: Asset;
   revisionTarget: RevisionUploadTarget | null;
   scanRetryable?: boolean;
+  catalogPending?: boolean;
   uploadUrl?: string;
 };
 
@@ -270,7 +271,13 @@ export default function AssetUpload({
               "The security scan could not be started",
           );
         }
-        for (let attempt = 0; attempt < 45 && status.state === "verifying"; attempt += 1) {
+        for (
+          let attempt = 0;
+          attempt < 45 &&
+            (status.state === "verifying" ||
+              (status.state === "committed" && !status.originalReady));
+          attempt += 1
+        ) {
           const response = await fetch(`${uploadUrl}/scan`, { cache: "no-store" });
           status = (await response.json()) as ScanRetryStatus;
           if (!response.ok) {
@@ -354,6 +361,16 @@ export default function AssetUpload({
                 return;
               }
             }
+            if (serverState === "committed" && !originalReleaseReady) {
+              updateItem(item.id, {
+                status: "error",
+                catalogPending: true,
+                scanRetryable: false,
+                uploadUrl: upload.url ?? undefined,
+                error: "Verified media is saved. Check again while Co-VideoPro finishes its catalog record.",
+              });
+              return;
+            }
             const quarantined = serverState !== "committed" || !originalReleaseReady;
             const completion = parseUploadCompletionReceipt({
               get(name) {
@@ -386,8 +403,21 @@ export default function AssetUpload({
             await onUploadComplete([completion]);
             updateItem(item.id, { status: "done" });
           } catch (error) {
+            if (serverState === "committed" && !originalReleaseReady) {
+              updateItem(item.id, {
+                status: "error",
+                catalogPending: true,
+                scanRetryable: false,
+                uploadUrl: upload.url ?? undefined,
+                error: "Verified media is saved. Check again while Co-VideoPro finishes its catalog record.",
+              });
+              return;
+            }
             updateItem(item.id, {
-              status: serverState === "committed" ? "done" : "quarantined",
+              status:
+                serverState === "committed" && originalReleaseReady
+                  ? "done"
+                  : "quarantined",
               scanRetryable: serverState !== "committed",
               uploadUrl: upload.url ?? undefined,
               error:
@@ -544,6 +574,7 @@ export default function AssetUpload({
           status: "pending",
           error: undefined,
           tusUpload: undefined,
+          catalogPending: false,
         };
         updateItem(id, retryItem);
         const restart = () => {
@@ -575,11 +606,13 @@ export default function AssetUpload({
     async (id: string) => {
       const item = items.find((current) => current.id === id);
       const uploadUrl = item?.uploadUrl ?? item?.tusUpload?.url ?? null;
-      if (!item?.scanRetryable || !uploadUrl) return;
+      if ((!item?.scanRetryable && !item?.catalogPending) || !uploadUrl) return;
 
       updateItem(id, {
         status: "processing",
-        error: "Security scan is running against the retained verified upload. No file data is being uploaded again.",
+        error: item.catalogPending
+          ? "Verified media is saved. Checking its catalog record without uploading file data again."
+          : "Security scan is running against the retained verified upload. No file data is being uploaded again.",
       });
       try {
         const started = await fetch(`${uploadUrl}/scan`, {
@@ -600,7 +633,10 @@ export default function AssetUpload({
         }
 
         for (let attempt = 0; attempt < 45; attempt += 1) {
-          if (status.state !== "verifying") break;
+          if (
+            status.state !== "verifying" &&
+            !(status.state === "committed" && !status.originalReady)
+          ) break;
           const response = await fetch(`${uploadUrl}/scan`, { cache: "no-store" });
           status = (await response.json()) as ScanRetryStatus;
           if (!response.ok) {
@@ -618,6 +654,15 @@ export default function AssetUpload({
 
         if (status.state === "committed" && status.originalReady) {
           retryUpload(id);
+          return;
+        }
+        if (status.state === "committed" && !status.originalReady) {
+          updateItem(id, {
+            status: "error",
+            catalogPending: true,
+            scanRetryable: false,
+            error: status.message || "Verified media is saved. Check again while Co-VideoPro finishes its catalog record.",
+          });
           return;
         }
         if (status.state === "rejected") {
@@ -987,6 +1032,17 @@ export default function AssetUpload({
                   </>
                 ) : item.status === "error" ? (
                   <>
+                    {item.catalogPending ? (
+                      <button
+                        type="button"
+                        onClick={() => void retrySecurityScan(item.id)}
+                        className="text-[var(--dim)] hover:text-[var(--accent)]"
+                        title="Check saved upload"
+                        aria-label="Check upload"
+                      >
+                        <RotateCcw size={16} />
+                      </button>
+                    ) : (
                         <button
                           type="button"
                           onClick={() => retryUpload(item.id)}
@@ -996,6 +1052,7 @@ export default function AssetUpload({
                     >
                       <RotateCcw size={16} />
                     </button>
+                    )}
                         <button
                           type="button"
                           onClick={() => removeUploadItem(item.id)}

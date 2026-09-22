@@ -157,13 +157,23 @@ PRODUCTION_ROOT="$(CODELIVER_RUNTIME_TEST_MODE=0 CODELIVER_APP_ROOT=/tmp/forbidd
 
 SHA_A="aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
 SHA_B="bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+DAEMON_CONTROL_FILES=(
+  lib/runtime-common.sh
+  lib/media-worker-loop.mjs
+  restart-runtime.sh
+  run-current.sh
+  run-media-worker.sh
+  run-release.sh
+  verify-health.sh
+)
 create_release_fixture() {
   local release_id="$1"
   local sha="$2"
   local package_name="${3:-co-deliver}"
   local release_dir="$APP_ROOT/releases/$release_id"
   local cache_dir="$APP_ROOT/state/cache/$release_id"
-  /bin/mkdir -p "$release_dir/.next" "$release_dir/node_modules/next/dist/bin" "$cache_dir"
+  /bin/mkdir -p "$release_dir/.next" "$release_dir/node_modules/next/dist/bin" \
+    "$release_dir/infra/runtime/lib" "$cache_dir"
   printf '{"name":"%s"}\n' "$package_name" >"$release_dir/package.json"
   printf '{}\n' >"$release_dir/package-lock.json"
   printf '%s\n' "build-$release_id" >"$release_dir/.next/BUILD_ID"
@@ -172,11 +182,18 @@ create_release_fixture() {
   /bin/ln -s "$cache_dir" "$release_dir/.next/cache"
   printf 'release_id=%s\ngit_sha=%s\nnode_version=v24.14.1\nbuilt_at=20260715T000000Z\npackage_lock_sha256=test\n' \
     "$release_id" "$sha" >"$release_dir/.codeliver-release"
+  local control_file
+  for control_file in "${DAEMON_CONTROL_FILES[@]}"; do
+    /bin/cp "$RUNTIME_DIR/$control_file" "$release_dir/infra/runtime/$control_file"
+  done
   /usr/bin/find "$release_dir" -type d -exec /bin/chmod a-w {} +
   /usr/bin/find "$release_dir" -type f -exec /bin/chmod a-w {} +
 }
 
-/bin/mkdir -p "$APP_ROOT/releases" "$APP_ROOT/state/cache"
+/bin/mkdir -p "$APP_ROOT/releases" "$APP_ROOT/state/cache" "$APP_ROOT/control/lib"
+for CONTROL_FILE in "${DAEMON_CONTROL_FILES[@]}"; do
+  /bin/cp "$RUNTIME_DIR/$CONTROL_FILE" "$APP_ROOT/control/$CONTROL_FILE"
+done
 create_release_fixture release-a "$SHA_A"
 create_release_fixture release-b "$SHA_B"
 
@@ -197,6 +214,17 @@ env "${SWITCH_ENV[@]}" "$RUNTIME_DIR/promote-release.sh" --release release-a --e
 env "${SWITCH_ENV[@]}" "$RUNTIME_DIR/promote-release.sh" --release release-b --expected-current release-a >/dev/null
 [[ "$(/usr/bin/readlink "$APP_ROOT/current")" == "$APP_ROOT/releases/release-b" ]] || fail_test "promoted current link is wrong"
 [[ "$(/usr/bin/readlink "$APP_ROOT/previous")" == "$APP_ROOT/releases/release-a" ]] || fail_test "promoted previous link is wrong"
+
+create_release_fixture release-control-mismatch "$SHA_A"
+/bin/chmod u+w "$APP_ROOT/releases/release-control-mismatch/infra/runtime/lib/runtime-common.sh"
+printf '\n# candidate-only runtime drift\n' >>"$APP_ROOT/releases/release-control-mismatch/infra/runtime/lib/runtime-common.sh"
+/bin/chmod a-w "$APP_ROOT/releases/release-control-mismatch/infra/runtime/lib/runtime-common.sh"
+if env "${SWITCH_ENV[@]}" "$RUNTIME_DIR/promote-release.sh" \
+  --release release-control-mismatch --expected-current release-b >/dev/null 2>&1; then
+  fail_test "promotion accepted a candidate whose daemon control differs from the installed control plane"
+fi
+[[ "$(/usr/bin/readlink "$APP_ROOT/current")" == "$APP_ROOT/releases/release-b" ]] || \
+  fail_test "control-plane mismatch changed current release"
 
 if env "${SWITCH_ENV[@]}" "$RUNTIME_DIR/promote-release.sh" --release release-a --expected-current none >/dev/null 2>&1; then
   fail_test "promotion accepted a stale expected-current value"

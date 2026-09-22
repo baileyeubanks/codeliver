@@ -3,6 +3,7 @@
 import { useCallback, useState, type MouseEventHandler, type ReactNode, type RefObject } from "react";
 import { Layers3 } from "lucide-react";
 import PlayerControls from "@/components/player/PlayerControls";
+import type { TimelineComment } from "@/components/player/PlayerTimeline";
 import VideoPlayer from "@/components/player/VideoPlayer";
 
 interface ReviewMediaSurfaceProps {
@@ -22,12 +23,16 @@ interface ReviewMediaSurfaceProps {
     onNext: () => void;
     disabled: boolean;
   };
+  commentMarkers?: TimelineComment[];
+  onCommentMarkerSelect?: (comment: TimelineComment) => void;
+  selectedCommentId?: string | null;
   onCutMarker?: (time: number) => void;
   onImagePin?: MouseEventHandler<HTMLDivElement>;
   timeline?: {
     label: string;
     countLabel: string;
     content: ReactNode;
+    collapsed?: boolean;
   } | null;
   fallbackAction?: ReactNode;
 }
@@ -45,6 +50,9 @@ export default function ReviewMediaSurface({
   onFramePin,
   onPlaybackStart,
   commentNavigation,
+  commentMarkers,
+  onCommentMarkerSelect,
+  selectedCommentId,
   onCutMarker,
   onImagePin,
   timeline,
@@ -111,16 +119,29 @@ export default function ReviewMediaSurface({
           </VideoPlayer>
         </div>
 
-        <PlayerControls videoRef={videoRef} commentNavigation={commentNavigation} />
+        <PlayerControls
+          videoRef={videoRef}
+          commentNavigation={commentNavigation}
+          commentMarkers={commentMarkers}
+          onCommentMarkerSelect={onCommentMarkerSelect}
+          selectedCommentId={selectedCommentId}
+        />
 
         {timeline ? (
-          <div className="review-video-timeline border-t border-[var(--border)]">
-            <div className="flex items-center justify-between px-4 pt-3 text-xs text-[var(--muted)]">
-              <span>{timeline.label}</span>
-              <span>{timeline.countLabel}</span>
+          timeline.collapsed ? (
+            <details className="review-timeline-help">
+              <summary>{timeline.label}</summary>
+              {timeline.content}
+            </details>
+          ) : (
+            <div className="review-video-timeline border-t border-[var(--border)]">
+              <div className="flex items-center justify-between px-4 pt-3 text-xs text-[var(--muted)]">
+                <span>{timeline.label}</span>
+                <span>{timeline.countLabel}</span>
+              </div>
+              {timeline.content}
             </div>
-            {timeline.content}
-          </div>
+          )
         ) : null}
       </div>
     );

@@ -22,3 +22,15 @@ test("callout drag handles claim touch input before the page can scroll", () => 
   assert.match(styles, /\.review-inline-comment-drag\s*\{[^}]*touch-action\s*:\s*none/);
   assert.match(styles, /\.review-anchored-comment-drag\s*\{[^}]*touch-action\s*:\s*none/);
 });
+
+test("existing desktop card moves inside a narrowed phone viewport without moving its frame anchor", () => {
+  assert.deepEqual(clampCalloutDrag({ x: 0, y: 0 }, { x: 0, y: 0 },
+    { left: 195, top: 286, right: 525, bottom: 723 }, { width: 390, height: 843 }),
+  { x: -143, y: 0 });
+});
+
+test("keyboard and panned visual viewport keep the card header reachable", () => {
+  assert.deepEqual(clampCalloutDrag({ x: 0, y: 0 }, { x: 0, y: 0 },
+    { left: 30, top: 286, right: 360, bottom: 723 }, { width: 390, height: 300, top: 100 }),
+  { x: 0, y: -178 });
+});

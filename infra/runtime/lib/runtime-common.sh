@@ -395,6 +395,31 @@ validate_release() {
   fi
 }
 
+validate_daemon_control_matches_release() {
+  local release_id="$1"
+  local release_dir relative installed candidate
+  release_dir="$(release_dir_for "$release_id")"
+
+  for relative in \
+    lib/runtime-common.sh \
+    lib/media-worker-loop.mjs \
+    restart-runtime.sh \
+    run-current.sh \
+    run-media-worker.sh \
+    run-release.sh \
+    verify-health.sh
+  do
+    installed="$CONTROL_ROOT/$relative"
+    candidate="$release_dir/infra/runtime/$relative"
+    [[ -f "$installed" && ! -L "$installed" ]] || \
+      fail "installed daemon control is missing or is a symlink: $installed"
+    [[ -f "$candidate" && ! -L "$candidate" ]] || \
+      fail "release daemon control is missing or is a symlink: $candidate"
+    /usr/bin/cmp -s "$installed" "$candidate" || \
+      fail "release daemon control differs from installed control: $relative"
+  done
+}
+
 link_release_id() {
   local link_path="$1"
   local label="$2"

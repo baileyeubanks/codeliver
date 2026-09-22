@@ -28,6 +28,7 @@ require_pinned_node
 load_runtime_env
 require_storage_ready
 validate_release "$RELEASE_ID"
+validate_daemon_control_matches_release "$RELEASE_ID"
 ensure_runtime_directories
 require_command lsof
 

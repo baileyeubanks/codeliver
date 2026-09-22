@@ -32,6 +32,7 @@ require_pinned_node
 ensure_runtime_directories
 validate_release "$FROM_RELEASE"
 validate_release "$TO_RELEASE"
+validate_daemon_control_matches_release "$TO_RELEASE"
 
 observed_current="$(current_release_id)"
 observed_previous="$(previous_release_id)"

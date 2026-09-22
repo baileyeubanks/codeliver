@@ -24,6 +24,8 @@ import { buildUploadWorkflowReadiness, type UploadWorkflowReadiness } from "../s
 import { ccnasContentVersionId } from "../storage/ccnas-read-cache.ts";
 import { buildVersionedObjectKey, hashStorageNamespace } from "../storage/object-key.ts";
 import { createStorageRuntime } from "../storage/runtime.ts";
+import { sanitizeMediaFilename } from "../storage/safe-media-path.ts";
+import { createMediaPipelineService } from "../media-pipeline/service.ts";
 import { UploadOrchestrationError } from "./errors.ts";
 import { FileUploadSessionRepository } from "./session-repository.ts";
 
@@ -39,6 +41,60 @@ const QUOTA_STATES = new Set<UploadSessionState>([
 
 export interface PostCommitHook {
   onCommitted(session: UploadSession, signal?: AbortSignal): Promise<void>;
+}
+
+export function createMediaPipelineCatalogHook(
+  env: NodeJS.ProcessEnv = process.env,
+  enqueuer?: Pick<ReturnType<typeof createMediaPipelineService>, "enqueue">,
+): PostCommitHook {
+  return {
+    async onCommitted(session, signal) {
+      const receipt = session.receipt;
+      if (
+        signal?.aborted ||
+        session.state !== "committed" ||
+        session.catalog.state !== "attached" ||
+        session.scan?.verdict !== "clean" ||
+        !session.assetId ||
+        !session.versionId ||
+        !session.objectKey ||
+        !session.computedSha256 ||
+        !receipt ||
+        receipt.provider !== session.provider ||
+        receipt.objectKey !== session.objectKey ||
+        receipt.size !== session.size ||
+        receipt.sha256 !== session.computedSha256 ||
+        !receipt.providerVersionId
+      ) {
+        throw new Error(
+          "Catalog derivative enqueue requires a clean receipt-bound asset version",
+        );
+      }
+      await (enqueuer ?? createMediaPipelineService(env)).enqueue({
+        assetId: session.assetId,
+        versionId: session.versionId,
+        projectId: session.projectId,
+        source: {
+          objectKey: session.objectKey,
+          filename: sanitizeMediaFilename(session.filename),
+          versionNumber: session.version,
+          expectedSize: session.size,
+          expectedSha256: session.computedSha256,
+          receipt: {
+            provider: receipt.provider,
+            objectKey: receipt.objectKey,
+            size: receipt.size,
+            sha256: receipt.sha256,
+            providerVersionId: receipt.providerVersionId,
+            committedAt: receipt.committedAt,
+          },
+        },
+      });
+      if (signal?.aborted) {
+        throw new Error("Catalog derivative enqueue exceeded its response window");
+      }
+    },
+  };
 }
 
 export interface UploadDiagnostics {
@@ -176,6 +232,7 @@ export class UploadOrchestrator {
   private readonly sessions: UploadSessionRepository;
   private readonly scanner: MalwareScanHook;
   private readonly postCommitHooks: PostCommitHook[];
+  private readonly catalogDerivativeHooks: PostCommitHook[];
   private readonly scannerReadiness: NonNullable<MalwareScanHook["readiness"]>;
   private readonly now: () => Date;
 
@@ -185,6 +242,7 @@ export class UploadOrchestrator {
     sessions: UploadSessionRepository;
     scanner: MalwareScanHook;
     postCommitHooks?: PostCommitHook[];
+    catalogDerivativeHooks?: PostCommitHook[];
     now?: () => Date;
   }) {
     this.adapter = input.adapter;
@@ -192,6 +250,7 @@ export class UploadOrchestrator {
     this.sessions = input.sessions;
     this.scanner = input.scanner;
     this.postCommitHooks = input.postCommitHooks ?? [];
+    this.catalogDerivativeHooks = input.catalogDerivativeHooks ?? [];
     this.scannerReadiness = input.scanner.readiness ?? {
       mode: "configured-hook",
       configured: true,
@@ -264,7 +323,8 @@ export class UploadOrchestrator {
       workflow: buildUploadWorkflowReadiness({
         storage,
         scanner: this.scannerReadiness,
-        derivativeHooksConfigured: this.postCommitHooks.length > 0,
+        derivativeHooksConfigured:
+          this.postCommitHooks.length > 0 || this.catalogDerivativeHooks.length > 0,
       }),
     };
   }
@@ -479,10 +539,13 @@ export class UploadOrchestrator {
           updatedAt: createdAt.toISOString(),
         },
         derivatives: {
-          state: this.postCommitHooks.length > 0 ? "pending" : "blocked",
+          state:
+            this.postCommitHooks.length > 0 || this.catalogDerivativeHooks.length > 0
+              ? "pending"
+              : "blocked",
           attempts: 0,
           lastError:
-            this.postCommitHooks.length > 0
+            this.postCommitHooks.length > 0 || this.catalogDerivativeHooks.length > 0
               ? null
               : "No durable derivative enqueue hook is configured",
           updatedAt: createdAt.toISOString(),
@@ -718,10 +781,13 @@ export class UploadOrchestrator {
     const objectKey = this.objectKeyFor(session);
     session.objectKey = objectKey;
     session.derivatives = {
-      state: this.postCommitHooks.length > 0 ? "pending" : "blocked",
+      state:
+        this.postCommitHooks.length > 0 || this.catalogDerivativeHooks.length > 0
+          ? "pending"
+          : "blocked",
       attempts: session.derivatives.attempts,
       lastError:
-        this.postCommitHooks.length > 0
+        this.postCommitHooks.length > 0 || this.catalogDerivativeHooks.length > 0
           ? null
           : "No durable derivative enqueue hook is configured",
       updatedAt: this.now().toISOString(),
@@ -736,9 +802,10 @@ export class UploadOrchestrator {
 
   private async runDerivativeHooksLocked(
     session: UploadSession,
-    force = false
+    force = false,
+    hooks: PostCommitHook[] = this.postCommitHooks,
   ): Promise<void> {
-    if (this.postCommitHooks.length === 0 || session.derivatives.state === "ready") {
+    if (hooks.length === 0 || session.derivatives.state === "ready") {
       return;
     }
     if (session.derivatives.state === "error" && !force) return;
@@ -755,7 +822,7 @@ export class UploadOrchestrator {
     });
 
     try {
-      for (const hook of this.postCommitHooks) {
+      for (const hook of hooks) {
         await this.invokePostCommitHook(hook, session);
       }
       session.derivatives = {
@@ -1367,13 +1434,17 @@ export class UploadOrchestrator {
           "Derivative retry requires a committed original"
         );
       }
-      if (!["error", "pending"].includes(session.derivatives.state)) {
+      if (!["blocked", "error", "pending"].includes(session.derivatives.state)) {
         throw new UploadOrchestrationError(
           "UPLOAD_STATE",
           "Derivative enqueue is not retryable in its current state"
         );
       }
-      await this.runDerivativeHooksLocked(session, true);
+      const hooks =
+        session.catalog.state === "attached" && this.catalogDerivativeHooks.length > 0
+          ? this.catalogDerivativeHooks
+          : this.postCommitHooks;
+      await this.runDerivativeHooksLocked(session, true, hooks);
       return session;
     });
   }
@@ -1451,6 +1522,11 @@ export class UploadOrchestrator {
           assetId: session.assetId,
           versionId: session.versionId,
         });
+        await this.runDerivativeHooksLocked(
+          session,
+          true,
+          this.catalogDerivativeHooks,
+        );
         return record;
       } catch (error) {
         session.catalog = {
@@ -1519,5 +1595,6 @@ export function createDefaultUploadOrchestrator(
       runtime.config.lockTtlMs
     ),
     scanner: createMalwareScanHook(runtime.config.malwarePolicy, env),
+    catalogDerivativeHooks: [createMediaPipelineCatalogHook(env)],
   });
 }

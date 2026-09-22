@@ -844,6 +844,14 @@ export default function ProjectCockpit({
     timecode_seconds: comment.time_seconds,
     created_at: comment.created_at,
   })));
+  const primaryPlaybarComments = orderedRootReviewComments
+    .filter((comment) => (
+      previewDuration > 0 &&
+      Number.isFinite(comment.timecode_seconds) &&
+      comment.timecode_seconds >= 0 &&
+      comment.timecode_seconds <= previewDuration
+    ))
+    .flatMap((orderedComment) => rootComments.filter((comment) => comment.id === orderedComment.id));
   const visibleComments = rootComments.filter((comment) => comment.status === commentStatus);
   const projectTasks = demoMode
     ? workspace.tasks.filter((task) => task.project_id === project.id)
@@ -2562,16 +2570,34 @@ export default function ProjectCockpit({
                           <ChevronRight size={18} />
                         </button>
                         <span data-transport-time>{formatClock(currentTime)} / {formatClock(previewDuration)}</span>
-                        <input
-                          type="range"
-                          min={0}
-                          max={previewDuration}
-                          step={0.01}
-                          value={Math.min(currentTime, previewDuration)}
-                          onChange={(event) => seekTo(Number(event.target.value))}
-                          className={styles.playerSeek}
-                          aria-label="Review playback position"
-                        />
+                        <div className={styles.playerSeekTrack}>
+                          <input
+                            type="range"
+                            min={0}
+                            max={previewDuration}
+                            step={0.01}
+                            value={Math.min(currentTime, previewDuration)}
+                            onChange={(event) => seekTo(Number(event.target.value))}
+                            className={styles.playerSeek}
+                            aria-label="Review playback position"
+                          />
+                          {primaryPlaybarComments.map((comment) => (
+                            <button
+                              key={comment.id}
+                              type="button"
+                              className={`${styles.playerCommentMarker} ${selectedCommentId === comment.id ? styles.playerCommentMarkerSelected : ""}`}
+                              style={{ left: `${(comment.time_seconds / previewDuration) * 100}%` }}
+                              aria-label={`Open comment at ${formatClock(comment.time_seconds)}`}
+                              aria-pressed={selectedCommentId === comment.id}
+                              onClick={(event) => {
+                                event.stopPropagation();
+                                selectReviewComment(comment);
+                              }}
+                            >
+                              <span className={styles.playerCommentMarkerDot} aria-hidden="true" />
+                            </button>
+                          ))}
+                        </div>
                         <select
                           value={seekStepSeconds}
                           onChange={(event) => {

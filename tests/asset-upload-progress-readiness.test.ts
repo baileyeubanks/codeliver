@@ -246,6 +246,23 @@ test("AssetUpload polls deferred security clearance and only completes from an e
   assert.match(uploader, /await onUploadComplete\(\[completion\]\)/);
 });
 
+test("AssetUpload keeps polling a clean committed upload until its catalog receipt is ready", () => {
+  assert.match(
+    uploader,
+    /status\.state === "committed" && !status\.originalReady/,
+  );
+  assert.match(
+    uploader,
+    /serverState === "committed" && !originalReleaseReady/,
+  );
+  assert.match(uploader, /status: "error"[\s\S]*Verified media is saved/);
+  assert.match(uploader, /aria-label="Check upload"/);
+  assert.doesNotMatch(
+    uploader,
+    /status: serverState === "committed" \? "done" : "quarantined"/,
+  );
+});
+
 test("AssetUpload retries only timeout security scans against retained bytes", () => {
   assert.match(uploader, /Upload-Scan-Retryable/);
   assert.match(uploader, /aria-label="Retry security scan"/);

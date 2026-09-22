@@ -34,22 +34,36 @@ const prodUp = await reachable(PROD_BASE);
 const demoUp = await reachable(DEMO_BASE);
 
 test(
-  "production public review routes return real 404 statuses for missing records",
+  "production review documents validate shape and admission rejects missing records",
   { skip: !prodUp && `production runtime not reachable at ${PROD_BASE}` },
   async () => {
     // Fails the opaque-token shape: notFound() before any database lookup.
     assert.equal((await probe(`${PROD_BASE}/review/bogus-token`)).status, 404);
-    // Passes the token shape. With a live database the missing row is a
-    // confirmed 404; with the backend absent the route must fail closed with
-    // a server error instead of claiming "not found" (it cannot know).
-    const backendDown =
-      (await probe(`${PROD_BASE}/api/projects`)).status === 503;
-    const opaque = (await probe(`${PROD_BASE}/review/bogus-token-1234567890`)).status;
-    if (backendDown) {
-      assert.ok(opaque >= 500, `expected fail-closed 5xx with backend down, got ${opaque}`);
-    } else {
-      assert.equal(opaque, 404);
-    }
+    // Opaque tokens receive the privacy-preserving client shell. The document
+    // must not look up or consume a grant before the admission request (including
+    // a reviewer reopening their final allowed view).
+    assert.equal((await probe(`${PROD_BASE}/review/bogus-token-1234567890`)).status, 200);
+    const admission = await fetch(`${PROD_BASE}/api/review/bogus-token-1234567890/admission`, {
+      method: "POST",
+      headers: {
+        Origin: new URL(PROD_BASE).origin,
+        "Content-Type": "application/json",
+        "Sec-Fetch-Site": "same-origin",
+      },
+      body: "{}",
+      redirect: "manual",
+      signal: AbortSignal.timeout(15000),
+    });
+    // A confirmed missing token is 404. A direct origin without the trusted
+    // ingress identity, or unavailable authority, must instead fail closed.
+    const payload = await admission.json();
+    const directOriginDenied =
+      ["localhost", "127.0.0.1", "[::1]"].includes(new URL(PROD_BASE).hostname) &&
+      admission.status === 403 && payload.code === "REVIEW_ORIGIN_FORBIDDEN";
+    assert.ok(directOriginDenied || [404, 503].includes(admission.status), `expected missing/unavailable admission, got ${admission.status}`);
+    assert.equal(admission.headers.get("set-cookie"), null);
+    assert.equal(payload.grant, undefined);
+    assert.equal(payload.asset, undefined);
     // A demo-shaped token is not a production record.
     assert.equal((await probe(`${PROD_BASE}/review/demo-ica-final`)).status, 404);
   },

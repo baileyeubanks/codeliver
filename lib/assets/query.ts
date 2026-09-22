@@ -175,12 +175,13 @@ export function toLibrarySearchRecord(
   asset: { id: string; title: string; created_at: string },
   meta: LibraryAssetMeta | undefined,
   isFavorite: boolean,
+  context: { campaign?: string; searchTerms?: string[] } = {},
 ): LibrarySearchRecord {
   return {
     id: asset.id,
     title: asset.title,
-    tags: meta?.tags ?? [],
-    campaign: meta?.campaign ?? "",
+    tags: [...(meta?.tags ?? []), ...(context.searchTerms ?? [])],
+    campaign: context.campaign ?? meta?.campaign ?? "",
     platforms: meta?.platforms ?? [],
     format: meta?.format ?? "",
     orientation: meta?.orientation ?? "",

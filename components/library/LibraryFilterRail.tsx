@@ -21,6 +21,7 @@ export interface LibraryFilterRailProps {
   onFacetsChange: (facets: LibraryFacetFilters) => void;
   options: LibraryFacetOptions;
   resultCount: number;
+  campaignLabel?: string;
 }
 
 const RIGHTS_OPTIONS = [
@@ -72,6 +73,7 @@ export default function LibraryFilterRail({
   onFacetsChange,
   options,
   resultCount,
+  campaignLabel = "Campaign",
 }: LibraryFilterRailProps) {
   const [filtersOpen, setFiltersOpen] = useState(false);
   const rightsLabels = Object.fromEntries(RIGHTS_OPTIONS.map((option) => [option.value, option.label]));
@@ -115,7 +117,7 @@ export default function LibraryFilterRail({
           <SlidersHorizontal size={14} aria-hidden="true" />
           Filters
         </button>
-        <span className="hidden self-center whitespace-nowrap text-xs text-[var(--dim)] sm:inline" data-testid="library-result-count">
+        <span className="self-center whitespace-nowrap text-[10px] text-[var(--dim)] sm:text-xs" data-testid="library-result-count">
           {resultCount} {resultCount === 1 ? "asset" : "assets"}
         </span>
       </div>
@@ -128,7 +130,7 @@ export default function LibraryFilterRail({
         data-testid="library-facet-rail"
       >
         <FacetSelect
-          label="Campaign"
+          label={campaignLabel}
           value={facets.campaign}
           values={options.campaigns}
           testId="facet-campaign"
@@ -169,6 +171,7 @@ export default function LibraryFilterRail({
           testId="facet-talent"
           onChange={(value) => setFacet({ talent: value })}
         />
+        {options.rights.length > 0 ? (
         <FacetSelect
           label="Rights"
           value={facets.rights}
@@ -177,6 +180,7 @@ export default function LibraryFilterRail({
           testId="facet-rights"
           onChange={(value) => setFacet({ rights: value })}
         />
+        ) : null}
 
         <label className="flex min-h-8 items-center gap-1 rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--surface)] px-2 text-[10px] font-bold text-[var(--muted)]">
           From
@@ -228,9 +232,6 @@ export default function LibraryFilterRail({
           </button>
         ) : null}
 
-        <span className="ml-auto text-[10px] text-[var(--dim)] sm:hidden" data-testid="library-result-count">
-          {resultCount} {resultCount === 1 ? "asset" : "assets"}
-        </span>
       </div>
       ) : null}
     </div>

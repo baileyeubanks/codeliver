@@ -30,8 +30,8 @@ export default function CutdownRequestDialog({
   onSubmit,
   onClose,
 }: CutdownRequestDialogProps) {
-  const platformOptions = platforms.length > 0 ? platforms : ["youtube", "linkedin", "instagram"];
-  const [platform, setPlatform] = useState(platformOptions[0]);
+  const hasSuggestedPlatforms = platforms.length > 0;
+  const [platform, setPlatform] = useState(platforms[0] ?? "");
   const [durationSeconds, setDurationSeconds] = useState(30);
   const [note, setNote] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -105,7 +105,8 @@ export default function CutdownRequestDialog({
             </label>
 
             <label className="block text-[10px] font-bold uppercase text-[var(--muted)]">
-              Platform
+              {hasSuggestedPlatforms ? "Platform" : "Target platform"}
+              {hasSuggestedPlatforms ? (
               <select
                 value={platform}
                 onChange={(event) => setPlatform(event.target.value)}
@@ -113,12 +114,23 @@ export default function CutdownRequestDialog({
                 data-testid="cutdown-platform"
                 className="mt-1 h-9 w-full rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--surface)] px-2 text-xs normal-case text-[var(--ink)]"
               >
-                {platformOptions.map((option) => (
+                {platforms.map((option) => (
                   <option key={option} value={option}>
                     {option}
                   </option>
                 ))}
               </select>
+              ) : (
+                <input
+                  type="text"
+                  value={platform}
+                  onChange={(event) => setPlatform(event.target.value)}
+                  placeholder="Enter target platform"
+                  aria-label="Target platform"
+                  data-testid="cutdown-platform"
+                  className="mt-1 h-9 w-full rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--surface)] px-3 text-xs normal-case text-[var(--ink)] placeholder:text-[var(--dim)]"
+                />
+              )}
             </label>
 
             <label className="block text-[10px] font-bold uppercase text-[var(--muted)]">

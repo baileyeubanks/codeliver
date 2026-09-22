@@ -54,7 +54,7 @@ test("timeline receives a version-bound source resolver and visibly fails closed
   assert.match(timeline, /activeMedia\.label\} — \$\{activeMedia\.reason\}/);
   assert.match(timeline, /browser-local copy of \$\{activeMedia\?\.label/);
   assert.match(timeline, /URL\.revokeObjectURL/);
-  assert.match(timeline, /useLayoutEffect/);
+  assert.match(timeline, /requestToken/);
   assert.match(timeline, /activeMediaUrl\.unavailable/);
   assert.match(timeline, /Sequence playback paused\./);
   assert.match(timeline, /reel: resolveMedia\(clip\)\.label/);

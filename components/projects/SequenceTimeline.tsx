@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Download, Scissors, Trash2 } from "lucide-react";
 import { getDemoMediaBlob } from "@/lib/demo/media-blob-store";
 import {
@@ -41,46 +41,44 @@ function fmt(total: number): string {
 }
 
 function useSequenceMediaUrl(media: SequenceClipMedia | null) {
-  const [blobState, setBlobState] = useState<{ id: string; url: string | null; loading: boolean } | null>(null);
+  const [blobState, setBlobState] = useState<{ token: object; url: string | null } | null>(null);
   const blobId = media?.status === "ready" ? media.mediaBlobId : null;
   const sourceUrl = media?.status === "ready" ? media.sourceUrl : null;
+  // `blobId` may repeat after an intervening source. Its request token must not:
+  // a stale A object URL is valid only for its own A request, never A→B→A.
+  const requestKey = JSON.stringify([blobId, sourceUrl]);
+  const requestToken = useMemo(() => ({ requestKey }), [requestKey]);
 
-  // A layout effect clears the previous object URL before the replacement
-  // source can paint. A→B→A therefore cannot briefly reuse A's revoked URL.
-  useLayoutEffect(() => {
+  useEffect(() => {
     let cancelled = false;
     let objectUrl: string | null = null;
     if (!blobId || sourceUrl) return;
-    queueMicrotask(() => {
-      if (!cancelled) setBlobState({ id: blobId, url: null, loading: true });
-    });
     void getDemoMediaBlob(blobId).then((blob) => {
       if (cancelled) return;
       if (!blob || typeof URL === "undefined" || typeof URL.createObjectURL !== "function") {
-        setBlobState({ id: blobId, url: null, loading: false });
+        setBlobState({ token: requestToken, url: null });
         return;
       }
       objectUrl = URL.createObjectURL(blob);
-      setBlobState({ id: blobId, url: objectUrl, loading: false });
+      setBlobState({ token: requestToken, url: objectUrl });
     });
     return () => {
       cancelled = true;
       if (objectUrl && typeof URL.revokeObjectURL === "function") URL.revokeObjectURL(objectUrl);
     };
-  }, [blobId, sourceUrl]);
+  }, [blobId, requestToken, sourceUrl]);
 
-  const hasCurrentBlob = blobState?.id === blobId;
+  const hasCurrentBlob = blobState?.token === requestToken;
 
   const browserLocalUnavailable = Boolean(
     blobId
     && !sourceUrl
     && hasCurrentBlob
-    && !blobState.loading
     && !blobState.url,
   );
   return {
     url: sourceUrl ?? (hasCurrentBlob ? blobState.url : null),
-    loading: Boolean(blobId && !sourceUrl && (!hasCurrentBlob || blobState.loading)),
+    loading: Boolean(blobId && !sourceUrl && !hasCurrentBlob),
     unavailable: browserLocalUnavailable,
   };
 }
@@ -299,7 +297,7 @@ export default function SequenceTimeline({ sequence, clips, resolveMedia, onNoti
         const paused = pausePlaybackRequest(playbackIntentRef.current, pendingSeekRef.current?.request ?? null);
         playbackIntentRef.current = paused.intent;
         pendingSeekRef.current = null;
-        pendingTargetRef.current = null;
+        if (pending) pendingTargetRef.current = { ...pending, resume: false };
         videoRef.current?.pause();
         setPlaying(false);
         setWaitingForMedia(false);

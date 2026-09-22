@@ -326,6 +326,7 @@ export default function PublicReviewPage() {
             (candidate) => candidate.id === workspaceAsset?.project_id,
           );
           const publicAssetId = workspaceAsset?.id ?? demoReviewPayload.asset.id;
+          const sourceRecord = sourceCatalog?.assets.find((record) => record.id === publicAssetId);
           const publicProjectId = workspaceAsset?.project_id ?? "demo";
           const demoVersionAuthority = buildDemoVersionAuthority({
             assetId: publicAssetId,
@@ -336,6 +337,7 @@ export default function PublicReviewPage() {
             durationSeconds: workspaceAsset?.duration_seconds ?? null,
             createdAt: workspaceAsset?.created_at ?? new Date().toISOString(),
             seededVersions: sourceCatalog ? [] : demoReviewPayload.versions,
+            sourceMetadata: sourceRecord ? { fileSize: sourceRecord.bytes, resolution: `${sourceRecord.width} × ${sourceRecord.height}` } : undefined,
           });
           const publicVersionId = demoVersionAuthority.current.id;
           const requestedIntent =
@@ -346,7 +348,9 @@ export default function PublicReviewPage() {
               downloadEnabled: demoReviewPayload.download_enabled,
               watermarkEnabled: demoReviewPayload.watermark_enabled,
             });
-          const intentDefaults = resolveShareIntentDefaults(requestedIntent);
+          const intentDefaults = sourceCatalog && !requestedDemoShare
+            ? { permissions: "comment" as const, downloadEnabled: false, watermarkEnabled: false }
+            : resolveShareIntentDefaults(requestedIntent);
           const review = {
             ...demoReviewPayload,
             asset: {
@@ -358,7 +362,7 @@ export default function PublicReviewPage() {
               status: workspaceAsset?.status ?? demoReviewPayload.asset.status,
               projects: {
                 name: workspaceProject
-                  ? `${workspaceProject.name} / Client Review`
+                  ? `${workspaceProject.name} / ${sourceCatalog ? "Source preview" : "Client Review"}`
                   : demoReviewPayload.asset.projects?.name ?? "Client Review",
               },
             },
@@ -374,7 +378,7 @@ export default function PublicReviewPage() {
               demoReviewPayload.watermark_text,
             reviewer_name:
               requestedDemoShare?.reviewer_name ??
-              (requestedIntent === "approval_needed"
+              (sourceCatalog || requestedIntent === "approval_needed"
                 ? demoReviewPayload.reviewer_name
                 : "Client Reviewer"),
             reviewer_email: resolveDemoReviewerEmail({
@@ -850,7 +854,7 @@ export default function PublicReviewPage() {
     const replyBody = body.trim();
     if (!asset || !replyBody) return;
     const authorName =
-      reviewerName.trim() || invite?.reviewer_name?.trim() || "Client Reviewer";
+      reviewerName.trim() || invite?.reviewer_name?.trim() || (sourceCatalog ? "Local reviewer" : "Client Reviewer");
 
     if (demoMode) {
       const now = new Date().toISOString();
@@ -1559,7 +1563,7 @@ export default function PublicReviewPage() {
                 assetUrl={activeVersion?.file_url || asset?.file_url || null}
                 poster={
                   activeVersion?.thumbnail_url ??
-                  (demoMode ? "/demo/ceraweek-speaker.jpg" : undefined)
+                  (demoMode && !sourceCatalog ? "/demo/ceraweek-speaker.jpg" : undefined)
                 }
                 videoRef={videoRef}
                 imageRef={imageRef}

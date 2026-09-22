@@ -14,6 +14,7 @@ type DemoVersionAuthorityModule = {
     durationSeconds: number | null;
     createdAt: string;
     seededVersions: readonly Version[];
+    sourceMetadata?: {fileSize:number; resolution:string};
   }): { current: Version; versions: Version[] };
   bindDemoReviewComments(
     comments: readonly Comment[],
@@ -105,4 +106,16 @@ test("public demo loader uses one authority for its current version and seeded c
   assert.match(demoBranch, /const demoVersion = demoVersionAuthority\.current/);
   assert.match(demoBranch, /const versionList = demoVersionAuthority\.versions/);
   assert.doesNotMatch(demoBranch, /demoReviewPayload\.comments\.map/);
+});
+
+test("source representation uses measured metadata without inventing archive versions", async () => {
+  const module = await loadAuthority(); assert.ok(module);
+  const input = {assetId:"aayush-v2",versionCount:1,fileUrl:"/api/demo/source-media/aayush-v2?demo=1",thumbnailUrl:null,durationSeconds:123.248,createdAt:"2026-09-09T00:00:00Z",seededVersions:[],sourceMetadata:{fileSize:235134905,resolution:"1280 × 720"}};
+  const result = module.buildDemoVersionAuthority(input);
+  assert.equal(result.versions.length,1);
+  assert.equal(result.current.id,"source-version-aayush-v2");
+  assert.equal(result.current.resolution,"1280 × 720");
+  assert.equal(result.current.file_size,235134905);
+  assert.match(result.current.notes ?? "",/archive version lineage is not established/);
+  assert.notEqual(result.current.id,module.buildDemoVersionAuthority({...input,assetId:"other-source"}).current.id);
 });

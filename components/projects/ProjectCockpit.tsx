@@ -206,17 +206,22 @@ function assetFileName(asset: MediaAsset) {
 }
 
 function versionLabel(asset: MediaAsset, demoMode: boolean) {
+  if (sourceCatalog?.assets.some((source) => source.id === asset.id)) return "Imported file";
   const version = asset.version_count ?? (demoMode ? 1 : null);
   return version ? `Version ${version}` : "Version not indexed";
 }
 
 function mediaResolutionLabel(asset: MediaAsset, demoMode: boolean) {
   if (asset.file_type !== "video") return "Source file";
+  const source = sourceCatalog?.assets.find((record) => record.id === asset.id);
+  if (source) return `${source.width} × ${source.height}`;
   return demoMode ? "Not probed in demo" : "Not reported";
 }
 
 function mediaFrameRateLabel(asset: MediaAsset, demoMode: boolean) {
   if (asset.file_type !== "video") return "Not applicable";
+  const source = sourceCatalog?.assets.find((record) => record.id === asset.id);
+  if (source?.frame_rate) return `${source.frame_rate.toFixed(3)} fps`;
   return demoMode ? "Not probed in demo" : "Not reported";
 }
 
@@ -273,7 +278,7 @@ function ProjectAssetThumbnail({
   const storedThumbnailUrl = useDemoMediaObjectUrl(asset.demo_thumbnail_id ?? null);
   const source = asset.thumbnail_url
     ?? storedThumbnailUrl
-    ?? (demoMode && !isLocalUploadAsset(asset) ? "/demo/ceraweek-speaker.jpg" : null);
+    ?? (demoMode && !sourceCatalog && !isLocalUploadAsset(asset) ? "/demo/ceraweek-speaker.jpg" : null);
 
   if (!source) {
     return showFallback ? <span aria-hidden="true"><Play size={16} /></span> : null;

@@ -9,6 +9,7 @@ interface DemoVersionAuthorityInput {
   durationSeconds: number | null;
   createdAt: string;
   seededVersions: readonly Version[];
+  sourceMetadata?: { fileSize: number; resolution: string };
 }
 
 export function buildDemoVersionAuthority({
@@ -19,21 +20,22 @@ export function buildDemoVersionAuthority({
   durationSeconds,
   createdAt,
   seededVersions,
+  sourceMetadata,
 }: DemoVersionAuthorityInput): { current: Version; versions: Version[] } {
   const fallbackNumber = currentVersion(seededVersions)?.version_number ?? 1;
   const currentNumber =
     Number.isSafeInteger(versionCount) && versionCount > 0
       ? versionCount
       : fallbackNumber;
-  const currentId = `demo-version-${currentNumber}`;
+  const currentId = sourceMetadata ? `source-version-${assetId}` : `demo-version-${currentNumber}`;
   const matchingSeed = seededVersions.find(
     (candidate) => candidate.version_number === currentNumber,
   );
   const current: Version = {
     ...(matchingSeed ?? {
-      file_size: null,
-      resolution: "1920 x 1080",
-      notes: "Local demo review version",
+      file_size: sourceMetadata?.fileSize ?? null,
+      resolution: sourceMetadata?.resolution ?? "1920 x 1080",
+      notes: sourceMetadata ? "Imported source file; archive version lineage is not established." : "Local demo review version",
       uploaded_by: null,
     }),
     id: currentId,

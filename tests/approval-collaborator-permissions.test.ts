@@ -34,6 +34,18 @@ const decisionStubUrl = `data:text/javascript,${encodeURIComponent(`
     return state.decisionResult;
   }
 `)}`;
+const deliveryLockStubUrl = `data:text/javascript,${encodeURIComponent(`
+  export async function assertAssetNotLocked() {
+    if (globalThis.__approvalPermissionTestState.locked) {
+      const error = new Error("locked");
+      error.code = "ASSET_DELIVERY_LOCKED";
+      throw error;
+    }
+  }
+  export function isAssetDeliveryLockedError(error) {
+    return error?.code === "ASSET_DELIVERY_LOCKED";
+  }
+`)}`;
 const inviteStubUrl = `data:text/javascript,${encodeURIComponent(`
   export function normalizeReviewerEmail(value) {
     const normalized = value?.trim().toLowerCase();
@@ -64,6 +76,7 @@ registerHooks({
     if (specifier === "@/lib/approval-decisions") {
       return nextResolve(decisionStubUrl, context);
     }
+    if (specifier === "@/lib/delivery/lock") return nextResolve(deliveryLockStubUrl, context);
     if (specifier === "@/lib/review-invites") return nextResolve(inviteStubUrl, context);
     if (specifier === "@/lib/supabase") return nextResolve(supabaseStubUrl, context);
     if (specifier === "@/lib/email") return nextResolve(emailStubUrl, context);
@@ -92,6 +105,7 @@ interface ApprovalPermissionTestState {
     | { ok: true; data: Record<string, unknown> }
     | { ok: false; status: number; error: string };
   decisionCalls: Array<Record<string, unknown>>;
+  locked: boolean;
   decisionResult: {
     ok: true;
     data: Record<string, unknown>;
@@ -139,6 +153,7 @@ const state: ApprovalPermissionTestState = {
   accessCalls: [],
   accessResult: { ok: true, data: {} },
   decisionCalls: [],
+  locked: false,
   decisionResult: {
     ok: true,
     data: { id: "approval-a", status: "approved" },
@@ -185,6 +200,7 @@ function resetRouteState() {
   state.accessCalls = [];
   state.accessResult = { ok: true, data: {} };
   state.decisionCalls = [];
+  state.locked = false;
   state.approval = null;
 }
 
@@ -290,4 +306,18 @@ test("the assigned reviewer can use existing approval decision logic", async () 
       actor: { id: "reviewer-a", name: "reviewer@example.com" },
     });
   }
+});
+
+test("a locked delivery blocks an internal assignee before the decision RPC", async () => {
+  resetRouteState();
+  state.locked = true;
+  state.approval = {
+    id: "approval-a",
+    assignee_id: "reviewer-a",
+    assignee_email: "reviewer@example.com",
+  };
+  const response = await patchAssetApproval();
+  assert.equal(response.status, 409);
+  assert.equal((await response.json()).code, "ASSET_LOCKED");
+  assert.deepEqual(state.decisionCalls, []);
 });

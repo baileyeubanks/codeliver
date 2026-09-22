@@ -2,6 +2,10 @@ import { apiError, apiJson } from "@/lib/api/responses";
 import { requireAuth } from "@/lib/auth";
 import { getAssetAccess, PROJECT_ROLE_RANK } from "@/lib/access-control";
 import { recordApprovalDecision } from "@/lib/approval-decisions";
+import {
+  assertAssetNotLocked,
+  isAssetDeliveryLockedError,
+} from "@/lib/delivery/lock";
 import { normalizeReviewerEmail } from "@/lib/review-invites";
 import { getSupabase } from "@/lib/supabase";
 import { withAssetRouteBoundary } from "../../asset-route-boundary";
@@ -146,6 +150,19 @@ async function PATCHHandler(req: Request, { params }: { params: Promise<{ id: st
       { error: "This approval step is assigned to another reviewer" },
       { status: 403 },
     );
+  }
+
+  try {
+    await assertAssetNotLocked(assetId, supabase);
+  } catch (error) {
+    if (isAssetDeliveryLockedError(error)) {
+      return apiError(
+        "This delivery is locked and its approval is final",
+        "ASSET_LOCKED",
+        409,
+      );
+    }
+    return apiError("Approval lock state is unavailable", "BACKEND_UNAVAILABLE", 503);
   }
 
   const decision = await recordApprovalDecision({

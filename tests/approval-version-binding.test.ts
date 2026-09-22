@@ -59,6 +59,7 @@ test("routes and shares carry the exact version, workflow, step, and invite bind
   const reviewRead = source("app/api/review/[token]/route.ts");
   const reviewDecision = source("app/api/review/[token]/approvals/route.ts");
   const decisions = source("lib/approval-decisions.ts");
+  const internalDecisions = source("app/api/assets/[id]/approvals/route.ts");
   assert.match(workflow, /searchParams\.get\("version_id"\)/);
   assert.match(workflow, /body\.version_id/);
   assert.match(workflow, /create_version_approval_workflow/);
@@ -69,6 +70,11 @@ test("routes and shares carry the exact version, workflow, step, and invite bind
   assert.match(reviewDecision, /requestedVersionId !== invite\.version_id/);
   assert.match(reviewDecision, /approvalId !== invite\.approval_id/);
   assert.match(decisions, /p_review_invite_id: reviewInviteId \?\? null/);
+  assert.ok(
+    internalDecisions.indexOf("assertAssetNotLocked(assetId, supabase)") <
+      internalDecisions.indexOf("recordApprovalDecision({"),
+  );
+  assert.match(internalDecisions, /isAssetDeliveryLockedError[\s\S]*"ASSET_LOCKED"/);
 });
 
 test("late media pipeline state cannot erase a human request for changes", () => {

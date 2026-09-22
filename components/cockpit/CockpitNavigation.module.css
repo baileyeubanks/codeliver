@@ -27,16 +27,37 @@
 
 .secondary {
   display: grid;
-  gap: 2px;
+  gap: 7px;
   margin: 2px 0 6px;
   padding: 5px 0;
   border-block: 1px solid var(--cockpit-border, #dfe4ec);
 }
 
+.toolGroup {
+  display: grid;
+  gap: 2px;
+  padding: 1px 10px 0;
+}
+
+.toolGroup > span {
+  margin: 0 0 2px;
+  color: var(--cockpit-muted, #707b91);
+  font-size: 0.56rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.toolGroup button {
+  min-height: 32px;
+  padding: 0 4px;
+  font-size: 0.68rem;
+}
+
 .recordLinks {
   display: grid;
   gap: 2px;
-  padding: 7px 10px 2px;
+  padding: 1px 10px 2px;
 }
 
 .recordLinks > span {

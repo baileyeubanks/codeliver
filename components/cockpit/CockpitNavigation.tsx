@@ -46,6 +46,15 @@ const ICONS: Record<CockpitNavigationIcon, LucideIcon> = {
   versions: History,
 };
 
+const SECONDARY_GROUPS: ReadonlyArray<{
+  label: string;
+  sections: CockpitSection[];
+}> = [
+  { label: "Create", sections: ["creative", "proposal", "sequences"] },
+  { label: "Review & deliver", sections: ["reviews", "approvals", "versions"] },
+  { label: "Operate", sections: ["tasks", "metadata"] },
+];
+
 interface CockpitNavigationModeProps {
   demoMode?: boolean;
 }
@@ -54,6 +63,8 @@ interface ProjectNavigationProps extends CockpitNavigationModeProps {
   activeSection: CockpitSection;
   dueTodayCount: number;
   projectId?: string;
+  activeRecordTab?: string;
+  activeWhiteboard?: boolean;
   compact?: boolean;
   overviewOpen?: boolean;
   onSelect: (section: CockpitSection) => void;
@@ -65,6 +76,8 @@ export function CockpitProjectNavigation({
   activeSection,
   dueTodayCount,
   projectId,
+  activeRecordTab,
+  activeWhiteboard = false,
   compact = false,
   demoMode = false,
   overviewOpen = false,
@@ -72,10 +85,17 @@ export function CockpitProjectNavigation({
   onCollapse,
   onNavigate,
 }: ProjectNavigationProps) {
-  const [secondaryOpen, setSecondaryOpen] = useState(false);
-  const primarySections = new Set<CockpitSection>(["overview", "media", "plan", "delivery"]);
-  const primaryNavigation = COCKPIT_NAVIGATION.filter((item) => primarySections.has(item.id));
-  const secondaryNavigation = COCKPIT_NAVIGATION.filter((item) => !primarySections.has(item.id));
+  const [secondaryOpen, setSecondaryOpen] = useState(() => Boolean(activeRecordTab));
+  const primaryIds: CockpitSection[] = ["overview", "media", "plan", "delivery"];
+  const primarySections = new Set<CockpitSection>(primaryIds);
+  const primaryNavigation = primaryIds.flatMap((id) => COCKPIT_NAVIGATION.filter((item) => item.id === id));
+  const secondaryNavigation = new Map(
+    COCKPIT_NAVIGATION
+      .filter((item) => !primarySections.has(item.id))
+      .map((item) => [item.id, item]),
+  );
+
+  const secondaryVisible = secondaryOpen || Boolean(activeRecordTab) || !primarySections.has(activeSection);
 
   function select(section: CockpitSection) {
     onSelect(section);
@@ -108,6 +128,7 @@ export function CockpitProjectNavigation({
           <Link
             href={`/projects/${encodeURIComponent(projectId)}/whiteboard${demoMode ? "?demo=1" : ""}`}
             title={compact ? "Whiteboard" : undefined}
+            aria-current={activeWhiteboard ? "page" : undefined}
             onClick={onNavigate}
           >
             <CalendarDays size={18} />
@@ -117,30 +138,37 @@ export function CockpitProjectNavigation({
         <button
           type="button"
           className={styles.moreButton}
-          aria-expanded={secondaryOpen}
+          aria-expanded={secondaryVisible}
           aria-controls="project-secondary-navigation"
           onClick={() => setSecondaryOpen((open) => !open)}
         >
           <Menu size={18} />
           <span className={styles.label}>More project tools</span>
         </button>
-        {secondaryOpen ? (
+        {secondaryVisible ? (
           <div id="project-secondary-navigation" className={styles.secondary} aria-label="More project tools">
-            {secondaryNavigation.map((item) => {
-              const Icon = ICONS[item.icon];
-              return (
-                <button
-                  key={item.id}
-                  type="button"
-                  data-active={activeSection === item.id}
-                  aria-current={activeSection === item.id ? "page" : undefined}
-                  onClick={() => select(item.id)}
-                >
-                  <Icon size={18} />
-                  <span className={styles.label}>{item.label}</span>
-                </button>
-              );
-            })}
+            {SECONDARY_GROUPS.map((group) => (
+              <div key={group.label} className={styles.toolGroup}>
+                <span>{group.label}</span>
+                {group.sections.map((section) => {
+                  const item = secondaryNavigation.get(section);
+                  if (!item) return null;
+                  const Icon = ICONS[item.icon];
+                  return (
+                    <button
+                      key={item.id}
+                      type="button"
+                      data-active={activeSection === item.id}
+                      aria-current={activeSection === item.id ? "page" : undefined}
+                      onClick={() => select(item.id)}
+                    >
+                      <Icon size={18} />
+                      <span className={styles.label}>{item.label}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            ))}
             {projectId ? (
               <div className={styles.recordLinks}>
                 <span>Project records</span>
@@ -148,7 +176,12 @@ export function CockpitProjectNavigation({
                   ["brief", "Brief"], ["milestones", "Milestones"], ["deliverables", "Deliverables"],
                   ["team", "Team"], ["files", "Files"], ["comms", "Comms"], ["calendar", "Calendar"],
                 ].map(([tab, label]) => (
-                  <Link key={tab} href={`/projects/${encodeURIComponent(projectId)}?${demoMode ? "demo=1&" : ""}tab=${tab}`} onClick={onNavigate}>
+                  <Link
+                    key={tab}
+                    href={`/projects/${encodeURIComponent(projectId)}?${demoMode ? "demo=1&" : ""}tab=${tab}`}
+                    aria-current={activeRecordTab === tab ? "page" : undefined}
+                    onClick={onNavigate}
+                  >
                     {label}
                   </Link>
                 ))}

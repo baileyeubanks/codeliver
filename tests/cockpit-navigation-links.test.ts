@@ -108,10 +108,10 @@ const baseProps = {
   onSelect: () => undefined,
 };
 
-test("cockpit rail defaults Settings and Team links to production URLs", () => {
+test("cockpit rail keeps Settings as its only global destination", () => {
   assert.deepEqual(
     renderedHrefs(navigation.CockpitProjectNavigation, baseProps),
-    ["/settings", "/settings?section=organization"],
+    ["/settings"],
   );
 });
 
@@ -121,7 +121,7 @@ test("cockpit rail preserves demo queries only when demo mode is explicit", () =
       ...baseProps,
       demoMode: true,
     }),
-    ["/settings?demo=1", "/settings?section=organization&demo=1"],
+    ["/settings?demo=1"],
   );
 });
 
@@ -151,14 +151,14 @@ test("drawer forwards demo mode while the mobile bar stays route-free", () => {
   };
   assert.deepEqual(
     renderedHrefs(navigation.CockpitProjectNavigationDrawer, drawerProps),
-    ["/settings", "/settings?section=organization"],
+    ["/settings"],
   );
   assert.deepEqual(
     renderedHrefs(navigation.CockpitProjectNavigationDrawer, {
       ...drawerProps,
       demoMode: true,
     }),
-    ["/settings?demo=1", "/settings?section=organization&demo=1"],
+    ["/settings?demo=1"],
   );
 
   const mobileProps = {

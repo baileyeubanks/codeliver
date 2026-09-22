@@ -1,4 +1,4 @@
-export const COCKPIT_LAYOUT_VERSION = 1 as const;
+export const COCKPIT_LAYOUT_VERSION = 2 as const;
 
 export type CockpitLayoutMode = "review" | "edit" | "focus";
 export type CockpitRailMode = "expanded" | "compact";
@@ -31,12 +31,13 @@ const DENSITIES = new Set<CockpitDensity>(["compact", "comfortable"]);
 export function normalizeCockpitLayout(input: unknown): CockpitLayoutState {
   if (!input || typeof input !== "object") return DEFAULT_COCKPIT_LAYOUT;
   const candidate = input as Partial<CockpitLayoutState>;
+  const isCurrentLayout = candidate.version === COCKPIT_LAYOUT_VERSION;
 
   return {
     version: COCKPIT_LAYOUT_VERSION,
     mode: candidate.mode && MODES.has(candidate.mode) ? candidate.mode : DEFAULT_COCKPIT_LAYOUT.mode,
     rail: candidate.rail && RAILS.has(candidate.rail) ? candidate.rail : DEFAULT_COCKPIT_LAYOUT.rail,
-    dockOpen: typeof candidate.dockOpen === "boolean"
+    dockOpen: isCurrentLayout && typeof candidate.dockOpen === "boolean"
       ? candidate.dockOpen
       : DEFAULT_COCKPIT_LAYOUT.dockOpen,
     dockTab: candidate.dockTab && TABS.has(candidate.dockTab)
@@ -85,7 +86,7 @@ export function applyCockpitMode(
         ...current,
         mode: "review",
         rail: "expanded",
-        dockOpen: true,
+        dockOpen: false,
         dockTab: "review",
         density: "compact",
       };

@@ -216,6 +216,13 @@ fileMocks.set(resolve(repositoryRoot, "components/projects/ProjectTeamPanel.tsx"
 fileMocks.set(resolve(repositoryRoot, "components/projects/ProjectFilesPanel.tsx"), stubPanel("files-stub"));
 fileMocks.set(resolve(repositoryRoot, "components/projects/ProjectCommsPanel.tsx"), stubPanel("comms-stub"));
 fileMocks.set(resolve(repositoryRoot, "components/projects/ProjectCalendarPanel.tsx"), stubPanel("calendar-stub"));
+fileMocks.set(resolve(repositoryRoot, "components/cockpit/CockpitNavigation.tsx"), {
+  CockpitProjectNavigation: ({ activeRecordTab }: { activeRecordTab?: string }) => React.createElement(
+    "nav",
+    { "data-testid": "shared-project-rail", "data-active-record": activeRecordTab ?? "" },
+    "Shared project rail",
+  ),
+});
 
 /* Evaluate the tabs module while the panel stubs are in place (its imports
  * capture them), then drop the stubs so the panels can be rendered for real
@@ -253,55 +260,37 @@ const tabsStyles = readFileSync(
   "utf8",
 );
 
-test("tab bar exposes tablist semantics with all eight tabs plus the whiteboard link", () => {
+test("legacy tab routes retain their panels while the visible project taxonomy lives in the shared rail", () => {
   fixtureWorkspace = baseWorkspace();
   currentSearch = "";
   const markup = render(tabsPath, tabsProps());
 
-  assert.match(markup, /role="tablist"[^>]*aria-label="ICA project workspace"/);
-  assert.equal(markup.match(/role="tab"/g)?.length, 8, "eight tabs");
-  assert.match(markup, /id="project-tab-overview"[^>]*aria-selected="true"[^>]*tabindex="0"/);
-  assert.match(markup, /id="project-tab-brief"[^>]*aria-selected="false"[^>]*tabindex="-1"/);
-  assert.match(markup, /aria-controls="project-tabpanel-calendar"/);
-  assert.match(markup, /role="tabpanel"[^>]*id="project-tabpanel-overview"[^>]*aria-labelledby="project-tab-overview"/);
-  assert.ok(markup.includes('href="/projects/ica/whiteboard?demo=1"'), "whiteboard links to the existing route");
+  assert.doesNotMatch(markup, /role="tablist"/, "retired tab strip is not mounted");
+  assert.match(tabsSource, /<CockpitProjectNavigation/);
+  assert.match(tabsSource, /activeRecordTab=\{activeTab\}/);
   assert.ok(markup.includes("cockpit-stub"), "overview renders the existing cockpit");
 });
 
-test("whiteboard stays directly beside Overview instead of overflowing past every tab", () => {
-  fixtureWorkspace = baseWorkspace();
-  currentSearch = "";
-  const markup = render(tabsPath, tabsProps());
-  const overviewIndex = markup.indexOf('id="project-tab-overview"');
-  const whiteboardIndex = markup.indexOf('href="/projects/ica/whiteboard?demo=1"');
-  const briefIndex = markup.indexOf('id="project-tab-brief"');
-
-  assert.ok(overviewIndex >= 0, "Overview tab is missing");
-  assert.ok(whiteboardIndex > overviewIndex, "Whiteboard should follow Overview");
-  assert.ok(briefIndex > whiteboardIndex, "Brief should follow Whiteboard");
-  assert.doesNotMatch(
-    tabsStyles,
-    /\.tabLink\s*\{[^}]*margin-left:\s*auto;/,
-    "auto margin pushes Whiteboard out of the initial phone viewport",
-  );
+test("the legacy-tab rail uses the same shared component and stable placement", () => {
+  assert.match(tabsSource, /className=\{styles\.legacyRail\}/);
+  assert.match(tabsSource, /<CockpitProjectNavigation/);
+  assert.match(tabsStyles, /grid-template-columns:\s*224px minmax\(0, 1fr\)/);
 });
 
 test("tab selection follows the ?tab= search param", () => {
   fixtureWorkspace = baseWorkspace();
   currentSearch = "demo=1&tab=brief";
   const markup = render(tabsPath, tabsProps());
-  assert.match(markup, /id="project-tab-brief"[^>]*aria-selected="true"/);
+  assert.match(markup, /data-testid="shared-project-rail"[^>]*data-active-record="brief"/);
   assert.match(markup, /id="project-tabpanel-brief"/);
   assert.ok(markup.includes("brief-stub"));
   assert.ok(!markup.includes("cockpit-stub"), "cockpit unmounts outside the overview tab");
 });
 
-test("arrow-key tab switching is wired on the tablist", () => {
-  assert.match(tabsSource, /onKeyDown=\{onTabListKeyDown\}/);
-  for (const key of ["ArrowRight", "ArrowLeft", "Home", "End"]) {
-    assert.ok(tabsSource.includes(`"${key}"`), `handles ${key}`);
-  }
-  assert.match(tabsSource, /tabRefs\.current\[nextIndex\]\?\.focus\(\)/, "focus follows the active tab");
+test("legacy routes keep their query contract while cockpit destinations clear only tab", () => {
+  assert.match(tabsSource, /const activeTab: WorkspaceTabId = isWorkspaceTab\(tabParam\) \? tabParam : "overview"/);
+  assert.match(tabsSource, /params\.delete\("tab"\)/);
+  assert.match(tabsSource, /params\.set\("surface", section\)/);
 });
 
 /* -------------------------------------------------------------------------- */

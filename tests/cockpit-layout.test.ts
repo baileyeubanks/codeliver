@@ -28,7 +28,7 @@ test("invalid or stale cockpit layouts fail closed to supported values", () => {
 test("valid persisted fields survive normalization", () => {
   assert.deepEqual(
     normalizeCockpitLayout({
-      version: 1,
+      version: 2,
       mode: "edit",
       rail: "compact",
       dockOpen: false,
@@ -36,7 +36,7 @@ test("valid persisted fields survive normalization", () => {
       density: "comfortable",
     }),
     {
-      version: 1,
+      version: 2,
       mode: "edit",
       rail: "compact",
       dockOpen: false,
@@ -44,6 +44,11 @@ test("valid persisted fields survive normalization", () => {
       density: "comfortable",
     },
   );
+});
+
+test("pre-simplification dock preferences close once without overriding current saves", () => {
+  assert.equal(normalizeCockpitLayout({ version: 1, dockOpen: true }).dockOpen, false);
+  assert.equal(normalizeCockpitLayout({ ...DEFAULT_COCKPIT_LAYOUT, dockOpen: true }).dockOpen, true);
 });
 
 test("workspace modes apply deterministic operator presets", () => {
@@ -61,6 +66,6 @@ test("workspace modes apply deterministic operator presets", () => {
 });
 
 test("layout storage is project-scoped and versioned", () => {
-  assert.equal(cockpitLayoutStorageKey("ica"), "co-deliver.cockpit-layout.v1:ica");
+  assert.equal(cockpitLayoutStorageKey("ica"), "co-deliver.cockpit-layout.v2:ica");
   assert.notEqual(cockpitLayoutStorageKey("ica"), cockpitLayoutStorageKey("other-project"));
 });

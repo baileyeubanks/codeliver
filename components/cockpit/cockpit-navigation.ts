@@ -39,7 +39,7 @@ export interface CockpitNavigationItem {
  * (docs/COVIDEOPRO_TARGET_ARCHITECTURE.md §2.2).
  */
 export const COCKPIT_NAVIGATION: CockpitNavigationItem[] = [
-  { id: "overview", label: "Overview", shortLabel: "Home", icon: "home" },
+  { id: "overview", label: "Review", shortLabel: "Review", icon: "home" },
   { id: "creative", label: "Creative", shortLabel: "Creative", icon: "creative" },
   { id: "proposal", label: "Proposal", shortLabel: "Proposal", icon: "proposal" },
   { id: "plan", label: "Plan", shortLabel: "Plan", icon: "plan" },
@@ -53,8 +53,8 @@ export const COCKPIT_NAVIGATION: CockpitNavigationItem[] = [
   { id: "metadata", label: "Metadata", shortLabel: "Info", icon: "metadata" },
 ];
 
-const MOBILE_IDS = new Set<CockpitSection>(["overview", "media", "plan", "delivery"]);
+const PRIMARY_IDS: CockpitSection[] = ["overview", "media", "plan", "delivery"];
 
-export const MOBILE_COCKPIT_NAVIGATION = COCKPIT_NAVIGATION.filter((item) =>
-  MOBILE_IDS.has(item.id),
+export const MOBILE_COCKPIT_NAVIGATION = PRIMARY_IDS.flatMap((id) =>
+  COCKPIT_NAVIGATION.filter((item) => item.id === id),
 );

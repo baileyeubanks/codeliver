@@ -377,7 +377,10 @@ export default function AssetUpload({
         intent.current.reset(id);
         const retryItem: UploadItem = {
           ...item,
-          attemptId: crypto.randomUUID(),
+          // A final PATCH can fail after bytes are committed but before the
+          // catalog/V1 response reaches this client. Keep the durable upload
+          // identity so a fresh Tus client can HEAD and reconcile that session.
+          attemptId: item.attemptId,
           progress: 0,
           bytesUploaded: 0,
           status: "pending",
@@ -401,18 +404,10 @@ export default function AssetUpload({
             });
           });
         };
-        if (item.tusUpload) {
-          void item.tusUpload.abort(true)
-            .then(restart)
-            .catch((error: unknown) => {
-              updateItem(id, {
-                status: "error",
-                error: error instanceof Error ? error.message : "Unable to restart upload",
-              });
-            });
-        } else {
-          restart();
-        }
+        // Do not terminate an errored upload: its original bytes may already
+        // be committed, and the canonical route recovers catalog attachment on
+        // the next HEAD request.
+        restart();
       }
     },
     [items, refreshStorageReadiness, startTusUpload, storage.phase, updateItem]

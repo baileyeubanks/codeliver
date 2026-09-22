@@ -37,3 +37,27 @@ test("AssetUpload keeps selected files pending while confirming readiness", () =
   assert.match(uploader, /aria-label="Remove failed upload"/);
   assert.doesNotMatch(uploader, /set(?:Timeout|Interval)\(/);
 });
+
+test("AssetUpload retry resumes a durable upload instead of terminating it", () => {
+  const retryStart = uploader.indexOf("const retryUpload = useCallback");
+  const retryEnd = uploader.indexOf("const removeUploadItem", retryStart);
+  const retry = uploader.slice(retryStart, retryEnd);
+
+  assert.notEqual(retryStart, -1, "retry handler is present");
+  assert.notEqual(retryEnd, -1, "retry handler ends before removal handler");
+  assert.match(
+    retry,
+    /attemptId:\s*item\.attemptId/,
+    "a retry must preserve the idempotency key bound to the durable upload",
+  );
+  assert.doesNotMatch(
+    retry,
+    /\.abort\(true\)/,
+    "a retry must not DELETE an upload whose bytes may already be committed",
+  );
+  assert.match(
+    retry,
+    /startTusUpload\(retryItem/,
+    "a retry starts a fresh Tus client so it can HEAD and reconcile the stored URL",
+  );
+});

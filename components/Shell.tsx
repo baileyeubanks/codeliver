@@ -89,6 +89,9 @@ const WORKSPACE_ROLES: readonly WorkspaceRole[] = [
   "viewer",
 ];
 
+/** Routes that own the project chrome instead of nesting in the global rail. */
+export const PROJECT_WORKSPACE_SURFACE_PATH = /^\/projects\/(?!new$|archive$|trash$)[^/]+(?:\/whiteboard)?$/;
+
 function asWorkspaceRole(value: unknown): WorkspaceRole {
   return WORKSPACE_ROLES.includes(value as WorkspaceRole)
     ? (value as WorkspaceRole)
@@ -115,9 +118,7 @@ export default function Shell({ children }: { children: React.ReactNode }) {
     RemoteNotification[]
   >([]);
   const [storageDegraded, setStorageDegraded] = useState(false);
-  const isProjectCockpit = /^\/projects\/(?!new$|archive$|trash$)[^/]+(?:\/whiteboard)?$/.test(
-    pathname,
-  );
+  const isProjectCockpit = PROJECT_WORKSPACE_SURFACE_PATH.test(pathname);
   const projectsFixture = normalizeProjectsFixture(
     demoSuffix && pathname === "/projects"
       ? searchParams.get("projectsFixture")

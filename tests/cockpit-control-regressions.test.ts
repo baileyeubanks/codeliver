@@ -3,6 +3,7 @@ import { readFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
+import { runInNewContext } from "node:vm";
 
 const repositoryRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const cockpitSource = readFileSync(
@@ -231,7 +232,7 @@ test("opening the operator dock from another section renders the actual overview
 test("production project routes render exactly one application shell", () => {
   assert.match(
     shellSource,
-    /const isProjectCockpit = \/\^\\\/projects\\\/.*\.test\(\s*pathname\s*,?\s*\)/,
+    /const isProjectCockpit = PROJECT_WORKSPACE_SURFACE_PATH\.test\(pathname\)/,
   );
   assert.doesNotMatch(
     shellSource,
@@ -239,9 +240,26 @@ test("production project routes render exactly one application shell", () => {
   );
 });
 
-test("the project shell owns the Whiteboard route but not arbitrary nested project routes", () => {
-  assert.match(shellSource, /\(\?:\\\/whiteboard\)\?\$/);
-  assert.doesNotMatch(shellSource, /\[\^\/\]\+\(\?:\\\/\.\*\)\?\$/);
+test("the project shell owns only root and Whiteboard project routes", () => {
+  const routePatternSource = shellSource.match(
+    /export const PROJECT_WORKSPACE_SURFACE_PATH = (\/\^[^;]+\$\/);/,
+  )?.[1];
+  assert.ok(routePatternSource, "project shell route matcher is missing");
+  const routePattern = runInNewContext(`(${routePatternSource})`) as RegExp;
+
+  for (const pathname of ["/projects/el-paso", "/projects/el-paso/whiteboard", "/projects/ica"]) {
+    assert.equal(routePattern.test(pathname), true, pathname);
+  }
+  for (const pathname of [
+    "/projects",
+    "/projects/new",
+    "/projects/archive",
+    "/projects/trash",
+    "/projects/el-paso/assets/asset-1",
+    "/review/projects/el-paso",
+  ]) {
+    assert.equal(routePattern.test(pathname), false, pathname);
+  }
 });
 
 test("project transitions clear stale data and cancel superseded requests", () => {

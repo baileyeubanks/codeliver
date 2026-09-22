@@ -197,6 +197,7 @@ export function ProposalSection({ projectId, demoMode, onNotice }: SectionProps)
   );
   const proposal = currentProposal(proposals);
   const [editing, setEditing] = useState(false);
+  const [editingEstimate, setEditingEstimate] = useState(false);
   const [form, setForm] = useState({ title: "", narrative: "" });
   const [docView, setDocView] = useState<{ kind: "quote" } | { kind: "invoice"; milestoneId: string } | null>(null);
   const docFrameRef = useRef<HTMLIFrameElement | null>(null);
@@ -275,7 +276,7 @@ export function ProposalSection({ projectId, demoMode, onNotice }: SectionProps)
       <header>
         <div>
           <h2>Proposal & estimate</h2>
-          <p>Versioned commercial scope. Approval advances the project to pre-production.</p>
+          <p>Versioned scope for this project. Commercial totals remain in CCO OS.</p>
         </div>
         {!editing ? (
           <span className="cockpit-record-actions">
@@ -317,7 +318,18 @@ export function ProposalSection({ projectId, demoMode, onNotice }: SectionProps)
           {proposal.narrative ? <p className="cockpit-record-narrative">{proposal.narrative}</p> : null}
 
           {proposal.status === "draft" ? (
-            <EstimateLineEditor key={`${proposal.id}-v${proposal.version}`} proposal={proposal} onNotice={onNotice} />
+            editingEstimate ? (
+              <section className="cockpit-record-form" aria-label="Estimate lines">
+                <div className="cockpit-record-form-actions">
+                  <button type="button" onClick={() => setEditingEstimate(false)}>Done editing lines</button>
+                </div>
+                <EstimateLineEditor key={`${proposal.id}-v${proposal.version}`} proposal={proposal} onNotice={onNotice} />
+              </section>
+            ) : (
+              <div className="cockpit-record-form-actions">
+                <button type="button" onClick={() => setEditingEstimate(true)}>Review or edit estimate lines</button>
+              </div>
+            )
           ) : (
             <table className="cockpit-record-table">
               <thead>
@@ -406,6 +418,7 @@ export function PlanSection({ projectId, demoMode, onNotice }: SectionProps) {
     [workspace.planItems, projectId],
   );
   const [form, setForm] = useState({ kind: "task" as PlanItem["kind"], title: "", date: "", assignee: "" });
+  const [adding, setAdding] = useState(false);
 
   if (!demoMode) return <SectionEmpty title="Plan" body="Planning is available in the local workspace." />;
 
@@ -422,6 +435,7 @@ export function PlanSection({ projectId, demoMode, onNotice }: SectionProps) {
       return;
     }
     setForm({ kind: "task", title: "", date: "", assignee: "" });
+    setAdding(false);
     onNotice("Plan item added.");
   }
 
@@ -436,11 +450,14 @@ export function PlanSection({ projectId, demoMode, onNotice }: SectionProps) {
       <header>
         <div>
           <h2>Production plan</h2>
-          <p>Shoot days, milestones, and tasks with explicit status — the pre-production truth for this record.</p>
+          <p>Schedule, milestones, and tasks for pre-production.</p>
         </div>
+        <button type="button" onClick={() => setAdding((open) => !open)}>
+          <Plus size={16} /> {adding ? "Close" : "Add plan item"}
+        </button>
       </header>
 
-      <form className="cockpit-record-form" aria-label="Add plan item" onSubmit={(event) => { event.preventDefault(); addItem(); }}>
+      {adding ? <form className="cockpit-record-form" aria-label="Add plan item" onSubmit={(event) => { event.preventDefault(); addItem(); }}>
         <div className="cockpit-record-form-grid">
           <select className="input" value={form.kind} onChange={(event) => setForm((current) => ({ ...current, kind: event.target.value as PlanItem["kind"] }))} aria-label="Kind">
             <option value="task">Task</option>
@@ -453,8 +470,9 @@ export function PlanSection({ projectId, demoMode, onNotice }: SectionProps) {
         </div>
         <div className="cockpit-record-form-actions">
           <button type="submit"><Plus size={15} /> Add {form.kind.replace("_", " ")}</button>
+          <button type="button" onClick={() => setAdding(false)}>Cancel</button>
         </div>
-      </form>
+      </form> : null}
 
       {groups.map((group) => {
         const groupItems = items.filter((item) => item.kind === group.kind);

@@ -105,6 +105,7 @@ function loadModule(modulePath: string): Record<string, unknown> {
   };
   const evaluate = runInNewContext(
     `(function (require, module, exports) { ${transpile(modulePath)}\n })`,
+    { process: { env: {} } },
   ) as (loader: typeof localRequire, moduleRecord: typeof loadedModule, exports: unknown) => void;
   evaluate(localRequire, loadedModule, loadedModule.exports);
   return loadedModule.exports;

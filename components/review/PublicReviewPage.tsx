@@ -3,7 +3,7 @@
 import { sourceCatalog } from "@/lib/demo/source-catalog";
 
 import { useEffect, useRef, useState } from "react";
-import { useParams, useSearchParams } from "next/navigation";
+import { useParams, usePathname, useSearchParams } from "next/navigation";
 import {
   ArrowLeft,
   CheckCircle2,
@@ -178,6 +178,7 @@ function defaultActiveApprovalIds(
 
 export default function PublicReviewPage() {
   const { token } = useParams<{ token: string }>();
+  const pathname = usePathname();
   const searchParams = useSearchParams();
   const videoRef = useRef<HTMLVideoElement>(null);
   const imageRef = useRef<HTMLImageElement>(null);
@@ -244,7 +245,12 @@ export default function PublicReviewPage() {
   const [approvalSubmitting, setApprovalSubmitting] = useState(false);
   const [approvalError, setApprovalError] = useState("");
   const demoMode = token === "demo" || searchParams.get("demo") === "1";
-  const requestedDemoShareToken = demoMode ? searchParams.get("share") : null;
+  // Canonical local links keep the share token in the visible route after
+  // redirection; the proxy can still supply "demo" as the route param.
+  const pathShareToken = /^\/review\/([^/]+)$/.exec(pathname)?.[1];
+  const requestedDemoShareToken = demoMode
+    ? searchParams.get("share") ?? (pathShareToken !== "demo" ? pathShareToken : null) ?? null
+    : null;
   const requestedDemoShare = requestedDemoShareToken
     ? demoWorkspace.shareLinks.find((link) => link.token === requestedDemoShareToken)
     : null;
@@ -470,6 +476,9 @@ export default function PublicReviewPage() {
           );
           const initialVersion = requestedVersion ?? currentVersion(versionList) ?? demoVersion;
 
+          // Local shares arrive with the persisted workspace after hydration.
+          // A successful resolution must replace any initial missing-link error.
+          setError("");
           setAsset(restoredAsset);
           setVersion(demoVersion);
           setVersions(versionList);

@@ -1689,6 +1689,7 @@ export default function PublicReviewPage({
                     activeVersionId={activeVersion?.id ?? null}
                     onSelect={handleVersionSelect}
                     currentVersionOnly={currentVersionOnly}
+                    pinnedVersionId={requestedDemoShare?.version_id}
                   />
                 )}
                 {viewingOlderVersion ? (

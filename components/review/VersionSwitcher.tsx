@@ -23,6 +23,8 @@ interface VersionSwitcherProps {
    * older chips are hidden and the switcher says why.
    */
   currentVersionOnly?: boolean;
+  /** Exact cut fixed by this share; does not imply the asset's latest cut. */
+  pinnedVersionId?: string | null;
 }
 
 export default function VersionSwitcher({
@@ -30,6 +32,7 @@ export default function VersionSwitcher({
   activeVersionId,
   onSelect,
   currentVersionOnly = false,
+  pinnedVersionId = null,
 }: VersionSwitcherProps) {
   const ordered = sortVersions(versions);
   if (ordered.length === 0) return null;
@@ -66,14 +69,18 @@ export default function VersionSwitcher({
                     : "border-white/25 bg-white/5 text-white/85 hover:border-white/50 hover:text-white"
               }`}
             >
-              {versionBadgeLabel(version, isCurrent)}
+              {version.id === pinnedVersionId
+                ? `V${version.version_number} · Shared cut`
+                : versionBadgeLabel(version, isCurrent)}
             </button>
           );
         })}
       </div>
       {currentVersionOnly ? (
         <span className="text-[11px] text-white/60">
-          This link shows only the current version.
+          {pinnedVersionId && visible.some((version) => version.id === pinnedVersionId)
+            ? "This link stays on the shared cut."
+            : "This link shows only the current version."}
         </span>
       ) : null}
     </div>

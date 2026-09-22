@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { useDemoMode } from "@/lib/demo/mode";
 import { useDemoWorkspace } from "@/lib/demo/workspace-store";
 import { deriveActionItems } from "@/lib/portal/actions.ts";
 import { clientSafeActivity } from "@/lib/portal/activity.ts";
@@ -24,6 +25,7 @@ import styles from "./Portal.module.css";
  * projection of the live demo workspace; nothing here is hardcoded copy.
  */
 export default function PortalHome() {
+  const demoMode = useDemoMode();
   const workspace = useDemoWorkspace();
 
   const identity = useMemo(
@@ -70,8 +72,12 @@ export default function PortalHome() {
     let cancelled = false;
     const ids = projects.map((project) => project.id);
     if (ids.length === 0) {
-      setDeliverables([]);
-      return;
+      queueMicrotask(() => {
+        if (!cancelled) setDeliverables([]);
+      });
+      return () => {
+        cancelled = true;
+      };
     }
     Promise.all(
       ids.map((id) =>
@@ -124,7 +130,7 @@ export default function PortalHome() {
         <h1>Welcome back, {firstName}</h1>
         <p>Here&rsquo;s where things stand across your projects with Content Co-op.</p>
       </div>
-      <ActionItemsPanel items={actionItems} />
+      <ActionItemsPanel items={actionItems} demoMode={demoMode} />
       <ProjectList projects={projects} />
       <div className={styles.splitGrid}>
         <ReviewLinks reviews={reviews} projectNames={projectNames} />

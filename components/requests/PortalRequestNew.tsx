@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo } from "react";
+import Link from "next/link";
 import PortalShell from "@/components/portal/PortalShell";
 import { useDemoMode } from "@/lib/demo/mode";
 import { submitDemoRequest, useDemoWorkspace } from "@/lib/demo/workspace-store";
@@ -31,6 +32,28 @@ export default function PortalRequestNew() {
         .map((asset) => ({ id: asset.id, title: asset.title })),
     [workspace.assets],
   );
+
+  if (!demoMode) {
+    return (
+      <PortalShell clientName={clientName} userName={userName}>
+        <div className="mx-auto w-full max-w-2xl px-4 py-5" data-testid="portal-request-unavailable">
+          <div className="border-b border-[var(--border)] pb-4">
+            <p className="mb-1 text-[10px] font-bold uppercase text-[var(--dim)]">Requests</p>
+            <h1 className="text-[22px] font-bold leading-tight text-[var(--ink)]">Request intake unavailable</h1>
+            <p className="mt-1 text-sm text-[var(--muted)]">
+              Requests are not available in this workspace yet. Nothing has been saved or sent.
+            </p>
+          </div>
+          <Link
+            href="/portal"
+            className="mt-5 inline-flex min-h-11 items-center rounded-[var(--radius-sm)] border border-[var(--border)] px-4 text-sm font-bold text-[var(--ink)]"
+          >
+            Return to portal
+          </Link>
+        </div>
+      </PortalShell>
+    );
+  }
 
   return (
     <PortalShell clientName={clientName} userName={userName}>

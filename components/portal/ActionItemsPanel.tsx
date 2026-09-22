@@ -17,13 +17,15 @@ const KIND_ICONS: Record<PortalActionKind, typeof CircleCheck> = {
 
 export interface ActionItemsPanelProps {
   items: PortalActionItem[];
+  /** Browser-local request intake is only available in the explicitly local demo. */
+  demoMode: boolean;
 }
 
 /**
  * "What we need from you" — approvals, feedback, uploads, unanswered
  * questions, each with one clear action. Empty state stays honest.
  */
-export default function ActionItemsPanel({ items }: ActionItemsPanelProps) {
+export default function ActionItemsPanel({ items, demoMode }: ActionItemsPanelProps) {
   return (
     <section
       className={`${styles.section} ${styles.actionSection}`}
@@ -46,9 +48,11 @@ export default function ActionItemsPanel({ items }: ActionItemsPanelProps) {
               <span>Nothing needs your attention right now — we&rsquo;ll post here when it does.</span>
             </p>
           </div>
-          <Link className={styles.emptyCta} href="/portal/requests/new?demo=1">
-            Make a request
-          </Link>
+          {demoMode ? (
+            <Link className={styles.emptyCta} href="/portal/requests/new?demo=1">
+              Make a request
+            </Link>
+          ) : null}
         </div>
       ) : (
         <ul className={styles.actionList}>

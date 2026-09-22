@@ -163,7 +163,7 @@ test("action panel renders a derived approval linking to the real review surface
     approvalStages: fixtureStages,
   });
   const markup = renderToStaticMarkup(
-    React.createElement(ActionItemsPanel.default, { items }),
+    React.createElement(ActionItemsPanel.default, { items, demoMode: true }),
   );
   assert.match(markup, /What we need from you/);
   assert.match(markup, /Approve “Denie McDonald_v4”/);
@@ -174,14 +174,26 @@ test("action panel renders a derived approval linking to the real review surface
   );
 });
 
-test("action panel empty state is honest and exposes the local request route", () => {
-  const markup = renderToStaticMarkup(
-    React.createElement(ActionItemsPanel.default, { items: [] }),
+test("action panel exposes local intake only in the explicit demo", () => {
+  const demoMarkup = renderToStaticMarkup(
+    React.createElement(ActionItemsPanel.default, { items: [], demoMode: true }),
   );
-  assert.match(markup, /You’re all set\./);
-  assert.match(markup, /Make a request/);
-  assert.match(markup, /href="\/portal\/requests\/new\?demo=1"/);
-  assert.doesNotMatch(markup, /<ul/);
+  const nonDemoMarkup = renderToStaticMarkup(
+    React.createElement(ActionItemsPanel.default, { items: [], demoMode: false }),
+  );
+  assert.match(demoMarkup, /You’re all set\./);
+  assert.match(demoMarkup, /Make a request/);
+  assert.match(demoMarkup, /href="\/portal\/requests\/new\?demo=1"/);
+  assert.doesNotMatch(demoMarkup, /<ul/);
+  assert.match(nonDemoMarkup, /You’re all set\./);
+  assert.doesNotMatch(nonDemoMarkup, /Make a request/);
+  assert.doesNotMatch(nonDemoMarkup, /portal\/requests\/new/);
+});
+
+test("portal home threads its demo boundary into the action panel", () => {
+  const source = readFileSync(resolve(repositoryRoot, "components/portal/PortalHome.tsx"), "utf8");
+  assert.match(source, /const demoMode = useDemoMode\(\)/);
+  assert.match(source, /<ActionItemsPanel items=\{actionItems\} demoMode=\{demoMode\} \/>/);
 });
 
 /* ── Projects: plain-language status only ──────────────────────────────── */

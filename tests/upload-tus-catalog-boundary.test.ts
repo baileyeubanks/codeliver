@@ -13,6 +13,9 @@ type BoundaryState = typeof globalThis & {
   __ccoUploadBoundaryCatalogError: Error | null;
   __ccoUploadBoundaryCreateCalls: number;
   __ccoUploadBoundarySession: UploadSession;
+  __ccoUploadBoundaryAppendInput: Record<string, unknown> | null;
+  __ccoUploadBoundaryAfterTasks: Array<() => Promise<void> | void>;
+  __ccoUploadBoundaryRecoverCalls: number;
 };
 
 const state = globalThis as BoundaryState;
@@ -34,6 +37,11 @@ const configStubUrl = `data:text/javascript,${encodeURIComponent(`
     };
   }
 `)}`;
+const afterResponseStubUrl = `data:text/javascript,${encodeURIComponent(`
+  export function afterResponse(task) {
+    globalThis.__ccoUploadBoundaryAfterTasks.push(task);
+  }
+`)}`;
 const orchestratorStubUrl = `data:text/javascript,${encodeURIComponent(`
   export function createDefaultUploadOrchestrator() {
     return {
@@ -44,19 +52,24 @@ const orchestratorStubUrl = `data:text/javascript,${encodeURIComponent(`
           resumed: false
         };
       },
-      async appendPart() {
+      async appendPart(input) {
+        globalThis.__ccoUploadBoundaryAppendInput = input;
         return { session: globalThis.__ccoUploadBoundarySession, complete: true };
+      },
+      async resumeDeferredFinalization() {
+        return globalThis.__ccoUploadBoundarySession;
       },
       async getSession() {
         return globalThis.__ccoUploadBoundarySession;
       },
       async recoverSession() {
+        globalThis.__ccoUploadBoundaryRecoverCalls += 1;
         return globalThis.__ccoUploadBoundarySession;
       },
-      releaseReadiness() {
+      releaseReadiness(session) {
         return {
           derivativeState: "blocked",
-          originalReady: true,
+          originalReady: session.state === "committed",
           signedDeliveryReady: false,
           failClosed: true
         };
@@ -123,6 +136,9 @@ registerHooks({
     if (specifier === "@/lib/storage/config") {
       return nextResolve(configStubUrl, context);
     }
+    if (specifier === "@/lib/runtime/after-response") {
+      return nextResolve(afterResponseStubUrl, context);
+    }
     if (specifier === "@/lib/tus/orchestrator") {
       return nextResolve(orchestratorStubUrl, context);
     }
@@ -147,6 +163,9 @@ registerHooks({
 
 const uploadId = "11111111-1111-4111-8111-111111111111";
 const now = "2026-07-26T06:00:00.000Z";
+state.__ccoUploadBoundaryAppendInput = null;
+state.__ccoUploadBoundaryAfterTasks = [];
+state.__ccoUploadBoundaryRecoverCalls = 0;
 
 function committedSession(): UploadSession {
   return {
@@ -215,6 +234,80 @@ function committedSession(): UploadSession {
     lastError: null,
   };
 }
+
+test("final PATCH persists verifying and registers response-lifecycle finalization", async () => {
+  state.__ccoUploadBoundarySession = {
+    ...committedSession(),
+    state: "verifying",
+    computedSha256: null,
+    objectKey: null,
+    receipt: null,
+    scan: null,
+    catalog: {
+      state: "pending",
+      attempts: 0,
+      lastError: null,
+      updatedAt: now,
+    },
+  };
+  state.__ccoUploadBoundaryCatalogError = null;
+  state.__ccoUploadBoundaryAppendInput = null;
+  state.__ccoUploadBoundaryAfterTasks = [];
+  const { PATCH } = await import(
+    pathToFileURL(
+      resolve(repositoryRoot, "app/api/upload/tus/[uploadId]/route.ts"),
+    ).href
+  );
+  const response = await PATCH(
+    new NextRequest(`https://admin.contentco-op.com/api/upload/tus/${uploadId}`, {
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/offset+octet-stream",
+        "Tus-Resumable": "1.0.0",
+        "Upload-Offset": "0",
+      },
+      body: new Uint8Array([1]),
+      duplex: "half",
+    }),
+    { params: Promise.resolve({ uploadId }) },
+  );
+
+  assert.equal(response.status, 204);
+  assert.equal(response.headers.get("upload-state"), "verifying");
+  assert.equal(response.headers.get("upload-original-ready"), "false");
+  assert.equal(state.__ccoUploadBoundaryAppendInput?.deferFinalization, true);
+  assert.equal(state.__ccoUploadBoundaryAfterTasks.length, 1);
+});
+
+test("HEAD exposes an active deferred scan without waiting on its upload lock", async () => {
+  state.__ccoUploadBoundarySession = {
+    ...committedSession(),
+    state: "verifying",
+    computedSha256: "c".repeat(64),
+    objectKey: null,
+    receipt: null,
+    scan: null,
+    finalizationDeferred: true,
+  };
+  state.__ccoUploadBoundaryCatalogError = null;
+  state.__ccoUploadBoundaryRecoverCalls = 0;
+  const { HEAD } = await import(
+    pathToFileURL(
+      resolve(repositoryRoot, "app/api/upload/tus/[uploadId]/route.ts"),
+    ).href
+  );
+  const response = await HEAD(
+    new NextRequest(`https://admin.contentco-op.com/api/upload/tus/${uploadId}`, {
+      method: "HEAD",
+    }),
+    { params: Promise.resolve({ uploadId }) },
+  );
+
+  assert.equal(response.status, 200);
+  assert.equal(response.headers.get("upload-state"), "verifying");
+  assert.equal(response.headers.get("upload-original-ready"), "false");
+  assert.equal(state.__ccoUploadBoundaryRecoverCalls, 0);
+});
 
 test("final PATCH is retriable 503 when committed bytes cannot attach asset plus V1", async () => {
   state.__ccoUploadBoundarySession = committedSession();

@@ -77,6 +77,8 @@ type ScanRetryStatus = {
   originalReady?: boolean;
   message?: string;
   error?: string;
+  asset?: { id?: string };
+  version?: { id?: string; number?: number };
 };
 
 const WARN_EXT = new Set(["exe", "bat", "sh", "cmd", "msi"]);
@@ -255,6 +257,32 @@ export default function AssetUpload({
           console.error("[tus] Unable to clear confirmed upload resume record:", error);
         }
       };
+      const waitForSecurityClearance = async (uploadUrl: string) => {
+        const started = await fetch(`${uploadUrl}/scan`, {
+          method: "POST",
+          cache: "no-store",
+        });
+        let status = (await started.json()) as ScanRetryStatus;
+        if (!started.ok) {
+          throw new Error(
+            status.error ||
+              status.message ||
+              "The security scan could not be started",
+          );
+        }
+        for (let attempt = 0; attempt < 45 && status.state === "verifying"; attempt += 1) {
+          const response = await fetch(`${uploadUrl}/scan`, { cache: "no-store" });
+          status = (await response.json()) as ScanRetryStatus;
+          if (!response.ok) {
+            throw new Error(
+              status.error ||
+                status.message ||
+                "The security scan status could not be confirmed",
+            );
+          }
+        }
+        return status;
+      };
       const upload = new tus.Upload(item.file, {
         endpoint: "/api/upload/tus",
         chunkSize: readiness.maxChunkBytes,
@@ -304,10 +332,29 @@ export default function AssetUpload({
           });
         },
         async onSuccess() {
-          const quarantined = serverState !== "committed" || !originalReleaseReady;
           updateItem(item.id, { status: "processing", progress: 100,
             bytesUploaded: item.bytesTotal, bytesTotal: item.bytesTotal });
           try {
+            if (serverState === "verifying" && upload.url) {
+              const status = await waitForSecurityClearance(upload.url);
+              serverState = status.state || serverState;
+              originalReleaseReady = status.originalReady === true;
+              scanRetryable = status.retryable === true || status.state === "verifying";
+              if (status.asset?.id) uploadAssetHeader = JSON.stringify(status.asset);
+              if (status.version?.id && Number.isSafeInteger(status.version.number)) {
+                uploadVersionHeader = JSON.stringify(status.version);
+              }
+              if (status.state === "rejected") {
+                updateItem(item.id, {
+                  status: "rejected",
+                  scanRetryable: false,
+                  uploadUrl: upload.url,
+                  error: status.message || "Security scan rejected this file. It remains unavailable for review.",
+                });
+                return;
+              }
+            }
+            const quarantined = serverState !== "committed" || !originalReleaseReady;
             const completion = parseUploadCompletionReceipt({
               get(name) {
                 if (name === "Upload-Asset") return uploadAssetHeader;
@@ -320,9 +367,11 @@ export default function AssetUpload({
                 status: "quarantined",
                 scanRetryable,
                 uploadUrl: upload.url ?? undefined,
-                error: scanRetryable
+                error: serverState === "verifying"
+                  ? "Security scan is still running against the verified upload. Check again without uploading the file again."
+                  : scanRetryable
                   ? "Security scan timed out. Your verified upload is retained and still quarantined; retry the scan without uploading the file again."
-                  : "Security scanning has not cleared this file. It remains quarantined and unavailable for review.",
+                  : "Security scanning has not cleared this file. It remains quarantined and unavailable for review. Check again without uploading the file again.",
               });
               return;
             }
@@ -336,9 +385,16 @@ export default function AssetUpload({
             await removeReceiptFingerprint();
             await onUploadComplete([completion]);
             updateItem(item.id, { status: "done" });
-          } catch {
-            updateItem(item.id, { status: quarantined ? "quarantined" : "done",
-              error: "File saved. Reload the project to refresh your media list." });
+          } catch (error) {
+            updateItem(item.id, {
+              status: serverState === "committed" ? "done" : "quarantined",
+              scanRetryable: serverState !== "committed",
+              uploadUrl: upload.url ?? undefined,
+              error:
+                serverState === "committed"
+                  ? "File saved. Reload the project to refresh your media list."
+                  : `${error instanceof Error ? error.message : "Security scan status is unavailable"}. The verified upload remains quarantined; checking again will not upload it again.`,
+            });
           }
         },
         onError(error) {

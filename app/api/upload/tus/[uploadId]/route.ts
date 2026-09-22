@@ -3,6 +3,7 @@ import { apiJson } from "@/lib/api/responses";
 
 import { requireAuth } from "@/lib/auth";
 import { readStorageConfig } from "@/lib/storage/config";
+import { afterResponse } from "@/lib/runtime/after-response";
 import { createDefaultUploadOrchestrator } from "@/lib/tus/orchestrator";
 import type { UploadSessionReleaseReadiness } from "@/lib/tus/orchestrator";
 import type { UploadSession } from "@/lib/tus/session";
@@ -21,6 +22,7 @@ import {
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
+export const maxDuration = 960;
 
 type RouteParams = { params: Promise<{ uploadId: string }> };
 
@@ -71,6 +73,26 @@ async function attachCatalogIfCommitted(
   return (await orchestrator.getSession(session.id, userId)) ?? session;
 }
 
+function scheduleDeferredFinalization(
+  orchestrator: ReturnType<typeof createDefaultUploadOrchestrator>,
+  uploadId: string,
+  userId: string,
+): void {
+  afterResponse(async () => {
+    try {
+      const session = await orchestrator.resumeDeferredFinalization(uploadId, userId);
+      if (session.state === "committed") {
+        await ensureCatalogAsset(orchestrator, session, userId);
+      }
+    } catch (error) {
+      console.error(
+        "[upload] Deferred security scan failed closed:",
+        error instanceof Error ? error.message : "unknown error",
+      );
+    }
+  });
+}
+
 export async function OPTIONS() {
   return new NextResponse(null, { status: 204, headers: headers() });
 }
@@ -83,8 +105,14 @@ export async function HEAD(_request: NextRequest, { params }: RouteParams) {
     assertUploadStorageConfigured(readStorageConfig());
     const { uploadId } = await params;
     const orchestrator = createDefaultUploadOrchestrator();
-    let session = await orchestrator.recoverSession(uploadId, user.id);
+    let session = await orchestrator.getSession(uploadId, user.id);
     if (!session) return new NextResponse(null, { status: 404, headers: responseHeaders });
+    // The deferred marker remains durable while ClamAV owns the upload lock.
+    // Expose progress immediately instead of making Tus HEAD wait for the scan.
+    if (!(session.state === "verifying" && session.finalizationDeferred === true)) {
+      session = await orchestrator.recoverSession(uploadId, user.id);
+      if (!session) return new NextResponse(null, { status: 404, headers: responseHeaders });
+    }
     session = await attachCatalogIfCommitted(orchestrator, session, user.id);
     return new NextResponse(null, {
       status: 200,
@@ -146,7 +174,11 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
       expectedPartSha256: parseUploadChecksum(
         request.headers.get("upload-checksum")
       ),
+      deferFinalization: true,
     });
+    if (result.complete && result.session.state === "verifying") {
+      scheduleDeferredFinalization(orchestrator, uploadId, user.id);
+    }
     const session = await attachCatalogIfCommitted(
       orchestrator,
       result.session,

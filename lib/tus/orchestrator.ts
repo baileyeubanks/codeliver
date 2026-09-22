@@ -466,6 +466,7 @@ export class UploadOrchestrator {
         objectKey: null,
         receipt: null,
         scan: null,
+        finalizationDeferred: false,
         partCount: 0,
         lastPartSha256: null,
         assetId,
@@ -837,6 +838,7 @@ export class UploadOrchestrator {
     session.computedSha256 = inspection.sha256;
     if (inspection.size !== session.size) {
       session.state = "failed";
+      session.finalizationDeferred = false;
       session.lastError = {
         code: "SIZE_MISMATCH",
         message: `Expected ${session.size} bytes, found ${inspection.size}`,
@@ -847,6 +849,7 @@ export class UploadOrchestrator {
     }
     if (session.expectedSha256 && session.expectedSha256 !== inspection.sha256) {
       session.state = "rejected";
+      session.finalizationDeferred = false;
       session.lastError = {
         code: "CHECKSUM_MISMATCH",
         message: "Object checksum did not match the declared SHA-256",
@@ -867,6 +870,7 @@ export class UploadOrchestrator {
       inspection.sha256,
       () => this.adapter.openMultipartReadStream(session.providerHandle)
     );
+    session.finalizationDeferred = false;
     return this.applyScanResult(session, scan);
   }
 
@@ -1049,6 +1053,20 @@ export class UploadOrchestrator {
       return session;
     }
 
+    // A completed PATCH can intentionally persist this exact state before its
+    // response-lifecycle scan starts. Ordinary Tus HEAD/PATCH recovery must be
+    // fast and side-effect free; the explicit scan endpoint resumes the work.
+    if (
+      session.state === "verifying" &&
+      session.offset === session.size &&
+      session.scan === null &&
+      session.finalizationDeferred === true &&
+      session.receipt === null &&
+      session.objectKey === null
+    ) {
+      return session;
+    }
+
     if (
       session.state === "verifying" &&
       session.scan?.verdict === "clean" &&
@@ -1152,6 +1170,15 @@ export class UploadOrchestrator {
       });
 
       if (session.offset === session.size) {
+        if (input.deferFinalization) {
+          session.state = "verifying";
+          session.finalizationDeferred = true;
+          await this.save(session);
+          await this.event(session, "verification-started", {
+            deferred: true,
+          });
+          return { session, complete: true };
+        }
         const finalized = await this.finalizeLocked(session);
         return { session: finalized, complete: true };
       }
@@ -1172,6 +1199,34 @@ export class UploadOrchestrator {
       if (!session) return null;
       this.assertTenant(session, tenantId);
       return this.recoverLocked(session);
+    });
+  }
+
+  async resumeDeferredFinalization(
+    uploadId: string,
+    tenantId: string,
+  ): Promise<UploadSession> {
+    return this.sessions.withLock(uploadId, async () => {
+      const session = await this.sessions.get(uploadId);
+      if (!session) {
+        throw new UploadOrchestrationError("UPLOAD_NOT_FOUND", "Upload not found");
+      }
+      this.assertTenant(session, tenantId);
+      if (session.state === "committed") return session;
+      if (
+        session.state !== "verifying" ||
+        session.offset !== session.size ||
+        session.scan !== null ||
+        session.finalizationDeferred !== true ||
+        session.receipt !== null ||
+        session.objectKey !== null
+      ) {
+        throw new UploadOrchestrationError(
+          "UPLOAD_STATE",
+          "Only a complete deferred upload can resume finalization",
+        );
+      }
+      return this.finalizeLocked(session);
     });
   }
 

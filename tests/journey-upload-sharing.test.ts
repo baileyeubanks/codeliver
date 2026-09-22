@@ -136,7 +136,9 @@ test("the resumable upload surface exposes readiness, progress, pause, retry, qu
   assert.match(uploader, /fetch\("\/api\/storage\/readiness"/);
   assert.match(uploader, /endpoint: "\/api\/upload\/tus"/);
   assert.match(uploader, /onProgress\(bytesUploaded, bytesTotal\)/);
-  assert.match(uploader, /status: quarantined \? "quarantined" : "done"/);
+  assert.match(uploader, /waitForSecurityClearance/);
+  assert.match(uploader, /status: "quarantined"/);
+  assert.match(uploader, /status: "done"/);
   assert.match(uploader, /pauseUpload/);
   assert.match(uploader, /resumeUpload/);
   assert.match(uploader, /retryUpload/);

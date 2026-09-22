@@ -5,6 +5,7 @@ import { NextRequest } from "next/server";
 import { apiJson } from "@/lib/api/responses";
 import { requireAuth } from "@/lib/auth";
 import { readStorageConfig } from "@/lib/storage/config";
+import { afterResponse } from "@/lib/runtime/after-response";
 import { createDefaultUploadOrchestrator } from "@/lib/tus/orchestrator";
 import type { UploadSession } from "@/lib/tus/session";
 import {
@@ -15,6 +16,7 @@ import {
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
+export const maxDuration = 960;
 
 type RouteParams = { params: Promise<{ uploadId: string }> };
 
@@ -71,24 +73,44 @@ export async function POST(_request: NextRequest, { params }: RouteParams) {
     assertUploadStorageConfigured(readStorageConfig());
     const { uploadId } = await params;
     const orchestrator = createDefaultUploadOrchestrator();
-    const session = await orchestrator.beginMalwareScanRetry(uploadId, user.id);
+    const current = await orchestrator.getSession(uploadId, user.id);
+    if (!current) {
+      return apiJson({ error: "Upload not found", code: "UPLOAD_NOT_FOUND" }, { status: 404, headers: NO_STORE });
+    }
+    if (current.state === "committed") {
+      await ensureCatalogAsset(orchestrator, current, user.id);
+      const attached = (await orchestrator.getSession(uploadId, user.id)) ?? current;
+      return apiJson(statusPayload(attached), { status: 200, headers: NO_STORE });
+    }
+    const deferred =
+      current.state === "verifying" &&
+      current.offset === current.size &&
+      current.scan === null &&
+      current.finalizationDeferred === true &&
+      current.receipt === null &&
+      current.objectKey === null;
+    const session = deferred
+      ? current
+      : await orchestrator.beginMalwareScanRetry(uploadId, user.id);
 
-    // The M2 runtime is a durable Node process. Persist `verifying` before this
-    // detached attempt so a process restart leaves a recoverable, retryable
-    // session rather than accepting or discarding unscanned bytes.
-    void orchestrator
-      .resumeMalwareScanRetry(uploadId, user.id)
-      .then(async (result) => {
+    // Persisted `verifying` is the restart boundary. Next's response lifecycle
+    // keeps the full scan outside the client request while graceful shutdown
+    // waits for the callback; a later POST safely resumes after a hard restart.
+    afterResponse(async () => {
+      try {
+        const result = deferred
+          ? await orchestrator.resumeDeferredFinalization(uploadId, user.id)
+          : await orchestrator.resumeMalwareScanRetry(uploadId, user.id);
         if (result.state === "committed") {
           await ensureCatalogAsset(orchestrator, result, user.id);
         }
-      })
-      .catch((error: unknown) => {
+      } catch (error: unknown) {
         console.error(
-          "[upload] Retained-byte security scan retry failed closed:",
+          "[upload] Response-lifecycle security scan failed closed:",
           error instanceof Error ? error.message : "unknown error",
         );
-      });
+      }
+    });
 
     return apiJson(statusPayload(session), { status: 202, headers: NO_STORE });
   } catch (error) {

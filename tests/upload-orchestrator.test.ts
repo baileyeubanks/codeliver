@@ -946,6 +946,65 @@ test("timeout quarantine retries the scan against retained verified bytes withou
   }
 });
 
+test("completed upload defers the full scan, survives HEAD recovery, and commits from retained bytes", async () => {
+  const root = mkdtempSync(join(tmpdir(), "codeliver-session-deferred-finalize-"));
+  let scans = 0;
+  const scanner: MalwareScanHook = {
+    async scan() {
+      scans += 1;
+      return {
+        verdict: "clean",
+        engine: "test-scanner",
+        signature: null,
+        detail: "Retained bytes are clean",
+        scannedAt: new Date().toISOString(),
+      };
+    },
+  };
+  try {
+    const orchestrator = createOrchestrator(root, scanner);
+    const created = await orchestrator.createSession(createInput());
+    const accepted = await orchestrator.appendPart({
+      uploadId: created.session.id,
+      tenantId: "tenant-a",
+      offset: 0,
+      chunks: chunks("payload"),
+      deferFinalization: true,
+    });
+
+    assert.equal(accepted.complete, true);
+    assert.equal(accepted.session.state, "verifying");
+    assert.equal(accepted.session.offset, accepted.session.size);
+    assert.equal(accepted.session.scan, null);
+    assert.equal(scans, 0, "the final PATCH boundary must not run the full scan");
+
+    const recovered = await orchestrator.recoverSession(
+      created.session.id,
+      "tenant-a",
+    );
+    assert.equal(recovered?.state, "verifying");
+    assert.equal(scans, 0, "ordinary Tus HEAD recovery must remain fast");
+
+    const committed = await orchestrator.resumeDeferredFinalization(
+      created.session.id,
+      "tenant-a",
+    );
+    assert.equal(committed.state, "committed");
+    assert.equal(committed.scan?.verdict, "clean");
+    assert.equal(committed.offset, committed.size);
+    assert.equal(scans, 1);
+
+    const idempotent = await orchestrator.resumeDeferredFinalization(
+      created.session.id,
+      "tenant-a",
+    );
+    assert.equal(idempotent.state, "committed");
+    assert.equal(scans, 1, "a duplicate lifecycle callback must not rescan bytes");
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
 test("scan retry is timeout-only and can never retry infected or unrelated scanner errors", async () => {
   const cases: Array<{ name: string; scanner: MalwareScanHook; expectedState: string }> = [
     {

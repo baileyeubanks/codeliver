@@ -58,6 +58,9 @@ export interface UploadSession {
   objectKey: string | null;
   receipt: StoredObjectReceipt | null;
   scan: MalwareScanResult | null;
+  /** True only between the prompt final PATCH response and the response-lifecycle
+   * finalizer claiming the retained multipart. Older sessions normalize false. */
+  finalizationDeferred?: boolean;
   partCount: number;
   lastPartSha256: string | null;
   assetId: string | null;
@@ -117,6 +120,9 @@ export interface AppendUploadPartInput {
   offset: number;
   chunks: AsyncIterable<Uint8Array>;
   expectedPartSha256?: string;
+  /** Persist the completed multipart as `verifying` and let a response-lifecycle
+   * task perform the potentially long security scan. */
+  deferFinalization?: boolean;
 }
 
 export interface AppendUploadPartResult {

@@ -13,6 +13,8 @@ import {
   sequenceTimelineDuration,
   timelineSecondsForClipSource,
 } from "../lib/projects/sequence-playback.ts";
+import * as sequencePlayback from "../lib/projects/sequence-playback.ts";
+import type { DemoMediaVersion } from "../lib/demo/media-version-authority.ts";
 import type { SequenceClip } from "../lib/covideopro/record.ts";
 
 const clip = (id: string, asset_id: string, timelineIn: number, timelineOut: number, sourceIn: number, sourceOut: number): SequenceClip => ({
@@ -26,6 +28,139 @@ const clips = [
   clip("first", "source-a", 0, 5, 40, 45),
   clip("second", "source-b", 5, 8, 10, 13),
 ];
+
+const version = (overrides: Partial<DemoMediaVersion>): DemoMediaVersion => ({
+  id: "version-v1",
+  asset_id: "source-a",
+  version_number: 1,
+  media_blob_id: null,
+  source_url: "https://media.test/source-v1.mp4",
+  thumbnail_blob_id: null,
+  file_name: "source-v1.mp4",
+  file_type: "video",
+  file_size: 1200,
+  duration_seconds: 10,
+  created_at: "2026-09-22T00:00:00.000Z",
+  is_current: false,
+  ...overrides,
+});
+
+test("sequence clips preserve their exact V1 and V2 media identities", () => {
+  const resolve = (sequencePlayback as unknown as {
+    resolveSequenceClipMedia?: (input: unknown) => unknown;
+  }).resolveSequenceClipMedia;
+  assert.equal(typeof resolve, "function", "sequence playback must resolve a clip against its exact version");
+  if (!resolve) return;
+
+  const assets = [{ id: "source-a", title: "Source A", file_url: "https://media.test/current-v2.mp4" }];
+  const v1 = version({ id: "version-v1", version_number: 1, source_url: "https://media.test/source-v1.mp4" });
+  const v2 = version({
+    id: "version-v2",
+    version_number: 2,
+    media_blob_id: "blob-version-v2",
+    source_url: null,
+    file_name: "source-v2.mp4",
+    is_current: true,
+  });
+
+  const v1Result = resolve({ clip: { ...clips[0], version_id: v1.id }, assets, versions: [v1, v2] }) as {
+    status: string; version?: { id: string; version_number: number }; sourceUrl?: string | null; mediaBlobId?: string | null;
+  };
+  assert.deepEqual(v1Result, {
+    status: "ready",
+    asset: assets[0],
+    version: v1,
+    sourceUrl: "https://media.test/source-v1.mp4",
+    mediaBlobId: null,
+    label: "Source A · V1",
+  });
+
+  const v2Result = resolve({ clip: { ...clips[0], version_id: v2.id }, assets, versions: [v1, v2] }) as {
+    status: string; version?: { id: string }; sourceUrl?: string | null; mediaBlobId?: string | null;
+  };
+  assert.equal(v2Result.status, "ready");
+  assert.equal(v2Result.version?.id, "version-v2");
+  assert.equal(v2Result.sourceUrl, null);
+  assert.equal(v2Result.mediaBlobId, "blob-version-v2");
+});
+
+test("unknown, mismatched, and duplicate version identities never fall forward to current media", () => {
+  const resolve = (sequencePlayback as unknown as {
+    resolveSequenceClipMedia?: (input: unknown) => unknown;
+  }).resolveSequenceClipMedia;
+  assert.equal(typeof resolve, "function", "sequence playback must reject unproven version bindings");
+  if (!resolve) return;
+
+  const assets = [{ id: "source-a", title: "Source A", file_url: "https://media.test/current-v2.mp4" }];
+  const current = version({ id: "version-v2", version_number: 2, media_blob_id: "blob-version-v2", source_url: null, is_current: true });
+  const unknown = resolve({ clip: { ...clips[0], version_id: "missing-v1" }, assets, versions: [current] }) as { status: string; sourceUrl?: string | null; mediaBlobId?: string | null };
+  assert.deepEqual(unknown, {
+    status: "unavailable",
+    asset: assets[0],
+    versionId: "missing-v1",
+    label: "Source A · version missing-v1",
+    reason: "The selected version is unavailable.",
+  });
+
+  const mismatched = resolve({
+    clip: { ...clips[0], version_id: "version-other" },
+    assets,
+    versions: [version({ id: "version-other", asset_id: "source-b", source_url: "https://media.test/other.mp4" }), current],
+  }) as { status: string };
+  assert.equal(mismatched.status, "unavailable");
+
+  const duplicate = resolve({
+    clip: { ...clips[0], version_id: "version-v1" },
+    assets,
+    versions: [version({ id: "version-v1" }), version({ id: "version-v1", source_url: "https://media.test/other-v1.mp4" }), current],
+  }) as { status: string };
+  assert.equal(duplicate.status, "unavailable");
+
+  const blank = resolve({
+    clip: { ...clips[0], version_id: "   " },
+    assets,
+    versions: [current],
+  }) as { status: string; label?: string };
+  assert.equal(blank.status, "unavailable");
+  assert.equal(blank.label, "Source A · invalid version");
+
+  const duplicateAsset = resolve({
+    clip: { ...clips[0], version_id: "version-v2" },
+    assets: [assets[0], { ...assets[0] }],
+    versions: [current],
+  }) as { status: string };
+  assert.equal(duplicateAsset.status, "unavailable");
+});
+
+test("version-absent legacy sequence clips resolve the one current cut, then ordinary asset media", () => {
+  const resolve = (sequencePlayback as unknown as {
+    resolveSequenceClipMedia?: (input: unknown) => unknown;
+  }).resolveSequenceClipMedia;
+  assert.equal(typeof resolve, "function", "legacy clips need documented current-media semantics");
+  if (!resolve) return;
+
+  const versionedAsset = { id: "source-a", title: "Source A", file_url: "https://media.test/stale-asset-url.mp4" };
+  const current = version({ id: "version-v2", version_number: 2, media_blob_id: "blob-version-v2", source_url: null, is_current: true });
+  const currentResult = resolve({ clip: clips[0], assets: [versionedAsset], versions: [current] }) as {
+    status: string; version?: { id: string }; sourceUrl?: string | null; mediaBlobId?: string | null;
+  };
+  assert.equal(currentResult.status, "ready");
+  assert.equal(currentResult.version?.id, "version-v2");
+  assert.equal(currentResult.mediaBlobId, "blob-version-v2");
+
+  const ordinaryAsset = { id: "source-a", title: "Source A", file_url: "https://media.test/current.mp4" };
+  const ordinaryResult = resolve({ clip: clips[0], assets: [ordinaryAsset], versions: [] }) as {
+    status: string; version?: unknown; sourceUrl?: string | null; mediaBlobId?: string | null;
+  };
+  assert.deepEqual(ordinaryResult, {
+    status: "ready",
+    asset: ordinaryAsset,
+    version: null,
+    sourceUrl: "https://media.test/current.mp4",
+    mediaBlobId: null,
+    label: "Source A · current media",
+  });
+});
 
 test("sequence playback resolves ordered, repeated, and cross-source clips by exact identity", () => {
   assert.deepEqual(orderSequenceClips(clips).map((item) => item.id), ["first", "second", "third"]);

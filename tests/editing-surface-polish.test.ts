@@ -36,9 +36,27 @@ test("timeline uses first exact source frame, ignores stale paused events, and p
 
   assert.match(component, /initialSeekAppliedRef/);
   assert.match(component, /video\.currentTime = pending\.target\.sourceSeconds/);
-  assert.match(component, /if \(!playbackIntentRef\.current\.desiredPlaying \|\| pendingSeekRef\.current\) return/);
+  assert.match(component, /if \(!playbackIntentRef\.current\.desiredPlaying \|\| pendingSeekRef\.current \|\| pendingTargetRef\.current\) return/);
   assert.match(component, /canResolvePlaybackRequest\(playbackIntentRef\.current, pending\.request, video\.currentSrc\)/);
   assert.match(component, /pausePlaybackRequest\(playbackIntentRef\.current, pendingSeekRef\.current\?\.request \?\? null\)/);
   assert.match(component, /style=\{\{ left: `\$\{left\}%`, width: `\$\{width\}%` \}\}/);
   assert.match(styles, /\.cv-timeline__clip \{ position: absolute; top: 0; bottom: 0;/);
+});
+
+test("timeline receives a version-bound source resolver and visibly fails closed instead of previewing a newer cut", () => {
+  const sections = source("components/projects/ProjectRecordSections.tsx");
+  const timeline = source("components/projects/SequenceTimeline.tsx");
+
+  assert.match(sections, /resolveSequenceClipMedia\(\{ clip, assets: workspace\.assets, versions: workspace\.mediaVersions \}\)/);
+  assert.match(sections, /resolveMedia=\{resolveSequenceMedia\}/);
+  assert.match(timeline, /resolveMedia: \(clip: SequenceClip\) => SequenceClipMedia/);
+  assert.match(timeline, /useSequenceMediaUrl\(activeMedia\)/);
+  assert.match(timeline, /activeMedia\.label\} — \$\{activeMedia\.reason\}/);
+  assert.match(timeline, /browser-local copy of \$\{activeMedia\?\.label/);
+  assert.match(timeline, /URL\.revokeObjectURL/);
+  assert.match(timeline, /useLayoutEffect/);
+  assert.match(timeline, /activeMediaUrl\.unavailable/);
+  assert.match(timeline, /Sequence playback paused\./);
+  assert.match(timeline, /reel: resolveMedia\(clip\)\.label/);
+  assert.match(timeline, /activeMedia\.label/);
 });

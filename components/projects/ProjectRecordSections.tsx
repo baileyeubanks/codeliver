@@ -42,6 +42,7 @@ import { captionsFilename, segmentsToSrt, segmentsToVtt } from "@/lib/covideopro
 import { projectShotRollup } from "@/lib/covideopro/shots.ts";
 import { qcChecklistFor, qcProgress } from "@/lib/covideopro/qc.ts";
 import { buildDeliveryManifest } from "@/lib/covideopro/manifest.ts";
+import { resolveSequenceClipMedia } from "@/lib/projects/sequence-playback.ts";
 import SequenceTimeline from "@/components/projects/SequenceTimeline";
 import EstimateLineEditor from "@/components/projects/EstimateLineEditor";
 import {
@@ -51,6 +52,7 @@ import {
   proposalEstimateTotal,
   proposalTotals,
   type PlanItem,
+  type SequenceClip,
 } from "@/lib/covideopro/record.ts";
 
 interface SectionProps {
@@ -686,6 +688,11 @@ export function SequencesSection({ projectId, demoMode, onNotice }: SectionProps
   const [name, setName] = useState("");
   const [renderingId, setRenderingId] = useState<string | null>(null);
   const [activeSequenceId, setActiveSequenceId] = useState<string | null>(null);
+  const resolveSequenceMedia = useMemo(
+    () => (clip: SequenceClip) =>
+      resolveSequenceClipMedia({ clip, assets: workspace.assets, versions: workspace.mediaVersions }),
+    [workspace.assets, workspace.mediaVersions],
+  );
 
   if (!demoMode) return <SectionEmpty title="Sequences" body="Sequences are available in the local workspace." />;
 
@@ -872,7 +879,7 @@ export function SequencesSection({ projectId, demoMode, onNotice }: SectionProps
             key={activeSequence.id}
             sequence={activeSequence}
             clips={activeClips}
-            assets={workspace.assets}
+            resolveMedia={resolveSequenceMedia}
             onNotice={onNotice}
           />
         </section>

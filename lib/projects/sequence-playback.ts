@@ -1,4 +1,131 @@
 import type { SequenceClip } from "@/lib/covideopro/record.ts";
+import { currentDemoMediaVersion, type DemoMediaVersion } from "../demo/media-version-authority.ts";
+
+export interface SequenceTimelineAsset {
+  id: string;
+  title: string;
+  file_url?: string | null;
+}
+
+export type SequenceClipMedia =
+  | {
+    status: "ready";
+    asset: SequenceTimelineAsset;
+    version: DemoMediaVersion | null;
+    sourceUrl: string | null;
+    mediaBlobId: string | null;
+    label: string;
+  }
+  | {
+    status: "unavailable";
+    asset: SequenceTimelineAsset | null;
+    versionId: string | null;
+    label: string;
+    reason: string;
+  };
+
+function versionLabel(asset: SequenceTimelineAsset | null, version: DemoMediaVersion | null, versionId: string | null) {
+  const title = asset?.title ?? "Unknown media";
+  if (version) return `${title} · V${version.version_number}`;
+  if (versionId) return `${title} · version ${versionId}`;
+  return `${title} · current media`;
+}
+
+/**
+ * Resolve one timeline clip to its recorded source identity. A clip that names
+ * a version is never allowed to follow an asset's mutable current URL.
+ */
+export function resolveSequenceClipMedia(input: {
+  clip: Pick<SequenceClip, "asset_id" | "version_id">;
+  assets: readonly SequenceTimelineAsset[];
+  versions: readonly DemoMediaVersion[];
+}): SequenceClipMedia {
+  const assetMatches = input.assets.filter((candidate) => candidate.id === input.clip.asset_id);
+  const asset = assetMatches.length === 1 ? assetMatches[0] : null;
+  const hasExplicitVersion = input.clip.version_id !== null;
+  const versionId = hasExplicitVersion ? input.clip.version_id?.trim() ?? null : null;
+  if (!asset) {
+    return {
+      status: "unavailable",
+      asset: null,
+      versionId,
+      label: versionLabel(null, null, versionId),
+      reason: "The selected media is unavailable.",
+    };
+  }
+
+  if (hasExplicitVersion) {
+    if (!versionId) {
+      return {
+        status: "unavailable",
+        asset,
+        versionId: null,
+        label: `${asset.title} · invalid version`,
+        reason: "The selected version is unavailable.",
+      };
+    }
+    const matches = input.versions.filter((candidate) => candidate.id === versionId);
+    const version = matches.length === 1 && matches[0]?.asset_id === asset.id ? matches[0] : null;
+    if (!version || (!version.source_url && !version.media_blob_id)) {
+      return {
+        status: "unavailable",
+        asset,
+        versionId,
+        label: versionLabel(asset, null, versionId),
+        reason: "The selected version is unavailable.",
+      };
+    }
+    return {
+      status: "ready",
+      asset,
+      version,
+      sourceUrl: version.source_url,
+      mediaBlobId: version.media_blob_id,
+      label: versionLabel(asset, version, versionId),
+    };
+  }
+
+  const scopedVersions = input.versions.filter((candidate) => candidate.asset_id === asset.id);
+  if (scopedVersions.length > 0) {
+    const current = currentDemoMediaVersion(scopedVersions, asset.id);
+    if (!current || (!current.source_url && !current.media_blob_id)) {
+      return {
+        status: "unavailable",
+        asset,
+        versionId: null,
+        label: versionLabel(asset, null, null),
+        reason: "The current version is unavailable.",
+      };
+    }
+    return {
+      status: "ready",
+      asset,
+      version: current,
+      sourceUrl: current.source_url,
+      mediaBlobId: current.media_blob_id,
+      label: versionLabel(asset, current, null),
+    };
+  }
+
+  if (asset.file_url) {
+    return {
+      status: "ready",
+      asset,
+      version: null,
+      sourceUrl: asset.file_url,
+      mediaBlobId: null,
+      label: versionLabel(asset, null, null),
+    };
+  }
+
+  return {
+    status: "unavailable",
+    asset,
+    versionId: null,
+    label: versionLabel(asset, null, null),
+    reason: "The current media is unavailable.",
+  };
+}
 
 export interface SequencePlaybackTarget {
   kind: "clip";

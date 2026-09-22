@@ -156,6 +156,8 @@ interface ProjectCockpitProps {
   /** Continues a revision after its exact target is verified, preserving native picker activation. */
   onUploadChooseRevisionFile?: () => void;
   onUploadDismiss?: () => void;
+  /** Refreshes the server-owned asset projection after a producer mutation. */
+  onRefreshAssets?: () => Promise<void>;
 }
 
 type CockpitApprovalStage = Omit<DemoApprovalStage, "status"> & { status: string };
@@ -493,6 +495,7 @@ export default function ProjectCockpit({
   revisionUploadsAvailable,
   onUploadChooseRevisionFile,
   onUploadDismiss,
+  onRefreshAssets,
 }: ProjectCockpitProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -597,9 +600,9 @@ export default function ProjectCockpit({
   const [approvalSetupLabel, setApprovalSetupLabel] = useState("Client approval");
   const [approvalSetupError, setApprovalSetupError] = useState("");
   const [approvalSetupSubmitting, setApprovalSetupSubmitting] = useState(false);
-  const [createdApprovalStages, setCreatedApprovalStages] = useState<{
-    assetId: string;
-    stages: CockpitApprovalStage[];
+  const [approvalShareDefaults, setApprovalShareDefaults] = useState<{
+    intent: "approval_needed";
+    reviewerEmail: string;
   } | null>(null);
   const [systemsReadiness, setSystemsReadiness] = useState<CockpitReadinessState>(DEFAULT_COCKPIT_READINESS);
   const handleHlsPlaybackError = useCallback(() => {
@@ -690,6 +693,14 @@ export default function ProjectCockpit({
   const activeLiveReviewKey = activeAsset && activeLiveVersion
     ? `${activeAsset.id}:${activeLiveVersion.id}`
     : null;
+  const activeReviewTargetRef = useRef({
+    assetId: activeAsset?.id ?? null,
+    versionId: activeLiveVersion?.id ?? null,
+  });
+  activeReviewTargetRef.current = {
+    assetId: activeAsset?.id ?? null,
+    versionId: activeLiveVersion?.id ?? null,
+  };
   const activeLiveMediaUrl = activeLiveVersion
     ? activeLiveVersion.file_url.startsWith("/api/assets/")
       ? activeLiveVersion.file_url
@@ -881,12 +892,7 @@ export default function ProjectCockpit({
           : [],
         status: approval.status,
       }));
-  const currentCreatedApprovalStages = createdApprovalStages?.assetId === activeAsset?.id
-    ? createdApprovalStages
-    : null;
-  const approvalStages = currentCreatedApprovalStages
-    ? currentCreatedApprovalStages.stages
-    : reportedApprovalStages;
+  const approvalStages = reportedApprovalStages;
   const viewerName = viewer?.name || (demoMode
     ? `${workspace.settings.profile.firstName} ${workspace.settings.profile.lastName}`.trim()
     : "Content Co-op");
@@ -1893,6 +1899,14 @@ export default function ProjectCockpit({
       setApprovalSetupError("Add an approval recipient and step label.");
       return;
     }
+    if (!activeLiveVersion) {
+      setApprovalSetupError("Open the current review version before setting up approval.");
+      return;
+    }
+
+    const target = { assetId: activeAsset.id, versionId: activeLiveVersion.id };
+    const normalizedRecipientEmail = recipientEmail.toLowerCase();
+    let postAccepted = false;
 
     setApprovalSetupSubmitting(true);
     setApprovalSetupError("");
@@ -1910,37 +1924,66 @@ export default function ProjectCockpit({
           }],
         }),
       });
-      if (!response.ok) throw new Error("Approval setup was rejected.");
+      postAccepted = response.ok;
+    } catch {
+      postAccepted = false;
+    }
 
-      const payload = await response.json() as {
+    try {
+      await loadLiveAssetData();
+      await onRefreshAssets?.();
+    } catch {
+      setApprovalSetupError("Approval setup could not be confirmed because the live project data did not refresh. Check the workflow before creating a link.");
+      setApprovalSetupSubmitting(false);
+      return;
+    }
+
+    if (
+      activeReviewTargetRef.current.assetId !== target.assetId
+      || activeReviewTargetRef.current.versionId !== target.versionId
+    ) {
+      setApprovalSetupError("The selected review target changed while approval was being set up. Check the workflow on the current version before creating a link.");
+      setApprovalSetupSubmitting(false);
+      return;
+    }
+
+    try {
+      const workflowResponse = await fetch(
+        `/api/approvals/workflow?asset_id=${encodeURIComponent(target.assetId)}`,
+        { cache: "no-store" },
+      );
+      if (!workflowResponse.ok) throw new Error("Approval workflow is unavailable.");
+      const workflowPayload = await workflowResponse.json() as {
         workflow?: {
           steps?: Array<{
-            id: string;
-            asset_id: string;
-            role_label: string;
-            assignee_email: string | null;
-            status: string;
+            assignee_email?: string | null;
+            role_label?: string | null;
+            status?: string | null;
           }>;
-        };
+        } | null;
       };
-      const steps = payload.workflow?.steps;
-      if (!steps?.length) throw new Error("Approval setup did not return a pending step.");
+      const matchingPendingStep = workflowPayload.workflow?.steps?.some((step) => (
+        step.status === "pending"
+        && step.role_label === roleLabel
+        && step.assignee_email?.trim().toLowerCase() === normalizedRecipientEmail
+      ));
+      if (!matchingPendingStep) {
+        setApprovalSetupError(
+          postAccepted
+            ? "Approval setup was accepted but the pending signer is not visible yet. Check the workflow before creating a link."
+            : "Approval setup could not be confirmed. Check the workflow before creating a link.",
+        );
+        return;
+      }
 
-      setCreatedApprovalStages({
-        assetId: activeAsset.id,
-        stages: steps.map((step) => ({
-          id: step.id,
-          project_id: project.id,
-          asset_id: step.asset_id,
-          name: step.role_label,
-          reviewer_names: step.assignee_email ? [step.assignee_email] : [],
-          approved_reviewer_names: step.status === "approved" && step.assignee_email ? [step.assignee_email] : [],
-          status: step.status,
-        })),
-      });
+      setApprovalShareDefaults({ intent: "approval_needed", reviewerEmail: recipientEmail });
       setShareOpen(true);
     } catch {
-      setApprovalSetupError("Approval setup could not be saved. Try again before creating an approval link.");
+      setApprovalSetupError(
+        postAccepted
+          ? "Approval setup was accepted but its live status could not be confirmed. Check the workflow before creating a link."
+          : "Approval setup could not be confirmed. Check the workflow before creating a link.",
+      );
     } finally {
       setApprovalSetupSubmitting(false);
     }
@@ -3345,8 +3388,11 @@ export default function ProjectCockpit({
             assetId={activeAsset.id}
             assetTitle={activeAsset.title}
             assetStatus={activeAsset.status}
+            initialShareIntent={approvalShareDefaults?.intent}
+            initialReviewerEmail={approvalShareDefaults?.reviewerEmail}
             onClose={() => {
               setShareOpen(false);
+              setApprovalShareDefaults(null);
               void loadLiveAssetData();
             }}
           />

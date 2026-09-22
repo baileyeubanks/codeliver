@@ -38,6 +38,8 @@ interface ShareModalProps {
   assetTitle?: string;
   assetStatus?: string;
   previewMode?: boolean;
+  initialShareIntent?: ShareIntent;
+  initialReviewerEmail?: string;
   open: boolean;
   onClose: () => void;
 }
@@ -132,7 +134,7 @@ export default function ShareModal(props: ShareModalProps) {
   if (!open) return null;
   return (
     <ShareModalContent
-      key={`${contentProps.assetId}:${contentProps.previewMode ? "preview" : "live"}`}
+      key={`${contentProps.assetId}:${contentProps.previewMode ? "preview" : "live"}:${contentProps.initialShareIntent ?? "client_review"}:${contentProps.initialReviewerEmail ?? ""}`}
       {...contentProps}
     />
   );
@@ -144,20 +146,23 @@ function ShareModalContent({
   assetId,
   assetTitle,
   previewMode = false,
+  initialShareIntent,
+  initialReviewerEmail,
   onClose,
 }: ShareModalContentProps) {
   // Always rendered "open" — focus moves into the dialog on mount, returns
   // to the trigger on close, and Escape is owned by useDialogFocus.
   const dialogRef = useRef<HTMLDivElement>(null);
   useDialogFocus(true, dialogRef, onClose);
-  const clientReviewDefaults = resolveShareIntentDefaults("client_review");
-  const [shareIntent, setShareIntent] = useState<ShareIntent>("client_review");
+  const requestedShareIntent = initialShareIntent ?? "client_review";
+  const initialIntentDefaults = resolveShareIntentDefaults(requestedShareIntent);
+  const [shareIntent, setShareIntent] = useState<ShareIntent>(requestedShareIntent);
   const [link, setLink] = useState("");
   const [copied, setCopied] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [reviewerName, setReviewerName] = useState("");
-  const [reviewerEmail, setReviewerEmail] = useState("");
+  const [reviewerEmail, setReviewerEmail] = useState(initialReviewerEmail ?? "");
   const [notificationAuthority, setNotificationAuthority] = useState<NotificationAuthorityValue>(
     EMPTY_NOTIFICATION_AUTHORITY,
   );
@@ -175,10 +180,10 @@ function ShareModalContent({
   const [versionId, setVersionId] = useState(previewMode ? "demo-version" : "");
   const [versionsLoading, setVersionsLoading] = useState(!previewMode);
   const [expiresAt, setExpiresAt] = useState(() =>
-    formatExpiryInput(clientReviewDefaults.expiresInDays),
+    formatExpiryInput(initialIntentDefaults.expiresInDays),
   );
-  const [watermark, setWatermark] = useState(clientReviewDefaults.watermarkEnabled);
-  const [allowDownload, setAllowDownload] = useState(clientReviewDefaults.downloadEnabled);
+  const [watermark, setWatermark] = useState(initialIntentDefaults.watermarkEnabled);
+  const [allowDownload, setAllowDownload] = useState(initialIntentDefaults.downloadEnabled);
   const [maxViews, setMaxViews] = useState<number | null>(null);
   const [refreshKey, setRefreshKey] = useState(0);
 

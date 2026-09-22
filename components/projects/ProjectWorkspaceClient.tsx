@@ -623,6 +623,7 @@ export default function ProjectWorkspaceClient() {
         revisionUploadsAvailable={revisionUploadsAvailable}
         onUploadChooseRevisionFile={chooseRemoteRevisionFile}
         onUploadDismiss={dismissRemoteUploadStatus}
+        onRefreshAssets={refreshRemoteAssets}
       />
       <AssetUpload
         projectId={id}

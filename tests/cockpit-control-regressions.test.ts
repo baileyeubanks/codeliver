@@ -42,6 +42,10 @@ const projectAssetsRouteSource = readFileSync(
   resolve(repositoryRoot, "app/api/projects/[id]/assets/route.ts"),
   "utf8",
 );
+const shareModalSource = readFileSync(
+  resolve(repositoryRoot, "components/sharing/ShareModal.tsx"),
+  "utf8",
+);
 
 test("a focused review deep link releases control when the operator changes modes", () => {
   assert.match(
@@ -357,11 +361,28 @@ test("a producer can explicitly configure the first approval step before opening
   assert.match(setupHandler, /step_order: 1/);
   assert.match(setupHandler, /role_label: approvalSetupLabel\.trim\(\)/);
   assert.match(setupHandler, /assignee_email: approvalSetupEmail\.trim\(\)/);
+  assert.match(setupHandler, /await loadLiveAssetData\(\)/);
+  assert.match(setupHandler, /await onRefreshAssets\?\.\(\)/);
+  assert.match(setupHandler, /activeReviewTargetRef\.current/);
+  assert.match(setupHandler, /setApprovalShareDefaults\(/);
   assert.match(setupHandler, /setShareOpen\(true\);/);
   assert.doesNotMatch(setupHandler, /setShareLinkActive|notification|send/);
+  assert.doesNotMatch(cockpitSource, /createdApprovalStages/);
   assert.match(cockpitSource, /aria-label="Approval recipient email"/);
   assert.match(cockpitSource, /aria-label="Approval step label"/);
   assert.match(cockpitSource, /Create approval and open sharing/);
+});
+
+test("approval setup opens an approval-ready share draft only after live authority refreshes", () => {
+  assert.match(cockpitSource, /onRefreshAssets\?: \(\) => Promise<void>/);
+  assert.match(projectWorkspaceClientSource, /onRefreshAssets=\{refreshRemoteAssets\}/);
+  assert.match(cockpitSource, /initialShareIntent=\{approvalShareDefaults\?\.intent\}/);
+  assert.match(cockpitSource, /initialReviewerEmail=\{approvalShareDefaults\?\.reviewerEmail\}/);
+  assert.match(shareModalSource, /initialShareIntent\?: ShareIntent/);
+  assert.match(shareModalSource, /initialReviewerEmail\?: string/);
+  assert.match(shareModalSource, /const requestedShareIntent = initialShareIntent \?\? "client_review"/);
+  assert.match(shareModalSource, /useState<ShareIntent>\(requestedShareIntent\)/);
+  assert.match(shareModalSource, /useState\(initialReviewerEmail \?\? ""\)/);
 });
 
 test("media inspector never fabricates unprobed resolution or frame rate", () => {

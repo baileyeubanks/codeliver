@@ -62,6 +62,12 @@ registerHooks({
     if (specifier === "@/lib/access-control") return nextResolve(accessStubUrl, context);
     if (specifier === "@/lib/email") return nextResolve(emailStubUrl, context);
     if (specifier === "@/lib/supabase") return nextResolve(supabaseStubUrl, context);
+    if (specifier === "@/lib/comments/image-attachments") {
+      return nextResolve(
+        pathToFileURL(resolve(repositoryRoot, "lib/comments/image-attachments.ts")).href,
+        context,
+      );
+    }
     if (specifier === "@/lib/versions") return nextResolve(versionsStubUrl, context);
     if (specifier === "@/lib/surface-origins") {
       return nextResolve(
@@ -190,6 +196,14 @@ class FakeSupabase {
       getUserById: async () => ({ data: { user: null }, error: null }),
     },
   };
+  readonly storage = {
+    from: () => ({
+      createSignedUrl: async (storagePath: string) => ({
+        data: { signedUrl: `https://signed.example/${storagePath}` },
+        error: null,
+      }),
+    }),
+  };
 
   constructor(tables: Record<string, Row[]>) {
     this.tables = tables;
@@ -203,7 +217,7 @@ class FakeSupabase {
 type CommentTestState = typeof globalThis & {
   __ccoCommentUser?: { id: string; email: string } | null;
   __ccoCommentAccess?:
-    | { ok: true; data: { access_role: string; access_rank: number } }
+    | { ok: true; data: { access_role: string; access_rank: number; project_id: string } }
     | { ok: false; status: number; error: string };
   __ccoCommentAccessCalls: Array<{
     assetId: string;
@@ -230,15 +244,17 @@ function configure({
   role = "reviewer",
   rank = 30,
   comments = [],
+  attachments = [],
 }: {
   role?: string;
   rank?: number;
   comments?: Row[];
+  attachments?: Row[];
 } = {}) {
   state.__ccoCommentUser = { id: "user-a", email: "user-a@example.test" };
   state.__ccoCommentAccess = {
     ok: true,
-    data: { access_role: role, access_rank: rank },
+    data: { access_role: role, access_rank: rank, project_id: "project-a" },
   };
   state.__ccoCommentAccessCalls = [];
   state.__ccoCommentParent = {
@@ -251,7 +267,12 @@ function configure({
     },
   };
   state.__ccoCommentParentCalls = [];
-  state.__ccoCommentSupabase = new FakeSupabase({ comments, assets: [], projects: [] });
+  state.__ccoCommentSupabase = new FakeSupabase({
+    comments,
+    comment_attachments: attachments,
+    assets: [],
+    projects: [{ id: "project-a", owner_id: "owner-a" }],
+  });
   state.__ccoCommentVersion = { ok: true, version: { id: "version-a" } };
   state.__ccoCommentVersionCalls = [];
 }
@@ -296,13 +317,29 @@ test("GET grants collaborator reads at viewer privilege and stays version-bound"
         created_at: "2026-07-14T01:00:00.000Z",
       },
     ],
+    attachments: [{
+      id: "attachment-a",
+      comment_id: "comment-a",
+      file_url: "storage://comment-attachments/owner-a/project-a/asset-a/comment-a/reference-a?sha256=private",
+      file_name: "reference.png",
+      file_type: "image/png",
+      file_size: 12,
+      created_at: "2026-07-15T01:00:01.000Z",
+      storage_bucket: "comment-attachments",
+      storage_path: "owner-a/project-a/asset-a/comment-a/reference-a",
+    }],
   });
   const { GET } = await routeModule();
 
   const response = await GET(request("GET", undefined, "version-a"), context);
 
   assert.equal(response.status, 200);
-  assert.deepEqual((await response.json()).items.map((item: Row) => item.id), ["comment-a"]);
+  const payload = await response.json();
+  assert.deepEqual(payload.items.map((item: Row) => item.id), ["comment-a"]);
+  assert.equal(
+    payload.items[0].attachments[0].file_url,
+    "https://signed.example/owner-a/project-a/asset-a/comment-a/reference-a",
+  );
   assert.deepEqual(state.__ccoCommentAccessCalls, [
     { assetId: "asset-a", userId: "user-a", minimumRole: "viewer" },
   ]);
@@ -377,7 +414,7 @@ test("POST persists complete 0-100 percentage pins and rejects malformed coordin
   }
 });
 
-test("POST cannot join an external thread or cross the parent version boundary", async () => {
+test("POST inherits an admitted external parent audience and stays version-bound", async () => {
   const { POST } = await routeModule();
   state.__ccoCommentParent = {
     ok: true,
@@ -389,13 +426,38 @@ test("POST cannot join an external thread or cross the parent version boundary",
     },
   };
 
+  state.__ccoCommentSupabase = new FakeSupabase({
+    comments: [{
+      id: "external-parent",
+      asset_id: "asset-a",
+      version_id: "version-a",
+      visibility: "external",
+      review_id: "review-a",
+      review_invite_id: "invite-a",
+    }],
+    assets: [],
+    projects: [{ id: "project-a", owner_id: "owner-a" }],
+  });
+
   const externalResponse = await POST(
-    request("POST", { body: "Internal reply", parent_id: "external-parent" }),
+    request("POST", { body: "Operator reply", parent_id: "external-parent" }),
     context,
   );
-  assert.equal(externalResponse.status, 400);
-  assert.equal(state.__ccoCommentSupabase?.inserts.length, 0);
+  assert.equal(externalResponse.status, 201);
+  assert.deepEqual(
+    {
+      visibility: state.__ccoCommentSupabase.inserts[0]?.payload.visibility,
+      review_id: state.__ccoCommentSupabase.inserts[0]?.payload.review_id,
+      review_invite_id: state.__ccoCommentSupabase.inserts[0]?.payload.review_invite_id,
+    },
+    {
+      visibility: "external",
+      review_id: "review-a",
+      review_invite_id: "invite-a",
+    },
+  );
 
+  configure();
   state.__ccoCommentParent = {
     ok: true,
     data: {

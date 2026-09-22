@@ -25,7 +25,7 @@ type MediaRouteState = typeof globalThis & {
   __cvpPublicMediaOpenCalls: Array<{
     objectKey: string;
     range?: { start: number; end: number };
-    expectation?: { size: number; providerVersionId: string };
+    expectation?: { size: number; sha256?: string; providerVersionId: string };
   }>;
   __cvpPublicMediaProvider: string;
   __cvpPublicMediaOpenError: Error | null;
@@ -167,6 +167,7 @@ test("an admitted reviewer range-streams the exact receipt through the token-fre
     range: { start: 2, end: 5 },
     expectation: {
       size: bytes.length,
+      sha256: "c".repeat(64),
       providerVersionId,
     },
   }]);
@@ -191,6 +192,7 @@ test("HEAD rechecks live authority and verifies the exact stored receipt", async
     range: undefined,
     expectation: {
       size: bytes.length,
+      sha256: "c".repeat(64),
       providerVersionId,
     },
   }]);

@@ -117,7 +117,7 @@ function select(value: unknown = metadata()) {
 function playlistReader(playlist: string, overrides: { size?: number; sha256?: string } = {}) {
   const calls: Array<{
     objectKey: string;
-    expectation?: { size: number; providerVersionId: string };
+    expectation?: { size: number; sha256?: string; providerVersionId: string };
   }> = [];
   const selected = select(metadata(playlist));
   assert.ok(selected);
@@ -131,7 +131,7 @@ function playlistReader(playlist: string, overrides: { size?: number; sha256?: s
       async openStoredObjectReadStream(
         objectKey: string,
         _range?: { start: number; end: number },
-        expectation?: { size: number; providerVersionId: string },
+        expectation?: { size: number; sha256?: string; providerVersionId: string },
       ) {
         calls.push({ objectKey, expectation });
         return Readable.from(Buffer.from(playlist));
@@ -182,6 +182,7 @@ test("reads the exact immutable playlist receipt and rewrites only segment lines
       objectKey: originalObjectKeys[0],
       expectation: {
         size: Buffer.byteLength(validPlaylist),
+        sha256: digest(validPlaylist),
         providerVersionId,
       },
     },

@@ -85,6 +85,7 @@ function uploadHarness() {
       onShouldRetry: (error: { originalResponse?: { getStatus(): number } }) => boolean;
     };
     startCalls = 0;
+    url: string | null = durableUploadUrl;
     resumedFrom: { uploadUrl: string } | undefined;
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     readonly file: any;
@@ -123,10 +124,11 @@ function uploadHarness() {
       transport.push(`HEAD ${this.resumedFrom?.uploadUrl ?? "missing"}`);
       const receiptAvailable = this.file.name !== "missing-receipt.mov";
       const quarantined = this.file.name === "quarantined.mov";
+      const deferred = this.file.name === "deferred.mov";
       this.options.onAfterResponse({}, {
         getHeader(name: string) {
-          if (name === "Upload-State") return quarantined ? "receiving" : "committed";
-          if (name === "Upload-Original-Ready") return "true";
+          if (name === "Upload-State") return deferred ? "verifying" : quarantined ? "receiving" : "committed";
+          if (name === "Upload-Original-Ready") return deferred ? "false" : "true";
           if (name === "Upload-Asset" && receiptAvailable) return JSON.stringify({ id: "asset-1" });
           if (name === "Upload-Version" && receiptAvailable) return JSON.stringify({ id: "version-v1", number: 1 });
           return null;
@@ -175,10 +177,27 @@ function uploadHarness() {
       AbortSignal: { timeout: () => undefined },
       console: { error() {} },
       crypto: { randomUUID: () => `attempt-${++generatedId}` },
-      fetch: async () => ({
-        ok: true,
-        json: async () => ({ readyForWrites: true, label: "Test storage", maxUploadBytes: 1_000_000, maxChunkBytes: 1_000_000 }),
-      }),
+      fetch: async (input: string, init?: { method?: string }) => {
+        if (input.endsWith("/scan")) {
+          transport.push(`${init?.method === "POST" ? "POST" : "GET"} ${input}`);
+          return {
+            ok: true,
+            json: async () => init?.method === "POST"
+              ? { state: "verifying", originalReady: false, retryable: false }
+              : {
+                  state: "committed",
+                  originalReady: true,
+                  retryable: false,
+                  asset: { id: "asset-1" },
+                  version: { id: "version-v1", number: 1 },
+                },
+          };
+        }
+        return {
+          ok: true,
+          json: async () => ({ readyForWrites: true, label: "Test storage", maxUploadBytes: 1_000_000, maxChunkBytes: 1_000_000 }),
+        };
+      },
       setTimeout,
     })(imports, loadedModule, loadedModule.exports);
     cache.set(relative, loadedModule.exports);
@@ -210,9 +229,31 @@ test("AssetUpload exposes tus byte progress through accessible progress ranges",
 
 test("AssetUpload preserves received bytes when tus completes into ready or quarantine", () => {
   assert.match(uploader, /bytesUploaded: item\.bytesTotal,/);
-  assert.match(uploader, /status: quarantined \? "quarantined" : "done"/);
+  assert.match(uploader, /const quarantined = serverState !== "committed" \|\| !originalReleaseReady/);
+  assert.match(uploader, /status: "quarantined"/);
+  assert.match(uploader, /status: "done"/);
   assert.match(uploader, /Upload-State/);
   assert.match(uploader, /Upload-Original-Ready/);
+});
+
+test("AssetUpload polls deferred security clearance and only completes from an exact ready receipt", () => {
+  assert.match(uploader, /waitForSecurityClearance/);
+  assert.match(uploader, /method: "POST"/);
+  assert.match(uploader, /status\.state === "verifying"/);
+  assert.match(uploader, /status\.originalReady === true/);
+  assert.match(uploader, /JSON\.stringify\(status\.asset\)/);
+  assert.match(uploader, /JSON\.stringify\(status\.version\)/);
+  assert.match(uploader, /await onUploadComplete\(\[completion\]\)/);
+});
+
+test("AssetUpload retries only timeout security scans against retained bytes", () => {
+  assert.match(uploader, /Upload-Scan-Retryable/);
+  assert.match(uploader, /aria-label="Retry security scan"/);
+  assert.match(uploader, /fetch\(`\$\{uploadUrl\}\/scan`/);
+  assert.match(uploader, /status\.state === "rejected"/);
+  assert.match(uploader, /status: "rejected"/);
+  assert.match(uploader, /No file data is being uploaded again/);
+  assert.doesNotMatch(uploader, /scanRetryable:\s*status\.state === "rejected"/);
 });
 
 test("AssetUpload keeps selected files pending while confirming readiness", () => {
@@ -307,6 +348,39 @@ test("AssetUpload binds a replacement to the selected version and does not retry
     true,
     "a transient lock remains retryable",
   );
+});
+
+test("AssetUpload turns deferred verification into one exact completion without retransmitting bytes", async () => {
+  const app = uploadHarness();
+  const file = { name: "deferred.mov", size: 480_000_000, type: "video/quicktime", lastModified: 5 };
+  const input = elements(app.render()).find(
+    (element) => element.type === "input" && element.props.type === "file",
+  );
+  assert.ok(input);
+  input.props.onChange({ target: { files: [file], value: "" } });
+  await flushTusCallbacks();
+  const retry = elements(app.render()).find(
+    (element) => element.props?.["aria-label"] === "Retry upload",
+  );
+  assert.ok(retry, "the simulated first final PATCH remains recoverable");
+  retry.props.onClick();
+  await flushTusCallbacks();
+
+  assert.deepEqual(app.transport, [
+    "POST /api/upload/tus",
+    `PATCH ${app.durableUploadUrl} final -> 503`,
+    `HEAD ${app.durableUploadUrl}`,
+    `POST ${app.durableUploadUrl}/scan`,
+    `GET ${app.durableUploadUrl}/scan`,
+  ]);
+  assert.equal(app.completions.length, 1);
+  assert.equal(JSON.stringify(app.completions[0]), JSON.stringify([{
+    assetId: "asset-1",
+    versionId: "version-v1",
+    versionNumber: 1,
+    revision: false,
+  }]));
+  assert.deepEqual(app.removedResumeRecords, ["durable-upload-key"]);
 });
 
 

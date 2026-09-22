@@ -1,11 +1,12 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { FileText, File, Download, X } from "lucide-react";
 import type { CommentAttachment } from "@/lib/types/codeliver";
 
 interface AttachmentPreviewProps {
   attachment: CommentAttachment;
+  onRefreshUrl?: () => Promise<string | null>;
 }
 
 function formatFileSize(bytes: number): string {
@@ -26,8 +27,16 @@ function isPdf(type: string | null | undefined): boolean {
  * Attachment chip: icon by file type, name, size. Image attachments render a
  * thumbnail that opens a full-size popover (Escape or backdrop click closes).
  */
-export default function AttachmentPreview({ attachment }: AttachmentPreviewProps) {
+export default function AttachmentPreview({ attachment, onRefreshUrl }: AttachmentPreviewProps) {
   const [showFull, setShowFull] = useState(false);
+  const [url, setUrl] = useState(attachment.file_url);
+  const refreshedAttachmentIds = useRef(new Set<string>());
+  useEffect(() => { setUrl(attachment.file_url); }, [attachment.file_url]);
+  function refreshSignedUrl() {
+    if (!onRefreshUrl || refreshedAttachmentIds.current.has(attachment.id)) return;
+    refreshedAttachmentIds.current.add(attachment.id);
+    void onRefreshUrl().then((next) => { if (next) setUrl(next); }).catch(() => undefined);
+  }
 
   useEffect(() => {
     if (!showFull) return;
@@ -48,7 +57,7 @@ export default function AttachmentPreview({ attachment }: AttachmentPreviewProps
           className="group relative mt-2 block overflow-hidden rounded-[var(--radius-sm)] border border-[var(--border)]"
         >
           <img
-            src={attachment.file_url}
+            src={url} onError={refreshSignedUrl}
             alt={attachment.file_name}
             className="max-h-32 w-auto object-cover transition-opacity group-hover:opacity-80"
           />
@@ -74,7 +83,7 @@ export default function AttachmentPreview({ attachment }: AttachmentPreviewProps
               <X size={20} />
             </button>
             <img
-              src={attachment.file_url}
+              src={url} onError={refreshSignedUrl}
               alt={attachment.file_name}
               className="max-h-[90vh] max-w-[90vw] rounded-[var(--radius)]"
               onClick={(e) => e.stopPropagation()}

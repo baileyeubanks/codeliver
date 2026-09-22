@@ -2415,31 +2415,74 @@ a { color: inherit; text-decoration: none; }
 .review-inline-comment {
   position: absolute;
   z-index: 40;
-  width: min(330px, calc(100% - 24px));
+  width: 0;
+  height: 0;
+  overflow: visible;
+  pointer-events: auto;
+}
+
+.review-inline-comment-card {
+  position: absolute;
+  width: min(330px, calc(100vw - 24px));
   border: 1px solid rgba(255, 255, 255, 0.13);
   border-radius: 8px;
   background: #202934;
   padding: 10px;
   color: #f7f9fc;
   box-shadow: 0 18px 44px rgba(0, 0, 0, 0.42);
-  pointer-events: auto;
 }
 
-.review-inline-comment[data-horizontal="right"][data-vertical="below"] {
-  transform: translate(14px, 14px);
+.review-inline-comment[data-horizontal="right"][data-vertical="below"] .review-inline-comment-card {
+  transform: translate(calc(14px + var(--callout-drag-x, 0px)), calc(14px + var(--callout-drag-y, 0px)));
 }
 
-.review-inline-comment[data-horizontal="left"][data-vertical="below"] {
-  transform: translate(calc(-100% - 14px), 14px);
+.review-inline-comment[data-horizontal="left"][data-vertical="below"] .review-inline-comment-card {
+  transform: translate(calc(-100% - 14px + var(--callout-drag-x, 0px)), calc(14px + var(--callout-drag-y, 0px)));
 }
 
-.review-inline-comment[data-horizontal="right"][data-vertical="above"] {
-  transform: translate(14px, calc(-100% - 14px));
+.review-inline-comment[data-horizontal="right"][data-vertical="above"] .review-inline-comment-card {
+  transform: translate(calc(14px + var(--callout-drag-x, 0px)), calc(-100% - 14px + var(--callout-drag-y, 0px)));
 }
 
-.review-inline-comment[data-horizontal="left"][data-vertical="above"] {
-  transform: translate(calc(-100% - 14px), calc(-100% - 14px));
+.review-inline-comment[data-horizontal="left"][data-vertical="above"] .review-inline-comment-card {
+  transform: translate(calc(-100% - 14px + var(--callout-drag-x, 0px)), calc(-100% - 14px + var(--callout-drag-y, 0px)));
 }
+
+.review-inline-comment-leader,.review-anchored-comment-leader { position:absolute; inset:0; width:1px; height:1px; overflow:visible; pointer-events:none; }
+.review-inline-comment-leader { z-index:-1; }
+.review-inline-comment-leader line,.review-anchored-comment-leader line { stroke:var(--accent); stroke-width:2; vector-effect:non-scaling-stroke; }
+.review-inline-comment-drag { cursor: grab; touch-action:none; }
+.review-inline-comment-drag:active { cursor: grabbing; }
+
+.review-anchored-comment { position:absolute; z-index:40; width:0; height:0; pointer-events:auto; }
+.review-anchored-comment-pin { position:absolute; z-index:2; display:grid; width:22px; height:22px; place-items:center; transform:translate(-50%,-50%); border:2px solid #fff; border-radius:999px; background:var(--accent); color:#fff; font-size:11px; font-weight:800; box-shadow:0 3px 10px rgb(0 0 0 / .35); }
+.review-anchored-comment-leader { z-index:0; }
+.review-anchored-comment-card { position:absolute; z-index:1; width:min(330px, calc(100vw - 28px)); overflow:hidden; border:1px solid rgb(255 255 255 / .17); border-radius:8px; background:#fff; color:#17273a; box-shadow:0 18px 44px rgb(4 15 28 / .27); }
+.review-anchored-comment[data-horizontal="right"][data-vertical="below"] .review-anchored-comment-card { transform:translate(calc(20px + var(--callout-drag-x, 0px)), calc(-10px + var(--callout-drag-y, 0px))); }
+.review-anchored-comment[data-horizontal="left"][data-vertical="below"] .review-anchored-comment-card { transform:translate(calc(-100% - 20px + var(--callout-drag-x, 0px)), calc(-10px + var(--callout-drag-y, 0px))); }
+.review-anchored-comment[data-horizontal="right"][data-vertical="above"] .review-anchored-comment-card { transform:translate(calc(20px + var(--callout-drag-x, 0px)), calc(-100% + 10px + var(--callout-drag-y, 0px))); }
+.review-anchored-comment[data-horizontal="left"][data-vertical="above"] .review-anchored-comment-card { transform:translate(calc(-100% - 20px + var(--callout-drag-x, 0px)), calc(-100% + 10px + var(--callout-drag-y, 0px))); }
+.review-anchored-comment-card header { display:flex; align-items:center; gap:7px; min-height:36px; padding:6px 8px; border-bottom:1px solid var(--border); background:#17273a; color:#fff; }
+.review-anchored-comment-card header > div { min-width:0; flex:1; display:grid; gap:1px; }
+.review-anchored-comment-card header strong { overflow:hidden; color:#fff; text-overflow:ellipsis; white-space:nowrap; font-size:.74rem; }
+.review-anchored-comment-card header span { color:#b8c5d4; font-family:var(--font-mono, monospace); font-size:.65rem; }
+.review-anchored-comment-card header nav { display:flex; }
+.review-anchored-comment-card header button { display:grid; width:27px; height:27px; place-items:center; border-radius:5px; color:#c8d2df; }
+.review-anchored-comment-card header button:hover,.review-anchored-comment-card header button:focus-visible { background:rgb(255 255 255 / .12); color:#fff; }
+.review-anchored-comment-drag { cursor:grab; touch-action:none; }
+.review-anchored-comment-drag:active { cursor:grabbing; }
+.review-anchored-comment-card > p { margin:0; padding:10px 12px 4px; color:#17273a; font-size:.8rem; line-height:1.5; }
+.review-anchored-comment-thread { display:flex; align-items:center; gap:5px; padding:5px 12px 9px; color:#637184; font-size:.68rem; }
+.review-anchored-comment-replies { display:grid; gap:6px; max-height:120px; overflow:auto; margin:0; padding:0 12px 10px; list-style:none; }
+.review-anchored-comment-replies li { display:grid; gap:2px; border-left:2px solid var(--border); padding-left:8px; color:#637184; font-size:.72rem; line-height:1.35; }
+.review-anchored-comment-replies li span { color:#637184; }
+.review-anchored-comment-replies strong { color:#17273a; font-size:.68rem; }
+.review-anchored-comment-reply { display:flex; gap:6px; padding:8px; border-top:1px solid var(--border); }
+.review-anchored-comment-reply textarea { min-width:0; flex:1; resize:vertical; border:1px solid var(--border); border-radius:5px; padding:7px; font-size:.75rem; outline:none; }
+.review-anchored-comment-reply textarea:focus { border-color:var(--accent); box-shadow:0 0 0 2px rgb(0 87 255 / .14); }
+.review-anchored-comment-reply button { display:grid; align-self:flex-end; width:30px; height:30px; place-items:center; border-radius:5px; background:var(--accent); color:#fff; }
+.review-anchored-comment-reply button:disabled { cursor:not-allowed; opacity:.45; }
+.review-anchored-comment-error { color:var(--red); }
 
 .review-inline-comment header,
 .review-inline-comment header > div,
@@ -2488,6 +2531,10 @@ a { color: inherit; text-decoration: none; }
   color: #fff;
 }
 
+.review-inline-comment-attachment { margin:8px 10px 0; }
+.review-inline-comment-attachment button { display:inline-flex; align-items:center; gap:5px; max-width:100%; overflow:hidden; border:1px solid rgb(255 255 255 / .16); border-radius:5px; padding:5px 7px; color:#cbd7e6; font-size:.69rem; text-overflow:ellipsis; white-space:nowrap; }
+.review-inline-comment-attachment button:hover { background:rgb(255 255 255 / .08); color:#fff; }
+
 .review-inline-comment label {
   display: grid;
   gap: 5px;
@@ -2505,24 +2552,29 @@ a { color: inherit; text-decoration: none; }
   margin-top: 8px;
 }
 
-.review-inline-comment input {
+.review-inline-comment input,
+.review-inline-comment textarea {
   min-width: 0;
   width: 100%;
-  height: 38px;
   border: 1px solid rgba(255, 255, 255, 0.13);
   border-radius: 5px;
   background: rgba(255, 255, 255, 0.08);
-  padding: 0 10px;
+  padding: 8px 10px;
   color: #fff;
   font-size: 0.78rem;
   outline: none;
 }
 
-.review-inline-comment input::placeholder {
+.review-inline-comment input { height: 38px; padding-block: 0; }
+.review-inline-comment textarea { min-height: 48px; resize: vertical; }
+
+.review-inline-comment input::placeholder,
+.review-inline-comment textarea::placeholder {
   color: #93a0b2;
 }
 
-.review-inline-comment input:focus {
+.review-inline-comment input:focus,
+.review-inline-comment textarea:focus {
   border-color: #5b9df0;
   box-shadow: 0 0 0 2px rgba(91, 157, 240, 0.18);
 }
@@ -2776,12 +2828,6 @@ a { color: inherit; text-decoration: none; }
 
   .review-video-frame > div {
     max-height: none;
-  }
-
-  .review-inline-comment {
-    inset: auto 12px 12px 12px !important;
-    width: auto;
-    transform: none !important;
   }
 
   .client-review-rail {
@@ -3613,13 +3659,14 @@ a { color: inherit; text-decoration: none; }
   outline-offset: 3px;
 }
 
-.cockpit-video-poster { z-index: 1; object-fit: cover; transition: opacity 120ms ease; }
+.cockpit-video-poster { z-index: 1; object-fit: contain; transition: opacity 120ms ease; }
 .cockpit-video-frame > [data-player-root] { position: relative; z-index: 2; width: 100%; height: 100%; border-radius: 0; }
-.cockpit-video-frame video { position: relative; z-index: 2; display: block; width: 100%; height: 100%; object-fit: cover; visibility: hidden; }
+.cockpit-video-frame video { position: relative; z-index: 2; display: block; width: 100%; height: 100%; object-fit: contain; visibility: hidden; }
 .cockpit-video-frame video.active { visibility: visible; }
 .cockpit-video-frame:has(video.active) .cockpit-video-poster { opacity: 0; }
 .cockpit-video-frame > time { position: absolute; top: 12px; right: 12px; z-index: 5; padding: 3px 5px; border-radius: 4px; background: rgba(5, 15, 32, 0.8); color: #fff; font: 600 10px/1.3 ui-monospace, SFMono-Regular, Menlo, monospace; }
 .cockpit-review-overlay { position: absolute; inset: 0 0 48px; z-index: 3; cursor: crosshair; }
+.cockpit-review-canvas { position: absolute; inset: 0 0 48px; z-index: 4; pointer-events: none; }
 .cockpit-frame-pin { position: absolute; z-index: 5; width: 25px; height: 25px; display: inline-flex; align-items: center; justify-content: center; padding: 0; border: 2px solid #fff; border-radius: 50%; background: var(--cockpit-accent); color: #fff; box-shadow: 0 5px 14px rgba(7, 28, 62, 0.28); font-size: 10px; font-weight: 750; transform: translate(-50%, -50%); }
 .cockpit-frame-pin:hover { background: var(--cockpit-accent-strong); transform: translate(-50%, -50%) scale(1.06); }
 .cockpit-frame-pin.pending { pointer-events: none; background: var(--cockpit-panel); color: var(--cockpit-accent); animation: cockpit-pin-in 160ms ease-out; }

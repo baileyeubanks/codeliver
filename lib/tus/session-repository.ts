@@ -89,6 +89,8 @@ function isUploadSession(value: unknown): value is UploadSession {
     UPLOAD_SESSION_STATES.includes(session.state as UploadSession["state"]) &&
     isNullableHash(session.expectedSha256) &&
     isNullableHash(session.computedSha256) &&
+    (session.finalizationDeferred === undefined ||
+      typeof session.finalizationDeferred === "boolean") &&
     isOptionalNullableText(session.assetId) &&
     isOptionalNullableText(session.expectedCurrentVersionId) &&
     isOptionalNullableText(session.versionId) &&
@@ -117,6 +119,7 @@ function normalizeUploadSession(session: UploadSession): UploadSession {
   const recovery = session.recovery;
   return {
     ...session,
+    finalizationDeferred: session.finalizationDeferred === true,
     assetId:
       typeof session.assetId === "string" && session.assetId.length > 0
         ? session.assetId

@@ -9,6 +9,18 @@ import { CLAMAV_MAX_SCAN_BYTES } from "./scanner-limits.ts";
 
 // ClamAV has a 2 GB engine boundary. Never silently skip a larger upload.
 const MAX_OUTPUT_BYTES = 64 * 1024;
+export const CLAMAV_STDIN_SCAN_ARGS = [
+  "--no-summary",
+  "--stdout",
+  "--alert-exceeds-max=yes",
+  // ClamAV's 120s default skips the rest of a long scan and assumes it clean.
+  // Disable that engine shortcut; the caller's AbortSignal is the fail-closed
+  // wall-clock boundary for the full byte stream.
+  "--max-scantime=0",
+  "--max-filesize=2000M",
+  "--max-scansize=2000M",
+  "-",
+] as const;
 
 export class ClamAvScanHook implements MalwareScanHook {
   readonly readiness;
@@ -43,17 +55,18 @@ export class ClamAvScanHook implements MalwareScanHook {
     const controller = new AbortController();
     const abort = () => controller.abort();
     input.signal?.addEventListener("abort", abort, { once: true });
-    const timer = setTimeout(abort, 120_000);
     const hash = createHash("sha256");
     let bytes = 0;
     let output = "";
     let outputBytes = 0;
     let child: ReturnType<typeof spawn> | undefined;
     try {
-      child = spawn(this.executable, [
-        "--no-summary", "--stdout", "--alert-exceeds-max=yes",
-        "--max-filesize=2000M", "--max-scansize=2000M", "-",
-      ], { shell: false, stdio: ["pipe", "pipe", "pipe"], signal: controller.signal, killSignal: "SIGKILL" });
+      child = spawn(this.executable, [...CLAMAV_STDIN_SCAN_ARGS], {
+        shell: false,
+        stdio: ["pipe", "pipe", "pipe"],
+        signal: controller.signal,
+        killSignal: "SIGKILL",
+      });
       const exit = new Promise<number | null>((resolve, reject) => {
         child!.once("error", reject);
         child!.once("close", resolve);
@@ -90,7 +103,6 @@ export class ClamAvScanHook implements MalwareScanHook {
     } catch {
       return result("error", "ClamAV scan failed or was cancelled");
     } finally {
-      clearTimeout(timer);
       input.signal?.removeEventListener("abort", abort);
       if (child && child.exitCode === null && child.signalCode === null) child.kill("SIGKILL");
     }

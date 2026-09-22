@@ -39,7 +39,7 @@ test("proxy matcher bypasses crawler metadata and icon assets", async () => {
     "/sitemap.xml",
     "/manifest.webmanifest",
     "/favicon.ico",
-    "/icon.svg",
+    "/icon.png",
   ]) {
     assert.equal(
       unstable_doesMiddlewareMatch({
@@ -68,10 +68,10 @@ test("App Router crawler metadata is static, valid, and exposes no application r
   assert.deepEqual(sitemap, []);
   assert.equal(manifest.start_url, "/login");
   assert.deepEqual(manifest.icons, [
-    { src: "/icon.svg", sizes: "any", type: "image/svg+xml" },
+    { src: "/icon.png", sizes: "1024x1024", type: "image/png" },
   ]);
 
-  const icon = readFileSync(resolve(repositoryRoot, "app/icon.svg"), "utf8");
-  assert.match(icon, /^<svg\b/);
-  assert.match(icon, /viewBox="0 0 64 64"/);
+  const icon = readFileSync(resolve(repositoryRoot, "app/icon.png"));
+  assert.deepEqual([...icon.subarray(0, 8)], [137, 80, 78, 71, 13, 10, 26, 10]);
+  assert.equal(icon.length > 1024, true, "manifest icon must contain the supplied raster mark");
 });

@@ -2,7 +2,7 @@
 
 import { sourceCatalog } from "@/lib/demo/source-catalog";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useParams, usePathname, useSearchParams } from "next/navigation";
 import {
   ArrowLeft,
@@ -24,6 +24,9 @@ import InlineReviewComment from "@/components/review/InlineReviewComment";
 import AnnotationCanvas from "@/components/review/annotation/AnnotationCanvas";
 import AnnotationThumbnail from "@/components/review/annotation/AnnotationThumbnail";
 import AnnotationToolbar from "@/components/review/annotation/AnnotationToolbar";
+import AnchoredCommentCallout from "@/components/review/AnchoredCommentCallout";
+import { adjacentTimedComment, orderedTimedComments } from "@/lib/review/comment-navigation";
+import { refreshReviewImageAttachments } from "@/lib/review/image-attachments-client";
 import VersionCompare from "@/components/review/VersionCompare";
 import VersionSwitcher from "@/components/review/VersionSwitcher";
 import ShareLinkAccessGate from "@/components/sharing/ShareLinkAccessGate";
@@ -544,11 +547,9 @@ export default function PublicReviewPage({
             status: persistedApprovalState?.asset_status ?? review.asset.status,
           };
           const demoVersion = demoVersionAuthority.current;
-          const rootComments = restoredComments.filter((comment) => !comment.parent_id);
-          const initialSelection =
-            rootComments.find((comment) => comment.status === "open")?.id ??
-            rootComments[0]?.id ??
-            null;
+          // Existing notes stay hidden until the reviewer explicitly selects a
+          // timeline marker or thread. Opening a review must never replay an
+          // old point over a new frame.
 
           // A link-bound local version may never be redirected through ?v=.
           // Its URL and all persisted review state remain pinned to this cut.
@@ -599,7 +600,7 @@ export default function PublicReviewPage({
           setShareIntent(requestedIntent);
           setWorkflowMode(review.workflow_mode);
           setReviewerName(persistedApprovalState?.reviewer_name ?? review.reviewer_name ?? "");
-          setSelectedCommentId(initialSelection);
+          setSelectedCommentId(null);
           setLoading(false);
           return;
         }
@@ -608,12 +609,6 @@ export default function PublicReviewPage({
         if (cancelled) return;
 
         const review = payload as unknown as ReviewPayload;
-        const rootComments = (review.comments ?? []).filter((comment) => !comment.parent_id);
-        const initialSelection =
-          rootComments.find((comment) => comment.status === "open")?.id ??
-          rootComments[0]?.id ??
-          null;
-
         setAsset(review.asset);
         setVersion(review.version ?? null);
         // The production payload carries one version today; if it grows a
@@ -672,7 +667,7 @@ export default function PublicReviewPage({
         setWorkflowMode(review.workflow_mode);
         setDelivery(review.delivery ?? null);
         setReviewerName(review.reviewer_name ?? "");
-        setSelectedCommentId(initialSelection);
+        setSelectedCommentId(null);
       } catch (loadError) {
         if (cancelled) return;
         setError(loadError instanceof Error ? loadError.message : "Could not load this review.");
@@ -929,10 +924,22 @@ export default function PublicReviewPage({
   }
 
   function handleCommentSelect(comment: ReviewComment) {
+    videoRef.current?.pause();
     setSelectedCommentId(comment.id);
     if (asset?.file_type === "video" && comment.timecode_seconds != null) {
       seekTo(comment.timecode_seconds);
     }
+  }
+
+  const dismissSelectedCommentForPlayback = useCallback(() => {
+    setSelectedCommentId(null);
+  }, []);
+
+  const orderedTimedRootComments = orderedTimedComments(rootComments);
+
+  function selectAdjacentComment(direction: -1 | 1) {
+    const next = adjacentTimedComment(orderedTimedRootComments, selectedCommentId, direction);
+    if (next) handleCommentSelect(next as ReviewComment);
   }
 
   // P19b: switching versions swaps the media, scopes the player back to a
@@ -971,16 +978,16 @@ export default function PublicReviewPage({
 
   // Local replies commit with their parent and exact review identity before
   // appearing saved. Remote replies use the admitted comments API.
-  async function handleReplySubmit(parentId: string, body: string) {
+  async function handleReplySubmit(parentId: string, body: string): Promise<ReviewComment | null> {
     const replyBody = body.trim();
-    if (!asset || !replyBody) return;
+    if (!asset || !replyBody) return null;
     const authorName =
       reviewerName.trim() || invite?.reviewer_name?.trim() || (sourceCatalog ? "Local reviewer" : "Client Reviewer");
 
     if (demoMode) {
       if (!canComment || !localReviewBinding) {
         setReplyError("This review is not available for replies.");
-        return;
+        return null;
       }
       const persisted = addDemoReviewComment({
         projectId: localReviewBinding.projectId,
@@ -996,7 +1003,7 @@ export default function PublicReviewPage({
       });
       if (!persisted) {
         setReplyError("Could not save your reply. Check this review and browser storage, then try again.");
-        return;
+        return null;
       }
       const reply = projectPersistedDemoReviewComment(persisted, {
         ...localReviewBinding,
@@ -1005,7 +1012,7 @@ export default function PublicReviewPage({
         current.some((comment) => comment.id === reply.id) ? current : [...current, reply],
       );
       setReplyError("");
-      return;
+      return reply;
     }
 
     try {
@@ -1029,18 +1036,19 @@ export default function PublicReviewPage({
         throw new Error(payload?.error || "Could not post your reply.");
       }
       const reply = (payload?.comment ?? payload) as ReviewComment | null;
-      if (reply?.id) {
-        setComments((current) =>
-          current.some((comment) => comment.id === reply.id) ? current : [...current, reply],
-        );
-      }
+      if (!reply?.id) throw new Error("Reply saved, but the response was invalid.");
+      setComments((current) =>
+        current.some((comment) => comment.id === reply.id) ? current : [...current, reply],
+      );
       setReplyError("");
+      return reply;
     } catch (replySubmitError) {
       setReplyError(
         replySubmitError instanceof Error
           ? replySubmitError.message
           : "Could not post your reply.",
       );
+      return null;
     }
   }
 
@@ -1176,7 +1184,9 @@ export default function PublicReviewPage({
     setComments((current) =>
       current.some((candidate) => candidate.id === comment.id) ? current : [...current, comment],
     );
-    setSelectedCommentId(comment.id);
+    // Success closes the draft and returns a clean player. The new note is
+    // available in the timeline but does not obscure playback until selected.
+    setSelectedCommentId(null);
     setCommentPin(null);
     setPinMode(false);
     setDrawMode(false);
@@ -1399,13 +1409,11 @@ export default function PublicReviewPage({
   const drawableSurface = canComment && (asset?.file_type === "video" || asset?.file_type === "image");
 
   function renderPins() {
-    const pins = rootComments.filter((comment) => {
-      if (comment.pin_x == null || comment.pin_y == null) return false;
-      if (asset?.file_type === "image") return true;
-      if (comment.id === selectedCommentId) return true;
-      if (comment.timecode_seconds == null) return true;
-      return Math.abs(currentTime - comment.timecode_seconds) <= 2;
-    });
+    // Pins are intentionally not replayed by passing time. A timeline or rail
+    // selection is the explicit act that reveals one exact historical point.
+    const pins = rootComments.filter((comment) =>
+      comment.id === selectedCommentId && comment.pin_x != null && comment.pin_y != null,
+    );
 
     return (
       <div className="relative h-full w-full">
@@ -1428,32 +1436,35 @@ export default function PublicReviewPage({
           </div>
         ) : null}
 
-        {pins.map((comment) => {
+          {pins.map((comment) => {
           const number = threadNumberById.get(comment.id) ?? 0;
-          const selected = comment.id === selectedCommentId;
-          const resolved = comment.status === "resolved";
-
-          return (
-            <button
-              key={comment.id}
-              type="button"
-              onClick={(event) => {
-                event.stopPropagation();
-                handleCommentSelect(comment);
-              }}
-              className={`pointer-events-auto absolute -translate-x-1/2 -translate-y-full rounded-full border-2 px-2 py-1 text-[11px] font-bold shadow-lg transition-transform hover:scale-105 ${
-                selected
-                  ? "border-white bg-[var(--accent)] text-white"
-                  : resolved
-                    ? "border-white/70 bg-[var(--green)] text-white"
-                    : "border-white/80 bg-[var(--orange)] text-white"
-              }`}
-              style={{ left: `${comment.pin_x}%`, top: `${comment.pin_y}%` }}
-              aria-label={`Jump to comment ${number}`}
-            >
-              {number}
-            </button>
-          );
+            return (
+              <AnchoredCommentCallout
+                key={comment.id}
+                comment={comment}
+                threadNumber={number}
+                replyCount={comments.filter((candidate) => candidate.parent_id === comment.id).length}
+                replies={comments.filter((candidate) => candidate.parent_id === comment.id)}
+                canReply={canComment}
+                onClose={() => setSelectedCommentId(null)}
+                onPrevious={() => selectAdjacentComment(-1)}
+                onNext={() => selectAdjacentComment(1)}
+                onReply={async (body) => {
+                  const reply = await handleReplySubmit(comment.id, body);
+                  if (!reply) throw new Error("Could not save your reply.");
+                  return reply;
+                }}
+                versionId={activeVersion?.id ?? null}
+                attachmentEndpoint={!demoMode ? `/api/review/${token}/comments/attachments` : undefined}
+                onAttachmentCreated={(commentId, attachment) => setComments((current) => current.map((candidate) => candidate.id === commentId ? { ...candidate, attachments: [...(candidate.attachments ?? []), attachment] } : candidate))}
+                onRefreshAttachment={async (commentId, attachmentId) => {
+                  if (demoMode || !activeVersion?.id) return null;
+                  const attachments = await refreshReviewImageAttachments({ endpoint: `/api/review/${token}/comments/attachments`, commentId, versionId: activeVersion.id });
+                  setComments((current) => current.map((candidate) => candidate.id === commentId ? { ...candidate, attachments } : candidate));
+                  return attachments.find((attachment) => attachment.id === attachmentId)?.file_url ?? null;
+                }}
+              />
+            );
         })}
 
         {commentPin ? (
@@ -1480,6 +1491,7 @@ export default function PublicReviewPage({
             rasterSize={drawingRasterSize}
             onCancel={clearPin}
             onCommentCreated={handleCommentCreated}
+            attachmentEndpoint={!demoMode ? `/api/review/${token}/comments/attachments` : undefined}
           />
         ) : null}
 
@@ -1760,6 +1772,12 @@ export default function PublicReviewPage({
                 annotationEnabled={canComment && asset?.file_type === "video"}
                 overlay={renderPins()}
                 onFramePin={handleFramePin}
+                onPlaybackStart={dismissSelectedCommentForPlayback}
+                commentNavigation={{
+                  onPrevious: () => selectAdjacentComment(-1),
+                  onNext: () => selectAdjacentComment(1),
+                  disabled: orderedTimedRootComments.length === 0,
+                }}
                 onCutMarker={canComment ? handleCutMarker : undefined}
                 onImagePin={handleImagePin}
                 timeline={{

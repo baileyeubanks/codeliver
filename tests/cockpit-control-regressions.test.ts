@@ -10,6 +10,10 @@ const cockpitSource = readFileSync(
   resolve(repositoryRoot, "components/projects/ProjectCockpit.tsx"),
   "utf8",
 );
+const inlineCommentSource = readFileSync(
+  resolve(repositoryRoot, "components/review/InlineReviewComment.tsx"),
+  "utf8",
+);
 const cockpitDockStyles = readFileSync(
   resolve(repositoryRoot, "components/cockpit/CockpitDock.module.css"),
   "utf8",
@@ -312,21 +316,20 @@ test("the down-arrow shortcut creates a reviewable cut proposal, not an accepted
   assert.match(cockpitSource, /Cut proposal saved/);
 });
 
-test("frame-pin coordinates are measured against the full video frame", () => {
+test("frame-pin coordinates use loaded fitted-media bounds and reject letterbox clicks", () => {
   const handlerBody = cockpitSource.match(
-    /function handleReviewFrameClick\(event: ReactMouseEvent<HTMLDivElement>\) \{([\s\S]*?)\n  \}\n\n  async function addCutDecision/,
+    /function handleReviewFrameClick\(event: ReactMouseEvent<HTMLDivElement>\) \{([\s\S]*?)\n  \}\n\n  function selectReviewComment/,
   )?.[1];
 
   assert.ok(handlerBody, "review frame click handler is missing");
-  assert.match(
-    handlerBody,
-    /videoFrameRef\.current\?\.getBoundingClientRect\(\)/,
-  );
+  assert.match(handlerBody, /video\.readyState < HTMLMediaElement\.HAVE_METADATA/);
+  assert.match(handlerBody, /video\.videoWidth <= 0 \|\| video\.videoHeight <= 0/);
+  assert.match(handlerBody, /projectPointIntoMedia\(/);
   assert.match(handlerBody, /event\.currentTarget\.getBoundingClientRect\(\)/);
-  assert.match(handlerBody, /Math\.max\(0, Math\.min\(100,/);
+  assert.match(handlerBody, /if \(!point\) return;/);
   assert.match(
     handlerBody,
-    /setPendingPin\(\{ x, y, timeSeconds: currentTime \}\)/,
+    /setPendingPin\(\{ x: point\.x, y: point\.y, timeSeconds: videoRef\.current\?\.currentTime \?\? currentTime \}\)/,
   );
 });
 
@@ -393,4 +396,17 @@ test("demo upload terminal states stay readable and dismissible", () => {
     globalStyles,
     /section\[data-state="complete"\] footer > button/,
   );
+});
+
+
+test("comment submission never pretends a production player resumed", () => {
+  assert.doesNotMatch(inlineCommentSource, /continue playback/);
+  assert.match(inlineCommentSource, /aria-label="Send comment"/);
+
+  const submitComment = cockpitSource.match(
+    /async function submitComment\(\) \{([\s\S]*?)\n  \}\n\n  async function toggleCommentStatus/,
+  )?.[1];
+  assert.ok(submitComment, "comment submission handler is missing");
+  assert.match(submitComment, /if \(!demoMode\) \{[\s\S]*?setIsPlaying\(false\);[\s\S]*?setPlaybackError\(/);
+  assert.match(submitComment, /else if \(!demoMode\) \{[\s\S]*?setIsPlaying\(false\);[\s\S]*?setPlaybackError\(/);
 });

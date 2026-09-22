@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { readStorageConfig } from "../lib/storage/config.ts";
+import { CLAMAV_STDIN_SCAN_ARGS } from "../lib/storage/clamav.ts";
 
 test("required ClamAV caps the upload budget before bytes are accepted", () => {
   for (const provider of ["local", "ccnas", "google-drive", "object-store"]) {
@@ -10,6 +11,22 @@ test("required ClamAV caps the upload budget before bytes are accepted", () => {
     });
     assert.equal(config.maxUploadBytes, 2_000_000_000n);
   }
+});
+
+test("large-file malware scans default to the production 15-minute budget", () => {
+  assert.equal(readStorageConfig({}).malwareScanTimeoutMs, 900_000);
+  assert.equal(
+    readStorageConfig({ CODELIVER_MALWARE_SCAN_TIMEOUT_MS: "360000" }).malwareScanTimeoutMs,
+    360_000,
+  );
+});
+
+test("ClamAV cannot silently assume a long scan is clean at its 120-second default", () => {
+  assert.ok(CLAMAV_STDIN_SCAN_ARGS.includes("--max-scantime=0"));
+  assert.equal(
+    CLAMAV_STDIN_SCAN_ARGS.filter((argument) => argument.startsWith("--max-scantime=")).length,
+    1,
+  );
 });
 
 test("required ClamAV preserves a lower configured upload budget", () => {

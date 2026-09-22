@@ -119,6 +119,51 @@ export function validateReviewMutationRequest(
   return { ok: true };
 }
 
+export function validateReviewMultipartMutationRequest(
+  request: Request,
+  { maxBytes }: { maxBytes: number },
+):
+  | { ok: true }
+  | {
+      ok: false;
+      status: 403 | 413 | 415;
+      code:
+        | "REVIEW_ORIGIN_FORBIDDEN"
+        | "REVIEW_REQUEST_TOO_LARGE"
+        | "REVIEW_MULTIPART_REQUIRED";
+    } {
+  if (!Number.isSafeInteger(maxBytes) || maxBytes <= 0) {
+    throw new Error("Review multipart byte limit is invalid");
+  }
+  if (!exactOrigin(request) || !fetchMetadataAllowsSameOrigin(request)) {
+    return {
+      ok: false,
+      status: 403,
+      code: "REVIEW_ORIGIN_FORBIDDEN",
+    };
+  }
+  const contentType = request.headers.get("content-type")?.trim().toLowerCase();
+  if (!contentType?.startsWith("multipart/form-data; boundary=")) {
+    return {
+      ok: false,
+      status: 415,
+      code: "REVIEW_MULTIPART_REQUIRED",
+    };
+  }
+  // Browsers provide this header for FormData. Requiring it prevents a
+  // chunked multipart request from being buffered before its limit is known.
+  const rawLength = request.headers.get("content-length")?.trim();
+  const length = rawLength ? Number(rawLength) : Number.NaN;
+  if (!Number.isSafeInteger(length) || length <= 0 || length > maxBytes) {
+    return {
+      ok: false,
+      status: 413,
+      code: "REVIEW_REQUEST_TOO_LARGE",
+    };
+  }
+  return { ok: true };
+}
+
 export function validateReviewReadRequest(
   request: Request,
 ): ReviewRequestBoundary {

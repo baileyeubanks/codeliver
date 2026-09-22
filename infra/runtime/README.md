@@ -146,6 +146,7 @@ that does not depend on M4 or `BLAZE-STORE-2`:
 - private environment: `/Users/baileyeubanks/.config/codeliver-failover/runtime.env`
 - storage mount: `/Volumes/CC_NAS`
 - new managed-media root: `/Volumes/CC_NAS/cvp-runtime/co-videopro`
+- verified read cache: `/Users/baileyeubanks/.local/share/codeliver-failover/ccnas-read-cache`
 - origin: `127.0.0.1:4103`, with `https://co-videopro.com` for staff/admin
   and `https://client.contentco-op.com` for provisioned clients
 - application service: `com.contentcoop.codeliver-failover`
@@ -155,6 +156,23 @@ The managed-media root starts empty. It provides durable storage for uploads
 received by the failover origin; it does not recover or claim custody of media
 from the unavailable M4 RAID. Existing client/project media remains unavailable
 until copied from a verified source with receipt identity preserved.
+
+CCNAS is the durable canonical home. Because the SMB mount cannot enforce the
+adapter's local hard-link and mode-bit immutability contract, every committed
+object is fully checksum-verified into the M2 APFS read cache before it can be
+served. The cache retains at least 100 GiB of editing-disk free space and admits
+at most 250 GiB of cached object bytes. There is no automatic eviction in this
+release: a fill fails closed at either limit, and a cold fill rechecks the full
+CCNAS object against its persisted checksum and size.
+
+Each in-progress cold fill leaves a root-level
+`.ccnas-cache-reservation-<bytes>-<uuid>` file. A clean completion removes it.
+If M2 loses power, a leftover reservation deliberately keeps capacity checks
+failed closed. Recovery requires unloading the CVP application and media-worker
+launch agents, confirming no canary or CVP process is using the cache, recording
+the reservation names in the activation receipt, and then unlinking only those
+root-level reservation files before restarting the exact release. Do not remove
+cached objects, manifests, or CCNAS canonical media during that recovery.
 
 The failover uses the existing `cco-videopro` Cloudflare Tunnel. The apex route
 already targets that tunnel. `client.contentco-op.com` must be added to the same

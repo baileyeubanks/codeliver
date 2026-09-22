@@ -67,6 +67,7 @@ export async function publishedHlsSegmentResponse({
       undefined,
       {
         size: segment.size,
+        sha256: segment.sha256,
         providerVersionId: segment.providerVersionId,
       },
     );

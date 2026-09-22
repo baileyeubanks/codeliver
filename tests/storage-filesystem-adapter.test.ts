@@ -16,7 +16,7 @@ import {
   writeFileSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
-import { dirname, join } from "node:path";
+import { basename, dirname, join } from "node:path";
 import test from "node:test";
 
 import type { StorageAdapter } from "../lib/storage/contracts.ts";
@@ -27,6 +27,19 @@ function localAdapter(root: string): StorageAdapter {
   return createStorageRuntime({
     CODELIVER_STORAGE_PROVIDER: "local",
     CODELIVER_LOCAL_STORAGE_ROOT: root,
+    CODELIVER_STORAGE_WRITE_ENABLED: "1",
+    CODELIVER_STORAGE_RESERVED_BYTES: "0",
+  }).adapter;
+}
+
+function ccnasAdapter(root: string): StorageAdapter {
+  const cacheRoot = `${root}-cache`;
+  mkdirSync(cacheRoot, { recursive: true });
+  return createStorageRuntime({
+    CODELIVER_STORAGE_PROVIDER: "ccnas",
+    NAS_MEDIA_ROOT: root,
+    CODELIVER_CCNAS_READ_CACHE_ROOT: cacheRoot,
+    CODELIVER_CCNAS_READ_CACHE_RESERVED_BYTES: "0",
     CODELIVER_STORAGE_WRITE_ENABLED: "1",
     CODELIVER_STORAGE_RESERVED_BYTES: "0",
   }).adapter;
@@ -612,6 +625,232 @@ test("reconciliation removes an unlinked placement orphan before retry", async (
     assert.equal(statSync(objectPath).nlink, 1);
   } finally {
     rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("CCNAS reconciliation removes an unpublished atomic version directory before retry", async () => {
+  const root = mkdtempSync(join(tmpdir(), "codeliver-ccnas-placement-orphan-"));
+  const adapter = ccnasAdapter(root);
+  const payload = "ccnas-placement-orphan";
+  const checksum = createHash("sha256").update(payload).digest("hex");
+  const handle = await adapter.beginMultipart(randomUUID());
+  const objectKey = buildVersionedObjectKey({
+    tenantId: "tenant-a",
+    projectId: "project-a",
+    objectId: handle.uploadId,
+    version: 1,
+    filename: "master.mov",
+  });
+  const objectPath = join(root, objectKey);
+  const placementDirectory = join(
+    dirname(dirname(objectPath)),
+    `.codeliver-commit-${handle.uploadId}.tmp`,
+  );
+
+  try {
+    await adapter.appendMultipart({
+      handle,
+      offset: 0,
+      chunks: chunks(payload),
+      maxBytes: 1024,
+      expectedSize: payload.length,
+    });
+    mkdirSync(placementDirectory, { recursive: true });
+    writeFileSync(join(placementDirectory, basename(objectPath)), payload, {
+      mode: 0o400,
+    });
+
+    const reconciled = await adapter.reconcileMultipartCommit({
+      handle,
+      objectKey,
+      size: payload.length,
+      sha256: checksum,
+    });
+    assert.deepEqual(reconciled, {
+      action: "not-committed",
+      receipt: null,
+    });
+    assert.equal(existsSync(placementDirectory), false);
+
+    const receipt = await adapter.commitMultipart({
+      handle,
+      objectKey,
+      size: payload.length,
+      sha256: checksum,
+    });
+    assert.equal(receipt.sha256, checksum);
+    assert.match(receipt.providerVersionId ?? "", /^ccnas-v1:[0-9a-f]{64}$/);
+    assert.equal(readFileSync(objectPath, "utf8"), payload);
+
+    const cachePath = join(`${root}-cache`, objectKey);
+    const cacheManifestPath = join(
+      dirname(cachePath),
+      `.${basename(cachePath)}.ccnas-cache-v1.json`,
+    );
+    assert.equal(readFileSync(cachePath, "utf8"), payload);
+    rmSync(cachePath);
+    rmSync(cacheManifestPath);
+    const coldStream = await adapter.openStoredObjectReadStream(
+      objectKey,
+      { start: 0, end: payload.length - 1 },
+      {
+        size: payload.length,
+        sha256: checksum,
+        providerVersionId: receipt.providerVersionId!,
+      },
+    );
+    assert.equal(await readStreamText(coldStream), payload);
+    assert.equal(readFileSync(cachePath, "utf8"), payload);
+
+    const legacyStream = await adapter.openStoredObjectReadStream(
+      objectKey,
+      undefined,
+      {
+        size: payload.length,
+        sha256: checksum,
+        providerVersionId: `fs-v1:${"a".repeat(64)}`,
+      },
+    );
+    assert.equal(await readStreamText(legacyStream), payload);
+    await assert.rejects(
+      () => adapter.openStoredObjectReadStream(
+        objectKey,
+        undefined,
+        {
+          size: payload.length,
+          sha256: "0".repeat(64),
+          providerVersionId: receipt.providerVersionId!,
+        },
+      ),
+      /receipt identity/i,
+    );
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+    rmSync(`${root}-cache`, { recursive: true, force: true });
+  }
+});
+
+test("CCNAS commit rejects keys without an exclusively owned version directory", async () => {
+  const root = mkdtempSync(join(tmpdir(), "codeliver-ccnas-key-shape-"));
+  const adapter = ccnasAdapter(root);
+  const payload = "payload";
+  const handle = await adapter.beginMultipart(randomUUID());
+
+  try {
+    await adapter.appendMultipart({
+      handle,
+      offset: 0,
+      chunks: chunks(payload),
+      maxBytes: 1024,
+      expectedSize: payload.length,
+    });
+    await assert.rejects(
+      () => adapter.commitMultipart({
+        handle,
+        objectKey: "shared/version/master.mov",
+        size: payload.length,
+        sha256: createHash("sha256").update(payload).digest("hex"),
+      }),
+      /exclusively owned version directory/i,
+    );
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+    rmSync(`${root}-cache`, { recursive: true, force: true });
+  }
+});
+
+test("CCNAS reconciliation rejects a symlinked published version directory", async () => {
+  const root = mkdtempSync(join(tmpdir(), "codeliver-ccnas-destination-symlink-"));
+  const outside = mkdtempSync(join(tmpdir(), "codeliver-ccnas-destination-outside-"));
+  const adapter = ccnasAdapter(root);
+  const payload = "outside-payload";
+  const checksum = createHash("sha256").update(payload).digest("hex");
+  const handle = await adapter.beginMultipart(randomUUID());
+  const objectKey = buildVersionedObjectKey({
+    tenantId: "tenant-a",
+    projectId: "project-a",
+    objectId: handle.uploadId,
+    version: 1,
+    filename: "master.mov",
+  });
+  const objectPath = join(root, objectKey);
+
+  try {
+    await adapter.appendMultipart({
+      handle,
+      offset: 0,
+      chunks: chunks(payload),
+      maxBytes: 1024,
+      expectedSize: payload.length,
+    });
+    mkdirSync(dirname(dirname(objectPath)), { recursive: true });
+    writeFileSync(join(outside, basename(objectPath)), payload, { mode: 0o400 });
+    symlinkSync(outside, dirname(objectPath));
+
+    await assert.rejects(
+      () => adapter.reconcileMultipartCommit({
+        handle,
+        objectKey,
+        size: payload.length,
+        sha256: checksum,
+      }),
+      /symlink|unsafe directory/i,
+    );
+    assert.equal(readFileSync(join(outside, basename(objectPath)), "utf8"), payload);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+    rmSync(`${root}-cache`, { recursive: true, force: true });
+    rmSync(outside, { recursive: true, force: true });
+  }
+});
+
+test("CCNAS reconciliation never removes bytes through a symlinked placement directory", async () => {
+  const root = mkdtempSync(join(tmpdir(), "codeliver-ccnas-placement-symlink-"));
+  const outside = mkdtempSync(join(tmpdir(), "codeliver-ccnas-placement-outside-"));
+  const adapter = ccnasAdapter(root);
+  const payload = "outside-placement";
+  const checksum = createHash("sha256").update(payload).digest("hex");
+  const handle = await adapter.beginMultipart(randomUUID());
+  const objectKey = buildVersionedObjectKey({
+    tenantId: "tenant-a",
+    projectId: "project-a",
+    objectId: handle.uploadId,
+    version: 1,
+    filename: "master.mov",
+  });
+  const objectPath = join(root, objectKey);
+  const placementDirectory = join(
+    dirname(dirname(objectPath)),
+    `.codeliver-commit-${handle.uploadId}.tmp`,
+  );
+  const outsideFile = join(outside, basename(objectPath));
+
+  try {
+    await adapter.appendMultipart({
+      handle,
+      offset: 0,
+      chunks: chunks(payload),
+      maxBytes: 1024,
+      expectedSize: payload.length,
+    });
+    mkdirSync(dirname(placementDirectory), { recursive: true });
+    writeFileSync(outsideFile, payload, { mode: 0o400 });
+    symlinkSync(outside, placementDirectory);
+
+    await assert.rejects(
+      () => adapter.reconcileMultipartCommit({
+        handle,
+        objectKey,
+        size: payload.length,
+        sha256: checksum,
+      }),
+      /symlink|unsafe directory/i,
+    );
+    assert.equal(readFileSync(outsideFile, "utf8"), payload);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+    rmSync(`${root}-cache`, { recursive: true, force: true });
+    rmSync(outside, { recursive: true, force: true });
   }
 });
 

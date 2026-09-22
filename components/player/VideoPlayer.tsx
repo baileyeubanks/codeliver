@@ -10,9 +10,13 @@ interface VideoPlayerProps {
   src: string;
   poster?: string;
   onTimeUpdate?: (time: number) => void;
+  onPlaybackStart?: () => void;
   onPlaybackError?: () => void;
   onFrameClick?: (x: number, y: number, timeSeconds: number) => void;
   onCutMarker?: (time: number) => void;
+  sourceNonce?: number;
+  resumeTime?: number | null;
+  allowOverlayOverflow?: boolean;
   children?: ReactNode;
   videoRef?: RefObject<HTMLVideoElement | null>;
 }
@@ -21,9 +25,13 @@ export default function VideoPlayer({
   src,
   poster,
   onTimeUpdate,
+  onPlaybackStart,
   onPlaybackError,
   onFrameClick,
   onCutMarker,
+  sourceNonce = 0,
+  resumeTime = null,
+  allowOverlayOverflow = false,
   children,
   videoRef: externalRef,
 }: VideoPlayerProps) {
@@ -88,6 +96,12 @@ export default function VideoPlayer({
     };
     const handleNativeError = () => reportActiveFailure();
     video.addEventListener("error", handleNativeError);
+    const restoreTime = () => {
+      if (resumeTime != null && Number.isFinite(resumeTime) && video.duration > 0) {
+        video.currentTime = Math.min(Math.max(0, resumeTime), video.duration);
+      }
+    };
+    video.addEventListener("loadedmetadata", restoreTime, { once: true });
 
     const isHls = src.split(/[?#]/, 1)[0].toLowerCase().endsWith(".m3u8");
     if (isHls && Hls.isSupported()) {
@@ -104,20 +118,23 @@ export default function VideoPlayer({
         sourceIsActive = false;
         if (sourceGenerationRef.current === sourceGeneration) sourceGenerationRef.current += 1;
         video.removeEventListener("error", handleNativeError);
+        video.removeEventListener("loadedmetadata", restoreTime);
         hls.off(Hls.Events.ERROR, handleHlsError);
         hls.destroy();
         if (hlsRef.current === hls) hlsRef.current = null;
       };
     } else {
       video.src = src;
+      video.load();
     }
 
     return () => {
       sourceIsActive = false;
       if (sourceGenerationRef.current === sourceGeneration) sourceGenerationRef.current += 1;
       video.removeEventListener("error", handleNativeError);
+      video.removeEventListener("loadedmetadata", restoreTime);
     };
-  }, [src, videoRef, reportPlaybackFailure]);
+  }, [src, sourceNonce, resumeTime, videoRef, reportPlaybackFailure]);
 
   // Sync playback state to video element
   useEffect(() => {
@@ -172,7 +189,10 @@ export default function VideoPlayer({
         setBufferedEnd(video.buffered.end(video.buffered.length - 1));
       }
     };
-    const handlePlay = () => setPlaying(true);
+    const handlePlay = () => {
+      setPlaying(true);
+      onPlaybackStart?.();
+    };
     const handlePause = () => setPlaying(false);
     const handleEnded = () => setPlaying(false);
 
@@ -191,7 +211,7 @@ export default function VideoPlayer({
       video.removeEventListener("pause", handlePause);
       video.removeEventListener("ended", handleEnded);
     };
-  }, [videoRef, setCurrentTime, setDuration, setBufferedEnd, setPlaying, onTimeUpdate]);
+  }, [videoRef, setCurrentTime, setDuration, setBufferedEnd, setPlaying, onTimeUpdate, onPlaybackStart]);
 
   function handleVideoClick() {
     const video = videoRef.current;
@@ -206,7 +226,11 @@ export default function VideoPlayer({
 
   function handleOverlayClick(e: React.MouseEvent<HTMLDivElement>) {
     const video = videoRef.current;
-    if (!video || !onFrameClick) return;
+    if (
+      !video || !onFrameClick ||
+      video.readyState < HTMLMediaElement.HAVE_METADATA ||
+      video.videoWidth <= 0 || video.videoHeight <= 0
+    ) return;
 
     const rect = e.currentTarget.getBoundingClientRect();
     const point = projectPointIntoMedia({
@@ -214,8 +238,8 @@ export default function VideoPlayer({
       localY: e.clientY - rect.top,
       containerWidth: rect.width,
       containerHeight: rect.height,
-      mediaWidth: video.videoWidth || rect.width,
-      mediaHeight: video.videoHeight || rect.height,
+      mediaWidth: video.videoWidth,
+      mediaHeight: video.videoHeight,
     });
 
     if (!point) return;
@@ -333,12 +357,12 @@ export default function VideoPlayer({
       tabIndex={0}
       role="group"
       aria-label="Review media player"
-      className="relative w-full overflow-hidden rounded-[var(--radius)] bg-black outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] focus-visible:ring-offset-2 focus-visible:ring-offset-black"
+      className={`relative w-full ${allowOverlayOverflow ? "overflow-visible" : "overflow-hidden"} rounded-[var(--radius)] bg-black outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] focus-visible:ring-offset-2 focus-visible:ring-offset-black`}
     >
       <video
         ref={videoRef}
         poster={poster}
-        className="h-full w-full cursor-pointer"
+        className="h-full w-full cursor-pointer rounded-[var(--radius)]"
         onClick={handleVideoClick}
         playsInline
         preload="metadata"

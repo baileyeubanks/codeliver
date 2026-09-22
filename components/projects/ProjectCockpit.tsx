@@ -21,6 +21,8 @@ import {
   BriefcaseBusiness,
   Check,
   CheckCircle2,
+  ChevronLeft,
+  ChevronRight,
   ChevronDown,
   Circle,
   Compass,
@@ -124,10 +126,14 @@ import {
 } from "@/lib/review/internal-version-operations";
 import { formatSmpteTimecode } from "@/components/player/timecode";
 import VideoPlayer from "@/components/player/VideoPlayer";
-import { normalizeReviewSeekStep, normalizeReviewShortcutKey, shouldIgnoreReviewShortcut } from "@/lib/review/player-policy";
+import InlineReviewComment from "@/components/review/InlineReviewComment";
+import AnchoredCommentCallout from "@/components/review/AnchoredCommentCallout";
+import { adjacentTimedComment, orderedTimedComments } from "@/lib/review/comment-navigation";
+import { refreshReviewImageAttachments } from "@/lib/review/image-attachments-client";
+import { normalizeReviewSeekStep, normalizeReviewShortcutKey, projectPointIntoMedia, shouldIgnoreReviewShortcut } from "@/lib/review/player-policy";
 import { buildSurfaceUrl, getReviewSiteUrl } from "@/lib/surface-origins";
 import { mayOpenRevisionUploader } from "@/lib/uploads/revision-upload";
-import type { EditDecision, Version } from "@/lib/types/codeliver";
+import type { CommentAttachment, EditDecision, Version } from "@/lib/types/codeliver";
 import styles from "./ProjectCockpit.module.css";
 
 interface ProjectCockpitProps {
@@ -360,15 +366,20 @@ function normalizeLiveComment(
   record: Record<string, unknown>,
   projectId: string,
   assetId: string,
-): DemoReviewComment {
+): DemoReviewComment & { attachments?: CommentAttachment[] } {
   const status = record.status === "resolved" ? "resolved" : "open";
   const pinX = typeof record.pin_x === "number" ? record.pin_x : undefined;
   const pinY = typeof record.pin_y === "number" ? record.pin_y : undefined;
+  const attachments = Array.isArray(record.attachments)
+    ? record.attachments.filter((attachment): attachment is CommentAttachment => Boolean(attachment && typeof attachment === "object" && typeof (attachment as CommentAttachment).id === "string" && typeof (attachment as CommentAttachment).file_url === "string"))
+    : undefined;
   return {
     id: recordString(record, "id", crypto.randomUUID()),
     project_id: projectId,
     asset_id: assetId,
     version_id: typeof record.version_id === "string" ? record.version_id : null,
+    parent_id: typeof record.parent_id === "string" ? record.parent_id : null,
+    ...(attachments?.length ? { attachments } : {}),
     author_name: recordString(record, "author_name", "Content Co-op"),
     author_email: typeof record.author_email === "string" ? record.author_email : null,
     body: recordString(record, "body"),
@@ -530,6 +541,7 @@ export default function ProjectCockpit({
     y: number;
     timeSeconds: number;
   } | null>(null);
+  const [selectedCommentId, setSelectedCommentId] = useState<string | null>(null);
   const [resumeAfterComment, setResumeAfterComment] = useState(false);
   const [seekStepSeconds, setSeekStepSeconds] = useState(() => {
     if (typeof window === "undefined") return 2;
@@ -570,6 +582,8 @@ export default function ProjectCockpit({
   const [toast, setToast] = useState("");
   const [commentSubmitting, setCommentSubmitting] = useState(false);
   const [nativeDuration, setNativeDuration] = useState(0);
+  const [hlsSourceNonce, setHlsSourceNonce] = useState(0);
+  const [hlsResumeTime, setHlsResumeTime] = useState<number | null>(null);
   const [liveComments, setLiveComments] = useState<DemoReviewComment[]>([]);
   const [liveCutMarkers, setLiveCutMarkers] = useState<DemoReviewCutMarker[]>([]);
   const [liveAssetDataKey, setLiveAssetDataKey] = useState<string | null>(null);
@@ -580,6 +594,13 @@ export default function ProjectCockpit({
   const [liveTasks] = useState<DemoProjectTask[]>([]);
   const [liveActivity, setLiveActivity] = useState<DemoActivityItem[]>([]);
   const [systemsReadiness, setSystemsReadiness] = useState<CockpitReadinessState>(DEFAULT_COCKPIT_READINESS);
+  const handleHlsPlaybackError = useCallback(() => {
+    setIsPlaying(false);
+    setPlaybackError("This video could not load. Check that the source file is available.");
+  }, []);
+  const dismissSelectedCommentForPlayback = useCallback(() => {
+    setSelectedCommentId(null);
+  }, []);
 
   useEffect(() => {
     setActiveSection(cockpitSectionFromSearchParams(searchParams));
@@ -817,7 +838,13 @@ export default function ProjectCockpit({
         : [],
     )
     : activeLiveReviewKey && liveAssetDataKey === activeLiveReviewKey ? liveCutMarkers : [];
-  const visibleComments = comments.filter((comment) => comment.status === commentStatus);
+  const rootComments = comments.filter((comment) => !comment.parent_id);
+  const orderedRootReviewComments = orderedTimedComments(rootComments.map((comment) => ({
+    id: comment.id,
+    timecode_seconds: comment.time_seconds,
+    created_at: comment.created_at,
+  })));
+  const visibleComments = rootComments.filter((comment) => comment.status === commentStatus);
   const projectTasks = demoMode
     ? workspace.tasks.filter((task) => task.project_id === project.id)
     : liveTasks;
@@ -1414,6 +1441,7 @@ export default function ProjectCockpit({
     setNativeVideoActive(false);
     setSimulatedPlayback(false);
     setPendingPin(null);
+    setSelectedCommentId(null);
     setResumeAfterComment(false);
     if (requestedVersionId !== null) {
       const params = new URLSearchParams(searchParams.toString());
@@ -1440,6 +1468,7 @@ export default function ProjectCockpit({
     setIsPlaying(false);
     setHasEnded(false);
     setPendingPin(null);
+    setSelectedCommentId(null);
     setResumeAfterComment(false);
     if (typeof videoRef.current?.pause === "function") videoRef.current.pause();
     if (typeof videoRef.current?.load === "function") videoRef.current.load();
@@ -1463,6 +1492,7 @@ export default function ProjectCockpit({
     setIsPlaying(false);
     setHasEnded(false);
     setPendingPin(null);
+    setSelectedCommentId(null);
     setResumeAfterComment(false);
     if (typeof videoRef.current?.pause === "function") videoRef.current.pause();
     if (typeof videoRef.current?.load === "function") videoRef.current.load();
@@ -1548,6 +1578,17 @@ export default function ProjectCockpit({
     setIsPlaying(true);
   }
 
+  function retryPlaybackSource() {
+    const resumeAt = videoRef.current?.currentTime ?? currentTime;
+    setPlaybackError(null);
+    if (hlsMediaActive) {
+      setHlsResumeTime(resumeAt);
+      setHlsSourceNonce((nonce) => nonce + 1);
+      return;
+    }
+    videoRef.current?.load();
+  }
+
   function seekTo(seconds: number) {
     if (!reviewOperationsAllowed) return;
     const normalized = Math.max(0, Math.min(previewDuration, seconds));
@@ -1571,17 +1612,95 @@ export default function ProjectCockpit({
 
   function handleReviewFrameClick(event: ReactMouseEvent<HTMLDivElement>) {
     if (!reviewOperationsAllowed || !activeAsset) return;
-    const frameRect = videoFrameRef.current?.getBoundingClientRect()
-      ?? event.currentTarget.getBoundingClientRect();
-    const x = Math.max(0, Math.min(100, ((event.clientX - frameRect.left) / frameRect.width) * 100));
-    const y = Math.max(0, Math.min(100, ((event.clientY - frameRect.top) / frameRect.height) * 100));
+    const video = videoRef.current;
+    if (
+      !video || video.readyState < HTMLMediaElement.HAVE_METADATA ||
+      video.videoWidth <= 0 || video.videoHeight <= 0
+    ) {
+      setToast("Wait for this version to load before placing a frame comment.");
+      return;
+    }
+    const frameRect = event.currentTarget.getBoundingClientRect();
+    const point = projectPointIntoMedia({
+      localX: event.clientX - frameRect.left,
+      localY: event.clientY - frameRect.top,
+      containerWidth: frameRect.width,
+      containerHeight: frameRect.height,
+      mediaWidth: video.videoWidth,
+      mediaHeight: video.videoHeight,
+    });
+    if (!point) return;
     const wasPlaying = isPlaying;
 
     if (typeof videoRef.current?.pause === "function") videoRef.current.pause();
     setIsPlaying(false);
     setResumeAfterComment(wasPlaying);
-    setPendingPin({ x, y, timeSeconds: currentTime });
-    window.requestAnimationFrame(() => commentInputRef.current?.focus());
+    // Read the media element at the click, not a render-delayed clock. This
+    // keeps the persisted anchor at the actual frame for any measured FPS.
+    setPendingPin({ x: point.x, y: point.y, timeSeconds: videoRef.current?.currentTime ?? currentTime });
+  }
+
+  function selectReviewComment(comment: DemoReviewComment) {
+    videoRef.current?.pause();
+    setIsPlaying(false);
+    setSelectedCommentId(comment.id);
+    seekTo(comment.time_seconds);
+  }
+
+  function selectAdjacentReviewComment(direction: -1 | 1) {
+    const next = adjacentTimedComment(orderedRootReviewComments, selectedCommentId, direction);
+    const target = rootComments.find((comment) => comment.id === next?.id);
+    if (target) selectReviewComment(target);
+  }
+
+  async function persistExactComment({
+    body,
+    timecode,
+    pin,
+    parentId,
+  }: {
+    body: string;
+    timecode: number;
+    pin?: { x: number; y: number };
+    parentId?: string;
+  }) {
+    if (!reviewOperationsAllowed || !activeAsset || (!demoMode && !activeLiveVersion)) {
+      throw new Error("This exact review version is unavailable.");
+    }
+    if (demoMode) {
+      if (!activeDemoVersionId) throw new Error("Requested media version unavailable.");
+      const created = addDemoReviewComment({
+        projectId: project.id,
+        assetId: activeAsset.id,
+        versionId: activeDemoVersionId,
+        parentId,
+        body,
+        timeSeconds: timecode,
+        pinX: pin?.x,
+        pinY: pin?.y,
+      });
+      if (!created) throw new Error("The comment could not be saved.");
+      return created;
+    }
+    const liveVersionId = activeLiveVersion?.id;
+    if (!liveVersionId) throw new Error("Requested media version unavailable.");
+    const response = await fetch(`/api/assets/${activeAsset.id}/comments`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        version_id: liveVersionId,
+        body,
+        timecode_seconds: timecode,
+        pin_x: pin?.x ?? null,
+        pin_y: pin?.y ?? null,
+        parent_id: parentId ?? null,
+      }),
+    });
+    if (!response.ok) throw new Error("The comment could not be saved.");
+    const created = (await response.json()) as Record<string, unknown>;
+    const normalized = normalizeLiveComment(created, project.id, activeAsset.id);
+    setLiveComments((current) => [...current, normalized]);
+    return normalized;
   }
 
   async function addCutDecision() {
@@ -1702,52 +1821,18 @@ export default function ProjectCockpit({
     const shouldResume = resumeAfterComment;
     const submittedBody = commentBody.trim();
     const submittedTime = pendingPin?.timeSeconds ?? currentTime;
-    if (demoMode) {
-      addDemoReviewComment({
-        projectId: project.id,
-        assetId: activeAsset.id,
-        versionId: activeDemoVersionId ?? undefined,
-        body: submittedBody,
-        timeSeconds: submittedTime,
-        pinX: pendingPin?.x,
-        pinY: pendingPin?.y,
-      });
-    } else {
-      const liveVersionId = activeLiveVersion?.id;
-      if (!liveVersionId) return;
-      setCommentSubmitting(true);
-      try {
-        const response = await fetch(`/api/assets/${activeAsset.id}/comments`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            version_id: liveVersionId,
-            body: submittedBody,
-            author_name: viewerName,
-            author_email: viewerEmail || undefined,
-            timecode_seconds: submittedTime,
-            pin_x: pendingPin?.x ?? null,
-            pin_y: pendingPin?.y ?? null,
-          }),
-        });
-        if (!response.ok) {
-          setToast("The comment could not be saved.");
-          return;
-        }
-        const created = (await response.json()) as Record<string, unknown>;
-        setLiveComments((current) => [
-          ...current,
-          normalizeLiveComment(created, project.id, activeAsset.id),
-        ]);
-      } catch {
-        setToast("The comment could not be saved.");
-        return;
-      } finally {
-        setCommentSubmitting(false);
-      }
+    setCommentSubmitting(true);
+    try {
+      await persistExactComment({ body: submittedBody, timecode: submittedTime, pin: pendingPin ?? undefined });
+    } catch {
+      setToast("The comment could not be saved.");
+      return;
+    } finally {
+      setCommentSubmitting(false);
     }
     setCommentBody("");
     setPendingPin(null);
+    setSelectedCommentId(null);
     setResumeAfterComment(false);
     setCommentStatus("open");
     setToast("Timecoded comment added");
@@ -1757,9 +1842,19 @@ export default function ProjectCockpit({
         const video = videoRef.current;
         if (video && typeof video.play === "function") {
           void video.play().then(() => setNativeVideoActive(true)).catch(() => {
+            if (!demoMode) {
+              setNativeVideoActive(false);
+              setIsPlaying(false);
+              setPlaybackError("This video could not play. Try again or choose another file.");
+              return;
+            }
             setSimulatedPlayback(true);
             setIsPlaying(true);
           });
+        } else if (!demoMode) {
+          setNativeVideoActive(false);
+          setIsPlaying(false);
+          setPlaybackError("Video playback is unavailable. Reload and try again.");
         } else {
           setSimulatedPlayback(true);
           setIsPlaying(true);
@@ -2329,6 +2424,10 @@ export default function ProjectCockpit({
                           src={activeMediaUrl}
                           poster={activePosterUrl ?? undefined}
                           onTimeUpdate={setCurrentTime}
+                          onPlaybackError={handleHlsPlaybackError}
+                          onPlaybackStart={dismissSelectedCommentForPlayback}
+                          sourceNonce={hlsSourceNonce}
+                          resumeTime={hlsResumeTime}
                           videoRef={videoRef}
                         />
                       ) : (
@@ -2351,6 +2450,7 @@ export default function ProjectCockpit({
                           onPlay={() => {
                             setIsPlaying(true);
                             setHasEnded(false);
+                            dismissSelectedCommentForPlayback();
                           }}
                           onPause={() => setIsPlaying(false)}
                           onTimeUpdate={(event) => setCurrentTime(event.currentTarget.currentTime)}
@@ -2361,13 +2461,16 @@ export default function ProjectCockpit({
                         />
                       )}
                       <time>{formatClock(currentTime)}</time>
-                      {playbackError ? <p role="alert">{playbackError}</p> : null}
+                      {playbackError ? (
+                        <p role="alert">
+                          {playbackError} <button type="button" onClick={retryPlaybackSource}>Retry playback</button>
+                        </p>
+                      ) : null}
                       <div
                         className={`cockpit-review-overlay ${styles.stageOverlay}`}
                         data-review-overlay
-                        onClick={() => void togglePlayback()}
-                        onDoubleClick={handleReviewFrameClick}
-                        title="Click to play or pause · double-click to pin a comment"
+                        onClick={handleReviewFrameClick}
+                        title="Click a frame to pause and add a pinned comment"
                         aria-hidden="true"
                       />
                       {hasEnded ? (
@@ -2381,38 +2484,82 @@ export default function ProjectCockpit({
                           Replay
                         </button>
                       ) : null}
-                      {comments.filter((comment) => comment.pin_x != null && comment.pin_y != null).map((comment, index) => (
-                        <button
-                          key={comment.id}
-                          type="button"
-                          className="cockpit-frame-pin"
-                          style={{ left: `${comment.pin_x}%`, top: `${comment.pin_y}%` }}
-                          onClick={() => {
-                            seekTo(comment.time_seconds);
-                            setToast(
-                              comment.body.length > 96
-                                ? `Comment: ${comment.body.slice(0, 96)}…`
-                                : `Comment: ${comment.body}`,
-                            );
-                          }}
-                          aria-label={`Jump to pinned comment ${index + 1} at ${formatShortClock(comment.time_seconds)}`}
-                          title={comment.body}
-                        >
-                          {index + 1}
-                        </button>
-                      ))}
-                      {pendingPin ? (
-                        <span
-                          className="cockpit-frame-pin pending"
-                          style={{ left: `${pendingPin.x}%`, top: `${pendingPin.y}%` }}
-                          aria-hidden="true"
-                        >
-                          <MapPin size={14} fill="currentColor" />
-                        </span>
-                      ) : null}
+                      <div className="cockpit-review-canvas" aria-live="polite">
+                        {rootComments
+                          .filter((comment) => comment.id === selectedCommentId && comment.pin_x != null && comment.pin_y != null)
+                          .map((comment) => (
+                            <AnchoredCommentCallout
+                              key={comment.id}
+                              comment={{
+                                id: comment.id,
+                                author_name: comment.author_name,
+                                body: comment.body,
+                                timecode_seconds: comment.time_seconds,
+                                pin_x: comment.pin_x ?? null,
+                                pin_y: comment.pin_y ?? null,
+                                attachments: (comment as typeof comment & { attachments?: CommentAttachment[] }).attachments,
+                              }}
+                              threadNumber={orderedRootReviewComments.findIndex((candidate) => candidate.id === comment.id) + 1}
+                              replyCount={comments.filter((candidate) => candidate.parent_id === comment.id).length}
+                              replies={comments.filter((candidate) => candidate.parent_id === comment.id).map((reply) => ({ id: reply.id, author_name: reply.author_name, body: reply.body, attachments: (reply as typeof reply & { attachments?: CommentAttachment[] }).attachments }))}
+                              canReply={reviewOperationsAllowed}
+                              onClose={() => setSelectedCommentId(null)}
+                              onPrevious={() => selectAdjacentReviewComment(-1)}
+                              onNext={() => selectAdjacentReviewComment(1)}
+                              onReply={(body) => persistExactComment({ body, timecode: comment.time_seconds, parentId: comment.id })}
+                              versionId={demoMode ? activeDemoVersionId : activeLiveVersion?.id ?? null}
+                              attachmentEndpoint={!demoMode ? `/api/assets/${activeAsset.id}/comments/attachments` : undefined}
+                              onAttachmentCreated={(commentId, attachment) => setLiveComments((current) => current.map((candidate) => candidate.id === commentId ? { ...candidate, attachments: [...((candidate as typeof candidate & { attachments?: CommentAttachment[] }).attachments ?? []), attachment] } : candidate))}
+                              onRefreshAttachment={async (commentId, attachmentId) => {
+                                if (demoMode || !activeLiveVersion) return null;
+                                const attachments = await refreshReviewImageAttachments({ endpoint: `/api/assets/${activeAsset.id}/comments/attachments`, commentId, versionId: activeLiveVersion.id });
+                                setLiveComments((current) => current.map((candidate) => candidate.id === commentId ? { ...candidate, attachments } : candidate));
+                                return attachments.find((attachment) => attachment.id === attachmentId)?.file_url ?? null;
+                              }}
+                            />
+                          ))}
+                        {pendingPin ? (
+                          <span
+                            className="cockpit-frame-pin pending"
+                            style={{ left: `${pendingPin.x}%`, top: `${pendingPin.y}%` }}
+                            aria-hidden="true"
+                          >
+                            <MapPin size={14} fill="currentColor" />
+                          </span>
+                        ) : null}
+                        {pendingPin ? (
+                          <InlineReviewComment
+                            assetId={activeAsset.id}
+                            assetType={activeAsset.file_type}
+                            versionId={demoMode ? activeDemoVersionId : activeLiveVersion?.id ?? null}
+                            reviewInviteId={null}
+                            reviewerName={viewerName}
+                            onReviewerNameChange={() => undefined}
+                            timecode={pendingPin.timeSeconds}
+                            pin={pendingPin}
+                            onCancel={() => setPendingPin(null)}
+                            attachmentEndpoint={!demoMode ? `/api/assets/${activeAsset.id}/comments/attachments` : undefined}
+                            onAttachmentCreated={(commentId, attachment) => setLiveComments((current) => current.map((candidate) => candidate.id === commentId ? { ...candidate, attachments: [...((candidate as typeof candidate & { attachments?: CommentAttachment[] }).attachments ?? []), attachment] } : candidate))}
+                            onPersist={({ body, timecode, pin }) => persistExactComment({ body, timecode, pin })}
+                            onComplete={() => {
+                              setPendingPin(null);
+                              setSelectedCommentId(null);
+                              setResumeAfterComment(false);
+                              setCommentStatus("open");
+                              setToast("Timecoded comment added");
+                            }}
+                          />
+                        ) : null}
+                      </div>
                       <div className={`cockpit-video-controls ${styles.playerControls}`}>
                         <button type="button" onClick={togglePlayback} aria-label={isPlaying ? "Pause" : "Play"}>
                           {isPlaying ? <Pause size={20} fill="currentColor" /> : <Play size={20} fill="currentColor" />}
+                        </button>
+                        <button type="button" onClick={() => selectAdjacentReviewComment(-1)} disabled={orderedRootReviewComments.length === 0} aria-label="Previous comment" title="Previous comment">
+                          <ChevronLeft size={18} />
+                        </button>
+                        <button type="button" onClick={() => selectAdjacentReviewComment(1)} disabled={orderedRootReviewComments.length === 0} aria-label="Next comment" title="Next comment">
+                          <ChevronRight size={18} />
                         </button>
                         <span data-transport-time>{formatClock(currentTime)} / {formatClock(previewDuration)}</span>
                         <input
@@ -2480,7 +2627,7 @@ export default function ProjectCockpit({
                       </div>
                     </div>
 
-                    <div className={`cockpit-comment-composer ${pendingPin ? "is-pinning" : ""}`}>
+                    {!pendingPin ? <div className="cockpit-comment-composer">
                       <span className="cockpit-avatar">{avatarInitials(viewerName) || "CC"}</span>
                       <div className="cockpit-comment-field">
                         {pendingPin ? (
@@ -2496,17 +2643,17 @@ export default function ProjectCockpit({
                           onKeyDown={(event) => {
                             if (event.key === "Enter") void submitComment();
                           }}
-                          placeholder={pendingPin ? "Describe what should change at this frame" : "Add a timecoded comment"}
+                          placeholder="Add a timecoded comment"
                           aria-label="Comment"
                         />
                       </div>
                       <button className="cockpit-timecode" type="button" onClick={() => seekTo(currentTime)}>
-                        {formatClock(pendingPin?.timeSeconds ?? currentTime)}
+                        {formatClock(currentTime)}
                       </button>
                       <button className="cockpit-add-comment" type="button" onClick={() => void submitComment()} disabled={!commentBody.trim() || commentSubmitting}>
                         {commentSubmitting ? "Saving" : "Add comment"}
                       </button>
-                    </div>
+                    </div> : null}
                   </section>
                 ) : (
                   <EmptyState title="No review media" body="Upload a video to begin the review." />
@@ -2552,7 +2699,12 @@ export default function ProjectCockpit({
                             status: "proposed" as const,
                           }))}
                           onSeek={seekTo}
-                          onMarkerActivate={(marker) => seekTo(marker.timeSeconds)}
+                          onMarkerActivate={(marker) => {
+                            if (marker.kind === "comment") {
+                              const comment = rootComments.find((candidate) => candidate.id === marker.id);
+                              if (comment) selectReviewComment(comment);
+                            }
+                          }}
                         />
                       </div>
                     ) : null}
@@ -2683,7 +2835,7 @@ export default function ProjectCockpit({
                               const clampable = comment.body.length > 140;
                               return (
                                 <article key={comment.id}>
-                                  <button type="button" onClick={() => seekTo(comment.time_seconds)}>{formatShortClock(comment.time_seconds)}</button>
+                                  <button type="button" onClick={() => selectReviewComment(comment)}>{formatShortClock(comment.time_seconds)}</button>
                                   <div>
                                     <strong>{comment.author_name}</strong>
                                     <p className={expanded ? undefined : "cockpit-comment-clamped"}>{comment.body}</p>

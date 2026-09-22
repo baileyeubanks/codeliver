@@ -235,6 +235,7 @@ export async function serveManagedVersionMedia({
       range ?? undefined,
       {
         size: media.file_size,
+        sha256: media.storage_sha256,
         providerVersionId: media.storage_provider_version_id,
       },
     );

@@ -110,7 +110,7 @@ function publishedMetadata() {
 
 type OpenCall = {
   objectKey: string;
-  expectation?: { size: number; providerVersionId: string };
+  expectation?: { size: number; sha256?: string; providerVersionId: string };
 };
 type ReviewerHlsState = typeof globalThis & {
   __cvpReviewerHlsBoundaryCalls: string[];
@@ -333,7 +333,11 @@ test("reviewer playlist revalidates current admission claims and refreshes the g
   assert.deepEqual(state.__cvpReviewerHlsOpenCalls, [
     {
       objectKey: playlistObjectKey,
-      expectation: { size: Buffer.byteLength(playlist), providerVersionId },
+      expectation: {
+        size: Buffer.byteLength(playlist),
+        sha256: digest(playlist),
+        providerVersionId,
+      },
     },
   ]);
 });
@@ -357,7 +361,11 @@ test("reviewer segment revalidates authority and streams one exact receipt", asy
   assert.deepEqual(state.__cvpReviewerHlsOpenCalls, [
     {
       objectKey: segmentObjectKeys[1],
-      expectation: { size: segmentBytes[1].length, providerVersionId },
+      expectation: {
+        size: segmentBytes[1].length,
+        sha256: digest(segmentBytes[1]),
+        providerVersionId,
+      },
     },
   ]);
 });

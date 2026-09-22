@@ -21,6 +21,7 @@ import type { UploadSessionRepository } from "./session-repository";
 import { bigintToSafeNumber } from "../storage/config.ts";
 import { createMalwareScanHook } from "../storage/malware.ts";
 import { buildUploadWorkflowReadiness, type UploadWorkflowReadiness } from "../storage/release-readiness.ts";
+import { ccnasContentVersionId } from "../storage/ccnas-read-cache.ts";
 import { buildVersionedObjectKey, hashStorageNamespace } from "../storage/object-key.ts";
 import { createStorageRuntime } from "../storage/runtime.ts";
 import { UploadOrchestrationError } from "./errors.ts";
@@ -465,6 +466,7 @@ export class UploadOrchestrator {
         objectKey: null,
         receipt: null,
         scan: null,
+        finalizationDeferred: false,
         partCount: 0,
         lastPartSha256: null,
         assetId,
@@ -836,6 +838,7 @@ export class UploadOrchestrator {
     session.computedSha256 = inspection.sha256;
     if (inspection.size !== session.size) {
       session.state = "failed";
+      session.finalizationDeferred = false;
       session.lastError = {
         code: "SIZE_MISMATCH",
         message: `Expected ${session.size} bytes, found ${inspection.size}`,
@@ -846,6 +849,7 @@ export class UploadOrchestrator {
     }
     if (session.expectedSha256 && session.expectedSha256 !== inspection.sha256) {
       session.state = "rejected";
+      session.finalizationDeferred = false;
       session.lastError = {
         code: "CHECKSUM_MISMATCH",
         message: "Object checksum did not match the declared SHA-256",
@@ -866,6 +870,7 @@ export class UploadOrchestrator {
       inspection.sha256,
       () => this.adapter.openMultipartReadStream(session.providerHandle)
     );
+    session.finalizationDeferred = false;
     return this.applyScanResult(session, scan);
   }
 
@@ -946,6 +951,20 @@ export class UploadOrchestrator {
       );
     }
 
+    const persistedAuthoritativeSha256 =
+      session.computedSha256 ?? session.expectedSha256;
+    if (
+      this.adapter.kind === "ccnas" &&
+      (!persistedAuthoritativeSha256 ||
+        persistedAuthoritativeSha256 !== inspection.sha256)
+    ) {
+      return this.failRecoveryLocked(
+        session,
+        new Error("Recovered placement lacks an authoritative checksum receipt"),
+      );
+    }
+    const authoritativeSha256 =
+      persistedAuthoritativeSha256 ?? inspection.sha256;
     session.computedSha256 = inspection.sha256;
     session.objectKey = objectKey;
     await this.recordRecoveryLocked(
@@ -958,7 +977,22 @@ export class UploadOrchestrator {
     const scan = await this.scanVerifiedBytes(
       session,
       inspection.sha256,
-      () => this.adapter.openStoredObjectReadStream(objectKey)
+      () =>
+        this.adapter.kind === "ccnas"
+          ? this.adapter.openStoredObjectReadStream(
+              objectKey,
+              undefined,
+              {
+                size: inspection.size,
+                sha256: authoritativeSha256,
+                providerVersionId: ccnasContentVersionId({
+                  objectKey,
+                  size: inspection.size,
+                  sha256: authoritativeSha256,
+                }),
+              },
+            )
+          : this.adapter.openStoredObjectReadStream(objectKey)
     );
     return this.applyScanResult(session, scan);
   }
@@ -1004,6 +1038,32 @@ export class UploadOrchestrator {
         }
       }
       await this.reconcileStagingLocked(session);
+      return session;
+    }
+
+    // A retry request persists this state before launching the potentially
+    // long scan. After a process restart, ordinary Tus HEAD/PATCH recovery
+    // must expose the durable retry instead of running ClamAV inside that
+    // request. Only the explicit scan-retry endpoint may resume these bytes.
+    if (
+      session.state === "verifying" &&
+      session.scan?.verdict === "error" &&
+      session.scan.engine === "scanner-timeout"
+    ) {
+      return session;
+    }
+
+    // A completed PATCH can intentionally persist this exact state before its
+    // response-lifecycle scan starts. Ordinary Tus HEAD/PATCH recovery must be
+    // fast and side-effect free; the explicit scan endpoint resumes the work.
+    if (
+      session.state === "verifying" &&
+      session.offset === session.size &&
+      session.scan === null &&
+      session.finalizationDeferred === true &&
+      session.receipt === null &&
+      session.objectKey === null
+    ) {
       return session;
     }
 
@@ -1110,6 +1170,15 @@ export class UploadOrchestrator {
       });
 
       if (session.offset === session.size) {
+        if (input.deferFinalization) {
+          session.state = "verifying";
+          session.finalizationDeferred = true;
+          await this.save(session);
+          await this.event(session, "verification-started", {
+            deferred: true,
+          });
+          return { session, complete: true };
+        }
         const finalized = await this.finalizeLocked(session);
         return { session: finalized, complete: true };
       }
@@ -1130,6 +1199,117 @@ export class UploadOrchestrator {
       if (!session) return null;
       this.assertTenant(session, tenantId);
       return this.recoverLocked(session);
+    });
+  }
+
+  async resumeDeferredFinalization(
+    uploadId: string,
+    tenantId: string,
+  ): Promise<UploadSession> {
+    return this.sessions.withLock(uploadId, async () => {
+      const session = await this.sessions.get(uploadId);
+      if (!session) {
+        throw new UploadOrchestrationError("UPLOAD_NOT_FOUND", "Upload not found");
+      }
+      this.assertTenant(session, tenantId);
+      if (session.state === "committed") return session;
+      if (
+        session.state !== "verifying" ||
+        session.offset !== session.size ||
+        session.scan !== null ||
+        session.finalizationDeferred !== true ||
+        session.receipt !== null ||
+        session.objectKey !== null
+      ) {
+        throw new UploadOrchestrationError(
+          "UPLOAD_STATE",
+          "Only a complete deferred upload can resume finalization",
+        );
+      }
+      return this.finalizeLocked(session);
+    });
+  }
+
+  private assertMalwareScanRetryable(session: UploadSession): void {
+    if (
+      !["quarantined", "verifying"].includes(session.state) ||
+      session.scan?.verdict !== "error" ||
+      session.scan.engine !== "scanner-timeout" ||
+      session.offset !== session.size ||
+      !session.computedSha256 ||
+      !/^[0-9a-f]{64}$/.test(session.computedSha256) ||
+      session.receipt !== null ||
+      session.objectKey !== null
+    ) {
+      throw new UploadOrchestrationError(
+        "UPLOAD_STATE",
+        "Only timeout-quarantined uploads can retry the security scan",
+      );
+    }
+  }
+
+  async beginMalwareScanRetry(
+    uploadId: string,
+    tenantId: string,
+  ): Promise<UploadSession> {
+    return this.sessions.withLock(uploadId, async () => {
+      const session = await this.sessions.get(uploadId);
+      if (!session) {
+        throw new UploadOrchestrationError("UPLOAD_NOT_FOUND", "Upload not found");
+      }
+      this.assertTenant(session, tenantId);
+      this.assertMalwareScanRetryable(session);
+      if (session.state === "verifying") return session;
+
+      session.state = "verifying";
+      session.lastError = null;
+      await this.save(session);
+      await this.event(session, "malware-scan-retry-started", {
+        retainedBytes: session.size,
+        sha256: session.computedSha256,
+      });
+      return session;
+    });
+  }
+
+  async resumeMalwareScanRetry(
+    uploadId: string,
+    tenantId: string,
+  ): Promise<UploadSession> {
+    return this.sessions.withLock(uploadId, async () => {
+      const session = await this.sessions.get(uploadId);
+      if (!session) {
+        throw new UploadOrchestrationError("UPLOAD_NOT_FOUND", "Upload not found");
+      }
+      this.assertTenant(session, tenantId);
+      if (session.state === "committed") return session;
+      this.assertMalwareScanRetryable(session);
+      if (session.state !== "verifying") {
+        throw new UploadOrchestrationError(
+          "UPLOAD_STATE",
+          "Security scan retry has not been started",
+        );
+      }
+
+      const inspection = await this.adapter.inspectMultipart(session.providerHandle);
+      if (
+        inspection.size !== session.size ||
+        inspection.sha256 !== session.computedSha256 ||
+        (session.expectedSha256 !== null &&
+          inspection.sha256 !== session.expectedSha256)
+      ) {
+        return this.failRecoveryLocked(
+          session,
+          new Error("Retained upload bytes no longer match verified scan evidence"),
+        );
+      }
+
+      const scan = await this.scanVerifiedBytes(
+        session,
+        session.computedSha256,
+        () => this.adapter.openMultipartReadStream(session.providerHandle),
+      );
+      return this.applyScanResult(session, scan);
     });
   }
 

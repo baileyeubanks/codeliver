@@ -63,7 +63,7 @@ test("the player and primary comment composer precede collapsed secondary materi
     cockpitSource.indexOf("{pipelineStages.length > 0"),
   );
   const stageIndex = renderedOverview.indexOf('className="cockpit-review-stage"');
-  const composerIndex = renderedOverview.indexOf('className={`cockpit-comment-composer');
+  const composerIndex = renderedOverview.indexOf('className="cockpit-comment-composer"');
   const timelineToggleIndex = renderedOverview.indexOf("className={styles.timelineToggle}");
   const reviewArchiveIndex = renderedOverview.indexOf("className={styles.reviewArchive}");
 

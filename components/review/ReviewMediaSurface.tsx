@@ -16,6 +16,12 @@ interface ReviewMediaSurfaceProps {
   annotationEnabled?: boolean;
   overlay: ReactNode;
   onFramePin?: (x: number, y: number, timeSeconds: number) => void;
+  onPlaybackStart?: () => void;
+  commentNavigation?: {
+    onPrevious: () => void;
+    onNext: () => void;
+    disabled: boolean;
+  };
   onCutMarker?: (time: number) => void;
   onImagePin?: MouseEventHandler<HTMLDivElement>;
   timeline?: {
@@ -37,6 +43,8 @@ export default function ReviewMediaSurface({
   annotationEnabled = false,
   overlay,
   onFramePin,
+  onPlaybackStart,
+  commentNavigation,
   onCutMarker,
   onImagePin,
   timeline,
@@ -95,13 +103,15 @@ export default function ReviewMediaSurface({
             videoRef={videoRef}
             onPlaybackError={handlePlaybackError}
             onFrameClick={annotationEnabled ? onFramePin : undefined}
+            onPlaybackStart={onPlaybackStart}
             onCutMarker={onCutMarker}
+            allowOverlayOverflow
           >
             {overlay}
           </VideoPlayer>
         </div>
 
-        <PlayerControls videoRef={videoRef} />
+        <PlayerControls videoRef={videoRef} commentNavigation={commentNavigation} />
 
         {timeline ? (
           <div className="review-video-timeline border-t border-[var(--border)]">

@@ -174,11 +174,13 @@ test("action panel renders a derived approval linking to the real review surface
   );
 });
 
-test("action panel empty state is an honest 'all set', never a fake task", () => {
+test("action panel empty state is honest and exposes the local request route", () => {
   const markup = renderToStaticMarkup(
     React.createElement(ActionItemsPanel.default, { items: [] }),
   );
   assert.match(markup, /You’re all set\./);
+  assert.match(markup, /Make a request/);
+  assert.match(markup, /href="\/portal\/requests\/new\?demo=1"/);
   assert.doesNotMatch(markup, /<ul/);
 });
 

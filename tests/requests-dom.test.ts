@@ -195,6 +195,8 @@ test("form controls carry labels and 44px submit target", () => {
     assert.match(markup, new RegExp(`aria-label="${label}"`));
   }
   assert.match(markup, /data-testid="request-submit"[^>]*class="[^"]*min-h-11/);
+  assert.match(markup, />Save request locally</);
+  assert.match(markup, /Saved in this browser only — it is not sent to the production team\./);
 });
 
 /* ── RequestThread ─────────────────────────────────────────────────────── */

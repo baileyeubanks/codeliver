@@ -305,6 +305,11 @@
   font-weight: 600;
 }
 
+.emptyBody {
+  flex: 1;
+  min-width: 0;
+}
+
 .emptyState span {
   display: block;
   font-size: 12px;
@@ -316,6 +321,24 @@
 .emptyIcon {
   color: var(--cvp-success);
   flex-shrink: 0;
+}
+
+.emptyCta {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 0 14px;
+  border-radius: var(--cvp-radius-md);
+  background: var(--cvp-accent);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 650;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.emptyCta:hover {
+  background: var(--cvp-accent-hover);
 }
 
 /* ── Projects ── */
@@ -595,11 +618,31 @@
 
 @media (max-width: 640px) {
   .header {
-    padding: 0 16px;
+    gap: 8px;
+    padding: 0 12px;
   }
 
   .headerClient {
     display: none;
+  }
+
+  .headerSpacer {
+    display: none;
+  }
+
+  .headerNav {
+    gap: 0;
+    margin-left: 0;
+  }
+
+  .headerNavLink {
+    padding: 0 8px;
+  }
+
+  .userMenuSummary {
+    gap: 0;
+    padding: 4px;
+    font-size: 0;
   }
 
   .main {

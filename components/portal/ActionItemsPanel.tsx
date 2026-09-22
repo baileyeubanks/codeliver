@@ -40,10 +40,15 @@ export default function ActionItemsPanel({ items }: ActionItemsPanelProps) {
       {items.length === 0 ? (
         <div className={styles.emptyState}>
           <CircleCheck className={styles.emptyIcon} size={22} aria-hidden="true" />
-          <p>
-            You&rsquo;re all set.
-            <span>Nothing needs your attention right now — we&rsquo;ll post here when it does.</span>
-          </p>
+          <div className={styles.emptyBody}>
+            <p>
+              You&rsquo;re all set.
+              <span>Nothing needs your attention right now — we&rsquo;ll post here when it does.</span>
+            </p>
+          </div>
+          <Link className={styles.emptyCta} href="/portal/requests/new?demo=1">
+            Make a request
+          </Link>
         </div>
       ) : (
         <ul className={styles.actionList}>

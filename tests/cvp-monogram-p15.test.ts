@@ -19,13 +19,12 @@ test("the inline CVP monogram paints all four brand colors", () => {
   }
 });
 
-test("the workspace rail brand slot carries the monogram, wordmark, and microcopy", () => {
+test("the workspace shell owns the brand without duplicating it in the rail", () => {
   const rail = source("components/navigation/WorkspaceRail.tsx");
-  assert.match(rail, /<CvpMonogram\b/);
-  assert.match(rail, /<strong>Co‑VideoPro<\/strong>/);
-  assert.match(rail, /by Content Co-op/);
-  const railStyles = source("components/navigation/WorkspaceRail.module.css");
-  assert.match(railStyles, /\.brandHeader::before[\s\S]*?--cvp-gradient-ribbon/);
+  const shell = source("components/Shell.tsx");
+  assert.match(shell, /<CoProductionBrand\b/);
+  assert.match(rail, /aria-label="Workspace rail"/);
+  assert.doesNotMatch(rail, /<CvpMonogram\b|<CoProductionBrand\b|styles\.brandHeader/);
 });
 
 test("the auth shell brand hero shows the monogram and the CVP tagline", () => {
@@ -36,11 +35,10 @@ test("the auth shell brand hero shows the monogram and the CVP tagline", () => {
   assert.match(authShell, /delivery/);
 });
 
-test("welcome public door uses a real review player face, not a centered card", () => {
+test("welcome keeps a branded public entry without fixture media", () => {
   const welcome = source("app/welcome/page.tsx");
-  assert.match(welcome, /ica-ceo-preview\.mp4/);
-  assert.match(welcome, /ica-review-filmstrip\.jpg/);
-  assert.match(welcome, /brandSignal/);
+  assert.match(welcome, /<CoProductionBrand\b/);
+  assert.doesNotMatch(welcome, /ica-ceo-preview\.mp4|ica-review-filmstrip\.jpg/);
   assert.match(welcome, /Request access/);
   assert.doesNotMatch(welcome, /demo=1/);
 });

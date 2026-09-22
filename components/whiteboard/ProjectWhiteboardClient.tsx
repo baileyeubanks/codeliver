@@ -1,10 +1,9 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import Link from "next/link";
-import { useParams } from "next/navigation";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import {
-  ArrowLeft,
+  ChevronDown,
   LayoutTemplate,
   Minus,
   Pencil,
@@ -14,7 +13,9 @@ import {
   Trash2,
   Undo2,
 } from "lucide-react";
-import { useDemoMode, useDemoSuffix } from "@/lib/demo/mode";
+import type { CockpitSection } from "@/components/cockpit/cockpit-navigation";
+import { ProjectWorkspaceChrome } from "@/components/projects/ProjectWorkspaceTabs";
+import { useDemoMode } from "@/lib/demo/mode";
 import {
   addWhiteboardSticky,
   applyDemoWhiteboardTemplate,
@@ -111,8 +112,9 @@ function Connector({ from, to, color }: { from: ConnectorRect; to: ConnectorRect
 
 export default function ProjectWhiteboardClient() {
   const { id } = useParams<{ id: string }>();
+  const router = useRouter();
+  const searchParams = useSearchParams();
   const demoMode = useDemoMode();
-  const demoSuffix = useDemoSuffix();
   const workspace = useDemoWorkspace();
 
   const project = workspace.projects.find((candidate) => candidate.id === id);
@@ -136,6 +138,7 @@ export default function ProjectWhiteboardClient() {
     edges: DemoWhiteboardBoard["edges"];
     templateId: WhiteboardTemplateId | null;
   } | null>(null);
+  const [templateMenuOpen, setTemplateMenuOpen] = useState(false);
 
   const canvasRef = useRef<HTMLDivElement>(null);
   const toolbarRef = useRef<HTMLDivElement>(null);
@@ -249,6 +252,15 @@ export default function ProjectWhiteboardClient() {
     setViewport((current) => zoomViewportAt(current, anchor, factor));
   }, []);
 
+  const selectProjectSection = useCallback((section: CockpitSection) => {
+    const params = new URLSearchParams(searchParams.toString());
+    params.delete("view");
+    if (section === "overview") params.delete("surface");
+    else params.set("surface", section);
+    const query = params.toString();
+    router.push(`/projects/${encodeURIComponent(id)}${query ? `?${query}` : ""}`);
+  }, [id, router, searchParams]);
+
   const addSticky = useCallback(() => {
     const rect = canvasRef.current?.getBoundingClientRect();
     const center = screenToWorld(viewport, {
@@ -293,6 +305,7 @@ export default function ProjectWhiteboardClient() {
         templateId: board.template_id,
       });
       applyDemoWhiteboardTemplate({ projectId: id, templateId, anchor });
+      setTemplateMenuOpen(true);
     },
     [board, id, viewport],
   );
@@ -363,25 +376,84 @@ export default function ProjectWhiteboardClient() {
     );
   }
 
-  return (
-    <div className={styles.board} data-whiteboard>
-      <header className={styles.header}>
-        <Link
-          href={`/projects/${encodeURIComponent(id)}${demoSuffix}`}
-          className={styles.backLink}
-          aria-label={`Back to ${project?.name ?? "project"} workspace`}
-        >
-          <ArrowLeft size={15} aria-hidden /> Workspace
-        </Link>
-        <div className={styles.titleBlock}>
-          <h1 className={styles.title}>{project?.name ?? "Project"} — Whiteboard</h1>
-          <span className={styles.persistenceNote}>
-            Saved to this browser (local demo persistence)
-          </span>
-        </div>
-      </header>
+  if (!project) {
+    return (
+      <div className={styles.productionNotice}>
+        <h1>Project Whiteboard</h1>
+        <p>The selected project is unavailable in this local workspace.</p>
+      </div>
+    );
+  }
 
-      <div
+  return (
+    <ProjectWorkspaceChrome
+      project={project}
+      projects={workspace.projects}
+      demoMode={demoMode}
+      projectQuery={searchParams.toString()}
+      activeWhiteboard
+      uploading={false}
+      primaryActionLabel="Open media"
+      onUpload={() => selectProjectSection("media")}
+      onSelect={selectProjectSection}
+    >
+      <div className={styles.board} data-whiteboard>
+        <div className={styles.contextTools} data-wb-ui>
+          <span
+            className={styles.contextLabel}
+            title="Saved locally in this browser"
+            aria-label="Saved locally in this browser"
+          >
+            Saved locally
+          </span>
+          <div className={styles.headerActions}>
+            <button
+              type="button"
+              className={`${styles.toolbarButton} ${styles.toolbarButtonPrimary}`}
+              onClick={addSticky}
+              aria-label="Add a sticky note at the canvas center"
+            >
+              <Plus size={15} aria-hidden /> Add note
+            </button>
+            <button
+              type="button"
+              className={styles.toolbarButton}
+              onClick={() => setTemplateMenuOpen((open) => !open)}
+              aria-expanded={templateMenuOpen}
+              aria-controls="whiteboard-templates"
+            >
+              <LayoutTemplate size={15} aria-hidden /> Templates <ChevronDown size={14} aria-hidden />
+            </button>
+            {templateMenuOpen ? (
+              <div ref={toolbarRef} id="whiteboard-templates" className={styles.templateMenu} role="group" aria-label="Whiteboard templates">
+                <span className={styles.toolbarLabel}>Start from a pattern</span>
+                {WHITEBOARD_TEMPLATES.map((template) => (
+                  <button
+                    key={template.id}
+                    type="button"
+                    className={styles.templateMenuItem}
+                    onClick={() => applyTemplateById(template.id)}
+                    aria-label={`Apply the ${template.name} template`}
+                  >
+                    <strong>{template.name}</strong>
+                    <span>{template.description}</span>
+                  </button>
+                ))}
+                {undoSnapshot ? (
+                  <button
+                    type="button"
+                    className={styles.toolbarButton}
+                    onClick={undoTemplate}
+                    aria-label="Undo the last template application"
+                  >
+                    <Undo2 size={15} aria-hidden /> Undo template
+                  </button>
+                ) : null}
+              </div>
+            ) : null}
+          </div>
+        </div>
+        <div
         ref={canvasRef}
         className={`${styles.canvas} ${panning ? styles.canvasPanning : ""}`}
         role="region"
@@ -396,41 +468,6 @@ export default function ProjectWhiteboardClient() {
         onPointerUp={endPan}
         onPointerCancel={endPan}
       >
-        <div ref={toolbarRef} className={styles.toolbar} data-wb-ui>
-          <span className={styles.toolbarLabel}>Whiteboard</span>
-          <button
-            type="button"
-            className={`${styles.toolbarButton} ${styles.toolbarButtonPrimary}`}
-            onClick={addSticky}
-            aria-label="Add a sticky note at the canvas center"
-          >
-            <Plus size={15} aria-hidden /> Add note
-          </button>
-          <span className={styles.toolbarLabel}>Templates</span>
-          {WHITEBOARD_TEMPLATES.map((template) => (
-            <div key={template.id}>
-              <button
-                type="button"
-                className={styles.toolbarButton}
-                onClick={() => applyTemplateById(template.id)}
-                aria-label={`Apply the ${template.name} template`}
-              >
-                <LayoutTemplate size={15} aria-hidden /> {template.name}
-              </button>
-              <p className={styles.templateDescription}>{template.description}</p>
-            </div>
-          ))}
-          <button
-            type="button"
-            className={styles.toolbarButton}
-            onClick={undoTemplate}
-            disabled={!undoSnapshot}
-            aria-label="Undo the last template application"
-          >
-            <Undo2 size={15} aria-hidden /> Undo template
-          </button>
-        </div>
-
         <div className={styles.world} style={{ transform: worldTransform }}>
           <svg className={styles.connectors} width={1} height={1} aria-hidden data-wb-connectors>
             {phaseFlow.slice(0, -1).map((card, index) => {
@@ -687,7 +724,8 @@ export default function ProjectWhiteboardClient() {
             <RotateCcw size={15} aria-hidden />
           </button>
         </div>
+        </div>
       </div>
-    </div>
+    </ProjectWorkspaceChrome>
   );
 }

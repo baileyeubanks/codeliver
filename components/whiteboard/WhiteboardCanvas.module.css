@@ -5,75 +5,51 @@
  */
 
 .board {
-  /* Full-screen surface: fill the workspace main area exactly (Shell's .main
-     is position:relative). Absolute inset keeps the canvas from overflowing
-     when the Shell's transient readiness notice takes layout space — without
-     it the main area scrolls and hit targets shift under the notice. */
-  position: absolute;
-  inset: 0;
-  z-index: 95;
-  display: flex;
-  flex-direction: column;
+  /* ProjectWorkspaceChrome owns the 72px header, desktop rail, compact rail,
+     drawer, and mobile bar. Fill only its content rectangle so the canvas
+     retains that stable project context instead of recreating it. */
+  position: relative;
+  min-height: calc(100svh - 72px);
+  margin: -24px -28px -56px;
   overflow: hidden;
   background: var(--cvp-canvas);
   color: var(--cvp-ink);
   font-family: var(--cvp-font-body);
 }
 
-.header {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 10px 16px;
-  background: var(--cvp-surface);
-  border-bottom: 1px solid var(--cvp-border);
+.contextTools {
+  position: absolute;
+  top: 16px;
+  right: 16px;
   z-index: 30;
-}
-
-.backLink {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  min-height: 44px;
-  padding: 0 10px;
-  border-radius: var(--cvp-radius-md);
-  color: var(--cvp-ink-soft);
-  font-size: 0.8125rem;
-  font-weight: 600;
-  text-decoration: none;
-}
-
-.backLink:hover {
-  background: var(--cvp-surface-alt);
-  color: var(--cvp-ink);
-}
-
-.titleBlock {
   display: flex;
-  flex-direction: column;
-  min-width: 0;
+  align-items: center;
+  gap: 8px;
 }
 
-.title {
-  margin: 0;
-  font-family: var(--cvp-font-display);
-  font-size: 1rem;
-  font-weight: 700;
-  letter-spacing: -0.01em;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.persistenceNote {
+.contextLabel {
+  padding: 7px 10px;
+  border: 1px solid var(--cvp-border);
+  border-radius: var(--cvp-radius-pill);
+  background: color-mix(in srgb, var(--cvp-surface) 90%, transparent);
+  color: var(--cvp-ink-soft);
   font-size: 0.6875rem;
-  color: var(--cvp-ink-faint);
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  backdrop-filter: blur(8px);
+}
+
+.headerActions {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
 .canvas {
-  position: relative;
-  flex: 1;
-  min-height: 0;
+  position: absolute;
+  inset: 0;
   overflow: hidden;
   cursor: grab;
   touch-action: none;
@@ -353,16 +329,16 @@
 
 /* -------------------------------- toolbar ---------------------------------- */
 
-.toolbar {
+.templateMenu {
   position: absolute;
-  top: 16px;
-  left: 16px;
-  z-index: 20;
+  top: calc(100% + 8px);
+  right: 0;
+  z-index: 40;
   display: flex;
   flex-direction: column;
   gap: 8px;
-  max-width: 240px;
-  padding: 10px;
+  width: min(320px, calc(100vw - 32px));
+  padding: 12px;
   background: var(--cvp-surface);
   border: 1px solid var(--cvp-border);
   border-radius: var(--cvp-radius-lg);
@@ -414,9 +390,34 @@
   color: #fff;
 }
 
-.templateDescription {
-  margin: -4px 0 0;
+.templateMenuItem {
+  display: grid;
+  gap: 3px;
+  width: 100%;
+  min-height: 56px;
+  padding: 10px 12px;
+  border: 1px solid var(--cvp-border);
+  border-radius: var(--cvp-radius-md);
+  background: var(--cvp-surface);
+  color: var(--cvp-ink);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.templateMenuItem:hover,
+.templateMenuItem:focus-visible {
+  border-color: var(--cvp-blue);
+  background: var(--cvp-surface-alt);
+}
+
+.templateMenuItem strong {
+  font-size: 0.8125rem;
+}
+
+.templateMenuItem span {
   font-size: 0.6875rem;
+  line-height: 1.35;
   color: var(--cvp-ink-faint);
 }
 
@@ -553,6 +554,67 @@
   max-width: 420px;
   font-size: 0.875rem;
   line-height: 1.6;
+}
+
+@media (max-width: 900px) {
+  .board {
+    min-height: calc(100svh - 64px);
+    margin: -18px -16px -44px;
+  }
+
+  .contextTools {
+    top: 12px;
+    right: 12px;
+  }
+
+  .headerActions {
+    gap: 4px;
+  }
+
+  .headerActions .toolbarButton {
+    min-width: 44px;
+    padding: 0 10px;
+  }
+
+  .headerActions .toolbarButton svg + * {
+    white-space: nowrap;
+  }
+}
+
+@media (max-width: 560px) {
+  .board {
+    margin: -15px -12px -40px;
+  }
+
+  .contextTools {
+    top: 10px;
+    right: 10px;
+    gap: 4px;
+  }
+
+  .headerActions .toolbarButton {
+    gap: 5px;
+    min-width: 0;
+    padding: 0 9px;
+    font-size: 0.75rem;
+  }
+
+  .headerActions .toolbarButton svg {
+    margin: 0;
+  }
+
+  .headerActions .toolbarButton svg + svg {
+    display: none;
+  }
+
+  .contextLabel {
+    padding: 6px 8px;
+    font-size: 0.625rem;
+  }
+
+  .zoomControls {
+    bottom: calc(58px + env(safe-area-inset-bottom));
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {

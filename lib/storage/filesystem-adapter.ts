@@ -34,7 +34,11 @@ import type {
 } from "./contracts";
 import type { StorageRuntimeConfig } from "./config";
 import { publishImmutableDirectory } from "./atomic-directory-publication.ts";
-import { CcnasReadCache, ccnasContentVersionId } from "./ccnas-read-cache.ts";
+import {
+  CcnasReadCache,
+  ccnasContentVersionId,
+  sameOpenedCcnasFile,
+} from "./ccnas-read-cache.ts";
 import { syncDurableDirectory } from "./durable-files.ts";
 import { StorageError, isStorageError } from "./errors.ts";
 import { assertSafeObjectKey } from "./object-key.ts";
@@ -464,12 +468,14 @@ export class FilesystemStorageAdapter implements StorageAdapter {
 
   async inspectMultipart(handle: MultipartHandle): Promise<MultipartInspection> {
     const path = await this.stagingPath(handle);
-    return this.inspectRegularFile(path);
+    return this.inspectRegularFile(path, {
+      allowCcnasMetadataDrift: this.kind === "ccnas",
+    });
   }
 
   private async hashStableFileHandle(
     file: FileHandle,
-    options: { requireImmutable: boolean }
+    options: { requireImmutable: boolean; allowCcnasMetadataDrift?: boolean }
   ): Promise<MultipartInspection & { status: BigIntStats }> {
     const before = await file.stat({ bigint: true });
     if (!before.isFile()) {
@@ -509,8 +515,11 @@ export class FilesystemStorageAdapter implements StorageAdapter {
     }
 
     const after = await file.stat({ bigint: true });
+    const stableIdentity = options.allowCcnasMetadataDrift
+      ? sameOpenedCcnasFile(before, after)
+      : hasStableFileIdentity(before, after);
     if (
-      !hasStableFileIdentity(before, after) ||
+      !stableIdentity ||
       (options.requireImmutable && hasWriteBits(after))
     ) {
       throw new StorageError(
@@ -617,6 +626,7 @@ export class FilesystemStorageAdapter implements StorageAdapter {
   ): Promise<BigIntStats> {
     const inspection = await this.hashStableFileHandle(file, {
       requireImmutable: false,
+      allowCcnasMetadataDrift: true,
     });
     if (inspection.size !== input.size || inspection.sha256 !== input.sha256) {
       throw new StorageError(
@@ -659,12 +669,16 @@ export class FilesystemStorageAdapter implements StorageAdapter {
     };
   }
 
-  private async inspectRegularFile(path: string): Promise<MultipartInspection> {
+  private async inspectRegularFile(
+    path: string,
+    options: { allowCcnasMetadataDrift?: boolean } = {},
+  ): Promise<MultipartInspection> {
     await assertSafeRegularFile(path);
     const file = await open(path, constants.O_RDONLY | constants.O_NOFOLLOW);
     try {
       const { size, sha256 } = await this.hashStableFileHandle(file, {
         requireImmutable: false,
+        allowCcnasMetadataDrift: options.allowCcnasMetadataDrift,
       });
       return { size, sha256 };
     } finally {
@@ -1188,6 +1202,7 @@ export class FilesystemStorageAdapter implements StorageAdapter {
           }
           const stagingInspection = await this.hashStableFileHandle(staging, {
             requireImmutable: false,
+            allowCcnasMetadataDrift: true,
           });
           if (
             stagingInspection.size !== input.size ||
@@ -1211,7 +1226,7 @@ export class FilesystemStorageAdapter implements StorageAdapter {
       await destination.sync();
       const finalStatus = await destination.stat({ bigint: true });
       if (
-        !hasStableFileIdentity(verifiedStatus, finalStatus) ||
+        !sameOpenedCcnasFile(verifiedStatus, finalStatus) ||
         finalStatus.nlink !== 1n
       ) {
         throw new StorageError(
@@ -1395,7 +1410,9 @@ export class FilesystemStorageAdapter implements StorageAdapter {
           "Multipart object changed before immutable CCNAS placement",
         );
       }
-      const sealedStagingStatus = await this.sealCommittedFileHandle(staging);
+      // SMB mode and timestamps are advisory. The placement and APFS cache
+      // remain bound to the caller's authoritative size and SHA-256.
+      const stableStagingStatus = stagedStatus;
 
       try {
         await mkdir(placementDirectory, { mode: 0o700 });
@@ -1421,15 +1438,14 @@ export class FilesystemStorageAdapter implements StorageAdapter {
       );
       await this.copyExactFileBytes(staging, placement, input.size);
       const copiedStagingStatus = await staging.stat({ bigint: true });
-      if (!hasStableFileIdentity(sealedStagingStatus, copiedStagingStatus)) {
+      if (!sameOpenedCcnasFile(stableStagingStatus, copiedStagingStatus)) {
         throw new StorageError(
           "STORAGE_CHECKSUM",
           "Multipart object identity changed while creating CCNAS placement",
         );
       }
-      await this.sealCommittedFileHandle(placement);
       const verifiedPlacementStatus =
-        await this.validateCommittedFileHandle(placement, {
+        await this.validateCcnasNasFileHandle(placement, {
           size: input.size,
           sha256: expectedSha256,
         });
@@ -1497,7 +1513,7 @@ export class FilesystemStorageAdapter implements StorageAdapter {
 
       const finalStatus = await destination.stat({ bigint: true });
       if (
-        !hasStableFileIdentity(publishedStatus, finalStatus) ||
+        !sameOpenedCcnasFile(publishedStatus, finalStatus) ||
         finalStatus.nlink !== 1n
       ) {
         throw new StorageError(

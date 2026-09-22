@@ -49,7 +49,11 @@ export default function PublicReviewComposer({
   const [submitError, setSubmitError] = useState("");
 
   const supportsPins = assetType === "image";
-  const heading = "Add a note";
+  const heading = canComment
+    ? "Add a note"
+    : shareIntent === "final_delivery"
+      ? "Delivery"
+      : "Review";
   const helperText = canComment
     ? shareIntent === "internal_review"
       ? "Internal notes stay with this version."
@@ -123,10 +127,14 @@ export default function PublicReviewComposer({
 
       {canComment ? (
         <>
-          <label className="mt-4 block text-xs font-medium text-[var(--muted)]">
+          <label
+            htmlFor="public-review-reviewer-name"
+            className="mt-4 block text-xs font-medium text-[var(--muted)]"
+          >
             Your name
           </label>
           <input
+            id="public-review-reviewer-name"
             value={reviewerName}
             onChange={(event) => onReviewerNameChange(event.target.value)}
             placeholder="How should this feedback be attributed?"

@@ -53,10 +53,16 @@ export function projectConversationThreads<T extends ConversationComment>({
         && share.version_id === versionId
         && share.asset_ids.length === 1 && share.asset_ids[0] === comment.asset_id
         && (!share.expires_at || Date.parse(share.expires_at) > now);
+      // Only unshared notes may use the internal version-aware workspace.
+      // An unavailable invitation must retain its own failed authority instead
+      // of silently becoming a different review round.
+      const internalHref = !inviteId && version
+        ? `/projects/${encodeURIComponent(projectId)}?demo=1&asset=${encodeURIComponent(comment.asset_id)}&version=${encodeURIComponent(version.id)}&view=review`
+        : null;
       thread = {
         id, assetId: comment.asset_id, title: projectAssets.get(comment.asset_id)!.title,
         versionLabel: version ? `V${version.version_number}` : versionId ? "Recorded cut unavailable" : "Version not recorded",
-        reviewHref: availableShare ? `/review/${encodeURIComponent(share!.token)}?demo=1` : null,
+        reviewHref: availableShare ? `/review/${encodeURIComponent(share!.token)}?demo=1` : internalHref,
         comments: [],
       };
       grouped.set(id, thread);

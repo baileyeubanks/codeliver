@@ -52,11 +52,21 @@ test("unversioned history is preserved without guessing a current version", () =
   assert.equal(thread.reviewHref, null);
 });
 
-test("unshared notes never substitute a current-cut route for an exact review round", () => {
+test("unshared notes open their exact internal cut while preserving separate version threads", () => {
   const threads = projectConversationThreads({ ...input,
     comments: [comment("old internal", "v1", null), comment("current internal", "v2", null)], shareLinks: [] });
-  assert.equal(threads[0].reviewHref, null);
-  assert.equal(threads[1].reviewHref, null);
+  assert.equal(threads[0].reviewHref, "/projects/project?demo=1&asset=film&version=v1&view=review");
+  assert.equal(threads[1].reviewHref, "/projects/project?demo=1&asset=film&version=v2&view=review");
+  assert.deepEqual(threads[0].comments.map(item => item.id), ["old internal"]);
+  assert.deepEqual(threads[1].comments.map(item => item.id), ["current internal"]);
+});
+
+test("an unshared note with ambiguous or mismatched version records has no internal shortcut", () => {
+  for (const recordedVersions of [[], [versions[0], versions[0]], [{ ...versions[0], asset_id: "another-film" }]]) {
+    const [thread] = projectConversationThreads({ ...input,
+      versions: recordedVersions, comments: [comment("old internal", "v1", null)], shareLinks: [] });
+    assert.equal(thread.reviewHref, null);
+  }
 });
 
 test("project conversations cannot expose comments attached to another project's media", () => {

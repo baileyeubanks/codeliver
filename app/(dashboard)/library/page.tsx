@@ -4,10 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import {
-  CheckCircle2,
   CircleAlert,
-  Clock3,
-  FolderOpen,
   Image as ImageIcon,
   LibraryBig,
   Music,
@@ -129,44 +126,6 @@ export default function LibraryPage() {
   if (demoMode) {
     return <DemoLibraryView />;
   }
-  const uniqueProjectCount = new Set(assets.map((asset) => asset.project_id)).size;
-  const inReviewCount = assets.filter((asset) =>
-    ["in_review", "needs_changes"].includes(asset.status),
-  ).length;
-  const approvedCount = assets.filter((asset) =>
-    ["approved", "final"].includes(asset.status),
-  ).length;
-  const libraryReadiness = [
-    {
-      id: "total",
-      label: "Assets",
-      value: String(assets.length),
-      detail: `${filtered.length} visible`,
-      icon: LibraryBig,
-    },
-    {
-      id: "projects",
-      label: "Projects",
-      value: String(uniqueProjectCount),
-      detail: "Linked workspaces",
-      icon: FolderOpen,
-    },
-    {
-      id: "review",
-      label: "Review queue",
-      value: String(inReviewCount),
-      detail: "In review or changes",
-      icon: Clock3,
-    },
-    {
-      id: "approved",
-      label: "Approved",
-      value: String(approvedCount),
-      detail: "Ready for delivery",
-      icon: CheckCircle2,
-    },
-  ];
-
   return (
     <div className="mx-auto w-full max-w-7xl px-4 py-5 sm:px-6">
       <div className="mb-4 flex flex-wrap items-start justify-between gap-4 border-b border-[var(--border)] pb-4">
@@ -174,7 +133,7 @@ export default function LibraryPage() {
           <p className="mb-1 text-[10px] font-bold uppercase text-[var(--dim)]">Asset management</p>
           <h1 className="text-[22px] font-bold leading-tight text-[var(--ink)]">Media library</h1>
           <p className="mt-1 max-w-2xl text-sm text-[var(--muted)]">
-            Search, inspect, and reopen project assets without leaving the Co‑VideoPro workspace.
+            Search the account library, then open the exact project cut you need.
           </p>
         </div>
         <Link
@@ -186,25 +145,7 @@ export default function LibraryPage() {
         </Link>
       </div>
 
-      <div className="mb-4 overflow-hidden rounded-[var(--radius)] border border-[var(--border)] bg-[var(--border)]">
-        <div className="grid gap-px sm:grid-cols-2 lg:grid-cols-4">
-          {libraryReadiness.map(({ id, label, value, detail, icon: Icon }) => (
-            <article
-              key={id}
-              className="grid min-h-[74px] grid-cols-[24px_minmax(0,1fr)] gap-2 bg-[var(--surface)] px-3 py-3"
-            >
-              <Icon size={16} className="mt-0.5 text-[var(--accent)]" aria-hidden="true" />
-              <span className="min-w-0">
-                <span className="block text-[10px] font-bold uppercase text-[var(--muted)]">{label}</span>
-                <strong className="mt-1 block text-lg leading-none text-[var(--ink)]">{value}</strong>
-                <small className="mt-1 block truncate text-[10px] text-[var(--muted)]">{detail}</small>
-              </span>
-            </article>
-          ))}
-        </div>
-      </div>
-
-      <div className="mb-5 flex flex-col gap-3 lg:flex-row">
+      <div className="mb-5 flex flex-col gap-3 border-y border-[var(--border)] py-3 lg:flex-row">
         <div className="relative flex-1">
           <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--dim)]" />
           <input
@@ -233,6 +174,9 @@ export default function LibraryPage() {
             </button>
           ))}
         </div>
+        <span className="self-center whitespace-nowrap text-xs text-[var(--dim)]">
+          {filtered.length} {filtered.length === 1 ? "asset" : "assets"}
+        </span>
       </div>
 
       {loading ? (

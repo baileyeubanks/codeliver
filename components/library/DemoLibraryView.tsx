@@ -118,8 +118,7 @@ export default function DemoLibraryView() {
           <p className="mb-1 text-[10px] font-bold uppercase text-[var(--dim)]">Asset management</p>
           <h1 className="text-[22px] font-bold leading-tight text-[var(--ink)]">Media library</h1>
           <p className="mt-1 max-w-2xl text-sm text-[var(--muted)]">
-            The searchable home for approved and final assets — with campaigns, platforms, usage
-            rights, and honest download formats for every deliverable.
+            Search the account library, then open the exact project cut you need.
           </p>
         </div>
         <Link
@@ -131,38 +130,51 @@ export default function DemoLibraryView() {
         </Link>
       </div>
 
-      <div className="mb-5 grid gap-3 sm:grid-cols-2" aria-label="Curated packages">
-        {demoLibraryPackages.map((pkg) => (
-          <button
-            key={pkg.id}
-            type="button"
-            onClick={() => setOpenPackageId(openPackageId === pkg.id ? null : pkg.id)}
-            aria-pressed={openPackageId === pkg.id}
-            data-testid={`package-card-${pkg.id}`}
-            className={`flex items-start gap-3 rounded-[var(--radius)] border px-4 py-3 text-left transition-colors ${
-              openPackageId === pkg.id
-                ? "border-[var(--accent)] bg-[var(--cvp-blue-tint)]"
-                : "border-[var(--border)] bg-[var(--surface)] hover:border-[var(--border-light)]"
-            }`}
-          >
-            <span className="mt-0.5 text-[var(--accent)]">
-              <Package size={16} aria-hidden="true" />
-            </span>
-            <span className="min-w-0">
-              <span className="block text-[10px] font-bold uppercase text-[var(--dim)]">
-                Curated package — {pkg.campaign}
+      <LibraryFilterRail
+        searchText={searchText}
+        onSearchTextChange={setSearchText}
+        facets={railFacets}
+        onFacetsChange={setRailFacets}
+        options={facetOptions}
+        resultCount={visibleAssets.length}
+      />
+
+      <details className="mb-4 border-t border-[var(--border)] pt-3">
+        <summary className="cursor-pointer text-xs font-semibold text-[var(--ink)]">
+          Packages ({demoLibraryPackages.length})
+        </summary>
+        <div className="mt-3 grid gap-2 sm:grid-cols-2" aria-label="Curated packages">
+          {demoLibraryPackages.map((pkg) => (
+            <button
+              key={pkg.id}
+              type="button"
+              onClick={() => setOpenPackageId(openPackageId === pkg.id ? null : pkg.id)}
+              aria-pressed={openPackageId === pkg.id}
+              data-testid={`package-card-${pkg.id}`}
+              className={`flex items-start gap-3 border-l-2 px-3 py-2 text-left transition-colors ${
+                openPackageId === pkg.id
+                  ? "border-[var(--accent)] bg-[var(--cvp-blue-tint)]"
+                  : "border-[var(--border)] hover:border-[var(--accent)]"
+              }`}
+            >
+              <span className="mt-0.5 text-[var(--accent)]">
+                <Package size={16} aria-hidden="true" />
               </span>
-              <span className="mt-0.5 block truncate text-sm font-bold text-[var(--ink)]">
-                {pkg.title}
+              <span className="min-w-0">
+                <span className="block text-[10px] font-bold uppercase text-[var(--dim)]">
+                  {pkg.campaign}
+                </span>
+                <span className="mt-0.5 block truncate text-sm font-bold text-[var(--ink)]">
+                  {pkg.title}
+                </span>
+                <span className="mt-1 block text-[10px] font-bold text-[var(--accent)]">
+                  {pkg.asset_ids.length} assets — view manifest
+                </span>
               </span>
-              <span className="mt-0.5 block text-xs text-[var(--muted)]">{pkg.description}</span>
-              <span className="mt-1 block text-[10px] font-bold text-[var(--accent)]">
-                {pkg.asset_ids.length} assets — view manifest
-              </span>
-            </span>
-          </button>
-        ))}
-      </div>
+            </button>
+          ))}
+        </div>
+      </details>
 
       {openPackage && openManifest ? (
         <div className="mb-5">
@@ -173,15 +185,6 @@ export default function DemoLibraryView() {
           />
         </div>
       ) : null}
-
-      <LibraryFilterRail
-        searchText={searchText}
-        onSearchTextChange={setSearchText}
-        facets={railFacets}
-        onFacetsChange={setRailFacets}
-        options={facetOptions}
-        resultCount={visibleAssets.length}
-      />
 
       {visibleAssets.length === 0 ? (
         <div className="grid min-h-[260px] place-items-center rounded-[var(--radius)] border border-dashed border-[var(--border)] bg-[var(--surface)] px-6 py-12 text-center">

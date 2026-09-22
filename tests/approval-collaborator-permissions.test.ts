@@ -174,7 +174,7 @@ async function patchAssetApproval() {
     new Request("https://admin.contentco-op.com/api/assets/asset-a/approvals", {
       method: "PATCH",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ id: "approval-a", status: "approved" }),
+      body: JSON.stringify({ id: "approval-a", version_id: "version-a", status: "approved" }),
     }),
     { params: Promise.resolve({ id: "asset-a" }) },
   ) as Promise<Response>;
@@ -210,11 +210,7 @@ test("approval reads and mutations use the intended collaborator role floors", (
   );
   assert.match(
     workflow,
-    /getAssetAccess\(asset_id, user\.id, "producer", supabase\)/,
-  );
-  assert.match(
-    workflow,
-    /getAssetAccess\([\s\S]*workflow\.asset_id,[\s\S]*userId,[\s\S]*"producer",[\s\S]*supabase,[\s\S]*\)/,
+    /getAssetAccess\(assetId, user\.id, "producer", supabase\)/,
   );
 
   assert.doesNotMatch(notify, /getOwnedAsset/);
@@ -239,18 +235,12 @@ test("internal approval decisions require the authenticated assignee", () => {
   assert.match(assetApprovals, /\.eq\("asset_id", assetId\)/);
 });
 
-test("workflow and notification lookups remain tenant-scoped", () => {
-  assert.match(
-    workflow,
-    /\.eq\("id", workflowId\)[\s\S]*getAssetAccess\([\s\S]*workflow\.asset_id/,
-  );
-  assert.match(
-    workflow,
-    /\.delete\(\)[\s\S]*\.eq\("id", workflow_id\)[\s\S]*\.eq\("asset_id", workflowAccess\.data\.asset_id\)/,
-  );
+test("workflow and notification lookups remain version and tenant scoped", () => {
+  assert.match(workflow, /\.eq\("asset_id", assetId\)[\s\S]*\.eq\("version_id", versionLookup\.version\.id\)/);
+  assert.match(workflow, /Version-bound approval rounds are immutable/);
   assert.match(
     notify,
-    /\.eq\("id", approval_id\)[\s\S]*\.eq\("asset_id", asset_id\)/,
+    /\.eq\("id", approval_id\)[\s\S]*\.eq\("asset_id", asset_id\)[\s\S]*\.eq\("version_id", version_id\)/,
   );
   assert.match(notify, /createApprovalInvite\(\{[\s\S]*assetId: asset_id/);
 });
@@ -293,6 +283,7 @@ test("the assigned reviewer can use existing approval decision logic", async () 
     assert.equal(state.decisionCalls.length, 1);
     assert.deepEqual(state.decisionCalls[0], {
       assetId: "asset-a",
+      versionId: "version-a",
       approvalId: "approval-a",
       status: "approved",
       decisionNote: undefined,

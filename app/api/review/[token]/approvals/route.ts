@@ -119,6 +119,8 @@ async function patchApproval(req: Request, { params }: { params: Promise<{ token
   const body = bodyResult.value;
   const approvalId =
     typeof body.id === "string" && body.id ? body.id : null;
+  const requestedVersionId =
+    typeof body.version_id === "string" && body.version_id ? body.version_id : null;
   const requestedStatus =
     typeof body.status === "string" &&
     ALLOWED_DECISIONS.has(body.status as ApprovalDecision)
@@ -215,11 +217,21 @@ async function patchApproval(req: Request, { params }: { params: Promise<{ token
     );
   }
 
-  if (!approvalId || !requestedStatus) {
+  if (!approvalId || !requestedStatus || !requestedVersionId
+    || requestedVersionId !== invite.version_id) {
     return reviewError(
       "Invalid approval decision",
       400,
       "REVIEW_REQUEST_INVALID",
+      responseHeaders,
+    );
+  }
+  if (!invite.approval_workflow_id || !invite.approval_id
+    || approvalId !== invite.approval_id) {
+    return reviewError(
+      "This review link is not bound to this approval step",
+      403,
+      "REVIEW_APPROVAL_FORBIDDEN",
       responseHeaders,
     );
   }
@@ -239,27 +251,34 @@ async function patchApproval(req: Request, { params }: { params: Promise<{ token
     return reviewBackendUnavailable(responseHeaders);
   }
 
-  const [approvalsResult, workflowResult] = await Promise.all([
-    supabase
-      .from("approvals")
-      .select("*")
-      .eq("asset_id", invite.asset_id)
-      .order("step_order", { ascending: true }),
-    supabase
+  const workflowResult = await supabase
       .from("approval_workflows")
-      .select("mode")
+      .select("id, version_id, mode, status")
+      .eq("id", invite.approval_workflow_id)
       .eq("asset_id", invite.asset_id)
+      .eq("version_id", invite.version_id)
       .eq("status", "active")
-      .maybeSingle(),
-  ]);
-
-  if (approvalsResult.error) {
-    return reviewBackendUnavailable(responseHeaders);
-  }
+      .maybeSingle();
 
   if (workflowResult.error) {
     return reviewBackendUnavailable(responseHeaders);
   }
+  if (!workflowResult.data) {
+    return reviewError(
+      "This approval workflow is no longer active",
+      409,
+      "REVIEW_APPROVAL_UNAVAILABLE",
+      responseHeaders,
+    );
+  }
+  const approvalsResult = await supabase
+    .from("approvals")
+    .select("*")
+    .eq("workflow_id", workflowResult.data.id)
+    .eq("asset_id", invite.asset_id)
+    .eq("version_id", invite.version_id)
+    .order("step_order", { ascending: true });
+  if (approvalsResult.error) return reviewBackendUnavailable(responseHeaders);
 
   const approvalAccess = canInviteDecideApproval({
     approvalId,
@@ -296,7 +315,9 @@ async function patchApproval(req: Request, { params }: { params: Promise<{ token
 
   const decision = await recordApprovalDecision({
     assetId: invite.asset_id,
+    versionId: invite.version_id,
     approvalId,
+    reviewInviteId: invite.id,
     status: requestedStatus,
     decisionNote:
       typeof body.decision_note === "string"
@@ -321,6 +342,8 @@ async function patchApproval(req: Request, { params }: { params: Promise<{ token
     .from("approvals")
     .select("*")
     .eq("asset_id", invite.asset_id)
+    .eq("version_id", invite.version_id)
+    .eq("workflow_id", workflowResult.data.id)
     .order("step_order", { ascending: true });
 
   if (updatedApprovalsError) {

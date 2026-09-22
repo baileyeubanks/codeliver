@@ -55,8 +55,9 @@ test("approval workflow validates bodies and cannot report a stale update as suc
   const route = source("app/api/approvals/workflow/route.ts");
   assert.match(route, /req\.json\(\)\.catch\(\(\) => null\)/);
   assert.match(route, /WORKFLOW_MODES/);
-  assert.match(route, /updatedError/);
-  assert.match(route, /updatedStepsError/);
+  assert.match(route, /create_version_approval_workflow/);
+  assert.match(route, /CVP_WORKFLOW_VERSION_NOT_CURRENT/);
+  assert.match(route, /Version-bound approval rounds are immutable/);
   assert.doesNotMatch(route, /error:\s*\w+\.message/);
 });
 

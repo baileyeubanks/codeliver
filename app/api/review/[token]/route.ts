@@ -78,6 +78,7 @@ async function getReview(_req: Request, { params }: { params: Promise<{ token: s
 
   const projectId = invite.assets?.projects?.id;
   if (typeof projectId !== "string") return reviewBackendUnavailable();
+  const approvalWorkflowId = invite.approval_workflow_id ?? "00000000-0000-0000-0000-000000000000";
   const [commentsResult, approvalsResult, workflowResult, editDecisionsResult, projectResult] = await Promise.all([
     supabase
       .from("comments")
@@ -90,12 +91,15 @@ async function getReview(_req: Request, { params }: { params: Promise<{ token: s
       .from("approvals")
       .select("*")
       .eq("asset_id", invite.asset_id)
+      .eq("version_id", versionLookup.version.id)
+      .eq("workflow_id", approvalWorkflowId)
       .order("step_order", { ascending: true }),
     supabase
       .from("approval_workflows")
-      .select("id, mode, status")
+      .select("id, version_id, mode, status")
+      .eq("id", approvalWorkflowId)
       .eq("asset_id", invite.asset_id)
-      .eq("status", "active")
+      .eq("version_id", versionLookup.version.id)
       .maybeSingle(),
     supabase
       .from("edit_decisions")

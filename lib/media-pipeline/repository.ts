@@ -65,7 +65,7 @@ export class SupabaseMediaPipelineRepository implements MediaPipelineRepository 
     if (asset.error || !asset.data) {
       throw new Error("Could not load asset for media pipeline state");
     }
-    if (!["approved", "final"].includes(asset.data.status)) {
+    if (!["approved", "final", "needs_changes"].includes(asset.data.status)) {
       const update = await supabase
         .from("assets")
         .update({ status: "processing", updated_at: new Date().toISOString() })
@@ -121,7 +121,7 @@ export class SupabaseMediaPipelineRepository implements MediaPipelineRepository 
       if (asset.error || !asset.data) {
         throw new Error("Could not load asset for media pipeline failure state");
       }
-      if (!["approved", "final"].includes(asset.data.status)) {
+      if (!["approved", "final", "needs_changes"].includes(asset.data.status)) {
         const update = await getSupabase()
           .from("assets")
           .update({ status: "failed", updated_at: new Date().toISOString() })
@@ -138,12 +138,22 @@ export class SupabaseMediaPipelineRepository implements MediaPipelineRepository 
     const supabase = getSupabase();
     const assetLookup = await supabase
       .from("assets")
-      .select("metadata, status")
+      .select("metadata, status, duration_seconds")
       .eq("id", job.assetId)
       .maybeSingle();
     if (assetLookup.error || !assetLookup.data) {
       throw new Error("Could not load asset before pipeline publication");
     }
+    const versionLookup = await supabase
+      .from("versions")
+      .select("is_current")
+      .eq("id", job.versionId)
+      .eq("asset_id", job.assetId)
+      .maybeSingle();
+    if (versionLookup.error || !versionLookup.data) {
+      throw new Error("Could not load exact version before pipeline publication");
+    }
+    const publishesCurrentVersion = versionLookup.data.is_current === true;
 
     const metadata = asRecord(assetLookup.data.metadata);
     const existingPipeline = asRecord(metadata.media_pipeline);
@@ -151,11 +161,17 @@ export class SupabaseMediaPipelineRepository implements MediaPipelineRepository 
     versions[job.versionId] = pipelinePublication(job);
     metadata.media_pipeline = {
       schemaVersion: 1,
-      currentVersionId: job.versionId,
+      currentVersionId: publishesCurrentVersion
+        ? job.versionId
+        : typeof existingPipeline.currentVersionId === "string"
+          ? existingPipeline.currentVersionId
+          : null,
       versions,
     };
 
-    const nextStatus = ["approved", "final"].includes(assetLookup.data.status)
+    const nextStatus = !publishesCurrentVersion
+      ? assetLookup.data.status
+      : ["approved", "final", "needs_changes"].includes(assetLookup.data.status)
       ? assetLookup.data.status
       : "ready";
     const assetUpdate = await supabase
@@ -163,7 +179,9 @@ export class SupabaseMediaPipelineRepository implements MediaPipelineRepository 
       .update({
         metadata,
         status: nextStatus,
-        duration_seconds: job.probe.durationSeconds || null,
+        duration_seconds: publishesCurrentVersion
+          ? job.probe.durationSeconds || null
+          : assetLookup.data.duration_seconds,
         updated_at: new Date().toISOString(),
       })
       .eq("id", job.assetId);

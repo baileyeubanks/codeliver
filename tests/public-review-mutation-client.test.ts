@@ -24,7 +24,11 @@ test("remote frame comments send vectors without uploading the session-only rast
   const remoteRequest = submit.slice(remoteStart, remoteEnd);
 
   assert.doesNotMatch(remoteRequest, /\bdrawing\s*:/);
-  assert.match(remoteRequest, /\bannotations:\s*annotations\?\.length\s*\?\s*annotations\s*:\s*null/);
+  assert.match(
+    submit,
+    /const preparedAnnotations = prepareReviewAnnotations\(annotations \?\? \[\]\)/,
+  );
+  assert.match(remoteRequest, /\bannotations:\s*transportAnnotations\s*\?\?\s*null/);
   assert.match(remoteRequest, /credentials:\s*"same-origin"/);
   assert.match(remoteRequest, /cache:\s*"no-store"/);
   assert.match(remoteRequest, /referrerPolicy:\s*"no-referrer"/);

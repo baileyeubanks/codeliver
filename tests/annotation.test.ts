@@ -2,17 +2,22 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import {
+  MAX_FREEHAND_COORDINATES,
+  MAX_REVIEW_ANNOTATIONS,
   MIN_STROKE_SPAN,
   REPLAY_TOLERANCE_SECONDS,
   annotationPath,
   arrowHeadPoints,
   beginStroke,
+  canAppendReviewAnnotation,
   clamp01,
   endStroke,
   isNearTimecode,
   moveStroke,
   normalizePoint,
+  prepareReviewAnnotations,
 } from "../lib/review/annotation.ts";
+import type { AnnotationData } from "../lib/types/codeliver.ts";
 
 test("clamp01 confines values to the normalized range", () => {
   assert.equal(clamp01(0.4), 0.4);
@@ -106,6 +111,55 @@ test("endStroke keeps valid arrow and freehand strokes", () => {
     kind: "freehand",
     points: [0.1, 0.1, 0.3, 0.1, 0.3, 0.4],
   });
+});
+
+test("ordinary long freehand input stays within the persistence limit without flattening its path", () => {
+  const sampleCount = 420;
+  let stroke: AnnotationData = beginStroke("freehand", { x: 0, y: 0.5 });
+
+  for (let index = 1; index < sampleCount; index += 1) {
+    const x = index / (sampleCount - 1);
+    const y = 0.5 + Math.sin(x * Math.PI * 4) * 0.3;
+    stroke = moveStroke(stroke, { x, y });
+    assert.equal(stroke.kind, "freehand");
+    assert.ok(
+      stroke.points.length <= MAX_FREEHAND_COORDINATES,
+      `sample ${index} grew to ${stroke.points.length} coordinates`,
+    );
+  }
+
+  const finished = endStroke(stroke);
+  assert.ok(finished && finished.kind === "freehand");
+  assert.ok(finished.points.length <= MAX_FREEHAND_COORDINATES);
+  assert.deepEqual(finished.points.slice(0, 2), [0, 0.5]);
+  assert.equal(finished.points.at(-2), 1);
+  assert.ok(Math.abs((finished.points.at(-1) ?? 0) - 0.5) < 1e-12);
+
+  const yCoordinates = finished.points.filter((_, index) => index % 2 === 1);
+  assert.ok(Math.max(...yCoordinates) > 0.79, "upper turns remain visible");
+  assert.ok(Math.min(...yCoordinates) < 0.21, "lower turns remain visible");
+});
+
+test("review annotation preparation rejects an extra stroke before transport", () => {
+  const strokes: AnnotationData[] = Array.from(
+    { length: MAX_REVIEW_ANNOTATIONS },
+    (_, index) => ({
+      kind: "arrow",
+      points: [0, 0, (index + 1) / MAX_REVIEW_ANNOTATIONS, 1],
+    }),
+  );
+
+  assert.equal(canAppendReviewAnnotation(strokes.length - 1), true);
+  assert.equal(canAppendReviewAnnotation(strokes.length), false);
+
+  const accepted = prepareReviewAnnotations(strokes);
+  assert.equal(accepted.ok, true);
+  assert.equal(accepted.ok ? accepted.annotations.length : 0, MAX_REVIEW_ANNOTATIONS);
+
+  assert.deepEqual(
+    prepareReviewAnnotations([...strokes, strokes[0]]),
+    { ok: false, reason: "too_many_strokes" },
+  );
 });
 
 test("arrowHeadPoints returns two symmetric barbs behind the tip", () => {

@@ -1,5 +1,9 @@
 import type { Annotation, AnnotationData, Comment } from "@/lib/types/codeliver";
 import { addDemoReviewComment } from "@/lib/demo/workspace-store";
+import {
+  MAX_REVIEW_ANNOTATIONS,
+  prepareReviewAnnotations,
+} from "@/lib/review/annotation";
 
 interface SubmitReviewCommentInput {
   token: string;
@@ -82,6 +86,17 @@ export async function submitReviewComment({
     throw new Error("Add your name and a comment before sending.");
   }
 
+  const preparedAnnotations = prepareReviewAnnotations(annotations ?? []);
+  if (!preparedAnnotations.ok) {
+    throw new Error(
+      `This drawing has more than ${MAX_REVIEW_ANNOTATIONS} strokes. Clear the drawing and try again with ${MAX_REVIEW_ANNOTATIONS} or fewer strokes.`,
+    );
+  }
+  const transportAnnotations =
+    preparedAnnotations.annotations.length > 0
+      ? preparedAnnotations.annotations
+      : undefined;
+
   if (demoMode) {
     const persistedComment = addDemoReviewComment({
       assetId,
@@ -122,7 +137,7 @@ export async function submitReviewComment({
         created_at: persistedComment.created_at,
         updated_at: persistedComment.created_at,
       },
-      annotations,
+      transportAnnotations,
       drawing,
       persistedComment.created_at,
     );
@@ -140,7 +155,7 @@ export async function submitReviewComment({
       timecode_seconds: assetType === "video" ? timecode : null,
       pin_x: pin?.x ?? null,
       pin_y: pin?.y ?? null,
-      annotations: annotations?.length ? annotations : null,
+      annotations: transportAnnotations ?? null,
     }),
   });
 
@@ -158,5 +173,5 @@ export async function submitReviewComment({
   // The API returns durable vector annotations. Keep only the raster preview
   // local to this browser session; fall back to the submitted vectors solely
   // for compatibility with an older response shape.
-  return withDrawing(comment, annotations, drawing, comment.created_at);
+  return withDrawing(comment, transportAnnotations, drawing, comment.created_at);
 }

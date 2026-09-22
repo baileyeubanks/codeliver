@@ -9,7 +9,10 @@ import {
   Square,
   X,
 } from "lucide-react";
-import type { AnnotationTool } from "@/lib/review/annotation";
+import {
+  MAX_REVIEW_ANNOTATIONS,
+  type AnnotationTool,
+} from "@/lib/review/annotation";
 
 interface AnnotationToolbarProps {
   drawMode: boolean;
@@ -43,76 +46,94 @@ export default function AnnotationToolbar({
   onClear,
   onAddComment,
 }: AnnotationToolbarProps) {
+  const strokeLimitReached = strokeCount >= MAX_REVIEW_ANNOTATIONS;
+
   return (
     <div
-      data-annotation-toolbar
-      className="pointer-events-auto absolute right-3 top-3 z-10 flex items-center gap-1 rounded-full bg-black/70 p-1 shadow-lg backdrop-blur"
-      onClick={(event) => event.stopPropagation()}
-      onPointerDown={(event) => event.stopPropagation()}
+      className="pointer-events-none absolute right-3 top-3 z-10 flex max-w-[calc(100%_-_1.5rem)] flex-col items-end gap-2"
     >
-      <button
-        type="button"
-        data-draw-toggle
-        aria-pressed={drawMode}
-        title={drawMode ? "Exit draw mode" : "Draw on the frame"}
-        aria-label={drawMode ? "Exit draw mode" : "Draw on the frame"}
-        className={`${buttonClass} ${drawMode ? "bg-[var(--accent)] text-black hover:bg-[var(--accent)]" : ""}`}
-        onClick={onToggleDrawMode}
+      <div
+        data-annotation-toolbar
+        className="pointer-events-auto flex items-center gap-1 rounded-full bg-black/70 p-1 shadow-lg backdrop-blur"
+        onClick={(event) => event.stopPropagation()}
+        onPointerDown={(event) => event.stopPropagation()}
       >
-        <Pencil size={15} />
-      </button>
+        <button
+          type="button"
+          data-draw-toggle
+          aria-pressed={drawMode}
+          title={drawMode ? "Exit draw mode" : "Draw on the frame"}
+          aria-label={drawMode ? "Exit draw mode" : "Draw on the frame"}
+          className={`${buttonClass} ${drawMode ? "bg-[var(--accent)] text-black hover:bg-[var(--accent)]" : ""}`}
+          onClick={onToggleDrawMode}
+        >
+          <Pencil size={15} />
+        </button>
 
-      {drawMode ? (
-        <>
-          <span className="h-4 w-px bg-white/25" aria-hidden="true" />
-          {TOOLS.map(({ id, label, icon: Icon }) => (
+        {drawMode ? (
+          <>
+            <span className="h-4 w-px bg-white/25" aria-hidden="true" />
+            {TOOLS.map(({ id, label, icon: Icon }) => (
+              <button
+                key={id}
+                type="button"
+                data-draw-tool={id}
+                aria-pressed={tool === id}
+                title={label}
+                aria-label={label}
+                className={`${buttonClass} ${tool === id ? "bg-[var(--accent)] text-black hover:bg-[var(--accent)]" : ""}`}
+                onClick={() => onToolChange(id)}
+              >
+                <Icon size={15} />
+              </button>
+            ))}
+            <span className="h-4 w-px bg-white/25" aria-hidden="true" />
             <button
-              key={id}
               type="button"
-              data-draw-tool={id}
-              aria-pressed={tool === id}
-              title={label}
-              aria-label={label}
-              className={`${buttonClass} ${tool === id ? "bg-[var(--accent)] text-black hover:bg-[var(--accent)]" : ""}`}
-              onClick={() => onToolChange(id)}
+              data-draw-clear
+              title="Clear strokes"
+              aria-label="Clear strokes"
+              className={buttonClass}
+              disabled={strokeCount === 0}
+              onClick={onClear}
             >
-              <Icon size={15} />
+              <Eraser size={15} />
             </button>
-          ))}
-          <span className="h-4 w-px bg-white/25" aria-hidden="true" />
-          <button
-            type="button"
-            data-draw-clear
-            title="Clear strokes"
-            aria-label="Clear strokes"
-            className={buttonClass}
-            disabled={strokeCount === 0}
-            onClick={onClear}
-          >
-            <Eraser size={15} />
-          </button>
-          <button
-            type="button"
-            data-draw-comment
-            title="Comment with this drawing"
-            aria-label="Comment with this drawing"
-            className={buttonClass}
-            disabled={strokeCount === 0}
-            onClick={onAddComment}
-          >
-            <MessageSquarePlus size={15} />
-          </button>
-          <button
-            type="button"
-            data-draw-exit
-            title="Cancel draw mode (Esc)"
-            aria-label="Cancel draw mode (Esc)"
-            className={buttonClass}
-            onClick={onToggleDrawMode}
-          >
-            <X size={15} />
-          </button>
-        </>
+            <button
+              type="button"
+              data-draw-comment
+              title="Comment with this drawing"
+              aria-label="Comment with this drawing"
+              className={buttonClass}
+              disabled={strokeCount === 0}
+              onClick={onAddComment}
+            >
+              <MessageSquarePlus size={15} />
+            </button>
+            <button
+              type="button"
+              data-draw-exit
+              title="Cancel draw mode (Esc)"
+              aria-label="Cancel draw mode (Esc)"
+              className={buttonClass}
+              onClick={onToggleDrawMode}
+            >
+              <X size={15} />
+            </button>
+          </>
+        ) : null}
+      </div>
+
+      {drawMode && strokeLimitReached ? (
+        <p
+          data-annotation-limit="reached"
+          role="status"
+          className="pointer-events-auto max-w-72 rounded-[var(--radius-sm)] bg-black/80 px-3 py-2 text-right text-xs leading-4 text-white shadow-lg backdrop-blur"
+          onClick={(event) => event.stopPropagation()}
+          onPointerDown={(event) => event.stopPropagation()}
+        >
+          {MAX_REVIEW_ANNOTATIONS}-stroke limit reached. Add this drawing as a comment or clear it to keep drawing.
+        </p>
       ) : null}
     </div>
   );

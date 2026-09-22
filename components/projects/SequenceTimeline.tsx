@@ -47,6 +47,8 @@ export default function SequenceTimeline({ sequence, clips, assets, onNotice }: 
   const videoRef = useRef<HTMLVideoElement>(null);
   const trackRef = useRef<HTMLDivElement>(null);
   const pendingSeekRef = useRef<{ target: SequencePlaybackTarget; resume: boolean } | null>(null);
+  const initialSeekAppliedRef = useRef(false);
+  const isPlayingRef = useRef(false);
   const [selectedClipId, setSelectedClipId] = useState<string | null>(null);
   const [activeClipId, setActiveClipId] = useState<string | null>(() => ordered[0]?.id ?? null);
   const [playhead, setPlayhead] = useState(0);
@@ -60,6 +62,7 @@ export default function SequenceTimeline({ sequence, clips, assets, onNotice }: 
 
   const finishPlayback = useCallback(() => {
     pendingSeekRef.current = null;
+    isPlayingRef.current = false;
     videoRef.current?.pause();
     setPlaying(false);
     setPlayhead(duration);
@@ -72,7 +75,11 @@ export default function SequenceTimeline({ sequence, clips, assets, onNotice }: 
     video.currentTime = pending.target.sourceSeconds;
     pendingSeekRef.current = null;
     if (!pending.resume) return;
-    void video.play().then(() => setPlaying(true)).catch(() => {
+    void video.play().then(() => {
+      isPlayingRef.current = true;
+      setPlaying(true);
+    }).catch(() => {
+      isPlayingRef.current = false;
       setPlaying(false);
       onNotice("Playback was blocked by the browser.");
     });
@@ -108,6 +115,23 @@ export default function SequenceTimeline({ sequence, clips, assets, onNotice }: 
     return () => video.removeEventListener("loadedmetadata", onMetadata);
   }, [activeClipId, flushPendingSeek, playableUrl]);
 
+  // A newly mounted sequence previews its first exact source frame before play.
+  // This avoids showing source frame zero for a clip whose record starts later.
+  useEffect(() => {
+    if (initialSeekAppliedRef.current || !activeClip) return;
+    initialSeekAppliedRef.current = true;
+    pendingSeekRef.current = {
+      target: {
+        kind: "clip",
+        clip: activeClip,
+        timelineSeconds: activeClip.timeline_in_seconds,
+        sourceSeconds: activeClip.source_in_seconds,
+      },
+      resume: false,
+    };
+    flushPendingSeek();
+  }, [activeClip, flushPendingSeek]);
+
   // Playback advances from the active record clip, never from a matching source
   // range. This supports repeated/reordered ranges and cross-asset sequences.
   useEffect(() => {
@@ -118,11 +142,15 @@ export default function SequenceTimeline({ sequence, clips, assets, onNotice }: 
     const currentClip = current;
 
     function advance() {
+      if (!isPlayingRef.current || pendingSeekRef.current) return;
       const next = nextSequencePlayback(ordered, currentClip.id);
       if (next.kind === "end") finishPlayback();
       else queuePlaybackTarget(next, true);
     }
     function onTimeUpdate() {
+      // A departing source can emit a final timeupdate while its replacement
+      // loads. It must not advance or overwrite the target clip's playhead.
+      if (!isPlayingRef.current || pendingSeekRef.current) return;
       const source = playbackVideo.currentTime;
       if (source >= currentClip.source_out_seconds - 0.04) {
         advance();
@@ -143,6 +171,7 @@ export default function SequenceTimeline({ sequence, clips, assets, onNotice }: 
   function togglePlay() {
     if (!playableUrl) return;
     if (playing) {
+      isPlayingRef.current = false;
       videoRef.current?.pause();
       setPlaying(false);
       return;
@@ -298,12 +327,13 @@ export default function SequenceTimeline({ sequence, clips, assets, onNotice }: 
       >
         {ordered.map((clip) => {
           const width = duration > 0 ? ((clip.timeline_out_seconds - clip.timeline_in_seconds) / duration) * 100 : 0;
+          const left = duration > 0 ? (clip.timeline_in_seconds / duration) * 100 : 0;
           const asset = assets.find((candidate) => candidate.id === clip.asset_id);
           return (
             <div
               key={clip.id}
               className={`cv-timeline__clip${selectedClipId === clip.id ? " is-selected" : ""}`}
-              style={{ width: `${width}%` }}
+              style={{ left: `${left}%`, width: `${width}%` }}
               onClick={(event) => {
                 event.stopPropagation();
                 setSelectedClipId(clip.id);

@@ -28,3 +28,15 @@ test("timeline selection exposes its exact source and record range and works by 
   assert.match(component, /event\.key === "ArrowLeft"/);
   assert.match(component, /event\.key !== "Enter" && event\.key !== " "/);
 });
+
+
+test("timeline uses first exact source frame, ignores stale paused events, and positions gaps on the record", () => {
+  const component = source("components/projects/SequenceTimeline.tsx");
+  const styles = source("app/globals.css");
+
+  assert.match(component, /initialSeekAppliedRef/);
+  assert.match(component, /video\.currentTime = pending\.target\.sourceSeconds/);
+  assert.match(component, /if \(!isPlayingRef\.current \|\| pendingSeekRef\.current\) return/);
+  assert.match(component, /style=\{\{ left: `\$\{left\}%`, width: `\$\{width\}%` \}\}/);
+  assert.match(styles, /\.cv-timeline__clip \{ position: absolute; top: 0; bottom: 0;/);
+});

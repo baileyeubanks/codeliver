@@ -74,7 +74,7 @@ test("demo uploads bind their new asset href to the internal route builder", () 
     "utf8",
   );
   const uploadAssetFactory = projectPageSource.match(
-    /const uploadAssets: MediaAsset\[\] = selectedFiles\.map\(\(file, index\) => \{[\s\S]*?\n\s*\}\);/,
+    /addDemoLocalMediaAsset\(\{[\s\S]*?\n\s*\}\);/,
   );
 
   assert.ok(uploadAssetFactory, "could not locate the demo upload asset constructor");
@@ -146,7 +146,9 @@ test("restored demo assets migrate to cockpit hrefs without changing public shar
     restored.trashedAssets[0].href,
     buildInternalDemoAssetHref("ica", "stale-trashed"),
   );
-  assert.deepEqual(restored.shareLinks, storedWorkspace.shareLinks);
+  assert.equal(restored.shareLinks[0].id, storedWorkspace.shareLinks[0].id);
+  assert.equal(restored.shareLinks[0].version_binding_status, "reissue_required");
+  assert.equal(restored.shareLinks[0].is_active, false, "a link with no asset/version binding must not become playable");
   assert.equal(restored.shareLinks[0].public_url, publicUrl);
 });
 

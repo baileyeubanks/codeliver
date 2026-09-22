@@ -91,6 +91,9 @@ function createInput(overrides: Record<string, unknown> = {}) {
     mimeType: string;
     size: number;
     expectedSha256?: string;
+    version?: number;
+    assetId?: string;
+    expectedCurrentVersionId?: string;
   };
 }
 
@@ -116,6 +119,76 @@ test("concurrent creation is tenant-scoped and idempotent", async () => {
     await assert.rejects(
       () => orchestrator.getSession(first.session.id, "tenant-b"),
       /Upload not found/
+    );
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("revision idempotency stays bound to its asset and expected current version", async () => {
+  const root = mkdtempSync(join(tmpdir(), "codeliver-revision-idempotency-"));
+  const orchestrator = createOrchestrator(root);
+  const assetId = "44444444-4444-4444-8444-444444444444";
+  const expectedCurrentVersionId = "55555555-5555-4555-8555-555555555555";
+  try {
+    const created = await orchestrator.createSession(createInput({
+      version: 4,
+      assetId,
+      expectedCurrentVersionId,
+    }));
+
+    assert.equal(created.session.version, 4);
+    assert.equal(created.session.assetId, assetId);
+    assert.equal(
+      created.session.expectedCurrentVersionId,
+      expectedCurrentVersionId,
+    );
+
+    await assert.rejects(
+      () => orchestrator.createSession(createInput({
+        version: 4,
+        assetId: "66666666-6666-4666-8666-666666666666",
+        expectedCurrentVersionId,
+      })),
+      /different upload metadata/,
+    );
+    await assert.rejects(
+      () => orchestrator.createSession(createInput({
+        version: 4,
+        assetId,
+        expectedCurrentVersionId: "77777777-7777-4777-8777-777777777777",
+      })),
+      /different upload metadata/,
+    );
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("V1 idempotency still resumes after catalog attachment adds result identities", async () => {
+  const root = mkdtempSync(join(tmpdir(), "codeliver-v1-attached-idempotency-"));
+  const orchestrator = createOrchestrator(root);
+  try {
+    const created = await orchestrator.createSession(createInput());
+    await orchestrator.appendPart({
+      uploadId: created.session.id,
+      tenantId: "tenant-a",
+      offset: 0,
+      chunks: chunks("payload"),
+    });
+    await orchestrator.attachAsset(
+      created.session.id,
+      "tenant-a",
+      "44444444-4444-4444-8444-444444444444",
+      "55555555-5555-4555-8555-555555555555",
+    );
+
+    const resumed = await orchestrator.createSession(createInput());
+    assert.equal(resumed.resumed, true);
+    assert.equal(resumed.session.id, created.session.id);
+    assert.equal(
+      resumed.session.assetId,
+      "44444444-4444-4444-8444-444444444444",
     );
   } finally {
     rmSync(root, { recursive: true, force: true });

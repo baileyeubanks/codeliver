@@ -51,6 +51,14 @@ function isNullableHash(value: unknown): value is string | null {
   return value === null || (typeof value === "string" && HASH_PATTERN.test(value));
 }
 
+function isOptionalNullableText(value: unknown): value is string | null | undefined {
+  return (
+    value === undefined ||
+    value === null ||
+    (typeof value === "string" && value.length > 0 && value.length <= 256)
+  );
+}
+
 function isUploadSession(value: unknown): value is UploadSession {
   if (!value || typeof value !== "object") return false;
   const session = value as Partial<UploadSession>;
@@ -81,6 +89,12 @@ function isUploadSession(value: unknown): value is UploadSession {
     UPLOAD_SESSION_STATES.includes(session.state as UploadSession["state"]) &&
     isNullableHash(session.expectedSha256) &&
     isNullableHash(session.computedSha256) &&
+    isOptionalNullableText(session.assetId) &&
+    isOptionalNullableText(session.expectedCurrentVersionId) &&
+    isOptionalNullableText(session.versionId) &&
+    (session.version === 1 ||
+      (typeof session.assetId === "string" &&
+        typeof session.expectedCurrentVersionId === "string")) &&
     Boolean(handle) &&
     handle?.uploadId === session.id &&
     handle?.provider === session.provider &&
@@ -103,6 +117,15 @@ function normalizeUploadSession(session: UploadSession): UploadSession {
   const recovery = session.recovery;
   return {
     ...session,
+    assetId:
+      typeof session.assetId === "string" && session.assetId.length > 0
+        ? session.assetId
+        : null,
+    expectedCurrentVersionId:
+      typeof session.expectedCurrentVersionId === "string" &&
+      session.expectedCurrentVersionId.length > 0
+        ? session.expectedCurrentVersionId
+        : null,
     versionId:
       typeof session.versionId === "string" && session.versionId.length > 0
         ? session.versionId
@@ -414,7 +437,14 @@ export class FileUploadSessionRepository implements UploadSessionRepository {
       current.idempotencyKeyHash !== session.idempotencyKeyHash ||
       current.provider !== session.provider ||
       current.providerHandle.uploadId !== session.providerHandle.uploadId ||
-      current.size !== session.size
+      current.size !== session.size ||
+      current.projectId !== session.projectId ||
+      current.folderId !== session.folderId ||
+      current.version !== session.version ||
+      (current.expectedCurrentVersionId ?? null) !==
+        (session.expectedCurrentVersionId ?? null) ||
+      (current.expectedCurrentVersionId != null &&
+        current.assetId !== session.assetId)
     ) {
       throw new UploadOrchestrationError(
         "UPLOAD_STATE",

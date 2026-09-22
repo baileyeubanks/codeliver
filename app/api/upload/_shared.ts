@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 
-import { getProjectAccess } from "@/lib/access-control";
+import { getAssetAccess, getProjectAccess } from "@/lib/access-control";
 import { getSupabaseDataSchema } from "@/lib/data-authority";
 import {
   assertAssetNotLocked,
@@ -189,7 +189,97 @@ export async function requireOwnedUploadTarget(
   }
 }
 
-function uploadCatalogRpcFailure(error: unknown): Error {
+export interface OwnedRevisionUploadTarget {
+  version: number;
+}
+
+/**
+ * Resolve revision lineage from canonical catalog state before allocating
+ * storage. The expected-current id is persisted into the upload session and
+ * checked again inside the final catalog transaction after the bytes commit.
+ */
+export async function requireOwnedRevisionUploadTarget(
+  userId: string,
+  projectId: string,
+  assetId: string,
+  expectedCurrentVersionId: string,
+  filename: string,
+): Promise<OwnedRevisionUploadTarget> {
+  if (getSupabaseDataSchema() !== "co_production") {
+    throw new BackendUnavailableError("Canonical revision upload authority");
+  }
+  const supabase = getSupabase();
+  const assetAccess = await getAssetAccess(assetId, userId, "editor", supabase);
+  if (!assetAccess.ok) {
+    if (assetAccess.status >= 500) {
+      throw new BackendUnavailableError("Revision asset authority");
+    }
+    throw new UploadOrchestrationError(
+      "UPLOAD_FORBIDDEN",
+      "Asset is unavailable for revision upload",
+    );
+  }
+  if (assetAccess.data.project_id !== projectId) {
+    throw new UploadOrchestrationError(
+      "UPLOAD_FORBIDDEN",
+      "Asset is unavailable for revision upload",
+    );
+  }
+  if (detectFileType(filename) !== assetAccess.data.file_type) {
+    throw new UploadOrchestrationError(
+      "UPLOAD_INVALID",
+      "Revision file type does not match the asset",
+    );
+  }
+
+  try {
+    await assertAssetNotLocked(assetId, supabase);
+  } catch (error) {
+    if (isAssetDeliveryLockedError(error)) {
+      throw new UploadOrchestrationError(
+        "UPLOAD_CONFLICT",
+        "Asset is part of a locked delivery",
+      );
+    }
+    throw error;
+  }
+
+  const { data, error } = await supabase
+    .from("versions")
+    .select("id, version_number")
+    .eq("asset_id", assetId)
+    .eq("is_current", true)
+    .limit(2);
+  if (error) {
+    throw new BackendUnavailableError("Revision current-version authority");
+  }
+  if (!Array.isArray(data) || data.length !== 1) {
+    throw new UploadOrchestrationError(
+      "UPLOAD_STATE",
+      "Asset does not have one canonical current version",
+    );
+  }
+  const current = data[0] as { id?: unknown; version_number?: unknown };
+  if (current.id !== expectedCurrentVersionId) {
+    throw new UploadOrchestrationError(
+      "UPLOAD_CONFLICT",
+      "Asset current version changed before revision upload",
+    );
+  }
+  if (
+    !Number.isSafeInteger(current.version_number) ||
+    Number(current.version_number) < 1 ||
+    Number(current.version_number) >= Number.MAX_SAFE_INTEGER
+  ) {
+    throw new UploadOrchestrationError(
+      "UPLOAD_STATE",
+      "Asset current version number is invalid",
+    );
+  }
+  return { version: Number(current.version_number) + 1 };
+}
+
+function uploadCatalogRpcFailure(error: unknown, revision: boolean): Error {
   const code =
     error && typeof error === "object" && "code" in error
       ? (error as { code?: unknown }).code
@@ -203,13 +293,29 @@ function uploadCatalogRpcFailure(error: unknown): Error {
     case "22023":
       return new UploadOrchestrationError(
         "UPLOAD_STATE",
-        "Committed upload is not valid for V1 catalog attachment",
+        revision
+          ? "Committed upload is not valid for revision catalog attachment"
+          : "Committed upload is not valid for V1 catalog attachment",
       );
+    case "40001":
+      return revision
+        ? new UploadOrchestrationError(
+            "UPLOAD_CONFLICT",
+            "Asset current version changed before revision attachment",
+          )
+        : new BackendUnavailableError("Upload catalog transaction");
     case "23505":
       return new UploadOrchestrationError(
         "UPLOAD_CONFLICT",
         "Committed upload conflicts with existing catalog state",
       );
+    case "23514":
+      return revision
+        ? new UploadOrchestrationError(
+            "UPLOAD_CONFLICT",
+            "Asset is part of a locked delivery",
+          )
+        : new BackendUnavailableError("Upload catalog transaction");
     default:
       return new BackendUnavailableError("Upload catalog transaction");
   }
@@ -233,9 +339,10 @@ export async function ensureCatalogAsset(
       throw new BackendUnavailableError("Canonical upload catalog");
     }
     const receipt = current.receipt;
+    const isRevision = current.version > 1;
     if (
       current.scan?.verdict !== "clean" ||
-      current.version !== 1 ||
+      current.version < 1 ||
       !current.objectKey ||
       !current.computedSha256 ||
       !receipt ||
@@ -244,11 +351,16 @@ export async function ensureCatalogAsset(
       receipt.size !== current.size ||
       receipt.sha256 !== current.computedSha256 ||
       typeof receipt.providerVersionId !== "string" ||
-      !receipt.providerVersionId
+      !receipt.providerVersionId ||
+      (isRevision &&
+        (!current.assetId || !current.expectedCurrentVersionId)) ||
+      (!isRevision && current.expectedCurrentVersionId != null)
     ) {
       throw new UploadOrchestrationError(
         "UPLOAD_STATE",
-        "Committed upload is not clean and receipt-bound for V1 catalog attachment",
+        isRevision
+          ? "Committed upload is not clean and receipt-bound for revision catalog attachment"
+          : "Committed upload is not clean and receipt-bound for V1 catalog attachment",
       );
     }
 
@@ -268,26 +380,42 @@ export async function ensureCatalogAsset(
       }
     }
 
-    const { data, error } = await supabase
-      .rpc("attach_committed_upload_v1", {
-        p_actor_id: userId,
-        p_upload_id: current.id,
-        p_expected_asset_id: current.assetId,
-        p_project_id: current.projectId,
-        p_folder_id: current.folderId,
-        p_title: catalogTitleFromFilename(current.filename),
-        p_file_type: detectFileType(current.filename),
-        p_original_filename: current.filename,
-        p_mime_type: current.mimeType,
-        p_file_size: current.size,
-        p_storage_provider: current.provider,
-        p_storage_object_key: current.objectKey,
-        p_storage_sha256: current.computedSha256,
-        p_storage_provider_version_id: receipt.providerVersionId,
-        p_storage_committed_at: receipt.committedAt,
-      });
+    const { data, error } = isRevision
+      ? await supabase.rpc("attach_committed_upload_revision", {
+          p_actor_id: userId,
+          p_upload_id: current.id,
+          p_asset_id: current.assetId,
+          p_project_id: current.projectId,
+          p_expected_current_version_id: current.expectedCurrentVersionId,
+          p_expected_version_number: current.version,
+          p_original_filename: current.filename,
+          p_mime_type: current.mimeType,
+          p_file_size: current.size,
+          p_storage_provider: current.provider,
+          p_storage_object_key: current.objectKey,
+          p_storage_sha256: current.computedSha256,
+          p_storage_provider_version_id: receipt.providerVersionId,
+          p_storage_committed_at: receipt.committedAt,
+        })
+      : await supabase.rpc("attach_committed_upload_v1", {
+          p_actor_id: userId,
+          p_upload_id: current.id,
+          p_expected_asset_id: current.assetId,
+          p_project_id: current.projectId,
+          p_folder_id: current.folderId,
+          p_title: catalogTitleFromFilename(current.filename),
+          p_file_type: detectFileType(current.filename),
+          p_original_filename: current.filename,
+          p_mime_type: current.mimeType,
+          p_file_size: current.size,
+          p_storage_provider: current.provider,
+          p_storage_object_key: current.objectKey,
+          p_storage_sha256: current.computedSha256,
+          p_storage_provider_version_id: receipt.providerVersionId,
+          p_storage_committed_at: receipt.committedAt,
+        });
     if (error) {
-      throw uploadCatalogRpcFailure(error);
+      throw uploadCatalogRpcFailure(error, isRevision);
     }
 
     const rows = Array.isArray(data) ? data : [];
@@ -299,7 +427,8 @@ export async function ensureCatalogAsset(
       !record.id ||
       typeof record.version_id !== "string" ||
       !record.version_id ||
-      record.version_number !== 1 ||
+      record.version_number !== current.version ||
+      (isRevision && record.id !== current.assetId) ||
       typeof record.file_url !== "string" ||
       record.file_url !== `/api/media/versions/${record.version_id}`
     ) {

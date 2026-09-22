@@ -13,6 +13,7 @@ import {
   assertUploadStorageConfigured,
   jsonUploadError,
   requireOwnedUploadTarget,
+  requireOwnedRevisionUploadTarget,
 } from "@/app/api/upload/_shared";
 
 export const runtime = "nodejs";
@@ -60,7 +61,28 @@ export async function POST(request: NextRequest) {
     if (!projectId || !idempotencyKey) {
       return tusError("projectId and idempotencyKey metadata are required", "INVALID_UPLOAD_METADATA", 400, responseHeaders);
     }
-    if (metadata.version !== undefined && metadata.version !== "1") {
+    const assetId = metadata.assetId;
+    const expectedCurrentVersionId = metadata.expectedCurrentVersionId;
+    const filename = metadata.filename || "upload.bin";
+    const mimeType = metadata.filetype || "application/octet-stream";
+    if (Boolean(assetId) !== Boolean(expectedCurrentVersionId)) {
+      return tusError(
+        "assetId and expectedCurrentVersionId metadata are required together",
+        "INVALID_UPLOAD_METADATA",
+        400,
+        responseHeaders,
+      );
+    }
+    const revisionTarget = assetId && expectedCurrentVersionId
+      ? await requireOwnedRevisionUploadTarget(
+          user.id,
+          projectId,
+          assetId,
+          expectedCurrentVersionId,
+          filename,
+        )
+      : null;
+    if (!revisionTarget && metadata.version !== undefined && metadata.version !== "1") {
       return tusError(
         "Initial uploads must create V1",
         "INVALID_UPLOAD_METADATA",
@@ -68,18 +90,22 @@ export async function POST(request: NextRequest) {
         responseHeaders,
       );
     }
-    await requireOwnedUploadTarget(user.id, projectId, metadata.folderId);
+    if (!revisionTarget) {
+      await requireOwnedUploadTarget(user.id, projectId, metadata.folderId);
+    }
 
     const orchestrator = createDefaultUploadOrchestrator();
     const result = await orchestrator.createSession({
       tenantId: user.id,
       projectId,
-      folderId: metadata.folderId,
+      folderId: revisionTarget ? undefined : metadata.folderId,
       idempotencyKey,
-      filename: metadata.filename || "upload.bin",
-      mimeType: metadata.filetype || "application/octet-stream",
+      filename,
+      mimeType,
       size: uploadLength,
-      version: 1,
+      version: revisionTarget?.version ?? 1,
+      assetId,
+      expectedCurrentVersionId,
       expectedSha256: metadata.sha256,
     });
 

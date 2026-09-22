@@ -61,6 +61,11 @@ export interface UploadSession {
   partCount: number;
   lastPartSha256: string | null;
   assetId: string | null;
+  /**
+   * Immutable compare-and-swap authority for revision uploads. Older V1
+   * sessions omit this field and normalize to null on read.
+   */
+  expectedCurrentVersionId?: string | null;
   versionId: string | null;
   catalog: {
     state: "pending" | "attached" | "error";
@@ -96,6 +101,8 @@ export interface CreateUploadSessionInput {
   mimeType: string;
   size: number;
   version?: number;
+  assetId?: string;
+  expectedCurrentVersionId?: string;
   expectedSha256?: string;
 }
 

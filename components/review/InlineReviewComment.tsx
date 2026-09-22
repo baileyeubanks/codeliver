@@ -8,7 +8,7 @@ import type { AnnotationData, Comment } from "@/lib/types/codeliver";
 import { rasterizeAnnotations } from "@/components/review/annotation/rasterize";
 import AnchoredLeaderLine from "@/components/review/AnchoredLeaderLine";
 import { useCalloutDrag } from "@/components/review/useCalloutDrag";
-import { REVIEW_IMAGE_ACCEPT, uploadReviewImageAttachment, validateReviewImage } from "@/lib/review/image-attachments-client";
+import { closePersistedAttachmentDraft, REVIEW_IMAGE_ACCEPT, uploadReviewImageAttachment, validateReviewImage } from "@/lib/review/image-attachments-client";
 import type { CommentAttachment } from "@/lib/types/codeliver";
 
 interface InlineReviewCommentProps {
@@ -116,6 +116,16 @@ export default function InlineReviewComment({
     } finally { setSubmitting(false); }
   }
 
+  function closeDraft() {
+    closePersistedAttachmentDraft({
+      persistedComment,
+      onCommentCreated: onCommentCreated
+        ? (comment) => onCommentCreated(comment as Comment)
+        : undefined,
+      onCancel,
+    });
+  }
+
   return (
     <div
       ref={anchorRef}
@@ -137,12 +147,12 @@ export default function InlineReviewComment({
           <strong>{reviewerName.trim() || "Reviewer"}</strong>
           <span>{formatTimeLong(timecode)}</span>
         </div>
-        <button type="button" onClick={onCancel} title="Cancel comment" aria-label="Cancel comment">
+        <button type="button" onClick={closeDraft} title="Cancel comment" aria-label="Cancel comment">
           <X size={14} />
         </button>
       </header>
 
-      {!demoMode ? <div className="review-inline-comment-attachment"><input ref={attachmentInput} type="file" accept={REVIEW_IMAGE_ACCEPT} hidden onChange={(event) => { const file = event.target.files?.[0] ?? null; const invalid = file ? validateReviewImage(file) : null; if (invalid) { setAttachment(null); setError(invalid); return; } setAttachment(file); attachmentKey.current = null; setError(""); }} /><button type="button" onClick={() => attachmentInput.current?.click()} disabled={submitting || Boolean(persistedComment)} aria-label="Attach image"><ImagePlus size={13} /> {attachment ? attachment.name : "Attach image"}</button>{attachment ? <button type="button" onClick={() => persistedComment ? onCancel() : setAttachment(null)} disabled={submitting} aria-label="Remove attached image"><X size={13} /></button> : null}</div> : null}
+      {!demoMode ? <div className="review-inline-comment-attachment"><input ref={attachmentInput} type="file" accept={REVIEW_IMAGE_ACCEPT} hidden onChange={(event) => { const file = event.target.files?.[0] ?? null; const invalid = file ? validateReviewImage(file) : null; if (invalid) { setAttachment(null); setError(invalid); return; } setAttachment(file); attachmentKey.current = null; setError(""); }} /><button type="button" onClick={() => attachmentInput.current?.click()} disabled={submitting || Boolean(persistedComment)} aria-label="Attach image"><ImagePlus size={13} /> {attachment ? attachment.name : "Attach image"}</button>{attachment ? <button type="button" onClick={() => persistedComment ? closeDraft() : setAttachment(null)} disabled={submitting} aria-label="Remove attached image"><X size={13} /></button> : null}</div> : null}
 
       {persistedComment ? <p className="review-inline-comment-error" role="status">Comment saved. Retry the image or remove it to close.</p> : null}
 
@@ -169,7 +179,7 @@ export default function InlineReviewComment({
                 setCollectReviewerName(false);
                 commentRef.current?.focus();
               }
-              if (event.key === "Escape") onCancel();
+              if (event.key === "Escape") closeDraft();
             }}
             placeholder="Your name"
             autoComplete="name"
@@ -188,7 +198,7 @@ export default function InlineReviewComment({
               event.preventDefault();
               void submit();
             }
-            if (event.key === "Escape") onCancel();
+            if (event.key === "Escape") closeDraft();
           }}
           onCompositionStart={() => { composing.current = true; }}
           onCompositionEnd={() => { composing.current = false; }}

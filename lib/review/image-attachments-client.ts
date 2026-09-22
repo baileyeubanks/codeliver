@@ -4,6 +4,22 @@ export const REVIEW_IMAGE_ACCEPT = "image/jpeg,image/png,image/gif,image/webp";
 export const REVIEW_IMAGE_MAX_BYTES = 10 * 1024 * 1024;
 const REVIEW_IMAGE_TYPES = new Set(REVIEW_IMAGE_ACCEPT.split(","));
 
+/** Publish an already-persisted comment into local review state before the
+ * attachment draft closes. This never posts the comment a second time. */
+export function closePersistedAttachmentDraft<T extends { id: string }>(input: {
+  persistedComment: T | null;
+  onCommentCreated?: (comment: T) => void;
+  onCancel: () => void;
+}): "published" | "cancelled" {
+  if (input.persistedComment && input.onCommentCreated) {
+    input.onCommentCreated(input.persistedComment);
+    input.onCancel();
+    return "published";
+  }
+  input.onCancel();
+  return "cancelled";
+}
+
 export function validateReviewImage(file: File): string | null {
   if (!REVIEW_IMAGE_TYPES.has(file.type)) return "Choose a JPEG, PNG, GIF, or WebP image.";
   if (file.size <= 0 || file.size > REVIEW_IMAGE_MAX_BYTES) return "Images must be 10 MB or smaller.";

@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {
   REVIEW_IMAGE_MAX_BYTES,
+  closePersistedAttachmentDraft,
   refreshReviewImageAttachments,
   uploadReviewImageAttachment,
   validateReviewImage,
@@ -13,6 +14,29 @@ test("review image client rejects unsupported and oversized files before a reque
   assert.match(validateReviewImage(new File(["x"], "frame.pdf", { type: "application/pdf" })) ?? "", /JPEG/);
   assert.match(validateReviewImage(new File([new Uint8Array(REVIEW_IMAGE_MAX_BYTES + 1)], "large.png", { type: "image/png" })) ?? "", /10 MB/);
   assert.equal(validateReviewImage(file), null);
+});
+
+test("closing a failed attachment publishes its persisted comment before the draft disappears", () => {
+  const events: string[] = [];
+  const comment = { id: "comment-1", body: "Saved before the image failed" };
+  const result = closePersistedAttachmentDraft({
+    persistedComment: comment,
+    onCommentCreated(saved) { events.push(`published:${saved.id}`); },
+    onCancel() { events.push("closed"); },
+  });
+  assert.equal(result, "published");
+  assert.deepEqual(events, ["published:comment-1", "closed"]);
+});
+
+test("closing an unpersisted attachment draft only cancels it", () => {
+  const events: string[] = [];
+  const result = closePersistedAttachmentDraft({
+    persistedComment: null,
+    onCommentCreated() { events.push("published"); },
+    onCancel() { events.push("closed"); },
+  });
+  assert.equal(result, "cancelled");
+  assert.deepEqual(events, ["closed"]);
 });
 
 test("review image client binds a persisted comment, version, and stable retry key", async () => {
@@ -55,6 +79,8 @@ test("attachment retries retain the persisted comment and remain bounded", () =>
   assert.match(inline, /useState<\(\{ id: string \} & Partial<Comment>\) \| null>/);
   assert.match(inline, /let comment: \(\{ id: string \} & Partial<Comment>\) \| null = persistedComment/);
   assert.match(inline, /readOnly=\{Boolean\(persistedComment\)\}/);
+  assert.match(inline, /onClick=\{closeDraft\}/);
+  assert.match(inline, /persistedComment \? closeDraft\(\) : setAttachment\(null\)/);
   assert.match(preview, /new Set<string>\(\)/);
   assert.match(preview, /\.catch\(\(\) => undefined\)/);
 });

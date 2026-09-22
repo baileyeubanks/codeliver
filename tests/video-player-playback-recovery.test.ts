@@ -230,6 +230,7 @@ function videoPlayerHarness() {
 function reviewMediaSurfaceHarness() {
   const state: unknown[] = [];
   let cursor = 0;
+  let didScheduleRender = false;
   const hooks = {
     useCallback<T>(callback: T) {
       cursor += 1;
@@ -239,7 +240,11 @@ function reviewMediaSurfaceHarness() {
       const index = cursor++;
       if (!(index in state)) state[index] = typeof initial === "function" ? initial() : initial;
       return [state[index], (value: unknown) => {
-        state[index] = typeof value === "function" ? value(state[index]) : value;
+        const nextValue = typeof value === "function" ? value(state[index]) : value;
+        if (!Object.is(state[index], nextValue)) {
+          state[index] = nextValue;
+          didScheduleRender = true;
+        }
       }];
     },
   };
@@ -264,16 +269,21 @@ function reviewMediaSurfaceHarness() {
   )(imports, moduleRecord, moduleRecord.exports);
   const ReviewMediaSurface = (moduleRecord.exports as { default: (props: Record<string, unknown>) => Element }).default;
   function render(assetUrl: string, fallbackAction?: React.ReactNode) {
-    cursor = 0;
-    return ReviewMediaSurface({
-      assetTitle: "Review master",
-      assetType: "video",
-      assetUrl,
-      fallbackAction,
-      overlay: null,
-      pinMode: false,
-      videoRef: { current: null },
-    });
+    let surface: Element;
+    do {
+      didScheduleRender = false;
+      cursor = 0;
+      surface = ReviewMediaSurface({
+        assetTitle: "Review master",
+        assetType: "video",
+        assetUrl,
+        fallbackAction,
+        overlay: null,
+        pinMode: false,
+        videoRef: { current: null },
+      });
+    } while (didScheduleRender);
+    return surface;
   }
   return { render };
 }
@@ -350,4 +360,35 @@ test("ReviewMediaSurface exposes retry after playback failure and only renders a
   const switched = app.render("/media/second.mp4");
   assert.equal(allElements(switched).some((element) => element.props.role === "alert"), false, "a new version source clears the prior failure");
   assert.equal(allElements(switched).some((element) => element.type === "a"), false, "no download link is invented when the caller did not authorize one");
+});
+
+test("ReviewMediaSurface clears a failed version across source changes and ignores its stale callback", () => {
+  const app = reviewMediaSurfaceHarness();
+  const initialA = app.render("/media/version-a.mp4");
+  const firstPlayerA = allElements(initialA).find((element) => element.type === "video-player");
+  assert.ok(firstPlayerA, "version A starts with a player");
+  firstPlayerA.props.onPlaybackError();
+
+  const failedA = app.render("/media/version-a.mp4");
+  assert.equal(allElements(failedA).some((element) => element.props.role === "alert"), true);
+
+  const versionB = app.render("/media/version-b.mp4");
+  assert.equal(allElements(versionB).some((element) => element.props.role === "alert"), false, "version B starts clean");
+  assert.ok(allElements(versionB).some((element) => element.type === "video-player"), "version B mounts a player");
+
+  firstPlayerA.props.onPlaybackError();
+  const versionBAfterStaleCallback = app.render("/media/version-b.mp4");
+  assert.equal(
+    allElements(versionBAfterStaleCallback).some((element) => element.props.role === "alert"),
+    false,
+    "a stale version A callback cannot poison version B",
+  );
+
+  const returnedA = app.render("/media/version-a.mp4");
+  assert.equal(
+    allElements(returnedA).some((element) => element.props.role === "alert"),
+    false,
+    "returning to version A mounts a fresh player without requiring an old retry",
+  );
+  assert.ok(allElements(returnedA).some((element) => element.type === "video-player"));
 });

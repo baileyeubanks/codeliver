@@ -42,8 +42,13 @@ export default function ReviewMediaSurface({
   timeline,
   fallbackAction,
 }: ReviewMediaSurfaceProps) {
+  const [previousSource, setPreviousSource] = useState(assetUrl);
   const [failedSource, setFailedSource] = useState<string | null>(null);
   const [retryAttempt, setRetryAttempt] = useState(0);
+  if (previousSource !== assetUrl) {
+    setPreviousSource(assetUrl);
+    setFailedSource(null);
+  }
   const playbackFailed = assetType === "video" && failedSource === assetUrl;
   const handlePlaybackError = useCallback(() => {
     if (assetUrl) setFailedSource(assetUrl);

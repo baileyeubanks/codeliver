@@ -1282,6 +1282,7 @@ export class UploadOrchestrator {
         throw new UploadOrchestrationError("UPLOAD_NOT_FOUND", "Upload not found");
       }
       this.assertTenant(session, tenantId);
+      if (session.state === "committed") return session;
       this.assertMalwareScanRetryable(session);
       if (session.state !== "verifying") {
         throw new UploadOrchestrationError(

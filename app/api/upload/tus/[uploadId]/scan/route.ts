@@ -89,7 +89,12 @@ export async function POST(_request: NextRequest, { params }: RouteParams) {
       current.finalizationDeferred === true &&
       current.receipt === null &&
       current.objectKey === null;
-    const session = deferred
+    const verifying = current.state === "verifying";
+    const timeoutRetry =
+      verifying &&
+      current.scan?.verdict === "error" &&
+      current.scan.engine === "scanner-timeout";
+    const session = verifying
       ? current
       : await orchestrator.beginMalwareScanRetry(uploadId, user.id);
 
@@ -100,7 +105,12 @@ export async function POST(_request: NextRequest, { params }: RouteParams) {
       try {
         const result = deferred
           ? await orchestrator.resumeDeferredFinalization(uploadId, user.id)
-          : await orchestrator.resumeMalwareScanRetry(uploadId, user.id);
+          : timeoutRetry
+            ? await orchestrator.resumeMalwareScanRetry(uploadId, user.id)
+            : verifying
+              ? await orchestrator.recoverSession(uploadId, user.id)
+              : await orchestrator.resumeMalwareScanRetry(uploadId, user.id);
+        if (!result) return;
         if (result.state === "committed") {
           await ensureCatalogAsset(orchestrator, result, user.id);
         }

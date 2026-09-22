@@ -11,6 +11,7 @@ type ScanBoundaryState = typeof globalThis & {
   __ccoScanBoundaryAfter: Array<() => Promise<void> | void>;
   __ccoScanBoundaryBeginCalls: number;
   __ccoScanBoundaryScans: number;
+  __ccoScanBoundaryRecoveries: number;
 };
 const state = globalThis as ScanBoundaryState;
 
@@ -22,7 +23,17 @@ const orchestratorStub = moduleUrl(`
   export function createDefaultUploadOrchestrator(){return {
     async getSession(){return globalThis.__ccoScanBoundarySession},
     async beginMalwareScanRetry(){globalThis.__ccoScanBoundaryBeginCalls += 1; return globalThis.__ccoScanBoundarySession},
-    async resumeMalwareScanRetry(){throw new Error("timeout retry was not expected")},
+    async resumeMalwareScanRetry(){
+      if(globalThis.__ccoScanBoundarySession.state === "committed") return globalThis.__ccoScanBoundarySession;
+      globalThis.__ccoScanBoundaryScans += 1;
+      globalThis.__ccoScanBoundarySession = {...globalThis.__ccoScanBoundarySession,state:"committed",receipt:{objectKey:"object"},assetId:"asset-a",versionId:"version-a",catalog:{state:"attached"}};
+      return globalThis.__ccoScanBoundarySession;
+    },
+    async recoverSession(){
+      globalThis.__ccoScanBoundaryRecoveries += 1;
+      globalThis.__ccoScanBoundarySession = {...globalThis.__ccoScanBoundarySession,state:"committed",receipt:{objectKey:"object"},assetId:"asset-a",versionId:"version-a",catalog:{state:"attached"}};
+      return globalThis.__ccoScanBoundarySession;
+    },
     async resumeDeferredFinalization(){
       if(globalThis.__ccoScanBoundarySession.state === "committed") return globalThis.__ccoScanBoundarySession;
       globalThis.__ccoScanBoundaryScans += 1;
@@ -89,12 +100,46 @@ test("duplicate deferred POST callbacks run the expensive scan once", async () =
   state.__ccoScanBoundaryAfter = [];
   state.__ccoScanBoundaryBeginCalls = 0;
   state.__ccoScanBoundaryScans = 0;
+  state.__ccoScanBoundaryRecoveries = 0;
 
   assert.equal((await post()).status, 202);
   assert.equal((await post()).status, 202);
   assert.equal(state.__ccoScanBoundaryAfter.length, 2);
   await state.__ccoScanBoundaryAfter[0]();
   await state.__ccoScanBoundaryAfter[1]();
+  assert.equal(state.__ccoScanBoundaryScans, 1);
+  assert.equal(state.__ccoScanBoundaryBeginCalls, 0);
+});
+
+test("POST schedules clean placement recovery without waiting on the active lock", async () => {
+  state.__ccoScanBoundarySession = {
+    ...baseSession(), finalizationDeferred: false, objectKey: "object",
+    scan: { verdict: "clean", engine: "test" },
+  };
+  state.__ccoScanBoundaryAfter = [];
+  state.__ccoScanBoundaryBeginCalls = 0;
+  state.__ccoScanBoundaryRecoveries = 0;
+  const response = await post();
+  assert.equal(response.status, 202);
+  assert.equal(state.__ccoScanBoundaryRecoveries, 0);
+  assert.equal(state.__ccoScanBoundaryAfter.length, 1);
+  await state.__ccoScanBoundaryAfter[0]();
+  assert.equal(state.__ccoScanBoundaryRecoveries, 1);
+  assert.equal(state.__ccoScanBoundaryBeginCalls, 0);
+});
+
+test("POST observes an active retained-byte timeout retry without synchronously taking its lock", async () => {
+  state.__ccoScanBoundarySession = {
+    ...baseSession(), finalizationDeferred: false,
+    scan: { verdict: "error", engine: "scanner-timeout" },
+  };
+  state.__ccoScanBoundaryAfter = [];
+  state.__ccoScanBoundaryBeginCalls = 0;
+  state.__ccoScanBoundaryScans = 0;
+  const response = await post();
+  assert.equal(response.status, 202);
+  assert.equal(state.__ccoScanBoundaryScans, 0);
+  await state.__ccoScanBoundaryAfter[0]();
   assert.equal(state.__ccoScanBoundaryScans, 1);
   assert.equal(state.__ccoScanBoundaryBeginCalls, 0);
 });

@@ -941,6 +941,12 @@ test("timeout quarantine retries the scan against retained verified bytes withou
     assert.equal(committed.scan?.verdict, "clean");
     assert.equal(committed.offset, committed.size);
     assert.equal(attempts, 2);
+    const duplicate = await orchestrator.resumeMalwareScanRetry(
+      created.session.id,
+      "tenant-a",
+    );
+    assert.equal(duplicate.state, "committed");
+    assert.equal(attempts, 2, "a queued duplicate retry must not rescan committed bytes");
   } finally {
     rmSync(root, { recursive: true, force: true });
   }

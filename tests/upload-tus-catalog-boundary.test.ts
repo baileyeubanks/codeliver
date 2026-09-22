@@ -279,34 +279,41 @@ test("final PATCH persists verifying and registers response-lifecycle finalizati
   assert.equal(state.__ccoUploadBoundaryAfterTasks.length, 1);
 });
 
-test("HEAD exposes an active deferred scan without waiting on its upload lock", async () => {
-  state.__ccoUploadBoundarySession = {
-    ...committedSession(),
-    state: "verifying",
-    computedSha256: "c".repeat(64),
-    objectKey: null,
-    receipt: null,
-    scan: null,
-    finalizationDeferred: true,
-  };
-  state.__ccoUploadBoundaryCatalogError = null;
-  state.__ccoUploadBoundaryRecoverCalls = 0;
+test("HEAD exposes every long verifying phase without waiting on its upload lock", async () => {
   const { HEAD } = await import(
     pathToFileURL(
       resolve(repositoryRoot, "app/api/upload/tus/[uploadId]/route.ts"),
     ).href
   );
-  const response = await HEAD(
-    new NextRequest(`https://admin.contentco-op.com/api/upload/tus/${uploadId}`, {
-      method: "HEAD",
-    }),
-    { params: Promise.resolve({ uploadId }) },
-  );
-
-  assert.equal(response.status, 200);
-  assert.equal(response.headers.get("upload-state"), "verifying");
-  assert.equal(response.headers.get("upload-original-ready"), "false");
-  assert.equal(state.__ccoUploadBoundaryRecoverCalls, 0);
+  const cases: UploadSession[] = [
+    {
+      ...committedSession(), state: "verifying", objectKey: null, receipt: null,
+      scan: null, finalizationDeferred: true,
+    },
+    {
+      ...committedSession(), state: "verifying", receipt: null,
+      scan: { verdict: "clean", engine: "test", signature: null, detail: "clean", scannedAt: now },
+      finalizationDeferred: false,
+    },
+    {
+      ...committedSession(), state: "verifying", objectKey: null, receipt: null,
+      scan: { verdict: "error", engine: "scanner-timeout", signature: null, detail: "retrying", scannedAt: now },
+      finalizationDeferred: false,
+    },
+  ];
+  for (const session of cases) {
+    state.__ccoUploadBoundarySession = session;
+    state.__ccoUploadBoundaryCatalogError = null;
+    state.__ccoUploadBoundaryRecoverCalls = 0;
+    const response = await HEAD(
+      new NextRequest(`https://admin.contentco-op.com/api/upload/tus/${uploadId}`, { method: "HEAD" }),
+      { params: Promise.resolve({ uploadId }) },
+    );
+    assert.equal(response.status, 200);
+    assert.equal(response.headers.get("upload-state"), "verifying");
+    assert.equal(response.headers.get("upload-original-ready"), "false");
+    assert.equal(state.__ccoUploadBoundaryRecoverCalls, 0);
+  }
 });
 
 test("final PATCH is retriable 503 when committed bytes cannot attach asset plus V1", async () => {

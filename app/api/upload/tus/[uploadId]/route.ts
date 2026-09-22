@@ -107,9 +107,9 @@ export async function HEAD(_request: NextRequest, { params }: RouteParams) {
     const orchestrator = createDefaultUploadOrchestrator();
     let session = await orchestrator.getSession(uploadId, user.id);
     if (!session) return new NextResponse(null, { status: 404, headers: responseHeaders });
-    // The deferred marker remains durable while ClamAV owns the upload lock.
-    // Expose progress immediately instead of making Tus HEAD wait for the scan.
-    if (!(session.state === "verifying" && session.finalizationDeferred === true)) {
+    // Every verifying phase can own this upload lock for a full scan or a slow
+    // immutable placement. Expose durable progress instead of waiting on it.
+    if (session.state !== "verifying") {
       session = await orchestrator.recoverSession(uploadId, user.id);
       if (!session) return new NextResponse(null, { status: 404, headers: responseHeaders });
     }

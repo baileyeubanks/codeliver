@@ -579,6 +579,12 @@
   .headerActions .toolbarButton svg + * {
     white-space: nowrap;
   }
+
+  /* The shared mobile project bar is fixed at the canvas edge. Keep every
+     zoom target fully above it, including a short landscape viewport. */
+  .zoomControls {
+    bottom: calc(76px + env(safe-area-inset-bottom));
+  }
 }
 
 @media (max-width: 560px) {
@@ -613,7 +619,7 @@
   }
 
   .zoomControls {
-    bottom: calc(58px + env(safe-area-inset-bottom));
+    bottom: calc(80px + env(safe-area-inset-bottom));
   }
 }
 

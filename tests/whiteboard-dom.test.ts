@@ -332,6 +332,19 @@ test("interactive targets meet the 44px minimum in the stylesheet", () => {
   assert.doesNotMatch(css, /\.backLink\s*\{/);
 });
 
+test("mobile zoom controls reserve clearance above the shared project bar", () => {
+  const css = readFileSync(stylesheetPath, "utf8");
+
+  assert.match(
+    css,
+    /@media \(max-width: 900px\)[\s\S]*?\.zoomControls\s*\{\s*bottom: calc\(76px \+ env\(safe-area-inset-bottom\)\)/,
+  );
+  assert.match(
+    css,
+    /@media \(max-width: 560px\)[\s\S]*?\.zoomControls\s*\{\s*bottom: calc\(80px \+ env\(safe-area-inset-bottom\)\)/,
+  );
+});
+
 test("styling stays on canon tokens — phase colors come from brand-tokens vars", () => {
   const css = readFileSync(stylesheetPath, "utf8");
 

@@ -28,7 +28,10 @@ test("the selected-project cockpit owns the canonical TUS uploader", () => {
   assert.match(projectWorkspace, /onUpload=\{openRemoteUploadPicker\}/);
   assert.match(projectWorkspace, /onUploadRevision=\{openRemoteRevisionPicker\}/);
   assert.match(projectWorkspace, /revisionTarget=\{revisionTarget\}/);
-  assert.match(projectWorkspace, /resolveRevisionUploadTarget\(await response\.json\(\), id, assetId\)/);
+  assert.match(projectWorkspace, /resolveRevisionUploadTarget\(await response\.json\(\), projectId, assetId\)/);
+  assert.match(projectWorkspace, /shouldApplyRevisionUploadTarget/);
+  assert.match(projectWorkspace, /onUploadChooseRevisionFile=\{chooseRemoteRevisionFile\}/);
+  assert.doesNotMatch(projectWorkspace, /uploadPickerRequest/);
   assert.match(projectWorkspace, /params\.set\("version", revision\.versionId\)/);
   assert.match(uploader, /endpoint:\s*"\/api\/upload\/tus"/);
 

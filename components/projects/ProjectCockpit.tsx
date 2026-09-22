@@ -126,6 +126,7 @@ import { formatSmpteTimecode } from "@/components/player/timecode";
 import VideoPlayer from "@/components/player/VideoPlayer";
 import { normalizeReviewSeekStep, normalizeReviewShortcutKey, shouldIgnoreReviewShortcut } from "@/lib/review/player-policy";
 import { buildSurfaceUrl, getReviewSiteUrl } from "@/lib/surface-origins";
+import { mayOpenRevisionUploader } from "@/lib/uploads/revision-upload";
 import type { EditDecision, Version } from "@/lib/types/codeliver";
 import styles from "./ProjectCockpit.module.css";
 
@@ -144,6 +145,10 @@ interface ProjectCockpitProps {
   onUpload: () => void;
   /** Opens the local file picker with this exact asset as the replacement target. */
   onUploadRevision?: (assetId: string) => void;
+  /** Only enable live revisions after the server advertises its CAS upload contract. */
+  revisionUploadsAvailable?: boolean;
+  /** Continues a revision after its exact target is verified, preserving native picker activation. */
+  onUploadChooseRevisionFile?: () => void;
   onUploadDismiss?: () => void;
 }
 
@@ -157,7 +162,7 @@ export interface CockpitUploadStatus {
   kind?: "new_asset" | "revision";
   fileName: string;
   progress: number;
-  phase: "validating" | "transferring" | "proxy" | "indexing" | "complete" | "error";
+  phase: "validating" | "ready" | "transferring" | "proxy" | "indexing" | "complete" | "error";
   completed: number;
   total: number;
   mode: "demo" | "production";
@@ -474,6 +479,8 @@ export default function ProjectCockpit({
   uploadStatus,
   onUpload,
   onUploadRevision,
+  revisionUploadsAvailable,
+  onUploadChooseRevisionFile,
   onUploadDismiss,
 }: ProjectCockpitProps) {
   const router = useRouter();
@@ -1885,6 +1892,7 @@ export default function ProjectCockpit({
 
   const uploadTerminal =
     uploadStatus?.phase === "complete" || uploadStatus?.phase === "error";
+  const uploadAwaitingRevisionFile = uploadStatus?.phase === "ready";
   const uploadSteps: Array<[CockpitUploadStatus["phase"], string]> =
     uploadStatus?.mode === "demo"
       ? [
@@ -2954,7 +2962,7 @@ export default function ProjectCockpit({
                     <h2>Version history</h2>
                     <p>{demoMode ? "Known imported bases and browser-local cuts. Existing links stay pinned to their cut." : "All current project deliverables and revision depth."}</p>
                   </div>
-                  {demoMode && activeAsset && revisionableActiveAsset && onUploadRevision ? (
+                  {activeAsset && revisionableActiveAsset && onUploadRevision && mayOpenRevisionUploader(demoMode, revisionUploadsAvailable) ? (
                     <button type="button" onClick={() => onUploadRevision(activeAsset.id)} disabled={uploading || !canUpload}>
                       <Upload size={16} /> Upload new version
                     </button>
@@ -3062,7 +3070,7 @@ export default function ProjectCockpit({
             aria-live="polite"
             data-state={uploadStatus.phase}
           >
-            {uploadTerminal && onUploadDismiss ? (
+            {(uploadTerminal || uploadAwaitingRevisionFile) && onUploadDismiss ? (
               <button
                 type="button"
                 className="cockpit-upload-close"
@@ -3083,7 +3091,7 @@ export default function ProjectCockpit({
             </div>
             <p>{uploadStatus.mode === "demo" ? "Local preview ingest" : "Media ingest"}</p>
             <h2 id="cockpit-upload-title">
-              {uploadStatus.phase === "complete" ? "Ready for review" : uploadStatus.phase === "error" ? "Upload needs attention" : "Preparing your media"}
+              {uploadStatus.phase === "complete" ? "Ready for review" : uploadStatus.phase === "error" ? "Upload needs attention" : uploadStatus.phase === "ready" ? "Choose replacement file" : "Preparing your media"}
             </h2>
             <strong title={uploadStatus.fileName}>{uploadStatus.fileName}</strong>
             <div className="cockpit-upload-progress" aria-label={`Upload ${uploadStatus.progress}% complete`}>
@@ -3095,7 +3103,9 @@ export default function ProjectCockpit({
                 </div>
                 <ol className="cockpit-upload-steps">
                   {uploadSteps.map(([phase, label], index, all) => {
-                    const currentIndex = all.findIndex(([candidate]) => candidate === uploadStatus.phase);
+                    const currentIndex = uploadStatus.phase === "ready"
+                      ? all.findIndex(([candidate]) => candidate === "validating")
+                      : all.findIndex(([candidate]) => candidate === uploadStatus.phase);
                 const complete = uploadStatus.phase === "complete" || currentIndex > index;
                 const current = currentIndex === index;
                 return (
@@ -3121,7 +3131,9 @@ export default function ProjectCockpit({
                           : "Preview mode uses browser-local media storage when available; production uses the configured CCNAS or cloud media authority."}
                 </small>
               ) : null}
-              {uploadTerminal && onUploadDismiss ? (
+              {uploadAwaitingRevisionFile && onUploadChooseRevisionFile ? (
+                <button type="button" onClick={onUploadChooseRevisionFile}>Choose replacement file</button>
+              ) : uploadTerminal && onUploadDismiss ? (
                 <button type="button" onClick={onUploadDismiss}>
                   {uploadStatus.phase === "complete"
                     ? uploadStatus.kind === "revision"

@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState, useRef } from "react";
+import { flushSync } from "react-dom";
 import { ArrowRight, LoaderCircle, SearchX } from "lucide-react";
 import { useDemoMode } from "@/lib/demo/mode";
 import { buildInternalDemoAssetHref } from "@/lib/demo/workspace";
@@ -12,6 +13,11 @@ import {
   useDemoWorkspace,
 } from "@/lib/demo/workspace-store";
 import ProjectCockpit, { type CockpitUploadStatus } from "@/components/projects/ProjectCockpit";
+import {
+  resolveRevisionUploadTarget,
+  shouldApplyRevisionUploadTarget,
+  type RevisionUploadTarget,
+} from "@/lib/uploads/revision-upload";
 import ProjectWorkspaceTabs from "@/components/projects/ProjectWorkspaceTabs";
 import AssetUpload, { type UploadCompletion } from "@/components/assets/AssetUpload";
 import CoProductionBrand from "@/components/brand/CoProductionBrand";
@@ -20,10 +26,6 @@ import { putDemoMediaBlob } from "@/lib/demo/media-blob-store";
 import { inspectSelectedMedia } from "@/lib/demo/media-inspection";
 import { validateDemoUpload } from "@/lib/demo/upload-validation";
 import { formatFileSize } from "@/lib/utils/media";
-import {
-  resolveRevisionUploadTarget,
-  type RevisionUploadTarget,
-} from "@/lib/uploads/revision-upload";
 
 interface Project {
   id: string;
@@ -79,8 +81,9 @@ export default function ProjectWorkspaceClient() {
   const [uploading, setUploading] = useState(false);
   const [uploadStatus, setUploadStatus] = useState<CockpitUploadStatus | null>(null);
   const [revisionTarget, setRevisionTarget] = useState<RevisionUploadTarget | null>(null);
-  const [uploadPickerRequest, setUploadPickerRequest] = useState(0);
   const revisionRequest = useRef(0);
+  const activeProjectIdRef = useRef(id);
+  activeProjectIdRef.current = id;
   const demoProject = demoWorkspace.projects.find((candidate) => candidate.id === id);
   const project: Project | null = demoMode
     ? demoProject
@@ -113,11 +116,6 @@ export default function ProjectWorkspaceClient() {
       }));
   const loading = demoMode ? false : remoteLoading;
   const authoritativeUploadInputId = `project-${id}-asset-upload`;
-
-  useEffect(() => {
-    if (demoMode || uploadPickerRequest === 0) return;
-    document.getElementById(authoritativeUploadInputId)?.click();
-  }, [authoritativeUploadInputId, demoMode, revisionTarget, uploadPickerRequest]);
 
   useEffect(() => {
     if (!id || demoMode) return;
@@ -378,18 +376,21 @@ export default function ProjectWorkspaceClient() {
     setRemoteAssets(payload.items ?? []);
   }
 
-  function queueRemoteUploadPicker(target: RevisionUploadTarget | null) {
-    setRevisionTarget(target);
-    setUploadPickerRequest((request) => request + 1);
-  }
-
   function openRemoteUploadPicker() {
-    setUploadStatus(null);
-    queueRemoteUploadPicker(null);
+    revisionRequest.current += 1;
+    // The native input must observe a cleared revision target in this same user
+    // gesture, so a regular upload cannot inherit an older replacement target.
+    flushSync(() => {
+      setUploadStatus(null);
+      setRevisionTarget(null);
+    });
+    document.getElementById(authoritativeUploadInputId)?.click();
   }
 
   async function openRemoteRevisionPicker(assetId: string) {
+    const projectId = id;
     const request = ++revisionRequest.current;
+    setRevisionTarget(null);
     setUploading(true);
     setUploadStatus({
       fileName: "Replacement version",
@@ -407,13 +408,32 @@ export default function ProjectWorkspaceClient() {
         signal: AbortSignal.timeout(20_000),
       });
       if (!response.ok) throw new Error("The selected media is unavailable for a replacement version.");
-      const target = resolveRevisionUploadTarget(await response.json(), id, assetId);
+      const target = resolveRevisionUploadTarget(await response.json(), projectId, assetId);
       if (!target) throw new Error("The selected media has no current version available to replace.");
-      if (request !== revisionRequest.current) return;
-      setUploadStatus(null);
-      queueRemoteUploadPicker(target);
+      if (!shouldApplyRevisionUploadTarget({
+        request,
+        latestRequest: revisionRequest.current,
+        requestedProjectId: projectId,
+        activeProjectId: activeProjectIdRef.current,
+      })) return;
+      setRevisionTarget(target);
+      setUploadStatus({
+        fileName: "Replacement version",
+        phase: "ready",
+        progress: 0,
+        completed: 0,
+        total: 1,
+        mode: "production",
+        kind: "revision",
+        message: "This media is still current. Choose one replacement file to continue.",
+      });
     } catch (error) {
-      if (request !== revisionRequest.current) return;
+      if (!shouldApplyRevisionUploadTarget({
+        request,
+        latestRequest: revisionRequest.current,
+        requestedProjectId: projectId,
+        activeProjectId: activeProjectIdRef.current,
+      })) return;
       setUploadStatus({
         fileName: "Replacement version",
         phase: "error",
@@ -425,8 +445,25 @@ export default function ProjectWorkspaceClient() {
         message: error instanceof Error ? error.message : "The selected media is unavailable for a replacement version.",
       });
     } finally {
-      if (request === revisionRequest.current) setUploading(false);
+      if (shouldApplyRevisionUploadTarget({
+        request,
+        latestRequest: revisionRequest.current,
+        requestedProjectId: projectId,
+        activeProjectId: activeProjectIdRef.current,
+      })) setUploading(false);
     }
+  }
+
+  function chooseRemoteRevisionFile() {
+    if (!revisionTarget || activeProjectIdRef.current !== id) return;
+    setUploadStatus(null);
+    document.getElementById(authoritativeUploadInputId)?.click();
+  }
+
+  function dismissRemoteUploadStatus() {
+    revisionRequest.current += 1;
+    setRevisionTarget(null);
+    setUploadStatus(null);
   }
 
   async function handleRemoteUploadComplete(completions: UploadCompletion[]) {
@@ -542,7 +579,8 @@ export default function ProjectWorkspaceClient() {
         uploadStatus={uploadStatus}
         onUpload={openRemoteUploadPicker}
         onUploadRevision={openRemoteRevisionPicker}
-        onUploadDismiss={() => setUploadStatus(null)}
+        onUploadChooseRevisionFile={chooseRemoteRevisionFile}
+        onUploadDismiss={dismissRemoteUploadStatus}
       />
       <AssetUpload
         projectId={id}

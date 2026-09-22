@@ -217,6 +217,32 @@ export default function AssetUpload({
       let originalReleaseReady = false;
       let uploadAssetHeader: string | null = null;
       let uploadVersionHeader: string | null = null;
+      let receiptStorageKey: string | null = null;
+      const backingUrlStorage = tus.defaultOptions.urlStorage;
+      // Tus clears this before onSuccess when configured normally. Keep it through
+      // receipt parsing, then remove only this upload's exact storage entry.
+      const receiptBoundUrlStorage = {
+        findAllUploads: () => backingUrlStorage.findAllUploads(),
+        findUploadsByFingerprint: (fingerprint: string) => backingUrlStorage.findUploadsByFingerprint(fingerprint),
+        async addUpload(fingerprint: string, previousUpload: Parameters<typeof backingUrlStorage.addUpload>[1]) {
+          const key = await backingUrlStorage.addUpload(fingerprint, previousUpload);
+          receiptStorageKey = key;
+          return key;
+        },
+        removeUpload: (key: string) => backingUrlStorage.removeUpload(key),
+      };
+      const removeReceiptFingerprint = async () => {
+        if (!receiptStorageKey) return;
+        const key = receiptStorageKey;
+        receiptStorageKey = null;
+        try {
+          await receiptBoundUrlStorage.removeUpload(key);
+        } catch (error) {
+          // A confirmed catalog receipt is authoritative; leave a diagnostic rather
+          // than converting a completed upload into a retryable duplicate.
+          console.error("[tus] Unable to clear confirmed upload resume record:", error);
+        }
+      };
       const upload = new tus.Upload(item.file, {
         endpoint: "/api/upload/tus",
         chunkSize: readiness.maxChunkBytes,
@@ -236,6 +262,7 @@ export default function AssetUpload({
         // Keep this exact session recoverable until its signed catalog receipt has
         // been parsed. A missing final receipt is an error, not a new upload.
         removeFingerprintOnSuccess: false,
+        urlStorage: receiptBoundUrlStorage,
         metadata: {
           filename: item.file.name,
           filetype: item.file.type || "application/octet-stream",
@@ -286,6 +313,7 @@ export default function AssetUpload({
               });
               return;
             }
+            await removeReceiptFingerprint();
             await onUploadComplete([completion]);
             updateItem(item.id, { status: "done" });
           } catch {
@@ -319,6 +347,7 @@ export default function AssetUpload({
         .then((previousUploads) => {
           if (!mounted.current || intent.current.isCancelled(item.id)) return;
           if (previousUploads.length > 0) {
+            receiptStorageKey = previousUploads[0].urlStorageKey;
             upload.resumeFromPreviousUpload(previousUploads[0]);
           }
           intent.current.ready(item.id);

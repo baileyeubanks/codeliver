@@ -42,6 +42,7 @@ function uploadHarness() {
   const durableUploadUrl = "/api/upload/tus/durable-upload";
   let uploadedBytesHaveCommitted = false;
   const transport: string[] = [];
+  const removedResumeRecords: string[] = [];
   const completions: unknown[][] = [];
   const instances: FakeTusUpload[] = [];
 
@@ -99,7 +100,7 @@ function uploadHarness() {
     }
 
     async findPreviousUploads() {
-      return uploadedBytesHaveCommitted ? [{ uploadUrl: durableUploadUrl }] : [];
+      return uploadedBytesHaveCommitted ? [{ uploadUrl: durableUploadUrl, urlStorageKey: "durable-upload-key" }] : [];
     }
 
     resumeFromPreviousUpload(previous: { uploadUrl: string }) {
@@ -154,7 +155,17 @@ function uploadHarness() {
       if (name === "react/jsx-runtime") return require(name);
       if (name === "lucide-react") return new Proxy({}, { get: () => "svg" });
       if (name.endsWith(".css")) return new Proxy({}, { get: (_, key) => key });
-      if (name === "tus-js-client") return { Upload: FakeTusUpload };
+      if (name === "tus-js-client") return {
+        Upload: FakeTusUpload,
+        defaultOptions: {
+          urlStorage: {
+            findAllUploads: async () => [],
+            findUploadsByFingerprint: async () => [],
+            removeUpload: async (key: string) => { removedResumeRecords.push(key); },
+            addUpload: async () => "new-upload-key",
+          },
+        },
+      };
       if (name === "@/lib/utils/media") return { formatFileSize: (bytes: number) => `${bytes} B` };
       if (name === "@/lib/uploads/transfer-intent") return load("lib/uploads/transfer-intent.ts");
       if (name === "@/lib/uploads/revision-upload") return load("lib/uploads/revision-upload.ts");
@@ -184,7 +195,7 @@ function uploadHarness() {
     });
   }
 
-  return { completions, durableUploadUrl, instances, render, transport };
+  return { completions, durableUploadUrl, instances, removedResumeRecords, render, transport };
 }
 
 test("AssetUpload exposes tus byte progress through accessible progress ranges", () => {
@@ -260,6 +271,7 @@ test("AssetUpload recovers a final PATCH 503 through persisted-url HEAD reconcil
     `HEAD ${app.durableUploadUrl}`,
   ], "the recovery path sends HEAD and never DELETE");
   assert.equal(app.completions.length, 1, "the real onSuccess callback reports completion after reconciliation");
+  assert.deepEqual(app.removedResumeRecords, ["durable-upload-key"], "a verified receipt clears only its recovered resume record");
   assert.equal(JSON.stringify(app.completions[0]), JSON.stringify([{
     assetId: "asset-1",
     versionId: "version-v1",
@@ -318,6 +330,7 @@ test("AssetUpload never opens review from a quarantined or receiptless final res
   reconcile.props.onClick();
   await flushTusCallbacks();
   assert.equal(app.instances[2]?.resumedFrom?.uploadUrl, app.durableUploadUrl, "receipt recovery reuses the original session");
+  assert.deepEqual(app.removedResumeRecords, [], "a missing receipt keeps its durable resume record for retry");
 });
 
 

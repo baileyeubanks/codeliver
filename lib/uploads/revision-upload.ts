@@ -14,6 +14,27 @@ export interface UploadResponseHeaders {
   get(name: string): string | null;
 }
 
+export function mayOpenRevisionUploader(
+  demoMode: boolean,
+  revisionUploadsAvailable: boolean | undefined,
+): boolean {
+  return demoMode || revisionUploadsAvailable === true;
+}
+
+export function shouldApplyRevisionUploadTarget({
+  request,
+  latestRequest,
+  requestedProjectId,
+  activeProjectId,
+}: {
+  request: number;
+  latestRequest: number;
+  requestedProjectId: string;
+  activeProjectId: string;
+}): boolean {
+  return request === latestRequest && requestedProjectId === activeProjectId;
+}
+
 function nonEmptyString(value: unknown): value is string {
   return typeof value === "string" && value.trim().length > 0;
 }

@@ -4,7 +4,9 @@ import test from "node:test";
 import {
   buildUploadFingerprintScope,
   buildUploadTargetMetadata,
+  mayOpenRevisionUploader,
   parseUploadCompletionReceipt,
+  shouldApplyRevisionUploadTarget,
   shouldRetryUploadStatus,
   resolveRevisionUploadTarget,
   type RevisionUploadTarget,
@@ -103,4 +105,32 @@ test("revision target accepts only the authoritative asset scope and current ver
     project_id: "project-a",
     current_version: null,
   }, "project-a", "asset-a"), null, "an unversioned asset has no replacement target");
+});
+
+test("live revisions remain hidden until the server explicitly enables the CAS contract", () => {
+  assert.equal(mayOpenRevisionUploader(true, false), true, "demo versions keep their browser-local flow");
+  assert.equal(mayOpenRevisionUploader(false, undefined), false, "absence is not an upload capability");
+  assert.equal(mayOpenRevisionUploader(false, false), false);
+  assert.equal(mayOpenRevisionUploader(false, true), true);
+});
+
+test("a verified revision target cannot resurrect after a project or request change", () => {
+  assert.equal(shouldApplyRevisionUploadTarget({
+    request: 4,
+    latestRequest: 4,
+    requestedProjectId: "project-a",
+    activeProjectId: "project-a",
+  }), true);
+  assert.equal(shouldApplyRevisionUploadTarget({
+    request: 4,
+    latestRequest: 5,
+    requestedProjectId: "project-a",
+    activeProjectId: "project-a",
+  }), false, "a later normal or revision action wins");
+  assert.equal(shouldApplyRevisionUploadTarget({
+    request: 4,
+    latestRequest: 4,
+    requestedProjectId: "project-a",
+    activeProjectId: "project-b",
+  }), false, "a route change cannot target the new project input");
 });

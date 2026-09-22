@@ -2120,7 +2120,7 @@ export function addDemoReviewComment(input: {
   projectId?: string;
   assetId: string;
   versionId?: string;
-  reviewInviteId?: string;
+  reviewInviteId?: string | null;
   parentId?: string;
   authorName?: string;
   authorEmail?: string | null;
@@ -2149,13 +2149,16 @@ export function addDemoReviewComment(input: {
   const asset = currentState.assets.find((candidate) => candidate.id === input.assetId);
   const projectId = input.projectId ?? asset?.project_id ?? "demo";
   const versionId = input.versionId?.trim() || resolveDemoWorkspaceCurrentVersionIdentity(currentState, input.assetId)?.id;
+  // Omitted invitations belong to internal review. Keep an explicit public
+  // round ID, but never fabricate one for a new local cockpit note.
+  const reviewInviteId = input.reviewInviteId?.trim() || null;
   if (!versionId || !hasExactDemoVersion(currentState, input.assetId, versionId)) return null;
   if (input.parentId !== undefined) {
     const parent = currentState.reviewComments.find((candidate) => candidate.id === input.parentId);
     if (
-      !input.versionId || !input.reviewInviteId || !parent || parent.parent_id ||
+      !parent || parent.parent_id ||
       parent.project_id !== projectId || parent.asset_id !== input.assetId ||
-      parent.version_id !== input.versionId || parent.review_invite_id !== input.reviewInviteId
+      parent.version_id !== versionId || (parent.review_invite_id ?? null) !== reviewInviteId
     ) return null;
   }
   const profileName =
@@ -2166,7 +2169,7 @@ export function addDemoReviewComment(input: {
     project_id: projectId,
     asset_id: input.assetId,
     version_id: versionId,
-    review_invite_id: input.reviewInviteId ?? "invite-demo",
+    review_invite_id: reviewInviteId,
     ...(input.parentId ? { parent_id: input.parentId } : {}),
     author_name: authorName,
     author_email: input.authorEmail ?? null,

@@ -68,8 +68,10 @@ test("local replies survive reload beneath their parent on the exact review cut"
   const binding = {projectId:"ica",assetId:"denie-mcdonald-v4",versionId:"demo-version-4",reviewInviteId:"reply-review",assetType:"video"};
   const parent = workspace.addDemoReviewComment({...binding,body:"Tighten this answer.",timeSeconds:44});
   assert.ok(parent);
+  assert.equal(parent.review_invite_id, binding.reviewInviteId);
   const reply = workspace.addDemoReviewComment({...binding,parentId:parent.id,body:"  Revised wording is ready.  ",timeSeconds:0,authorName:"QA Reviewer"});
   assert.ok(reply);
+  assert.equal(reply.review_invite_id, binding.reviewInviteId);
   const restored = workspace.restoreDemoWorkspace(values.get(workspace.DEMO_WORKSPACE_STORAGE_KEY));
   const saved = restored.reviewComments.find(item=>item.id===reply.id);
   assert.equal(saved?.parent_id,parent.id);
@@ -90,4 +92,49 @@ test("local replies survive reload beneath their parent on the exact review cut"
     assert.equal(workspace.addDemoReviewComment({...binding,parentId:parent.id,body:"Storage denied.",timeSeconds:0}),null);
     assert.equal(workspace.getDemoWorkspaceSnapshot().reviewComments.length,before,"failed persistence cannot report a saved reply");
   } finally { failWrites=false; }
+});
+
+test("new internal notes remain invitation-free while replies retain their exact round", async () => {
+  const workspace = await import(moduleUrl("lib/demo/workspace-store.ts"));
+  const binding = { projectId:"ica", assetId:"denie-mcdonald-v4", versionId:"demo-version-4", assetType:"video" };
+  const internal = workspace.addDemoReviewComment({
+    ...binding,
+    body:"Internal V4 note.",
+    timeSeconds:17,
+  });
+  assert.ok(internal);
+  assert.equal(internal.review_invite_id, null);
+
+  const internalReply = workspace.addDemoReviewComment({
+    ...binding,
+    parentId: internal.id,
+    body:"Internal reply.",
+    timeSeconds:0,
+  });
+  assert.ok(internalReply);
+  assert.equal(internalReply.review_invite_id, null);
+  const explicitNullReply = workspace.addDemoReviewComment({
+    ...binding,
+    parentId: internal.id,
+    reviewInviteId:null,
+    body:"Explicit-null internal reply.",
+    timeSeconds:0,
+  });
+  assert.ok(explicitNullReply);
+  assert.equal(explicitNullReply.review_invite_id, null);
+  assert.equal(
+    workspace.addDemoReviewComment({
+      ...binding,
+      parentId: internal.id,
+      reviewInviteId:"other-public-round",
+      body:"Must not cross into a public round.",
+      timeSeconds:0,
+    }),
+    null,
+  );
+
+  const restored = workspace.restoreDemoWorkspace(values.get(workspace.DEMO_WORKSPACE_STORAGE_KEY));
+  assert.equal(restored.reviewComments.find((comment) => comment.id === internal.id)?.review_invite_id, null);
+  assert.equal(restored.reviewComments.find((comment) => comment.id === internalReply.id)?.review_invite_id, null);
+  assert.equal(restored.reviewComments.find((comment) => comment.id === explicitNullReply.id)?.review_invite_id, null);
 });

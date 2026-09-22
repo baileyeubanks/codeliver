@@ -497,7 +497,7 @@ export default function DemoShareModal({
               <div>
                 <Eye size={15} />
                 <span>
-                  {selectedAssets.length} {selectedAssets.length === 1 ? "link" : "links"} · {intentDefinition.shortLabel} · {reviewerEmail.trim() || "recipient pending"}
+                  Local preview · links work in this browser · {reviewerEmail.trim() || "recipient pending"}
                 </span>
               </div>
               <button type="button" className="btn btn-secondary" onClick={onClose}>Cancel</button>

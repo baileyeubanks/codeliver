@@ -338,7 +338,7 @@ DECLARE
   v_versions jsonb;
 BEGIN
   IF p_asset_id IS NULL OR p_version_id IS NULL OR jsonb_typeof(p_publication) <> 'object'
-     OR p_duration_seconds < 0 THEN
+     OR p_duration_seconds IS NULL OR p_duration_seconds < 0 THEN
     RAISE EXCEPTION 'CVP_MEDIA_PUBLICATION_INPUT_INVALID' USING ERRCODE = '22023';
   END IF;
   SELECT COALESCE(asset.metadata, '{}'::jsonb), asset.status
@@ -381,6 +381,39 @@ BEGIN
 END;
 $$;
 
+CREATE OR REPLACE FUNCTION co_production.project_version_media_pipeline_status(
+  p_asset_id uuid,
+  p_version_id uuid,
+  p_status text
+)
+RETURNS void
+LANGUAGE plpgsql
+SECURITY INVOKER
+SET search_path = ''
+AS $$
+BEGIN
+  IF p_asset_id IS NULL OR p_version_id IS NULL OR p_status NOT IN ('processing', 'failed') THEN
+    RAISE EXCEPTION 'CVP_MEDIA_STATUS_INPUT_INVALID' USING ERRCODE = '22023';
+  END IF;
+  PERFORM asset.id FROM co_production.assets AS asset
+  WHERE asset.id = p_asset_id FOR UPDATE;
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'CVP_MEDIA_STATUS_ASSET_NOT_FOUND' USING ERRCODE = 'P0002';
+  END IF;
+  IF NOT EXISTS (
+    SELECT 1 FROM co_production.versions AS version
+    WHERE version.id = p_version_id AND version.asset_id = p_asset_id
+      AND version.is_current IS TRUE
+  ) THEN
+    RETURN;
+  END IF;
+  UPDATE co_production.assets AS asset
+  SET status = p_status, updated_at = clock_timestamp()
+  WHERE asset.id = p_asset_id
+    AND asset.status NOT IN ('approved', 'final', 'needs_changes');
+END;
+$$;
+
 REVOKE ALL ON FUNCTION co_production.create_version_approval_workflow(uuid,uuid,text,jsonb,uuid)
   FROM PUBLIC, anon, authenticated;
 GRANT EXECUTE ON FUNCTION co_production.create_version_approval_workflow(uuid,uuid,text,jsonb,uuid)
@@ -392,6 +425,10 @@ GRANT EXECUTE ON FUNCTION co_production.record_version_approval_decision(uuid,uu
 REVOKE ALL ON FUNCTION co_production.publish_version_media_derivatives(uuid,uuid,jsonb,double precision)
   FROM PUBLIC, anon, authenticated;
 GRANT EXECUTE ON FUNCTION co_production.publish_version_media_derivatives(uuid,uuid,jsonb,double precision)
+  TO service_role;
+REVOKE ALL ON FUNCTION co_production.project_version_media_pipeline_status(uuid,uuid,text)
+  FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION co_production.project_version_media_pipeline_status(uuid,uuid,text)
   TO service_role;
 REVOKE ALL ON FUNCTION co_production.authorize_review_admission(uuid,text)
   FROM PUBLIC, anon, authenticated;

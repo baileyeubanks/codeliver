@@ -52,6 +52,7 @@ test("approval RPCs are service-role-only with an empty search path", () => {
     "create_version_approval_workflow",
     "record_version_approval_decision",
     "publish_version_media_derivatives",
+    "project_version_media_pipeline_status",
   ]) {
     assert.match(migration, new RegExp(`REVOKE ALL ON FUNCTION co_production\\.${name}\\([\\s\\S]*FROM PUBLIC, anon, authenticated`));
     assert.match(migration, new RegExp(`GRANT EXECUTE ON FUNCTION co_production\\.${name}\\([\\s\\S]*TO service_role`));
@@ -94,7 +95,7 @@ test("routes and shares carry the exact version, workflow, step, and invite bind
 
 test("late media pipeline state cannot erase a human request for changes", () => {
   const repository = source("lib/media-pipeline/repository.ts");
-  assert.equal((repository.match(/\.not\("status", "in", "\(approved,final,needs_changes\)"\)/g) ?? []).length, 2);
+  assert.equal((repository.match(/rpc\("project_version_media_pipeline_status"/g) ?? []).length, 2);
   assert.match(repository, /rpc\("publish_version_media_derivatives"/);
   assert.doesNotMatch(repository, /const nextStatus|currentVersionId:/);
   const publishRpc = migration.slice(migration.indexOf("publish_version_media_derivatives"));
@@ -102,4 +103,8 @@ test("late media pipeline state cannot erase a human request for changes", () =>
   assert.match(publishRpc, /WHEN asset\.status IN \('approved', 'final', 'needs_changes'\) THEN asset\.status/);
   assert.match(publishRpc, /WHEN NOT v_is_current THEN asset\.status/);
   assert.match(publishRpc, /WHEN v_is_current THEN NULLIF\(p_duration_seconds, 0\)/);
+  const statusRpc = migration.slice(migration.indexOf("project_version_media_pipeline_status"));
+  assert.match(statusRpc, /assets AS asset[\s\S]*FOR UPDATE/);
+  assert.match(statusRpc, /version\.id = p_version_id[\s\S]*version\.is_current IS TRUE/);
+  assert.match(statusRpc, /asset\.status NOT IN \('approved', 'final', 'needs_changes'\)/);
 });

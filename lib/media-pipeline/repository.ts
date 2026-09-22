@@ -51,11 +51,11 @@ export class SupabaseMediaPipelineRepository implements MediaPipelineRepository 
     );
     if (error) throw new Error("Could not persist media pipeline queue projection: " + error.message);
 
-    const update = await supabase
-      .from("assets")
-      .update({ status: "processing", updated_at: new Date().toISOString() })
-      .eq("id", job.assetId)
-      .not("status", "in", "(approved,final,needs_changes)");
+    const update = await supabase.rpc("project_version_media_pipeline_status", {
+      p_asset_id: job.assetId,
+      p_version_id: job.versionId,
+      p_status: "processing",
+    });
     if (update.error) throw new Error("Could not mark asset as processing: " + update.error.message);
   }
 
@@ -98,11 +98,11 @@ export class SupabaseMediaPipelineRepository implements MediaPipelineRepository 
     if (error) throw new Error("Could not persist media pipeline terminal state: " + error.message);
 
     if (job.status === "failed" || job.status === "quarantined") {
-      const update = await getSupabase()
-        .from("assets")
-        .update({ status: "failed", updated_at: new Date().toISOString() })
-        .eq("id", job.assetId)
-        .not("status", "in", "(approved,final,needs_changes)");
+      const update = await getSupabase().rpc("project_version_media_pipeline_status", {
+        p_asset_id: job.assetId,
+        p_version_id: job.versionId,
+        p_status: "failed",
+      });
       if (update.error) throw new Error("Could not mark failed media asset: " + update.error.message);
     }
   }

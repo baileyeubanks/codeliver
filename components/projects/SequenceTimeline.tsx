@@ -48,6 +48,7 @@ export default function SequenceTimeline({ sequence, clips, assets, onNotice }: 
   const firstAsset = ordered.length > 0 ? assets.find((asset) => asset.id === ordered[0].asset_id) : null;
   const playableUrl = firstAsset?.file_url ?? null;
   const selected = ordered.find((clip) => clip.id === selectedClipId) ?? null;
+  const selectedAsset = selected ? assets.find((asset) => asset.id === selected.asset_id) : null;
 
   function clipAt(timelineSeconds: number): SequenceClip | null {
     return ordered.find(
@@ -199,16 +200,28 @@ export default function SequenceTimeline({ sequence, clips, assets, onNotice }: 
   return (
     <div className="cv-timeline" data-sequence-id={sequence.id}>
       <div className="cv-timeline__bar">
-        <strong>{sequence.name}</strong>
-        <span className="cv-timeline__meta">
+        <span>
+          <strong>{sequence.name}</strong>
+          <span className="cv-timeline__meta">
           {ordered.length} clips · {fmt(duration)} · {Math.round(sequence.fps)}fps · {sequence.status.replace("_", " ")}
+          </span>
         </span>
         <span className="cv-timeline__actions">
-          <button type="button" onClick={handleSplit} title="Split selected clip at playhead"><Scissors size={14} /> Split</button>
-          <button type="button" onClick={handleRemove} title="Ripple-delete selected clip"><Trash2 size={14} /> Delete</button>
+          {selected ? (
+            <>
+              <button type="button" onClick={handleSplit} title="Split selected clip at playhead"><Scissors size={14} /> Split</button>
+              <button type="button" onClick={handleRemove} title="Ripple-delete selected clip"><Trash2 size={14} /> Delete</button>
+            </>
+          ) : null}
           <button type="button" onClick={exportEdl} title="Export CMX 3600 EDL"><Download size={14} /> EDL</button>
         </span>
       </div>
+
+      <p className="cv-timeline__meta" aria-live="polite">
+        {selected
+          ? `${selectedAsset?.title ?? selected.asset_id} · source ${fmt(selected.source_in_seconds)}→${fmt(selected.source_out_seconds)} · record ${fmt(selected.timeline_in_seconds)}→${fmt(selected.timeline_out_seconds)}`
+          : "Select a clip to inspect its source and record range."}
+      </p>
 
       <div className="cv-timeline__stage">
         {playableUrl ? (
@@ -225,7 +238,27 @@ export default function SequenceTimeline({ sequence, clips, assets, onNotice }: 
         )}
       </div>
 
-      <div className="cv-timeline__track" ref={trackRef} onClick={handleTrackClick} role="slider" aria-label="Sequence timeline" aria-valuenow={Math.round(playhead)} tabIndex={0}>
+      <div
+        className="cv-timeline__track"
+        ref={trackRef}
+        onClick={handleTrackClick}
+        role="slider"
+        aria-label="Sequence timeline"
+        aria-valuenow={Math.round(playhead)}
+        aria-valuemin={0}
+        aria-valuemax={Math.round(duration)}
+        tabIndex={0}
+        onKeyDown={(event) => {
+          const next = event.key === "ArrowRight" ? playhead + 1
+            : event.key === "ArrowLeft" ? playhead - 1
+              : event.key === "Home" ? 0
+                : event.key === "End" ? duration
+                  : null;
+          if (next === null) return;
+          event.preventDefault();
+          seek(next);
+        }}
+      >
         {ordered.map((clip) => {
           const width = duration > 0 ? ((clip.timeline_out_seconds - clip.timeline_in_seconds) / duration) * 100 : 0;
           const asset = assets.find((candidate) => candidate.id === clip.asset_id);
@@ -236,6 +269,12 @@ export default function SequenceTimeline({ sequence, clips, assets, onNotice }: 
               style={{ width: `${width}%` }}
               onClick={(event) => {
                 event.stopPropagation();
+                setSelectedClipId(clip.id);
+                seek(clip.timeline_in_seconds);
+              }}
+              onKeyDown={(event) => {
+                if (event.key !== "Enter" && event.key !== " ") return;
+                event.preventDefault();
                 setSelectedClipId(clip.id);
                 seek(clip.timeline_in_seconds);
               }}

@@ -34,6 +34,7 @@ import {
   useDemoWorkspace,
 } from "@/lib/demo/workspace-store";
 import { seedTranscriptSegments } from "@/lib/demo/record-seed";
+import { sourceCatalog } from "@/lib/demo/source-catalog";
 import { formatCents } from "@/lib/covideopro/payments.ts";
 import { documentTotals, renderInvoice, renderQuoteCover } from "@/lib/covideopro/documents.ts";
 import { proposeRadioCut } from "@/lib/covideopro/reasoning.ts";
@@ -684,6 +685,7 @@ export function SequencesSection({ projectId, demoMode, onNotice }: SectionProps
   const [picked, setPicked] = useState<ReadonlySet<string>>(new Set());
   const [name, setName] = useState("");
   const [renderingId, setRenderingId] = useState<string | null>(null);
+  const [activeSequenceId, setActiveSequenceId] = useState<string | null>(null);
 
   if (!demoMode) return <SectionEmpty title="Sequences" body="Sequences are available in the local workspace." />;
 
@@ -743,6 +745,11 @@ export function SequencesSection({ projectId, demoMode, onNotice }: SectionProps
   const transcriptAssets = workspace.assets
     .filter((asset) => asset.project_id === projectId && seedTranscriptSegments[asset.id]?.length)
     .map((asset) => ({ asset, segments: seedTranscriptSegments[asset.id] }));
+  const activeSequence = sequences.find((sequence) => sequence.id === activeSequenceId) ?? sequences[0] ?? null;
+  const activeClips = activeSequence
+    ? workspace.sequenceClips.filter((clip) => clip.sequence_id === activeSequence.id)
+    : [];
+  const activeDuration = activeClips.reduce((max, clip) => Math.max(max, clip.timeline_out_seconds), 0);
 
   function proposeCut() {
     const pool = transcriptAssets.flatMap(({ asset, segments }) =>
@@ -812,7 +819,7 @@ export function SequencesSection({ projectId, demoMode, onNotice }: SectionProps
       <header>
         <div>
           <h2>Sequences</h2>
-          <p>Real assemblies: clips with source and record times, built from transcript selects.</p>
+          <p>Review one assembly at a time with its exact source and record ranges.</p>
         </div>
       </header>
 
@@ -821,32 +828,52 @@ export function SequencesSection({ projectId, demoMode, onNotice }: SectionProps
           const clips = workspace.sequenceClips.filter((clip) => clip.sequence_id === sequence.id);
           const duration = clips.reduce((max, clip) => Math.max(max, clip.timeline_out_seconds), 0);
           return (
-            <div key={sequence.id}>
-              <article style={{ gridTemplateColumns: "34px minmax(0,1fr) auto auto" }}>
-                <span className="cockpit-list-icon"><ListChecks size={18} /></span>
-                <div>
-                  <strong>{sequence.name}</strong>
-                  <small>
-                    v{sequence.version} · {clips.length} clips · {formatSeconds(duration)} · {sequence.created_from === "transcript-assembly" ? "transcript assembly" : "manual"}
-                  </small>
-                </div>
-                <span className={sequence.status === "approved" ? "status-active" : "status-pending"}>{sequence.status.replace("_", " ")}</span>
-                <button type="button" disabled={renderingId === sequence.id || clips.length === 0} onClick={() => void renderForReview(sequence)}>
-                  {renderingId === sequence.id ? "Rendering…" : "Render to review"}
-                </button>
-                {sequence.status === "draft" ? <button type="button" onClick={() => review(sequence.id)}>Send to review</button> : null}
-              </article>
-              <SequenceTimeline
-                sequence={sequence}
-                clips={clips}
-                assets={workspace.assets}
-                onNotice={onNotice}
-              />
-            </div>
+            <article key={sequence.id} style={{ gridTemplateColumns: "34px minmax(0,1fr) auto" }}>
+              <span className="cockpit-list-icon"><ListChecks size={18} /></span>
+              <button
+                type="button"
+                onClick={() => setActiveSequenceId(sequence.id)}
+                aria-pressed={activeSequence?.id === sequence.id}
+                className="min-w-0 text-left"
+              >
+                <strong>{sequence.name}</strong>
+                <small>
+                  v{sequence.version} · {clips.length} clips · {formatSeconds(duration)} · {sequence.created_from === "transcript-assembly" ? "transcript assembly" : "manual"}
+                </small>
+              </button>
+              <span className={sequence.status === "approved" ? "status-active" : "status-pending"}>{sequence.status.replace("_", " ")}</span>
+            </article>
           );
         })}
-        {sequences.length === 0 ? <p className="cockpit-rail-empty">No sequences yet — assemble one from the selects below.</p> : null}
+        {sequences.length === 0 ? (
+          <p className="cockpit-rail-empty">
+            {sourceCatalog
+              ? "No local sequence assembly or transcript selects are recorded for this imported project."
+              : "No sequences yet — assemble one from the selects below."}
+          </p>
+        ) : null}
       </section>
+
+      {activeSequence ? (
+        <section aria-label={`Active sequence ${activeSequence.name}`} className="cockpit-record-form" style={{ marginTop: 10 }}>
+          <div className="cockpit-record-form-grid" style={{ gridTemplateColumns: "minmax(0,1fr) auto auto" }}>
+            <div>
+              <strong>{activeSequence.name}</strong>
+              <small>v{activeSequence.version} · {activeClips.length} clips · {formatSeconds(activeDuration)}</small>
+            </div>
+            <button type="button" disabled={renderingId === activeSequence.id || activeClips.length === 0} onClick={() => void renderForReview(activeSequence)}>
+              {renderingId === activeSequence.id ? "Rendering…" : "Render to review"}
+            </button>
+            {activeSequence.status === "draft" ? <button type="button" onClick={() => review(activeSequence.id)}>Send to review</button> : null}
+          </div>
+          <SequenceTimeline
+            sequence={activeSequence}
+            clips={activeClips}
+            assets={workspace.assets}
+            onNotice={onNotice}
+          />
+        </section>
+      ) : null}
 
       <h3 className="cockpit-record-group-title">Selects ({selects.length})</h3>
       <section aria-label="Selects" className="cockpit-table-list">
@@ -888,7 +915,13 @@ export function SequencesSection({ projectId, demoMode, onNotice }: SectionProps
             </article>
           );
         })}
-        {selects.length === 0 ? <p className="cockpit-rail-empty">No selects yet — mark ranges from the transcript workbench or review timeline.</p> : null}
+        {selects.length === 0 ? (
+          <p className="cockpit-rail-empty">
+            {sourceCatalog
+              ? "No transcript-backed or manual selects are recorded for this imported project."
+              : "No selects yet — mark ranges from the transcript workbench or review timeline."}
+          </p>
+        ) : null}
       </section>
 
       {transcriptAssets.length > 0 ? (

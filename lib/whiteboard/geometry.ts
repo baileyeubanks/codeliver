@@ -102,6 +102,33 @@ export function snapPointToGrid(
 }
 
 /**
+ * Convert a preferred screen position into a grid-snapped world anchor while
+ * keeping the anchored rectangle inside the currently visible canvas.
+ */
+export function visibleWorldAnchor(
+  viewport: WhiteboardViewport,
+  preferredScreen: WhiteboardPoint,
+  canvasSize: { width: number; height: number },
+  worldSize: { width: number; height: number },
+  gutter = 0,
+): WhiteboardPoint {
+  const safeGutter = Math.max(0, gutter);
+  const maxX = Math.max(
+    safeGutter,
+    canvasSize.width - worldSize.width * viewport.zoom - safeGutter,
+  );
+  const maxY = Math.max(
+    safeGutter,
+    canvasSize.height - worldSize.height * viewport.zoom - safeGutter,
+  );
+  const screenPoint = {
+    x: Math.min(maxX, Math.max(safeGutter, preferredScreen.x)),
+    y: Math.min(maxY, Math.max(safeGutter, preferredScreen.y)),
+  };
+  return snapPointToGrid(screenToWorld(viewport, screenPoint));
+}
+
+/**
  * Deterministic hand-drawn rotation for a node id, in degrees, within ±1.6°.
  * Same id → same tilt, so cards don't dance on re-render.
  */

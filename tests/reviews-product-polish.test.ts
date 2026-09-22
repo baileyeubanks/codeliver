@@ -10,17 +10,16 @@ function source(path: string): string {
   return readFileSync(resolve(repositoryRoot, path), "utf8");
 }
 
-test("review links page presents share authority as an operational cockpit surface", () => {
+test("review links page presents each recipient link as the operational surface", () => {
   const reviewsPage = source("app/(dashboard)/reviews/page.tsx");
 
-  assert.match(reviewsPage, /Review authority/);
   assert.match(reviewsPage, /Review links/);
-  assert.match(reviewsPage, /reviewReadiness/);
-  assert.match(reviewsPage, /aria-label="Review readiness"/);
+  assert.match(reviewsPage, /Open the exact recipient link and inspect its active access/);
+  assert.match(reviewsPage, /\{filtered\.length\} \{filtered\.length === 1 \? "link" : "links"\}/);
   assert.match(reviewsPage, /Create from cockpit/);
   assert.match(reviewsPage, /Open projects/);
   assert.match(reviewsPage, /permissionLabel/);
-  assert.match(reviewsPage, /Decision authority/);
+  assert.match(reviewsPage, /Approval/);
   assert.doesNotMatch(reviewsPage, /rounded-xl/);
 });
 

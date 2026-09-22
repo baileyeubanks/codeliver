@@ -26,6 +26,36 @@ export type CockpitNavigationIcon =
   | "tasks"
   | "versions";
 
+/**
+ * The project cockpit is a route-backed workspace. Keep the parser and URL
+ * writer together so a direct URL, browser history, and a rail selection all
+ * resolve the same surface without canonicalizing during hydration.
+ */
+export function cockpitSectionFromSearchParams(searchParams: URLSearchParams): CockpitSection {
+  const requested = searchParams.get("surface");
+  return isCockpitSection(requested) ? requested : "overview";
+}
+
+export function projectCockpitSurfaceHref(
+  projectId: string,
+  search: string | URLSearchParams,
+  section: CockpitSection,
+) {
+  const params = new URLSearchParams(search);
+  // Record tabs and the focused review mode render different workspace
+  // contracts. Selecting a cockpit surface deliberately clears only those.
+  params.delete("tab");
+  params.delete("view");
+  if (section === "overview") params.delete("surface");
+  else params.set("surface", section);
+  const query = params.toString();
+  return `/projects/${encodeURIComponent(projectId)}${query ? `?${query}` : ""}`;
+}
+
+function isCockpitSection(value: string | null): value is CockpitSection {
+  return COCKPIT_NAVIGATION.some((item) => item.id === value);
+}
+
 export interface CockpitNavigationItem {
   id: CockpitSection;
   label: string;
@@ -39,7 +69,7 @@ export interface CockpitNavigationItem {
  * (docs/COVIDEOPRO_TARGET_ARCHITECTURE.md §2.2).
  */
 export const COCKPIT_NAVIGATION: CockpitNavigationItem[] = [
-  { id: "overview", label: "Overview", shortLabel: "Home", icon: "home" },
+  { id: "overview", label: "Review", shortLabel: "Review", icon: "home" },
   { id: "creative", label: "Creative", shortLabel: "Creative", icon: "creative" },
   { id: "proposal", label: "Proposal", shortLabel: "Proposal", icon: "proposal" },
   { id: "plan", label: "Plan", shortLabel: "Plan", icon: "plan" },
@@ -53,8 +83,8 @@ export const COCKPIT_NAVIGATION: CockpitNavigationItem[] = [
   { id: "metadata", label: "Metadata", shortLabel: "Info", icon: "metadata" },
 ];
 
-const MOBILE_IDS = new Set<CockpitSection>(["overview", "media", "reviews", "tasks"]);
+const PRIMARY_IDS: CockpitSection[] = ["overview", "media", "plan", "delivery"];
 
-export const MOBILE_COCKPIT_NAVIGATION = COCKPIT_NAVIGATION.filter((item) =>
-  MOBILE_IDS.has(item.id),
+export const MOBILE_COCKPIT_NAVIGATION = PRIMARY_IDS.flatMap((id) =>
+  COCKPIT_NAVIGATION.filter((item) => item.id === id),
 );

@@ -1,3 +1,4 @@
+import { sourceCatalog } from "./demo/source-catalog.ts";
 const UUID_V4_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const LOCAL_DEMO_PROJECT_ID_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*-(?=[a-z0-9]{6,}$)(?=[a-z0-9]*[0-9])[a-z0-9]+$/;
 const LOCAL_DEMO_ASSET_ID_PATTERN = /^local-upload-[0-9]{10,16}-[0-9]+$/;
@@ -33,10 +34,12 @@ export function isProductionRecordId(value: string): boolean {
 }
 
 export function isKnownDemoProjectRoute(projectId: string): boolean {
+  if (sourceCatalog) return sourceCatalog.projects.some((project) => project.id === projectId) || LOCAL_DEMO_PROJECT_ID_PATTERN.test(projectId);
   return SEEDED_DEMO_PROJECT_IDS.has(projectId) || LOCAL_DEMO_PROJECT_ID_PATTERN.test(projectId);
 }
 
 export function isKnownDemoAssetRoute(projectId: string, assetId: string): boolean {
+  if (sourceCatalog) return sourceCatalog.assets.some((asset) => asset.id === assetId && asset.project_id === projectId) || (isKnownDemoProjectRoute(projectId) && LOCAL_DEMO_ASSET_ID_PATTERN.test(assetId));
   return SEEDED_DEMO_ASSET_ROUTES.has(`${projectId}/${assetId}`)
     || (isKnownDemoProjectRoute(projectId) && LOCAL_DEMO_ASSET_ID_PATTERN.test(assetId));
 }

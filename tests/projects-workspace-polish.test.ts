@@ -10,29 +10,31 @@ function source(path: string): string {
   return readFileSync(resolve(repositoryRoot, path), "utf8");
 }
 
-test("projects page opens as a production library cockpit surface", () => {
+test("projects page keeps a single project index instead of duplicating review and media queues", () => {
   const projectsPage = source("app/(dashboard)/projects/page.tsx");
 
-  assert.match(projectsPage, /Production library/);
-  assert.match(projectsPage, /projectReadiness/);
-  assert.match(projectsPage, /aria-label="Project readiness"/);
-  assert.match(projectsPage, /aria-label="Production lifecycle"/);
-  assert.match(projectsPage, /New workspace/);
-  assert.match(projectsPage, /Open review/);
-  assert.match(projectsPage, /Manage project media, review readiness, share links, versions, and delivery state/);
-  assert.match(projectsPage, /Transcript, waveform, and export readiness appear after processing jobs report back/);
+  assert.match(projectsPage, /<h1>Projects<\/h1>/);
+  assert.match(projectsPage, /data-testid="project-list"/);
+  assert.match(projectsPage, /Open project/);
+  assert.doesNotMatch(projectsPage, /Review queue/);
+  assert.doesNotMatch(projectsPage, /Recent media/);
+  assert.doesNotMatch(projectsPage, /projectReadiness/);
+  assert.doesNotMatch(projectsPage, /aria-label="Production lifecycle"/);
   assert.doesNotMatch(projectsPage, /rounded-xl/);
 });
 
-test("projects page keeps upload, share, and empty states route-backed and honest", () => {
+test("projects page keeps async states and asset navigation route-backed and honest", () => {
   const projectsPage = source("app/(dashboard)/projects/page.tsx");
 
-  assert.match(projectsPage, /primaryReviewHref/);
+  assert.doesNotMatch(projectsPage, /canonicalProjectId/);
+  assert.doesNotMatch(projectsPage, /<AssetUpload/);
   assert.match(projectsPage, /href=\{`\/projects\/new\$\{demoSuffix\}`\}/);
-  assert.match(projectsPage, /setShareOpen\(true\)/);
-  assert.match(projectsPage, /Workspace name\.\.\./);
-  assert.match(projectsPage, /Create workspace/);
-  assert.match(projectsPage, /Upload media to start versioning, review, comments, approvals, and delivery/);
+  assert.doesNotMatch(projectsPage, /\/assets\/\$\{encodeURIComponent\(asset\.id\)\}/);
+  assert.match(projectsPage, /data-projects-state="error"/);
+  assert.match(projectsPage, /data-projects-state="empty"/);
+  assert.match(projectsPage, /Projects unavailable/);
+  assert.match(projectsPage, /Create your first project/);
+  assert.match(projectsPage, /Retry/);
   assert.doesNotMatch(projectsPage, /AI cleanup complete/i);
   assert.doesNotMatch(projectsPage, /waveform generated/i);
   assert.doesNotMatch(projectsPage, /notification sent/i);

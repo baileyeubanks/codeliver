@@ -27,6 +27,10 @@ interface CommentListProps {
   onUnresolve?: (id: string) => void;
   onEdit?: (id: string, body: string) => void;
   onDelete?: (id: string) => void;
+  canReplyTo?: (comment: Comment) => boolean;
+  canResolveComment?: (comment: Comment) => boolean;
+  canEditComment?: (comment: Comment) => boolean;
+  canReact?: boolean;
 }
 
 const FILTERS: { id: CommentThreadFilter; label: string }[] = [
@@ -54,6 +58,10 @@ export default function CommentList({
   onUnresolve,
   onEdit,
   onDelete,
+  canReplyTo,
+  canResolveComment,
+  canEditComment,
+  canReact = true,
 }: CommentListProps) {
   const [filter, setFilter] = useState<CommentThreadFilter>("all");
 
@@ -62,7 +70,7 @@ export default function CommentList({
   const visible = filterThreads(threads, filter);
 
   return (
-    <div>
+    <div className="min-w-0">
       {/* Filter chips */}
       <div
         role="group"
@@ -91,11 +99,11 @@ export default function CommentList({
 
       {/* Threads */}
       {visible.length === 0 ? (
-        <p className="rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--surface)] px-3 py-4 text-center text-sm text-[var(--dim)]">
+        <p className="border-y border-[var(--border)] px-3 py-4 text-center text-sm text-[var(--dim)]">
           No {filter === "all" ? "" : `${filter} `}comments yet.
         </p>
       ) : (
-        <div className="space-y-3">
+        <div>
           {visible.map((thread, threadIndex) => (
             <CommentThread
               key={thread.comment.id}
@@ -114,6 +122,10 @@ export default function CommentList({
               onUnresolve={onUnresolve}
               onEdit={onEdit}
               onDelete={onDelete}
+              canReply={Boolean(onReplySubmit) && (canReplyTo?.(thread.comment) ?? true)}
+              canResolve={Boolean(onResolve || onUnresolve) && (canResolveComment?.(thread.comment) ?? true)}
+              canEditComment={canEditComment}
+              canReact={canReact}
             />
           ))}
         </div>

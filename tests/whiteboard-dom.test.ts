@@ -53,6 +53,7 @@ function evaluateModule(output: string, mockRequire: (specifier: string) => unkn
   const loadedModule = { exports: {} as Record<string, unknown> };
   const evaluate = runInNewContext(
     `(function (require, module, exports) { ${output}\n })`,
+    { URLSearchParams },
   ) as (
     loader: typeof mockRequire,
     moduleRecord: typeof loadedModule,
@@ -148,17 +149,39 @@ function loadWhiteboardModule(stickies: MockSticky[]): WhiteboardModule {
   function mockRequire(specifier: string): unknown {
     if (specifier === "react" || specifier === "react/jsx-runtime") return require(specifier);
     if (specifier === "lucide-react") return iconProxy;
-    if (specifier === "next/navigation") return { useParams: () => ({ id: "ica" }) };
-    if (specifier === "next/link") {
+    if (specifier === "next/navigation") {
       return {
-        __esModule: true,
-        default: ({ href, children, ...rest }: Record<string, unknown>) =>
-          React.createElement("a", { href, ...rest }, children as React.ReactNode),
+        useParams: () => ({ id: "ica" }),
+        useRouter: () => ({ push: () => undefined }),
+        useSearchParams: () => new URLSearchParams("demo=1&asset=ica-roadshow-final&view=review"),
       };
     }
-    if (specifier === "@/lib/demo/mode") {
-      return { useDemoMode: () => true, useDemoSuffix: () => "?demo=1" };
+    if (specifier === "@/lib/demo/mode") return { useDemoMode: () => true };
+    if (specifier === "@/components/projects/ProjectWorkspaceTabs") {
+      return {
+        ProjectWorkspaceChrome: ({
+          activeWhiteboard,
+          children,
+          primaryActionLabel,
+          projectQuery,
+        }: {
+          activeWhiteboard?: boolean;
+          children: React.ReactNode;
+          primaryActionLabel?: string;
+          projectQuery: string;
+        }) => React.createElement(
+          "div",
+          {
+            "data-project-workspace-chrome": "true",
+            "data-active-whiteboard": String(activeWhiteboard),
+            "data-primary-action": primaryActionLabel,
+            "data-project-query": projectQuery,
+          },
+          children,
+        ),
+      };
     }
+    if (specifier === "@/components/cockpit/cockpit-navigation") return {};
     if (specifier === "@/lib/demo/workspace-store") {
       return {
         useDemoWorkspace: () => makeWorkspace(stickies),
@@ -219,13 +242,25 @@ test("seeded stickies render with accessible edit/delete targets and phase color
   assert.match(markup, /aria-label="Set note color to Strategy" aria-pressed="false"/);
 });
 
-test("toolbar exposes add-note, both templates, and a disabled undo", () => {
+test("contextual tools keep add-note immediate and templates collapsed by default", () => {
   const markup = renderBoard();
 
   assert.match(markup, /aria-label="Add a sticky note at the canvas center"/);
-  assert.match(markup, /aria-label="Apply the Brand film template"/);
-  assert.match(markup, /aria-label="Apply the Social campaign template"/);
-  assert.match(markup, /<button[^>]*disabled=""[^>]*aria-label="Undo the last template application"/);
+  assert.match(markup, /aria-controls="whiteboard-templates"/);
+  assert.match(markup, /aria-expanded="false"/);
+  assert.ok(markup.includes(" Add note</button>"));
+  assert.ok(markup.includes(" Templates <svg"));
+  assert.ok(!markup.includes("Apply the Brand film template"));
+  assert.ok(!markup.includes("Undo the last template application"));
+});
+
+test("whiteboard consumes the shared project chrome and preserves asset context", () => {
+  const markup = renderBoard();
+
+  assert.match(
+    markup,
+    /data-project-workspace-chrome="true" data-active-whiteboard="true" data-primary-action="Open media" data-project-query="demo=1&amp;asset=ica-roadshow-final&amp;view=review"/,
+  );
 });
 
 test("zoom controls announce the level and expose labeled buttons", () => {
@@ -247,8 +282,24 @@ test("canvas region documents pan, zoom, and keyboard navigation", () => {
   );
   // World layer carries the pan/zoom transform (initial frame: current phase in view).
   assert.match(markup, /transform:translate\(-600px, 24px\) scale\(1\)/);
-  // Local persistence is labeled honestly.
-  assert.ok(markup.includes("Saved to this browser (local demo persistence)"));
+  assert.match(markup, /aria-label="Saved locally in this browser"/);
+});
+
+test("drag completion publishes the move after leaving the React state updater", () => {
+  const source = readFileSync(componentPath, "utf8");
+  const start = source.indexOf("const handleNodePointerUp");
+  const end = source.indexOf("const nodePosition", start);
+  const handler = source.slice(start, end);
+
+  assert.ok(start >= 0 && end > start, "drag completion handler is present");
+  assert.doesNotMatch(
+    handler,
+    /setDrag\(\(current\) =>/,
+    "workspace publication must not run inside a React state updater",
+  );
+  assert.ok(
+    handler.indexOf("setDrag(null)") < handler.indexOf("moveWhiteboardNode("),
+  );
 });
 
 test("empty board shows the template CTA empty state", () => {
@@ -276,8 +327,22 @@ test("interactive targets meet the 44px minimum in the stylesheet", () => {
   assert.match(zoomButton, /min-width: 44px/);
   assert.match(zoomButton, /min-height: 44px/);
 
-  const backLink = css.slice(css.indexOf(".backLink {"), css.indexOf(".backLink:hover"));
-  assert.match(backLink, /min-height: 44px/);
+  const source = readFileSync(componentPath, "utf8");
+  assert.match(source, /<ProjectWorkspaceChrome\b/);
+  assert.doesNotMatch(css, /\.backLink\s*\{/);
+});
+
+test("mobile zoom controls reserve clearance above the shared project bar", () => {
+  const css = readFileSync(stylesheetPath, "utf8");
+
+  assert.match(
+    css,
+    /@media \(max-width: 900px\)[\s\S]*?\.zoomControls\s*\{\s*bottom: calc\(76px \+ env\(safe-area-inset-bottom\)\)/,
+  );
+  assert.match(
+    css,
+    /@media \(max-width: 560px\)[\s\S]*?\.zoomControls\s*\{\s*bottom: calc\(80px \+ env\(safe-area-inset-bottom\)\)/,
+  );
 });
 
 test("styling stays on canon tokens — phase colors come from brand-tokens vars", () => {

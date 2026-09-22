@@ -7,10 +7,11 @@
  */
 
 import Link from "next/link";
-import { useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   buildDeliverableRows,
   rollupDeliverableRows,
+  type DeliverableRecordLike,
 } from "@/lib/projects/deliverables.ts";
 import { formatDuration } from "@/lib/projects/dates.ts";
 import { buildInternalDemoAssetHref } from "@/lib/demo/workspace";
@@ -19,15 +20,30 @@ import styles from "./ProjectWorkspaceTabs.module.css";
 
 export default function ProjectDeliverablesPanel({ projectId }: { projectId: string }) {
   const workspace = useDemoWorkspace();
+  // Locked delivery (6.4): the export-package feed is the canonical
+  // deliverables API, not the demo store; media rows still project live
+  // assets from the workspace store.
+  const [deliverables, setDeliverables] = useState<DeliverableRecordLike[]>([]);
+  useEffect(() => {
+    let cancelled = false;
+    fetch(`/api/projects/${projectId}/deliverables`, { cache: "no-store" })
+      .then((response) => (response.ok ? response.json() : { deliverables: [] }))
+      .then((body: { deliverables?: DeliverableRecordLike[] }) => {
+        if (!cancelled) setDeliverables(body.deliverables ?? []);
+      })
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+  }, [projectId]);
+
   const rows = useMemo(
     () =>
       buildDeliverableRows({
-        deliverables: workspace.deliverables.filter(
-          (deliverable) => deliverable.project_id === projectId,
-        ),
+        deliverables,
         assets: workspace.assets.filter((asset) => asset.project_id === projectId),
       }),
-    [workspace.deliverables, workspace.assets, projectId],
+    [deliverables, workspace.assets, projectId],
   );
   const rollup = useMemo(() => rollupDeliverableRows(rows), [rows]);
 

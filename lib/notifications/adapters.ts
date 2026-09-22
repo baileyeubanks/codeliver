@@ -1,5 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { getBaseUrl, sendEmail } from "@/lib/email";
+import { sendEmail } from "@/lib/email";
 import {
   fingerprintNotificationRequest,
   type NotificationAdapter,
@@ -9,6 +9,7 @@ import {
   readIMessageRelayConfigFromEnv,
   type IMessageRelayTransport,
 } from "@/lib/notifications/imessage-relay";
+import { getReviewSiteUrl } from "@/lib/surface-origins";
 
 function escapeHtml(value: string) {
   return value
@@ -29,7 +30,7 @@ function renderEmailHtml({
   actionUrl: string | null;
 }) {
   const safeBody = escapeHtml(body).replaceAll("\n", "<br />");
-  const resolvedActionUrl = actionUrl?.startsWith("/") ? `${getBaseUrl()}${actionUrl}` : actionUrl;
+  const resolvedActionUrl = actionUrl?.startsWith("/") ? `${getReviewSiteUrl()}${actionUrl}` : actionUrl;
   const action = resolvedActionUrl
     ? `<p style="margin-top: 20px;"><a href="${escapeHtml(resolvedActionUrl)}" style="display:inline-block;padding:10px 16px;background:#2563eb;color:#fff;text-decoration:none;border-radius:6px;">Open in Co‑VideoPro</a></p>`
     : "";

@@ -4,6 +4,97 @@
   flex-direction: column;
 }
 
+:global(.cockpit-sidebar):has(.rail) {
+  z-index: 100;
+}
+
+.moreButton {
+  width: 100%;
+  min-height: 42px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--cockpit-copy, #3f4962);
+  font: inherit;
+  cursor: pointer;
+}
+
+.moreButton:hover,
+.moreButton[aria-expanded="true"] {
+  background: var(--cockpit-accent-soft, #edf4ff);
+  color: var(--cockpit-accent, #156bff);
+}
+
+.moreGroup {
+  position: relative;
+}
+
+.secondary {
+  display: grid;
+  gap: 7px;
+  margin: 2px 0 6px;
+  padding: 5px 0;
+  border-block: 1px solid var(--cockpit-border, #dfe4ec);
+}
+
+.toolGroup {
+  display: grid;
+  gap: 2px;
+  padding: 1px 10px 0;
+}
+
+.toolGroup > span {
+  margin: 0 0 2px;
+  color: var(--cockpit-muted, #707b91);
+  font-size: 0.56rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.toolGroup button {
+  min-height: 32px;
+  padding: 0 4px;
+  font-size: 0.68rem;
+}
+
+.recordLinks {
+  display: grid;
+  gap: 2px;
+  padding: 1px 10px 2px;
+}
+
+.recordLinks > span {
+  margin: 0 0 3px;
+  color: var(--cockpit-muted, #707b91);
+  font-size: 0.56rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.recordLinks a {
+  min-height: 32px;
+  display: flex;
+  align-items: center;
+  padding: 0 4px;
+  border-radius: 5px;
+  color: var(--cockpit-copy, #3f4962);
+  font-size: 0.68rem;
+  font-weight: 650;
+  text-decoration: none;
+}
+
+.recordLinks a:hover,
+.recordLinks a:focus-visible {
+  background: var(--cockpit-accent-soft, #edf4ff);
+  color: var(--cockpit-accent, #156bff);
+}
+
 .primary {
   display: grid;
   gap: 3px;
@@ -46,7 +137,9 @@
   color: var(--cockpit-accent, #156bff);
 }
 
-.primary button[data-active="true"] {
+.primary button[data-active="true"],
+.primary a[data-active="true"],
+.recordLinks a[data-active="true"] {
   background: var(--cockpit-accent-soft, #edf4ff);
   color: var(--cockpit-accent, #156bff);
   font-weight: 680;
@@ -106,6 +199,25 @@
 .compact .badge,
 .compact .shortcuts {
   display: none;
+}
+
+.compact .secondary {
+  position: fixed;
+  top: 82px;
+  left: 72px;
+  z-index: 90;
+  width: 244px;
+  max-height: calc(100svh - 98px);
+  overflow-y: auto;
+  padding: 8px 0;
+  border: 1px solid var(--cockpit-border, #dfe4ec);
+  border-radius: 9px;
+  background: var(--cockpit-panel, #fff);
+  box-shadow: 0 14px 30px rgba(10, 29, 61, 0.16);
+}
+
+.compact .secondary .label {
+  display: inline;
 }
 
 .drawerOverlay {

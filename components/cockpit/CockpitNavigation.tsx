@@ -1,9 +1,8 @@
 "use client";
 
-import { useRef } from "react";
+import { useCallback, useEffect, useId, useRef, useState, useSyncExternalStore } from "react";
 import Link from "next/link";
 import {
-  Archive,
   CalendarDays,
   CheckCircle2,
   ClipboardCheck,
@@ -18,8 +17,8 @@ import {
   MessageCircle,
   PackageCheck,
   PanelLeftClose,
+  PanelLeftOpen,
   Settings,
-  Users,
   X,
   type LucideIcon,
 } from "lucide-react";
@@ -48,6 +47,63 @@ const ICONS: Record<CockpitNavigationIcon, LucideIcon> = {
   versions: History,
 };
 
+const SECONDARY_GROUPS: ReadonlyArray<{
+  label: string;
+  sections: CockpitSection[];
+}> = [
+  { label: "Create", sections: ["creative", "proposal", "sequences"] },
+  { label: "Review & deliver", sections: ["reviews", "approvals", "versions"] },
+  { label: "Operate", sections: ["tasks", "metadata"] },
+];
+
+const PROJECT_TOOLS_EVENT = "co-deliver:project-tools";
+const projectToolsMemoryFallback = new Map<string, string>();
+
+function projectToolsStorageKey(projectId?: string) {
+  return projectId ? `co-deliver.project-tools.v1:${projectId}` : "";
+}
+
+function readProjectToolsPreference(key: string) {
+  if (!key || typeof window === "undefined") return "";
+  try {
+    return window.sessionStorage.getItem(key) ?? projectToolsMemoryFallback.get(key) ?? "";
+  } catch {
+    return projectToolsMemoryFallback.get(key) ?? "";
+  }
+}
+
+function writeProjectToolsPreference(key: string, value: "open" | "closed") {
+  if (!key || typeof window === "undefined") return;
+  projectToolsMemoryFallback.set(key, value);
+  try {
+    window.sessionStorage.setItem(key, value);
+  } catch {
+    // The in-memory preference preserves continuity when storage is blocked.
+  }
+  window.dispatchEvent(new CustomEvent(PROJECT_TOOLS_EVENT, { detail: { key } }));
+}
+
+function useProjectToolsPreference(projectId?: string) {
+  const key = projectToolsStorageKey(projectId);
+  const subscribe = useCallback((notify: () => void) => {
+    if (!key) return () => undefined;
+    const onStorage = (event: StorageEvent) => {
+      if (event.key === key) notify();
+    };
+    const onPreference = (event: Event) => {
+      if ((event as CustomEvent<{ key: string }>).detail?.key === key) notify();
+    };
+    window.addEventListener("storage", onStorage);
+    window.addEventListener(PROJECT_TOOLS_EVENT, onPreference);
+    return () => {
+      window.removeEventListener("storage", onStorage);
+      window.removeEventListener(PROJECT_TOOLS_EVENT, onPreference);
+    };
+  }, [key]);
+  const getSnapshot = useCallback(() => readProjectToolsPreference(key), [key]);
+  return useSyncExternalStore(subscribe, getSnapshot, () => "");
+}
+
 interface CockpitNavigationModeProps {
   demoMode?: boolean;
 }
@@ -55,8 +111,11 @@ interface CockpitNavigationModeProps {
 interface ProjectNavigationProps extends CockpitNavigationModeProps {
   activeSection: CockpitSection;
   dueTodayCount: number;
+  projectId?: string;
+  projectQuery?: string;
+  activeRecordTab?: string;
+  activeWhiteboard?: boolean;
   compact?: boolean;
-  overviewOpen?: boolean;
   onSelect: (section: CockpitSection) => void;
   onCollapse?: () => void;
   onNavigate?: () => void;
@@ -65,31 +124,104 @@ interface ProjectNavigationProps extends CockpitNavigationModeProps {
 export function CockpitProjectNavigation({
   activeSection,
   dueTodayCount,
+  projectId,
+  projectQuery,
+  activeRecordTab,
+  activeWhiteboard = false,
   compact = false,
   demoMode = false,
-  overviewOpen = false,
   onSelect,
   onCollapse,
   onNavigate,
 }: ProjectNavigationProps) {
+  const secondaryNavigationId = useId();
+  const railRef = useRef<HTMLDivElement>(null);
+  const moreButtonRef = useRef<HTMLButtonElement>(null);
+  const [compactSecondaryOpen, setCompactSecondaryOpen] = useState(false);
+  const primaryIds: CockpitSection[] = ["overview", "media", "plan", "delivery"];
+  const primarySections = new Set<CockpitSection>(primaryIds);
+  const storedSecondaryPreference = useProjectToolsPreference(projectId);
+  const primaryNavigation = primaryIds.flatMap((id) => COCKPIT_NAVIGATION.filter((item) => item.id === id));
+  const secondaryNavigation = new Map(
+    COCKPIT_NAVIGATION
+      .filter((item) => !primarySections.has(item.id))
+      .map((item) => [item.id, item]),
+  );
+  const hasProjectSurfaceActive = !activeRecordTab && !activeWhiteboard;
+  const shouldRevealSelectedSecondary = Boolean(activeRecordTab)
+    || (!activeWhiteboard && !primarySections.has(activeSection));
+  // The full rail remembers its disclosure because it has space to keep the
+  // named destinations visible. The compact rail uses a floating menu, which
+  // must behave like a transient menu instead of covering workspace controls.
+  const secondaryVisible = compact
+    ? compactSecondaryOpen
+    : storedSecondaryPreference
+      ? storedSecondaryPreference === "open"
+      : shouldRevealSelectedSecondary;
+
+  useEffect(() => {
+    if (!compact || !compactSecondaryOpen) return;
+
+    const closeOnOutsidePointer = (event: PointerEvent) => {
+      if (!railRef.current?.contains(event.target as Node)) setCompactSecondaryOpen(false);
+    };
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key !== "Escape") return;
+      event.preventDefault();
+      setCompactSecondaryOpen(false);
+      moreButtonRef.current?.focus();
+    };
+    document.addEventListener("pointerdown", closeOnOutsidePointer);
+    document.addEventListener("keydown", closeOnEscape);
+    return () => {
+      document.removeEventListener("pointerdown", closeOnOutsidePointer);
+      document.removeEventListener("keydown", closeOnEscape);
+    };
+  }, [compact, compactSecondaryOpen]);
+
   function select(section: CockpitSection) {
+    if (compact) setCompactSecondaryOpen(false);
     onSelect(section);
     onNavigate?.();
   }
 
+  function navigate() {
+    if (compact) setCompactSecondaryOpen(false);
+    onNavigate?.();
+  }
+
+  function toggleSecondary() {
+    if (compact) {
+      setCompactSecondaryOpen((open) => !open);
+      return;
+    }
+    writeProjectToolsPreference(
+      projectToolsStorageKey(projectId),
+      secondaryVisible ? "closed" : "open",
+    );
+  }
+
+  function projectHref(path: string, updates: Record<string, string | null> = {}) {
+    const query = new URLSearchParams(projectQuery ?? (demoMode ? "demo=1" : ""));
+    for (const [key, value] of Object.entries(updates)) {
+      if (value === null) query.delete(key);
+      else query.set(key, value);
+    }
+    const serialized = query.toString();
+    return serialized ? `${path}?${serialized}` : path;
+  }
+
   return (
-    <div className={`${styles.rail} ${compact ? styles.compact : ""}`}>
+    <div ref={railRef} className={`${styles.rail} ${compact ? styles.compact : ""}`}>
       <nav className={styles.primary} aria-label="Project workspace">
-        {COCKPIT_NAVIGATION.map((item) => {
+        {primaryNavigation.map((item) => {
           const Icon = ICONS[item.icon];
           return (
             <button
               key={item.id}
               type="button"
-              data-active={activeSection === item.id}
-              aria-current={activeSection === item.id ? "page" : undefined}
-              aria-expanded={item.id === "overview" ? overviewOpen : undefined}
-              aria-controls={item.id === "overview" ? "cockpit-project-overview" : undefined}
+              data-active={hasProjectSurfaceActive && activeSection === item.id}
+              aria-current={hasProjectSurfaceActive && activeSection === item.id ? "page" : undefined}
               onClick={() => select(item.id)}
               title={item.label}
             >
@@ -99,24 +231,97 @@ export function CockpitProjectNavigation({
             </button>
           );
         })}
-        <Link href={demoMode ? "/settings?demo=1" : "/settings"} title={compact ? "Settings" : undefined} onClick={onNavigate}>
+        {projectId ? (
+          <Link
+            href={projectHref(`/projects/${encodeURIComponent(projectId)}/whiteboard`, { tab: null, surface: null })}
+            title={compact ? "Whiteboard" : undefined}
+            data-active={activeWhiteboard}
+            aria-current={activeWhiteboard ? "page" : undefined}
+            onClick={navigate}
+          >
+            <CalendarDays size={18} />
+            <span className={styles.label}>Whiteboard</span>
+          </Link>
+        ) : null}
+        <div className={styles.moreGroup}>
+          <button
+            type="button"
+            className={styles.moreButton}
+            ref={moreButtonRef}
+            aria-label="More project tools"
+            aria-expanded={secondaryVisible}
+            aria-controls={secondaryNavigationId}
+            onClick={toggleSecondary}
+          >
+            <Menu size={18} />
+            <span className={styles.label}>More project tools</span>
+          </button>
+          {secondaryVisible ? (
+            <div id={secondaryNavigationId} className={styles.secondary} aria-label="More project tools">
+            {SECONDARY_GROUPS.map((group) => (
+              <div key={group.label} className={styles.toolGroup}>
+                <span>{group.label}</span>
+                {group.sections.map((section) => {
+                  const item = secondaryNavigation.get(section);
+                  if (!item) return null;
+                  const Icon = ICONS[item.icon];
+                  return (
+                    <button
+                      key={item.id}
+                      type="button"
+                      title={item.label}
+                      aria-label={item.label}
+                      data-active={hasProjectSurfaceActive && activeSection === item.id}
+                      aria-current={hasProjectSurfaceActive && activeSection === item.id ? "page" : undefined}
+                      onClick={() => select(item.id)}
+                    >
+                      <Icon size={18} />
+                      <span className={styles.label}>{item.label}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            ))}
+            {projectId ? (
+              <div className={styles.recordLinks}>
+                <span>Project records</span>
+                {[
+                  ["brief", "Brief"], ["milestones", "Milestones"], ["deliverables", "Deliverables"],
+                  ["team", "Team"], ["files", "Files"], ["comms", "Comms"], ["calendar", "Calendar"],
+                ].map(([tab, label]) => (
+                  <Link
+                    key={tab}
+                    href={projectHref(`/projects/${encodeURIComponent(projectId)}`, { surface: null, tab })}
+                    title={label}
+                    aria-label={label}
+                    data-active={activeRecordTab === tab}
+                    aria-current={activeRecordTab === tab ? "page" : undefined}
+                    onClick={navigate}
+                  >
+                    <span className={styles.label}>{label}</span>
+                  </Link>
+                ))}
+              </div>
+            ) : null}
+            </div>
+          ) : null}
+        </div>
+        <Link href={demoMode ? "/settings?demo=1" : "/settings"} title={compact ? "Settings" : undefined} onClick={navigate}>
           <Settings size={18} />
           <span className={styles.label}>Settings</span>
         </Link>
       </nav>
 
-      <div className={styles.shortcuts}>
-        <p>Project shortcuts</p>
-        <button type="button" onClick={() => select("creative")}><FileText size={17} /> <span>Creative brief</span></button>
-        <button type="button" onClick={() => select("proposal")}><FileText size={17} /> <span>Proposal</span></button>
-        <button type="button" onClick={() => select("media")}><Archive size={17} /> <span>Assets</span></button>
-        <Link href={demoMode ? "/settings?section=organization&demo=1" : "/settings?section=organization"} onClick={onNavigate}><Users size={17} /> <span>Team</span></Link>
-      </div>
-
       {onCollapse ? (
-        <button className={styles.collapse} type="button" onClick={onCollapse} title="Compact project rail">
-          <PanelLeftClose size={17} />
-          <span className={styles.label}>Compact rail</span>
+        <button
+          className={styles.collapse}
+          type="button"
+          onClick={onCollapse}
+          title={compact ? "Expand project rail" : "Compact project rail"}
+          aria-label={compact ? "Expand rail" : "Compact rail"}
+        >
+          {compact ? <PanelLeftOpen size={17} /> : <PanelLeftClose size={17} />}
+          <span className={styles.label}>{compact ? "Expand rail" : "Compact rail"}</span>
         </button>
       ) : null}
     </div>
@@ -166,8 +371,9 @@ export function CockpitProjectNavigationDrawer({
 interface CockpitMobileNavigationProps extends CockpitNavigationModeProps {
   activeSection: CockpitSection;
   dueTodayCount: number;
+  activeRecordTab?: string;
+  activeWhiteboard?: boolean;
   drawerOpen: boolean;
-  overviewOpen?: boolean;
   onSelect: (section: CockpitSection) => void;
   onOpenDrawer: () => void;
 }
@@ -175,11 +381,14 @@ interface CockpitMobileNavigationProps extends CockpitNavigationModeProps {
 export function CockpitMobileNavigation({
   activeSection,
   dueTodayCount,
+  activeRecordTab,
+  activeWhiteboard = false,
   drawerOpen,
-  overviewOpen = false,
   onSelect,
   onOpenDrawer,
 }: CockpitMobileNavigationProps) {
+  const hasProjectSurfaceActive = !activeRecordTab && !activeWhiteboard;
+
   return (
     <nav className={styles.mobileBar} aria-label="Mobile project workspace">
       {MOBILE_COCKPIT_NAVIGATION.map((item) => {
@@ -188,10 +397,8 @@ export function CockpitMobileNavigation({
           <button
             key={item.id}
             type="button"
-            data-active={activeSection === item.id}
-            aria-current={activeSection === item.id ? "page" : undefined}
-            aria-expanded={item.id === "overview" ? overviewOpen : undefined}
-            aria-controls={item.id === "overview" ? "cockpit-project-overview" : undefined}
+            data-active={hasProjectSurfaceActive && activeSection === item.id}
+            aria-current={hasProjectSurfaceActive && activeSection === item.id ? "page" : undefined}
             onClick={() => onSelect(item.id)}
           >
             <Icon size={20} />

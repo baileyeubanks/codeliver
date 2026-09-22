@@ -236,12 +236,20 @@ capability, not duplicate ownership.
 
 | Capability | Readiness | Route intent | Permission | Primary record | Audit |
 | --- | --- | --- | --- | --- | --- |
-| `delivery-assets.deliverables` | unavailable | none | `delivery:manage` | `planned.delivery_record` | unavailable |
+| `delivery-assets.deliverables` | guarded | project page | `delivery:manage` | `delivery_record` | after commit |
 | `delivery-assets.asset-library` | operational | library | `media:read` | `asset` | read-only |
 | `delivery-assets.permissions-sharing` | guarded | asset review action | `reviews:comment` | `review_invite` | after commit |
 | `delivery-assets.distribution` | unavailable | none | `delivery:manage` | `planned.distribution_record` | unavailable |
 | `delivery-assets.project-archive` | operational | archive | `projects:read` | `project` | read-only |
 | `delivery-assets.archive-compliance` | unavailable | none | `delivery:manage` | `planned.compliance_record` | unavailable |
+
+Locked-delivery residual gap (6.4): approval steps are asset-scoped, not
+version-scoped. The lock command requires every bound asset to have a
+concluded, positive approval workflow (no pending or blocking steps), but a
+version uploaded after that conclusion still inherits the asset's approval
+state until the upload lock guard applies. The lock binds exact
+`version_id`s with checksums, so the delivered bytes are frozen; what the
+schema cannot yet express is per-version sign-off.
 
 ### Human + Agent Loop
 

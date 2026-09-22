@@ -1,6 +1,7 @@
 "use client";
 
 import { Search, SlidersHorizontal, Star, X } from "lucide-react";
+import { useState } from "react";
 import type { LibraryFacetFilters } from "@/lib/assets/types";
 
 export interface LibraryFacetOptions {
@@ -20,6 +21,7 @@ export interface LibraryFilterRailProps {
   onFacetsChange: (facets: LibraryFacetFilters) => void;
   options: LibraryFacetOptions;
   resultCount: number;
+  campaignLabel?: string;
 }
 
 const RIGHTS_OPTIONS = [
@@ -71,7 +73,9 @@ export default function LibraryFilterRail({
   onFacetsChange,
   options,
   resultCount,
+  campaignLabel = "Campaign",
 }: LibraryFilterRailProps) {
+  const [filtersOpen, setFiltersOpen] = useState(false);
   const rightsLabels = Object.fromEntries(RIGHTS_OPTIONS.map((option) => [option.value, option.label]));
   const hasActiveFacets =
     Object.values(facets).some((value) => value !== undefined && value !== "" && value !== false) ||
@@ -87,28 +91,46 @@ export default function LibraryFilterRail({
   }
 
   return (
-    <div className="mb-5 space-y-3">
-      <div className="relative">
+    <div className="mb-5 space-y-2">
+      <div className="flex gap-2">
+        <div className="relative min-w-0 flex-1">
         <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--dim)]" />
         <input
           type="text"
-          placeholder='Search assets — try campaign:"ICA Roadshow" platform:linkedin'
+          placeholder="Search assets"
           value={searchText}
           onChange={(event) => onSearchTextChange(event.target.value)}
           aria-label="Search asset library"
           data-testid="library-search"
           className="h-10 w-full rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--surface)] pl-10 pr-4 text-sm text-[var(--ink)] outline-none transition-colors placeholder:text-[var(--dim)] focus:border-[var(--accent)]"
         />
+        </div>
+        <button
+          type="button"
+          onClick={() => setFiltersOpen((open) => !open)}
+          aria-expanded={filtersOpen}
+          aria-controls="library-facet-filters"
+          className={`inline-flex min-h-10 items-center gap-2 rounded-[var(--radius-sm)] border px-3 text-xs font-semibold ${
+            hasActiveFacets ? "border-[var(--accent)] text-[var(--accent)]" : "border-[var(--border)] text-[var(--muted)]"
+          }`}
+        >
+          <SlidersHorizontal size={14} aria-hidden="true" />
+          Filters
+        </button>
+        <span className="self-center whitespace-nowrap text-[10px] text-[var(--dim)] sm:text-xs" data-testid="library-result-count">
+          {resultCount} {resultCount === 1 ? "asset" : "assets"}
+        </span>
       </div>
 
+      {filtersOpen ? (
       <div
-        className="flex flex-wrap items-center gap-2"
+        id="library-facet-filters"
+        className="flex flex-wrap items-center gap-2 border-l-2 border-[var(--accent)] pl-3"
         aria-label="Library facet filters"
         data-testid="library-facet-rail"
       >
-        <SlidersHorizontal size={14} className="text-[var(--dim)]" aria-hidden="true" />
         <FacetSelect
-          label="Campaign"
+          label={campaignLabel}
           value={facets.campaign}
           values={options.campaigns}
           testId="facet-campaign"
@@ -149,6 +171,7 @@ export default function LibraryFilterRail({
           testId="facet-talent"
           onChange={(value) => setFacet({ talent: value })}
         />
+        {options.rights.length > 0 ? (
         <FacetSelect
           label="Rights"
           value={facets.rights}
@@ -157,6 +180,7 @@ export default function LibraryFilterRail({
           testId="facet-rights"
           onChange={(value) => setFacet({ rights: value })}
         />
+        ) : null}
 
         <label className="flex min-h-8 items-center gap-1 rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--surface)] px-2 text-[10px] font-bold text-[var(--muted)]">
           From
@@ -208,10 +232,8 @@ export default function LibraryFilterRail({
           </button>
         ) : null}
 
-        <span className="ml-auto text-[10px] text-[var(--dim)]" data-testid="library-result-count">
-          {resultCount} {resultCount === 1 ? "asset" : "assets"}
-        </span>
       </div>
+      ) : null}
     </div>
   );
 }

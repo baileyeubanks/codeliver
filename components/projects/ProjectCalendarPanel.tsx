@@ -55,6 +55,7 @@ export default function ProjectCalendarPanel({ projectId }: { projectId: string 
 
   const weeks = buildCalendarGrid(monthCursor.year, monthCursor.month, todayKey);
   const presentTypes = [...new Set(Object.values(eventsByDate).flat().map((event) => event.type))];
+  const hasVisibleEvents = weeks.flat().some((cell) => (eventsByDate[cell.date] ?? []).length > 0);
 
   function shiftMonth(delta: number) {
     setMonthCursor((cursor) => {
@@ -129,6 +130,12 @@ export default function ProjectCalendarPanel({ projectId }: { projectId: string 
           );
         })}
       </div>
+
+      {!hasVisibleEvents ? (
+        <p className={styles.calendarEmpty} role="status">
+          No dated project records in {MONTH_NAMES[monthCursor.month]} {monthCursor.year}.
+        </p>
+      ) : null}
 
       {presentTypes.length > 0 && (
         <div className={styles.legendRow} aria-label="Event types">

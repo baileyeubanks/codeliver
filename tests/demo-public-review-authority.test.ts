@@ -75,6 +75,8 @@ test("public demo comments commit before success and restore only in their media
     demoMode: true,
     assetId: "denie-mcdonald-v4",
     assetType: "video",
+    versionId: "demo-version-4",
+    reviewInviteId: "invite-demo",
     reviewerName: "  Journey Reviewer  ",
     body: "  Persist this exact version note.  ",
     timecode: 12.5,

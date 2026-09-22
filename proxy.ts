@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { createServerClient } from "@supabase/ssr";
-import { isAuthSessionMissingError } from "@supabase/supabase-js";
+import { isAuthApiError, isAuthSessionMissingError } from "@supabase/supabase-js";
 import {
   buildProtectedReturnPath,
   LOGIN_PATH,
@@ -46,18 +46,25 @@ const LOCAL_DEVELOPMENT_HOST_PATTERN =
   /^(?:localhost|127\.0\.0\.1|\[::1\])(?::([0-9]{1,5}))?$/i;
 const UUID_PATH_SEGMENT =
   "[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12}";
+const HLS_UUID_PATH_SEGMENT =
+  "[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[1-5][0-9A-Fa-f]{3}-[89ABab][0-9A-Fa-f]{3}-[0-9A-Fa-f]{12}";
+const HLS_SEGMENT_INDEX = "(?:0|[1-9][0-9]*)";
 
 const CLIENT_API_ROUTE_PATTERNS = [
-  /^\/api\/auth\/(?:login|logout|session|signup|resend|password\/(?:forgot|reset))$/,
+  /^\/api\/auth\/(?:login|logout|session|signup|resend|google|password\/(?:forgot|reset))$/,
   /^\/api\/health(?:\/(?:dependencies|live|ready))?$/,
   /^\/api\/version$/, // G2 deployment truth; exact match, no subroutes exist
   /^\/api\/review\/[^/]+(?:\/(?:admission|approvals|comments|edit-decisions))?$/,
   new RegExp(`^/api/review/media/${UUID_PATH_SEGMENT}$`),
+  new RegExp(
+    `^/api/review/media/${HLS_UUID_PATH_SEGMENT}/hls/(?:playlist\\.m3u8|segments/${HLS_SEGMENT_INDEX})$`,
+  ),
 ];
 
 const ADMIN_API_ROUTE_PATTERNS = [
   ...CLIENT_API_ROUTE_PATTERNS,
   /^\/api\/activity$/,
+  /^\/api\/ai\/copilot$/,
   /^\/api\/ai\/summarize$/,
   /^\/api\/analytics\/(?:project|export(?:\/pdf)?)$/,
   /^\/api\/approvals\/(?:notify|workflow)$/,
@@ -67,6 +74,9 @@ const ADMIN_API_ROUTE_PATTERNS = [
   new RegExp(`^/api/assets/${UUID_PATH_SEGMENT}$`),
   new RegExp(
     `^/api/assets/${UUID_PATH_SEGMENT}/(?:approvals|comments|edit-decisions|export|share|versions)$`,
+  ),
+  new RegExp(
+    `^/api/assets/${HLS_UUID_PATH_SEGMENT}/versions/${HLS_UUID_PATH_SEGMENT}/hls/(?:playlist\\.m3u8|segments/${HLS_SEGMENT_INDEX})$`,
   ),
   new RegExp(
     `^/api/assets/${UUID_PATH_SEGMENT}/analysis(?:/(?:batch|composition|decisions))?$`,
@@ -156,6 +166,20 @@ function backendUnavailableResponse() {
   );
 }
 
+function isSignedOutAuthError(error: unknown): boolean {
+  return (
+    isAuthSessionMissingError(error) ||
+    (isAuthApiError(error) && error.code === "refresh_token_not_found")
+  );
+}
+
+function copyResponseCookies(source: NextResponse, target: NextResponse): NextResponse {
+  for (const cookie of source.cookies.getAll()) {
+    target.cookies.set(cookie);
+  }
+  return target;
+}
+
 function isApiLikePath(pathname: string): boolean {
   let decoded = pathname;
 
@@ -182,6 +206,14 @@ function productionApiLaunchGate(
   // Canonical TUS uploads persist this exact staff-only stream URL. The route
   // handler performs its own staff check and safe NAS path validation.
   if (hostSurface === "admin" && pathname === "/api/media/stream") {
+    return null;
+  }
+
+  // Managed originals retain normal authentication and per-asset authorization.
+  // Admit only this exact read route; legacy media APIs remain launch-gated.
+  if (hostSurface === "admin" &&
+      new RegExp(`^/api/media/versions/${UUID_PATH_SEGMENT}$`).test(pathname) &&
+      (req.method === "GET" || req.method === "HEAD")) {
     return null;
   }
 
@@ -332,6 +364,15 @@ function surfaceAccessDenied(pathname: string) {
   );
 }
 
+function isPublicStaticAssetPath(pathname: string): boolean {
+  return (
+    isPathAtOrBelow(pathname, "/_next") ||
+    pathname === "/favicon.ico" ||
+    isPathAtOrBelow(pathname, "/demo") ||
+    isPathAtOrBelow(pathname, "/brand")
+  );
+}
+
 function hostAccessDenied(pathname: string) {
   if (isApiLikePath(pathname)) {
     return NextResponse.json(
@@ -357,26 +398,32 @@ export async function proxy(req: NextRequest) {
   const host = req.headers.get("host");
   const hostSurface = resolveHostSurface(host);
   const localDevelopment = isLocalDevelopmentHost(host);
+  // Next's image optimizer fetches LOCAL images through an internal mocked
+  // request that carries no headers at all — no Host, no cookies (see
+  // next/dist/server/lib/mock-request.js: createRequestResponseMocks defaults
+  // headers to {}). Denying that headerless subrequest made every local
+  // `/_next/image` optimization fail (the 403 text body is not an image, so
+  // the optimizer answered 400 and the July workaround disabled the optimizer
+  // globally). Admit hostless subrequests only to the public static prefixes
+  // already served to every approved host; application and API routes stay
+  // denied, and a PRESENT but unapproved host is still denied everywhere.
+  const hostlessInternalStaticFetch = !host?.trim() && isPublicStaticAssetPath(pathname);
+
+  if (!hostSurface && !localDevelopment && !hostlessInternalStaticFetch) {
+    return hostAccessDenied(pathname);
+  }
+
   const localDemo =
     localDevelopment &&
     isLocalDemoPreviewEnabled() &&
     req.nextUrl.searchParams.get("demo") === "1";
-
-  if (!hostSurface && !localDevelopment) {
-    return hostAccessDenied(pathname);
-  }
 
   if (hostSurface) {
     const launchGateResponse = productionApiLaunchGate(req, hostSurface);
     if (launchGateResponse) return launchGateResponse;
   }
 
-  if (
-    isPathAtOrBelow(pathname, "/_next") ||
-    pathname === "/favicon.ico" ||
-    isPathAtOrBelow(pathname, "/demo") ||
-    isPathAtOrBelow(pathname, "/brand")
-  ) {
+  if (isPublicStaticAssetPath(pathname)) {
     return nextResponse(req);
   }
 
@@ -436,7 +483,7 @@ export async function proxy(req: NextRequest) {
       },
     );
     const identity = await supabase.auth.getUser();
-    if (isAuthSessionMissingError(identity.error)) {
+    if (isSignedOutAuthError(identity.error)) {
       user = null;
     } else if (identity.error) {
       return backendUnavailableResponse();
@@ -449,18 +496,29 @@ export async function proxy(req: NextRequest) {
 
   if (!user) {
     if (pathname.startsWith("/api/")) {
-      return NextResponse.json(
-        { error: "Authentication required", code: "AUTH_REQUIRED" },
-        {
-          status: 401,
-          headers: { "Cache-Control": "no-store" },
-        },
+      return copyResponseCookies(
+        res,
+        NextResponse.json(
+          { error: "Authentication required", code: "AUTH_REQUIRED" },
+          {
+            status: 401,
+            headers: { "Cache-Control": "no-store" },
+          },
+        ),
+      );
+    }
+
+    const approvedHost = resolveApprovedSurfaceHost(host);
+    if (pathname === "/" && approvedHost) {
+      return copyResponseCookies(
+        res,
+        NextResponse.redirect(new URL("/welcome", `https://${approvedHost}`)),
       );
     }
 
     const loginUrl = buildLoginUrl(req);
     loginUrl.searchParams.set("next", pathnameWithSanitizedQuery);
-    return NextResponse.redirect(loginUrl);
+    return copyResponseCookies(res, NextResponse.redirect(loginUrl));
   }
 
   if (hostSurface) {

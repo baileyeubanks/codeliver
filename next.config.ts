@@ -5,12 +5,12 @@ const contentSecurityPolicy = [
   "base-uri 'self'",
   "form-action 'self'",
   "object-src 'none'",
-  "script-src 'self' 'unsafe-inline'",
+  `script-src 'self' 'unsafe-inline'${process.env.NODE_ENV === "development" && process.env.CODELIVER_DEMO_MODE === "1" ? " 'unsafe-eval'" : ""} https://static.cloudflareinsights.com`,
   "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
   "font-src 'self' data: https://fonts.gstatic.com",
   "img-src 'self' blob: data: https:",
   "media-src 'self' blob: data: https:",
-  "connect-src 'self' https: wss:",
+  "connect-src 'self' https: wss: https://cloudflareinsights.com",
   "worker-src 'self' blob:",
   "frame-src 'self' blob: data: https:",
   "frame-ancestors 'none'",
@@ -41,14 +41,14 @@ const nextConfig: NextConfig = {
       },
     ];
   },
-  // Next 16.2.10's internal local-image response drops the detected MIME type
-  // in this runtime. Serve the validated source assets directly until that
-  // optimizer path is safe to re-enable.
-  images: {
-    unoptimized: true,
-  },
-  // Allow large request bodies for tus resumable uploads (up to 500MB per chunk)
+  // The image optimizer stays enabled: the July `unoptimized` bypass treated
+  // a host-gate defect (the optimizer's headerless internal fetch was denied)
+  // as a Next.js MIME bug. Static and local images flow through `/_next/image`
+  // again; media surfaces that need raw sources opt out per-component.
+  // The proxy buffers PATCH bodies independently of Server Actions. Match the
+  // storage maximum; the browser sends smaller 8 MiB chunks.
   experimental: {
+    proxyClientMaxBodySize: "64mb",
     serverActions: {
       bodySizeLimit: "500mb",
     },

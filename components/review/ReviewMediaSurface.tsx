@@ -1,6 +1,6 @@
 "use client";
 
-import type { MouseEventHandler, ReactNode, RefObject } from "react";
+import { useCallback, useState, type MouseEventHandler, type ReactNode, type RefObject } from "react";
 import { Layers3 } from "lucide-react";
 import PlayerControls from "@/components/player/PlayerControls";
 import VideoPlayer from "@/components/player/VideoPlayer";
@@ -42,14 +42,58 @@ export default function ReviewMediaSurface({
   timeline,
   fallbackAction,
 }: ReviewMediaSurfaceProps) {
+  const [previousSource, setPreviousSource] = useState(assetUrl);
+  const [failedSource, setFailedSource] = useState<string | null>(null);
+  const [retryAttempt, setRetryAttempt] = useState(0);
+  if (previousSource !== assetUrl) {
+    setPreviousSource(assetUrl);
+    setFailedSource(null);
+  }
+  const playbackFailed = assetType === "video" && failedSource === assetUrl;
+  const handlePlaybackError = useCallback(() => {
+    if (assetUrl) setFailedSource(assetUrl);
+  }, [assetUrl]);
+  const retryPlayback = useCallback(() => {
+    setFailedSource(null);
+    setRetryAttempt((attempt) => attempt + 1);
+  }, []);
+
   if (assetType === "video" && assetUrl) {
+    if (playbackFailed) {
+      return (
+        <div className="review-video-surface">
+          <div className="review-video-frame flex min-h-64 items-center justify-center bg-black px-6 py-12 text-center">
+            <div role="alert" className="max-w-sm">
+              <h2 className="review-display text-lg font-semibold text-white">Playback unavailable</h2>
+              <p className="mt-2 text-sm text-white/70">
+                This version could not be loaded. Try again.
+              </p>
+              <div className="mt-4 flex flex-wrap justify-center gap-3">
+                <button
+                  type="button"
+                  onClick={retryPlayback}
+                  aria-label="Retry playback"
+                  className="rounded-[var(--radius-sm)] bg-[var(--accent)] px-3 py-2 text-sm font-medium text-white transition-colors hover:bg-[var(--accent-hover)]"
+                >
+                  Retry playback
+                </button>
+                {fallbackAction ? <div>{fallbackAction}</div> : null}
+              </div>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
     return (
       <div className="review-video-surface">
         <div className="review-video-frame">
           <VideoPlayer
+            key={`${assetUrl}:${retryAttempt}`}
             src={assetUrl}
             poster={poster}
             videoRef={videoRef}
+            onPlaybackError={handlePlaybackError}
             onFrameClick={annotationEnabled ? onFramePin : undefined}
             onCutMarker={onCutMarker}
           >

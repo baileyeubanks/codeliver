@@ -1,3 +1,4 @@
+import { resolveReviewAuthReturn } from "@/lib/auth/review-return";
 import { apiError, apiJson } from "@/lib/api/responses";
 import {
   AUTH_PASSWORD_MIN_LENGTH,
@@ -74,12 +75,17 @@ export async function POST(req: Request) {
     }
 
     const confirmationRequired = !data.session;
+    let reviewTarget: string | null = null;
+    if (!confirmationRequired && resolveReviewAuthReturn(requestedTarget)) {
+      const identity = await supabase.auth.getUser();
+      if (!identity.error && identity.data.user) reviewTarget = resolveReviewAuthReturn(requestedTarget);
+    }
     return apiJson(
       {
         success: true,
         access: { state: "pending", authorityGranted: false },
         confirmation_required: confirmationRequired,
-        destination: confirmationRequired ? null : buildPendingAccessPath(requestedTarget),
+        destination: confirmationRequired ? null : reviewTarget ?? buildPendingAccessPath(requestedTarget),
         message: confirmationRequired
           ? "Check your email to confirm your account."
           : "Account created. Workspace access is pending approval.",

@@ -1,11 +1,19 @@
 import type { Annotation, AnnotationData, Comment } from "@/lib/types/codeliver";
 import { addDemoReviewComment } from "@/lib/demo/workspace-store";
+import {
+  MAX_REVIEW_ANNOTATIONS,
+  prepareReviewAnnotations,
+} from "@/lib/review/annotation";
 
 interface SubmitReviewCommentInput {
   token: string;
   demoMode: boolean;
   assetId: string;
   assetType: string;
+  /** Resolved cut identity. Used only by browser-local demo persistence. */
+  versionId: string | null;
+  /** Resolved share identity. Used only by browser-local demo persistence. */
+  reviewInviteId: string | null;
   reviewerName: string;
   body: string;
   timecode: number;
@@ -17,12 +25,10 @@ interface SubmitReviewCommentInput {
 }
 
 /**
- * Local preview semantics: demo comments persist through the workspace store,
- * which has no annotation column, so the drawing rides on the returned
- * comment object (annotations + a WebP attachment) for this session. The
- * production comment schema does not yet persist annotation artifacts, so
- * remote requests send only the text/time/pin record. The drawing is kept in
- * this browser session and must not be mistaken for durable review evidence.
+ * Local preview semantics: demo comments persist normalized vectors through
+ * the workspace store while the WebP raster stays session-only. Real review
+ * requests persist normalized vectors through the API. The WebP raster is
+ * never accepted as an arbitrary upload URL.
  */
 function withDrawing(
   comment: Comment,
@@ -32,7 +38,7 @@ function withDrawing(
 ): Comment {
   const enriched: Comment = { ...comment };
 
-  if (annotations?.length) {
+  if (annotations?.length && !comment.annotations?.length) {
     const annotationRecords: Annotation[] = annotations.map((data, index) => ({
       id: `annotation-${comment.id}-${index}`,
       comment_id: comment.id,
@@ -69,6 +75,8 @@ export async function submitReviewComment({
   demoMode,
   assetId,
   assetType,
+  versionId,
+  reviewInviteId,
   reviewerName,
   body,
   timecode,
@@ -83,15 +91,33 @@ export async function submitReviewComment({
     throw new Error("Add your name and a comment before sending.");
   }
 
+  const preparedAnnotations = prepareReviewAnnotations(annotations ?? []);
+  if (!preparedAnnotations.ok) {
+    throw new Error(
+      `This drawing has more than ${MAX_REVIEW_ANNOTATIONS} strokes. Clear the drawing and try again with ${MAX_REVIEW_ANNOTATIONS} or fewer strokes.`,
+    );
+  }
+  const transportAnnotations =
+    preparedAnnotations.annotations.length > 0
+      ? preparedAnnotations.annotations
+      : undefined;
+
   if (demoMode) {
+    if (!versionId?.trim() || !reviewInviteId?.trim()) {
+      throw new Error("Could not resolve this demo review version.");
+    }
+
     const persistedComment = addDemoReviewComment({
       assetId,
+      versionId,
+      reviewInviteId,
       authorName,
       assetType,
       body: commentBody,
       timeSeconds: timecode,
       pinX: pin?.x,
       pinY: pin?.y,
+      annotations: transportAnnotations,
     });
 
     if (!persistedComment) {
@@ -123,7 +149,7 @@ export async function submitReviewComment({
         created_at: persistedComment.created_at,
         updated_at: persistedComment.created_at,
       },
-      annotations,
+      transportAnnotations,
       drawing,
       persistedComment.created_at,
     );
@@ -141,6 +167,7 @@ export async function submitReviewComment({
       timecode_seconds: assetType === "video" ? timecode : null,
       pin_x: pin?.x ?? null,
       pin_y: pin?.y ?? null,
+      annotations: transportAnnotations ?? null,
     }),
   });
 
@@ -155,6 +182,8 @@ export async function submitReviewComment({
     throw new Error("Comment saved, but the response was invalid.");
   }
 
-  // Keep the non-durable drawing visible to its author for this session.
-  return withDrawing(comment, annotations, drawing, comment.created_at);
+  // The API returns durable vector annotations. Keep only the raster preview
+  // local to this browser session; fall back to the submitted vectors solely
+  // for compatibility with an older response shape.
+  return withDrawing(comment, transportAnnotations, drawing, comment.created_at);
 }

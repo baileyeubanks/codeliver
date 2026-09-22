@@ -1,9 +1,15 @@
 import { getExternalApprovalState } from "@/lib/review-invites";
+import { selectPublishedHlsPublication } from "@/lib/media-pipeline/hls-delivery";
 import { authorizeAdmittedReviewInvite } from "@/lib/review/admission-authority";
 import {
   EXTERNAL_COMMENT_COLUMNS,
   projectExternalComment,
 } from "@/lib/review/external-comment";
+import {
+  EXTERNAL_ANNOTATION_COLUMNS,
+  projectExternalAnnotation,
+  type ExternalAnnotation,
+} from "@/lib/review/annotation-persistence";
 import { validateReviewReadRequest } from "@/lib/review/request-boundary";
 import {
   reviewBackendUnavailable,
@@ -53,6 +59,22 @@ async function getReview(_req: Request, { params }: { params: Promise<{ token: s
     );
   }
 
+  const hlsAssetResult = await supabase
+    .from("assets")
+    .select("id, metadata")
+    .eq("id", authority.claims.assetId)
+    .maybeSingle();
+  if (hlsAssetResult.error) return reviewBackendUnavailable();
+  const hlsPublication =
+    hlsAssetResult.data?.id === authority.claims.assetId
+      ? selectPublishedHlsPublication({
+          assetId: authority.claims.assetId,
+          assetMetadata: hlsAssetResult.data.metadata,
+          versionId: authority.claims.versionId,
+          versionAssetId: authority.claims.assetId,
+        })
+      : null;
+
   const [commentsResult, approvalsResult, workflowResult, editDecisionsResult] = await Promise.all([
     supabase
       .from("comments")
@@ -99,13 +121,96 @@ async function getReview(_req: Request, { params }: { params: Promise<{ token: s
     return reviewBackendUnavailable();
   }
 
+  const externalComments = commentsResult.data ?? [];
+  const annotationsByCommentId = new Map<string, ExternalAnnotation[]>();
+  const commentIds = externalComments
+    .map((comment) => comment.id)
+    .filter((id): id is string => typeof id === "string");
+  if (commentIds.length > 0) {
+    const annotationsResult = await supabase
+      .from("annotations")
+      .select(EXTERNAL_ANNOTATION_COLUMNS)
+      .eq("asset_id", invite.asset_id)
+      .eq("version_id", versionLookup.version.id)
+      .in("comment_id", commentIds)
+      .order("created_at", { ascending: true });
+    if (annotationsResult.error) {
+      return reviewBackendUnavailable();
+    }
+
+    const commentsById = new Map(
+      externalComments
+        .filter(
+          (comment) =>
+            typeof comment.id === "string" &&
+            comment.asset_id === invite.asset_id &&
+            comment.version_id === versionLookup.version.id,
+        )
+        .map((comment) => [comment.id as string, comment]),
+    );
+    for (const row of annotationsResult.data ?? []) {
+      if (typeof row.comment_id !== "string") continue;
+      const comment = commentsById.get(row.comment_id);
+      if (!comment) continue;
+      const projected = projectExternalAnnotation(row, {
+        commentId: row.comment_id,
+        assetId: invite.asset_id,
+        versionId: versionLookup.version.id,
+      });
+      if (!projected) continue;
+      const existing = annotationsByCommentId.get(row.comment_id) ?? [];
+      existing.push(projected);
+      annotationsByCommentId.set(row.comment_id, existing);
+    }
+  }
+
   const approvalState = getExternalApprovalState({
     approvals: (approvalsResult.data ?? []) as ApprovalStep[],
     invite,
     workflowMode: workflowResult.data?.mode ?? null,
   });
 
-  const mediaUrl = `/api/review/media/${authority.claims.admissionId}`;
+  // Locked delivery (6.4): when the invite's pinned version is bound into a
+  // locked deliverable, the client sees the lock state and checksum.
+  const deliveryItemsResult = await supabase
+    .from("deliverable_items")
+    .select("deliverable_id, sha256")
+    .eq("version_id", versionLookup.version.id);
+  if (deliveryItemsResult.error) {
+    return reviewBackendUnavailable();
+  }
+  const deliveryItems = deliveryItemsResult.data ?? [];
+  let delivery: { locked: boolean; locked_at: string | null; sha256: string | null } | null =
+    null;
+  if (deliveryItems.length > 0) {
+    const deliverablesResult = await supabase
+      .from("deliverables")
+      .select("id, locked_at")
+      .in("id", [...new Set(deliveryItems.map((item) => item.deliverable_id))]);
+    if (deliverablesResult.error) {
+      return reviewBackendUnavailable();
+    }
+    const lockedAtByDeliverable = new Map(
+      (deliverablesResult.data ?? [])
+        .filter((row) => row.locked_at != null)
+        .map((row) => [row.id, row.locked_at as string]),
+    );
+    const lockedItem = deliveryItems.find((item) =>
+      lockedAtByDeliverable.has(item.deliverable_id),
+    );
+    if (lockedItem) {
+      delivery = {
+        locked: true,
+        locked_at: lockedAtByDeliverable.get(lockedItem.deliverable_id) ?? null,
+        sha256: lockedItem.sha256 ?? null,
+      };
+    }
+  }
+
+  const sourceMediaUrl = `/api/review/media/${authority.claims.admissionId}`;
+  const mediaUrl = hlsPublication
+    ? `${sourceMediaUrl}/hls/playlist.m3u8`
+    : sourceMediaUrl;
 
   return reviewJson({
     asset: invite.assets
@@ -148,8 +253,13 @@ async function getReview(_req: Request, { params }: { params: Promise<{ token: s
     approvals: approvalState.approvals,
     active_approval_ids: approvalState.activeApprovalIds,
     approval_access_message: approvalState.approvalAccessMessage,
-    comments: (commentsResult.data ?? []).map((comment) =>
-      projectExternalComment(comment)
+    comments: externalComments.map((comment) =>
+      projectExternalComment(
+        comment,
+        typeof comment.id === "string"
+          ? annotationsByCommentId.get(comment.id) ?? []
+          : [],
+      )
     ),
     permissions: invite.permissions,
     share_intent: deriveShareIntent({
@@ -159,7 +269,11 @@ async function getReview(_req: Request, { params }: { params: Promise<{ token: s
     }),
     reviewer_name: invite.reviewer_name,
     expires_at: invite.expires_at,
+    delivery,
     download_enabled: invite.download_enabled ?? false,
+    download_url: invite.download_enabled
+      ? `${sourceMediaUrl}?download=1`
+      : null,
     watermark_enabled: invite.watermark_enabled ?? true,
     watermark_text: invite.watermark_text,
     workflow_mode: workflowResult.data?.mode ?? null,

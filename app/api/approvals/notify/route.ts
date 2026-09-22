@@ -3,7 +3,8 @@ import { apiError, apiJson, backendUnavailable } from "@/lib/api/responses";
 import { requireAuth } from "@/lib/auth";
 import { getAssetAccess } from "@/lib/access-control";
 import { getSupabase } from "@/lib/supabase";
-import { sendEmail, emailTemplates, getBaseUrl } from "@/lib/email";
+import { sendEmail, emailTemplates } from "@/lib/email";
+import { getReviewSiteUrl } from "@/lib/surface-origins";
 import { createApprovalInvite } from "@/lib/review-invites";
 
 export async function POST(req: Request) {
@@ -81,7 +82,7 @@ export async function POST(req: Request) {
     reviewerEmail: step.assignee_email,
     createdBy: user.id,
   });
-  const reviewUrl = `${getBaseUrl()}/review/${reviewInvite.token}`;
+  const reviewUrl = `${getReviewSiteUrl()}/review/${reviewInvite.token}`;
 
   const emailPayload = emailTemplates.approvalRequest(
     step.assignee_email,

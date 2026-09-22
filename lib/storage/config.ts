@@ -1,6 +1,7 @@
 import { isAbsolute, join, resolve } from "node:path";
 
 import type { StorageProviderKind } from "./contracts";
+import { CLAMAV_MAX_SCAN_BYTES } from "./scanner-limits.ts";
 
 const DEFAULT_MAX_UPLOAD_BYTES = 12n * 1024n * 1024n * 1024n;
 const DEFAULT_MAX_CHUNK_BYTES = 64n * 1024n * 1024n;
@@ -142,6 +143,20 @@ export function readStorageConfig(
     issues.push("allow-local-demo malware policy is restricted to the local provider");
   }
 
+  const requestedMaxUploadBytes = parsePositiveBigInt(
+    env.CODELIVER_STORAGE_MAX_UPLOAD_BYTES,
+    DEFAULT_MAX_UPLOAD_BYTES,
+    "CODELIVER_STORAGE_MAX_UPLOAD_BYTES",
+    issues
+  );
+  // Both TUS admission and storage readiness consume this effective limit.
+  // Local-demo bypass and unconfigured scanner policies retain their budgets.
+  const scannerCeiling = BigInt(CLAMAV_MAX_SCAN_BYTES);
+  const maxUploadBytes =
+    malwarePolicy === "required" && env.CODELIVER_CLAMSCAN_PATH?.trim()
+      ? requestedMaxUploadBytes < scannerCeiling ? requestedMaxUploadBytes : scannerCeiling
+      : requestedMaxUploadBytes;
+
   return {
     provider,
     providerWasExplicit: provider !== "unconfigured",
@@ -151,12 +166,7 @@ export function readStorageConfig(
     driveFolderId: env.GOOGLE_DRIVE_FOLDER_ID?.trim() || null,
     driveCredentialMode: credentials.mode,
     driveCredentialsValid: credentials.valid,
-    maxUploadBytes: parsePositiveBigInt(
-      env.CODELIVER_STORAGE_MAX_UPLOAD_BYTES,
-      DEFAULT_MAX_UPLOAD_BYTES,
-      "CODELIVER_STORAGE_MAX_UPLOAD_BYTES",
-      issues
-    ),
+    maxUploadBytes,
     maxChunkBytes: parsePositiveBigInt(
       env.CODELIVER_STORAGE_MAX_CHUNK_BYTES,
       DEFAULT_MAX_CHUNK_BYTES,

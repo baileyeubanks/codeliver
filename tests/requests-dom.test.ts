@@ -90,6 +90,49 @@ const statusChipModule = evaluateModule(
 const formModule = loadComponent("components/requests/RequestForm.tsx");
 const threadModule = loadComponent("components/requests/RequestThread.tsx");
 
+function loadPortalRequestNew(demoMode: boolean) {
+  return evaluateModule(
+    transpileTsModule(resolve(repositoryRoot, "components/requests/PortalRequestNew.tsx")),
+    (specifier) => {
+      if (specifier === "react" || specifier === "react/jsx-runtime") return require(specifier);
+      if (specifier === "next/link") {
+        return {
+          __esModule: true,
+          default: ({ href, children, ...rest }: Record<string, unknown>) =>
+            React.createElement("a", { href, ...rest }, children as React.ReactNode),
+        };
+      }
+      if (specifier === "@/components/portal/PortalShell") {
+        return {
+          __esModule: true,
+          default: ({ children }: Record<string, unknown>) => React.createElement("main", null, children),
+        };
+      }
+      if (specifier === "@/lib/demo/mode") return { useDemoMode: () => demoMode };
+      if (specifier === "@/lib/demo/workspace-store") {
+        return {
+          submitDemoRequest: () => {
+            throw new Error("A non-demo route must never submit local intake");
+          },
+          useDemoWorkspace: () => ({
+            shareLinks: [], contacts: [], organizations: [], assets: [],
+          }),
+        };
+      }
+      if (specifier === "@/lib/portal/views.ts") {
+        return { resolveClientIdentity: () => ({ organizationName: null, contactName: null }) };
+      }
+      if (specifier === "./RequestForm") {
+        return {
+          __esModule: true,
+          default: () => React.createElement("form", { "data-testid": "request-form" }),
+        };
+      }
+      throw new Error(`Unexpected PortalRequestNew import: ${specifier}`);
+    },
+  ) as { default: ComponentType<Record<string, never>> };
+}
+
 const RequestForm = formModule.default as ComponentType<{
   assets: { id: string; title: string }[];
   onSubmit: () => { ok: boolean };
@@ -195,6 +238,18 @@ test("form controls carry labels and 44px submit target", () => {
     assert.match(markup, new RegExp(`aria-label="${label}"`));
   }
   assert.match(markup, /data-testid="request-submit"[^>]*class="[^"]*min-h-11/);
+  assert.match(markup, />Save request locally</);
+  assert.match(markup, /Saved in this browser only — it is not sent to the production team\./);
+});
+
+test("non-demo request route exposes no local submission handler", () => {
+  const PortalRequestNew = loadPortalRequestNew(false).default;
+  const markup = renderToStaticMarkup(React.createElement(PortalRequestNew));
+  assert.match(markup, /data-testid="portal-request-unavailable"/);
+  assert.match(markup, /Nothing has been saved or sent\./);
+  assert.match(markup, /href="\/portal"/);
+  assert.doesNotMatch(markup, /data-testid="request-form"/);
+  assert.doesNotMatch(markup, /Save request locally/);
 });
 
 /* ── RequestThread ─────────────────────────────────────────────────────── */

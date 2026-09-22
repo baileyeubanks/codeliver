@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   beginStroke,
+  canAppendReviewAnnotation,
   endStroke,
   moveStroke,
   normalizePoint,
@@ -38,6 +39,7 @@ export default function AnnotationCanvas({
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [size, setSize] = useState({ width: 0, height: 0 });
   const [draft, setDraft] = useState<AnnotationData | null>(null);
+  const strokeLimitReached = !canAppendReviewAnnotation(strokes.length);
 
   useEffect(() => {
     const container = containerRef.current;
@@ -84,7 +86,7 @@ export default function AnnotationCanvas({
   }, []);
 
   function handlePointerDown(event: React.PointerEvent<HTMLDivElement>) {
-    if (!active || event.button !== 0) return;
+    if (!active || strokeLimitReached || event.button !== 0) return;
     const point = pointFromEvent(event);
     if (!point) return;
     event.currentTarget.setPointerCapture(event.pointerId);
@@ -112,8 +114,15 @@ export default function AnnotationCanvas({
       data-annotation-canvas
       data-draw-active={active ? "true" : "false"}
       data-stroke-count={strokes.length}
+      data-stroke-limit-reached={strokeLimitReached ? "true" : "false"}
       data-replay-count={replay.length}
-      className={`absolute inset-0 ${active ? "cursor-crosshair touch-none" : "pointer-events-none"}`}
+      className={`absolute inset-0 ${
+        active
+          ? strokeLimitReached
+            ? "cursor-not-allowed touch-none"
+            : "cursor-crosshair touch-none"
+          : "pointer-events-none"
+      }`}
       onPointerDown={handlePointerDown}
       onPointerMove={handlePointerMove}
       onPointerUp={handlePointerUp}

@@ -34,6 +34,7 @@ import {
   useDemoWorkspace,
 } from "@/lib/demo/workspace-store";
 import { seedTranscriptSegments } from "@/lib/demo/record-seed";
+import { sourceCatalog } from "@/lib/demo/source-catalog";
 import { formatCents } from "@/lib/covideopro/payments.ts";
 import { documentTotals, renderInvoice, renderQuoteCover } from "@/lib/covideopro/documents.ts";
 import { proposeRadioCut } from "@/lib/covideopro/reasoning.ts";
@@ -41,6 +42,7 @@ import { captionsFilename, segmentsToSrt, segmentsToVtt } from "@/lib/covideopro
 import { projectShotRollup } from "@/lib/covideopro/shots.ts";
 import { qcChecklistFor, qcProgress } from "@/lib/covideopro/qc.ts";
 import { buildDeliveryManifest } from "@/lib/covideopro/manifest.ts";
+import { resolveSequenceClipMedia } from "@/lib/projects/sequence-playback.ts";
 import SequenceTimeline from "@/components/projects/SequenceTimeline";
 import EstimateLineEditor from "@/components/projects/EstimateLineEditor";
 import {
@@ -50,6 +52,7 @@ import {
   proposalEstimateTotal,
   proposalTotals,
   type PlanItem,
+  type SequenceClip,
 } from "@/lib/covideopro/record.ts";
 
 interface SectionProps {
@@ -197,6 +200,7 @@ export function ProposalSection({ projectId, demoMode, onNotice }: SectionProps)
   );
   const proposal = currentProposal(proposals);
   const [editing, setEditing] = useState(false);
+  const [editingEstimate, setEditingEstimate] = useState(false);
   const [form, setForm] = useState({ title: "", narrative: "" });
   const [docView, setDocView] = useState<{ kind: "quote" } | { kind: "invoice"; milestoneId: string } | null>(null);
   const docFrameRef = useRef<HTMLIFrameElement | null>(null);
@@ -275,7 +279,7 @@ export function ProposalSection({ projectId, demoMode, onNotice }: SectionProps)
       <header>
         <div>
           <h2>Proposal & estimate</h2>
-          <p>Versioned commercial scope. Approval advances the project to pre-production.</p>
+          <p>Versioned scope for this project. Commercial totals remain in CCO OS.</p>
         </div>
         {!editing ? (
           <span className="cockpit-record-actions">
@@ -317,7 +321,18 @@ export function ProposalSection({ projectId, demoMode, onNotice }: SectionProps)
           {proposal.narrative ? <p className="cockpit-record-narrative">{proposal.narrative}</p> : null}
 
           {proposal.status === "draft" ? (
-            <EstimateLineEditor key={`${proposal.id}-v${proposal.version}`} proposal={proposal} onNotice={onNotice} />
+            editingEstimate ? (
+              <section className="cockpit-record-form" aria-label="Estimate lines">
+                <div className="cockpit-record-form-actions">
+                  <button type="button" onClick={() => setEditingEstimate(false)}>Done editing lines</button>
+                </div>
+                <EstimateLineEditor key={`${proposal.id}-v${proposal.version}`} proposal={proposal} onNotice={onNotice} />
+              </section>
+            ) : (
+              <div className="cockpit-record-form-actions">
+                <button type="button" onClick={() => setEditingEstimate(true)}>Review or edit estimate lines</button>
+              </div>
+            )
           ) : (
             <table className="cockpit-record-table">
               <thead>
@@ -406,6 +421,7 @@ export function PlanSection({ projectId, demoMode, onNotice }: SectionProps) {
     [workspace.planItems, projectId],
   );
   const [form, setForm] = useState({ kind: "task" as PlanItem["kind"], title: "", date: "", assignee: "" });
+  const [adding, setAdding] = useState(false);
 
   if (!demoMode) return <SectionEmpty title="Plan" body="Planning is available in the local workspace." />;
 
@@ -422,6 +438,7 @@ export function PlanSection({ projectId, demoMode, onNotice }: SectionProps) {
       return;
     }
     setForm({ kind: "task", title: "", date: "", assignee: "" });
+    setAdding(false);
     onNotice("Plan item added.");
   }
 
@@ -436,11 +453,14 @@ export function PlanSection({ projectId, demoMode, onNotice }: SectionProps) {
       <header>
         <div>
           <h2>Production plan</h2>
-          <p>Shoot days, milestones, and tasks with explicit status — the pre-production truth for this record.</p>
+          <p>Schedule, milestones, and tasks for pre-production.</p>
         </div>
+        <button type="button" onClick={() => setAdding((open) => !open)}>
+          <Plus size={16} /> {adding ? "Close" : "Add plan item"}
+        </button>
       </header>
 
-      <form className="cockpit-record-form" aria-label="Add plan item" onSubmit={(event) => { event.preventDefault(); addItem(); }}>
+      {adding ? <form className="cockpit-record-form" aria-label="Add plan item" onSubmit={(event) => { event.preventDefault(); addItem(); }}>
         <div className="cockpit-record-form-grid">
           <select className="input" value={form.kind} onChange={(event) => setForm((current) => ({ ...current, kind: event.target.value as PlanItem["kind"] }))} aria-label="Kind">
             <option value="task">Task</option>
@@ -453,8 +473,9 @@ export function PlanSection({ projectId, demoMode, onNotice }: SectionProps) {
         </div>
         <div className="cockpit-record-form-actions">
           <button type="submit"><Plus size={15} /> Add {form.kind.replace("_", " ")}</button>
+          <button type="button" onClick={() => setAdding(false)}>Cancel</button>
         </div>
-      </form>
+      </form> : null}
 
       {groups.map((group) => {
         const groupItems = items.filter((item) => item.kind === group.kind);
@@ -666,6 +687,12 @@ export function SequencesSection({ projectId, demoMode, onNotice }: SectionProps
   const [picked, setPicked] = useState<ReadonlySet<string>>(new Set());
   const [name, setName] = useState("");
   const [renderingId, setRenderingId] = useState<string | null>(null);
+  const [activeSequenceId, setActiveSequenceId] = useState<string | null>(null);
+  const resolveSequenceMedia = useMemo(
+    () => (clip: SequenceClip) =>
+      resolveSequenceClipMedia({ clip, assets: workspace.assets, versions: workspace.mediaVersions }),
+    [workspace.assets, workspace.mediaVersions],
+  );
 
   if (!demoMode) return <SectionEmpty title="Sequences" body="Sequences are available in the local workspace." />;
 
@@ -722,9 +749,16 @@ export function SequencesSection({ projectId, demoMode, onNotice }: SectionProps
     onNotice(result.ok ? "Select created from transcript." : result.reason);
   }
 
-  const transcriptAssets = workspace.assets
+  // Imported source workspaces carry only source-backed records. Fixture transcript
+  // seeds must never attach to a coincidentally named imported asset.
+  const transcriptAssets = sourceCatalog ? [] : workspace.assets
     .filter((asset) => asset.project_id === projectId && seedTranscriptSegments[asset.id]?.length)
     .map((asset) => ({ asset, segments: seedTranscriptSegments[asset.id] }));
+  const activeSequence = sequences.find((sequence) => sequence.id === activeSequenceId) ?? sequences[0] ?? null;
+  const activeClips = activeSequence
+    ? workspace.sequenceClips.filter((clip) => clip.sequence_id === activeSequence.id)
+    : [];
+  const activeDuration = activeClips.reduce((max, clip) => Math.max(max, clip.timeline_out_seconds), 0);
 
   function proposeCut() {
     const pool = transcriptAssets.flatMap(({ asset, segments }) =>
@@ -794,7 +828,7 @@ export function SequencesSection({ projectId, demoMode, onNotice }: SectionProps
       <header>
         <div>
           <h2>Sequences</h2>
-          <p>Real assemblies: clips with source and record times, built from transcript selects.</p>
+          <p>Review one assembly at a time with its exact source and record ranges.</p>
         </div>
       </header>
 
@@ -803,32 +837,53 @@ export function SequencesSection({ projectId, demoMode, onNotice }: SectionProps
           const clips = workspace.sequenceClips.filter((clip) => clip.sequence_id === sequence.id);
           const duration = clips.reduce((max, clip) => Math.max(max, clip.timeline_out_seconds), 0);
           return (
-            <div key={sequence.id}>
-              <article style={{ gridTemplateColumns: "34px minmax(0,1fr) auto auto" }}>
-                <span className="cockpit-list-icon"><ListChecks size={18} /></span>
-                <div>
-                  <strong>{sequence.name}</strong>
-                  <small>
-                    v{sequence.version} · {clips.length} clips · {formatSeconds(duration)} · {sequence.created_from === "transcript-assembly" ? "transcript assembly" : "manual"}
-                  </small>
-                </div>
-                <span className={sequence.status === "approved" ? "status-active" : "status-pending"}>{sequence.status.replace("_", " ")}</span>
-                <button type="button" disabled={renderingId === sequence.id || clips.length === 0} onClick={() => void renderForReview(sequence)}>
-                  {renderingId === sequence.id ? "Rendering…" : "Render to review"}
-                </button>
-                {sequence.status === "draft" ? <button type="button" onClick={() => review(sequence.id)}>Send to review</button> : null}
-              </article>
-              <SequenceTimeline
-                sequence={sequence}
-                clips={clips}
-                assets={workspace.assets}
-                onNotice={onNotice}
-              />
-            </div>
+            <article key={sequence.id} style={{ gridTemplateColumns: "34px minmax(0,1fr) auto" }}>
+              <span className="cockpit-list-icon"><ListChecks size={18} /></span>
+              <button
+                type="button"
+                onClick={() => setActiveSequenceId(sequence.id)}
+                aria-pressed={activeSequence?.id === sequence.id}
+                className="min-w-0 text-left"
+              >
+                <strong>{sequence.name}</strong>
+                <small>
+                  v{sequence.version} · {clips.length} clips · {formatSeconds(duration)} · {sequence.created_from === "transcript-assembly" ? "transcript assembly" : "manual"}
+                </small>
+              </button>
+              <span className={sequence.status === "approved" ? "status-active" : "status-pending"}>{sequence.status.replace("_", " ")}</span>
+            </article>
           );
         })}
-        {sequences.length === 0 ? <p className="cockpit-rail-empty">No sequences yet — assemble one from the selects below.</p> : null}
+        {sequences.length === 0 ? (
+          <p className="cockpit-rail-empty">
+            {sourceCatalog
+              ? "No local sequence assembly or transcript selects are recorded for this imported project."
+              : "No sequences yet — assemble one from the selects below."}
+          </p>
+        ) : null}
       </section>
+
+      {activeSequence ? (
+        <section aria-label={`Active sequence ${activeSequence.name}`} className="cockpit-record-form" style={{ marginTop: 10 }}>
+          <div className="cockpit-record-form-grid" style={{ gridTemplateColumns: "minmax(0,1fr) auto auto" }}>
+            <div>
+              <strong>{activeSequence.name}</strong>
+              <small>v{activeSequence.version} · {activeClips.length} clips · {formatSeconds(activeDuration)}</small>
+            </div>
+            <button type="button" disabled={renderingId === activeSequence.id || activeClips.length === 0} onClick={() => void renderForReview(activeSequence)}>
+              {renderingId === activeSequence.id ? "Rendering…" : "Render to review"}
+            </button>
+            {activeSequence.status === "draft" ? <button type="button" onClick={() => review(activeSequence.id)}>Send to review</button> : null}
+          </div>
+          <SequenceTimeline
+            key={activeSequence.id}
+            sequence={activeSequence}
+            clips={activeClips}
+            resolveMedia={resolveSequenceMedia}
+            onNotice={onNotice}
+          />
+        </section>
+      ) : null}
 
       <h3 className="cockpit-record-group-title">Selects ({selects.length})</h3>
       <section aria-label="Selects" className="cockpit-table-list">
@@ -870,7 +925,13 @@ export function SequencesSection({ projectId, demoMode, onNotice }: SectionProps
             </article>
           );
         })}
-        {selects.length === 0 ? <p className="cockpit-rail-empty">No selects yet — mark ranges from the transcript workbench or review timeline.</p> : null}
+        {selects.length === 0 ? (
+          <p className="cockpit-rail-empty">
+            {sourceCatalog
+              ? "No transcript-backed or manual selects are recorded for this imported project."
+              : "No selects yet — mark ranges from the transcript workbench or review timeline."}
+          </p>
+        ) : null}
       </section>
 
       {transcriptAssets.length > 0 ? (
@@ -927,12 +988,21 @@ export function ReviewConsolidationSection({ projectId, demoMode, onNotice }: Se
   if (!demoMode) return null;
 
   const projectAssets = workspace.assets.filter((asset) => asset.project_id === projectId);
-  const openCommentsByAsset = new Map<string, typeof workspace.reviewComments>();
+  const openCommentsByVersion = new Map<
+    string,
+    { assetId: string; versionId: string | null; comments: typeof workspace.reviewComments }
+  >();
   for (const comment of workspace.reviewComments) {
     if (comment.project_id !== projectId || comment.status !== "open") continue;
-    const list = openCommentsByAsset.get(comment.asset_id) ?? [];
-    list.push(comment);
-    openCommentsByAsset.set(comment.asset_id, list);
+    const versionId = comment.version_id ?? null;
+    const key = `${comment.asset_id}\u0000${versionId ?? "asset-level"}`;
+    const group = openCommentsByVersion.get(key) ?? {
+      assetId: comment.asset_id,
+      versionId,
+      comments: [],
+    };
+    group.comments.push(comment);
+    openCommentsByVersion.set(key, group);
   }
   const requests = workspace.revisionRequests
     .filter((request) => request.project_id === projectId)
@@ -978,19 +1048,20 @@ export function ReviewConsolidationSection({ projectId, demoMode, onNotice }: Se
         {requests.length === 0 ? <p className="cockpit-rail-empty">No revision rounds yet.</p> : null}
       </div>
 
-      {[...openCommentsByAsset.entries()].map(([assetId, comments]) => {
+      {[...openCommentsByVersion.values()].map(({ assetId, versionId, comments }) => {
         const asset = projectAssets.find((candidate) => candidate.id === assetId);
         return (
-          <div key={assetId} className="cockpit-record-form" style={{ marginTop: 10 }}>
+          <div key={`${assetId}-${versionId ?? "asset-level"}`} className="cockpit-record-form" style={{ marginTop: 10 }}>
             <div className="cockpit-record-form-grid" style={{ gridTemplateColumns: "minmax(0,1fr) auto" }}>
               <p style={{ margin: 0, fontSize: 11, color: "var(--cockpit-copy)" }}>
-                <strong>{asset?.title ?? assetId}</strong> — {comments.length} open comment{comments.length === 1 ? "" : "s"} scattered across the review. Consolidate them into one actionable round instead of email threads.
+                <strong>{asset?.title ?? assetId}</strong>{versionId ? " · one exact cut" : ""} — {comments.length} open comment{comments.length === 1 ? "" : "s"} scattered across the review. Consolidate them into one actionable round instead of email threads.
               </p>
               <div className="cockpit-record-form-actions">
                 <button type="button" onClick={() => {
                   const result = addRevisionRequest({
                     projectId,
                     assetId,
+                    versionId,
                     summary: comments.map((comment) => comment.body).join(" · ").slice(0, 220),
                     commentIds: comments.map((comment) => comment.id),
                   });

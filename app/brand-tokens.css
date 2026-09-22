@@ -34,6 +34,8 @@
   --cvp-border: #cbd5e1;          /* gray-300 */
 
   /* Status — semantic only (health), never phase identity */
+  --cvp-success-ink: #15803d;   /* small status labels on white */
+  --cvp-amber-ink: #92400e;
   --cvp-success: #16a34a;
   --cvp-success-bright: #22c55e;
   --cvp-red: #dc2626;

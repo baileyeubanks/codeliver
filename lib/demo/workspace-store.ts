@@ -21,6 +21,7 @@ import type {
   ApprovalStep,
   WorkflowMode,
 } from "@/lib/types/codeliver";
+import { parseExternalAnnotations } from "@/lib/review/annotation-persistence";
 import {
   PROJECT_STAGES,
   type Brief,
@@ -128,9 +129,19 @@ import {
   type RequestStatus,
 } from "@/lib/requests/lifecycle.ts";
 import { shapeWorkOrder, type WorkOrderDeliverable } from "@/lib/requests/work-order.ts";
+import { createDemoApprovalRound } from "@/lib/review/demo-approval-round.ts";
+import { resolveDemoCurrentVersionIdentity } from "@/lib/review/demo-version-authority.ts";
+import {
+  createInitialDemoMediaVersion,
+  currentDemoMediaVersion,
+  nextDemoMediaVersion,
+  type DemoMediaVersion,
+} from "./media-version-authority.ts";
 
-export const DEMO_WORKSPACE_STORAGE_KEY = "co-videopro.workspace.v2";
-export const LEGACY_DEMO_WORKSPACE_STORAGE_KEYS = ["co-deliver.demo-workspace.v1"];
+import { sourceCatalog, sourceMediaUrl, sourceWorkspace, serializeSourceWorkspace, unwrapSourceWorkspace } from "./source-catalog.ts";
+
+export const DEMO_WORKSPACE_STORAGE_KEY = sourceCatalog ? "co-videopro.schneider-source.v1" : "co-videopro.workspace.v2";
+export const LEGACY_DEMO_WORKSPACE_STORAGE_KEYS = sourceCatalog ? [] : ["co-deliver.demo-workspace.v1"];
 
 export type DemoSharePermission = "view" | "comment" | "approve";
 export type DemoShareNotificationChannel = "email" | "sms" | "imessage";
@@ -158,6 +169,10 @@ export interface DemoShareLink {
   batch_id?: string | null;
   notification_channels?: DemoShareNotificationChannel[];
   notification_status?: "links_only" | "dry_run";
+  /** Immutable browser-local or source/seed version selected when this link was made. */
+  version_id: string | null;
+  /** An old multi-asset link without one exact version cannot be safely replayed. */
+  version_binding_status: "bound" | "reissue_required";
   is_active: boolean;
   public_url: string;
 }
@@ -178,16 +193,21 @@ export interface DemoReviewComment {
   asset_id: string;
   version_id?: string | null;
   review_invite_id?: string | null;
+  parent_id?: string | null;
   author_name: string;
   author_email?: string | null;
   body: string;
   time_seconds: number;
   pin_x?: number;
   pin_y?: number;
-  /** P17: annotation stroke attached to the note; null/absent = pin-only comment. */
+  /** Legacy single-stroke records remain readable after the array migration. */
   drawing?: AnnotationData | null;
+  /** Normalized, bounded vector strokes. Raster previews stay session-only. */
+  annotations?: AnnotationData[];
   status: "open" | "resolved";
   created_at: string;
+  updated_at?: string;
+  resolved_at?: string | null;
 }
 
 export interface DemoPublicReviewState {
@@ -211,6 +231,7 @@ export interface DemoReviewCutMarker {
   id: string;
   project_id: string;
   asset_id: string;
+  version_id: string;
   time_seconds: number;
   created_at: string;
 }
@@ -281,6 +302,8 @@ export interface DemoWorkspaceState {
   projects: DemoProject[];
   folders: FolderNode[];
   assets: MediaAsset[];
+  /** Browser-local cuts and catalog-backed Imported file bases. Seeded fixtures have none. */
+  mediaVersions: DemoMediaVersion[];
   archivedAssets: MediaAsset[];
   trashedAssets: MediaAsset[];
   shareLinks: DemoShareLink[];
@@ -431,7 +454,7 @@ function cloneSettings(settings = DEFAULT_SETTINGS): DemoWorkspaceSettings {
 }
 
 export function createInitialDemoWorkspace(): DemoWorkspaceState {
-  return {
+  const workspace: DemoWorkspaceState = {
     schemaVersion: 2,
     session: {
       authenticated: true,
@@ -446,6 +469,7 @@ export function createInitialDemoWorkspace(): DemoWorkspaceState {
       // P26: appended real-file-backed library seeds (ica-ceo-hero, ambient loop).
       ...demoLibrarySeedAssets.map((asset) => ({ ...asset })),
     ],
+    mediaVersions: [],
     archivedAssets: [],
     trashedAssets: [],
     shareLinks: [
@@ -464,6 +488,8 @@ export function createInitialDemoWorkspace(): DemoWorkspaceState {
         require_name: true,
         allow_comments: true,
         allow_downloads: true,
+        version_id: "demo-version-5",
+        version_binding_status: "bound",
         is_active: true,
         public_url:
           "/review/demo?demo=1&asset=ica-roadshow-final&intent=approval_needed&share=demo-ica-final",
@@ -483,7 +509,12 @@ export function createInitialDemoWorkspace(): DemoWorkspaceState {
         require_name: true,
         allow_comments: true,
         allow_downloads: false,
-        is_active: true,
+        // This old multi-asset fixture cannot be assigned one exact review
+        // version. Keep it visible as reissue-required rather than allowing
+        // either asset to silently follow a newer cut.
+        version_id: null,
+        version_binding_status: "reissue_required",
+        is_active: false,
         public_url:
           "/review/demo?demo=1&asset=denie-mcdonald-v4&assets=denie-mcdonald-v4%2Ccharles-drummond-v5&intent=client_review&share=demo-ceraweek-cuts",
       },
@@ -701,6 +732,11 @@ export function createInitialDemoWorkspace(): DemoWorkspaceState {
     })),
     performanceMetrics: seedDemoPerformanceMetrics().map((metric) => ({ ...metric })),
   };
+  const initial = sourceCatalog ? sourceWorkspace(workspace, sourceCatalog) : workspace;
+  return {
+    ...initial,
+    mediaVersions: normalizeRestoredDemoMediaVersions(initial.mediaVersions, initial.assets),
+  };
 }
 
 const SERVER_SNAPSHOT = createInitialDemoWorkspace();
@@ -759,11 +795,427 @@ function normalizeRestoredDemoAssets(assets: MediaAsset[]) {
 /** P26: append the real-file-backed library seeds to restored workspaces that
  * predate them (append-only; existing assets are never rewritten). */
 function withP26LibrarySeedAssets(assets: MediaAsset[]): MediaAsset[] {
+  if (sourceCatalog) return assets;
   const missing = demoLibrarySeedAssets.filter(
     (seed) => !assets.some((asset) => asset.id === seed.id),
   );
   if (missing.length === 0) return assets;
   return [...assets, ...missing.map((seed) => ({ ...seed }))];
+}
+
+function isSourceBackedDemoAsset(assetId: string) {
+  return Boolean(sourceCatalog?.assets.some((candidate) => candidate.id === assetId));
+}
+
+function sourceCatalogAsset(assetId: string) {
+  return sourceCatalog?.assets.find((candidate) => candidate.id === assetId) ?? null;
+}
+
+/** Local upload ids are the only browser records with a blob authority. */
+function isBrowserLocalDemoAsset(asset: MediaAsset) {
+  return asset.id.startsWith("local-upload-") && !isSourceBackedDemoAsset(asset.id);
+}
+
+function isVersionedDemoAsset(asset: MediaAsset) {
+  return isBrowserLocalDemoAsset(asset) || isSourceBackedDemoAsset(asset.id);
+}
+
+/**
+ * A source import contributes exactly one measured base record. It is not a
+ * fabricated V1–Vn history: the source catalog itself is its authority.
+ */
+function importedSourceBaseMediaVersion(asset: MediaAsset): DemoMediaVersion | null {
+  const source = sourceCatalogAsset(asset.id);
+  if (!source || !Number.isFinite(Date.parse(asset.created_at))) return null;
+  return {
+    id: `source-version-${asset.id}`,
+    asset_id: asset.id,
+    version_number: 1,
+    media_blob_id: null,
+    source_url: sourceMediaUrl(source.id),
+    thumbnail_blob_id: null,
+    file_name: null,
+    file_type: "video",
+    file_size: source.bytes,
+    duration_seconds: source.duration_seconds,
+    resolution: `${source.width} × ${source.height}`,
+    source_label: "Imported file",
+    created_at: source.created_at,
+    is_current: true,
+  };
+}
+
+function legacyLocalMediaVersion(asset: MediaAsset): DemoMediaVersion | null {
+  if (!isBrowserLocalDemoAsset(asset) || !Number.isFinite(Date.parse(asset.created_at))) {
+    return null;
+  }
+
+  // Before mediaVersions existed, the browser cache used the asset id as its
+  // blob key. Preserve that known storage mapping, but do not invent a source
+  // filename or byte count that was never saved.
+  return {
+    id: `local-version-${asset.id}`,
+    asset_id: asset.id,
+    version_number: 1,
+    media_blob_id: asset.id,
+    source_url: null,
+    thumbnail_blob_id: asset.demo_thumbnail_id ?? null,
+    file_name: null,
+    file_type: asset.file_type,
+    file_size: null,
+    duration_seconds: asset.duration_seconds ?? null,
+    resolution: null,
+    source_label: null,
+    created_at: asset.created_at,
+    is_current: true,
+  };
+}
+
+function restoredDemoMediaVersion(
+  value: unknown,
+  knownAssets: ReadonlyMap<string, MediaAsset>,
+): DemoMediaVersion | null {
+  if (!value || typeof value !== "object") return null;
+  const record = value as Record<string, unknown>;
+  const id = typeof record.id === "string" ? record.id.trim() : "";
+  const assetId = typeof record.asset_id === "string" ? record.asset_id.trim() : "";
+  const mediaBlobId = typeof record.media_blob_id === "string" ? record.media_blob_id.trim() : null;
+  const versionNumber = record.version_number;
+  const createdAt = typeof record.created_at === "string" ? record.created_at : "";
+  const asset = knownAssets.get(assetId);
+  if (
+    !id ||
+    !asset ||
+    !isVersionedDemoAsset(asset) ||
+    typeof versionNumber !== "number" ||
+    !Number.isSafeInteger(versionNumber) ||
+    versionNumber < 1 ||
+    !Number.isFinite(Date.parse(createdAt)) ||
+    typeof record.file_type !== "string" ||
+    !record.file_type.trim()
+  ) {
+    return null;
+  }
+  // The measured source base is reconstructed from the catalog below rather
+  // than trusting stale browser JSON. Every later source revision requires its
+  // own browser blob key.
+  if (isSourceBackedDemoAsset(asset.id) && versionNumber === 1) return null;
+  if (!mediaBlobId) return null;
+  const fileSize = record.file_size;
+  if (
+    fileSize !== null &&
+    fileSize !== undefined &&
+    (typeof fileSize !== "number" || !Number.isSafeInteger(fileSize) || fileSize < 0)
+  ) return null;
+  const duration = record.duration_seconds;
+  if (
+    duration !== null &&
+    duration !== undefined &&
+    (typeof duration !== "number" || !Number.isFinite(duration) || duration < 0)
+  ) {
+    return null;
+  }
+
+  return {
+    id,
+    asset_id: assetId,
+    version_number: versionNumber,
+    media_blob_id: mediaBlobId,
+    source_url: null,
+    thumbnail_blob_id:
+      typeof record.thumbnail_blob_id === "string" && record.thumbnail_blob_id.trim()
+        ? record.thumbnail_blob_id.trim()
+        : null,
+    file_name:
+      typeof record.file_name === "string" && record.file_name.trim()
+        ? record.file_name.trim()
+        : null,
+    file_type: record.file_type.trim(),
+    file_size: fileSize === null ? null : typeof fileSize === "number" ? fileSize : null,
+    duration_seconds: typeof duration === "number" ? duration : null,
+    resolution:
+      typeof record.resolution === "string" && record.resolution.trim()
+        ? record.resolution.trim()
+        : null,
+    source_label: null,
+    created_at: createdAt,
+    is_current: record.is_current === true,
+  };
+}
+
+function normalizeRestoredDemoMediaVersions(raw: unknown, assets: MediaAsset[]) {
+  const assetsById = new Map(assets.map((asset) => [asset.id, asset]));
+  const rawRecords = Array.isArray(raw) ? raw : [];
+  const ambiguousAssetIds = new Set<string>();
+  const assetsWithExplicitCurrentFlag = new Set<string>();
+  const rawIds = new Map<string, string>();
+  const rawAssetVersions = new Map<string, string>();
+  for (const value of rawRecords) {
+    if (!value || typeof value !== "object") continue;
+    const record = value as Record<string, unknown>;
+    const assetId = typeof record.asset_id === "string" ? record.asset_id.trim() : "";
+    const id = typeof record.id === "string" ? record.id.trim() : "";
+    const versionNumber = record.version_number;
+    if (!assetId) continue;
+    if (Object.prototype.hasOwnProperty.call(record, "is_current")) {
+      assetsWithExplicitCurrentFlag.add(assetId);
+    }
+    if (id) {
+      const priorAssetId = rawIds.get(id);
+      if (priorAssetId) {
+        ambiguousAssetIds.add(priorAssetId);
+        ambiguousAssetIds.add(assetId);
+      } else {
+        rawIds.set(id, assetId);
+      }
+    }
+    if (typeof versionNumber === "number" && Number.isSafeInteger(versionNumber)) {
+      const key = `${assetId}\u0000${versionNumber}`;
+      const priorAssetId = rawAssetVersions.get(key);
+      if (priorAssetId) {
+        ambiguousAssetIds.add(priorAssetId);
+        ambiguousAssetIds.add(assetId);
+      } else {
+        rawAssetVersions.set(key, assetId);
+      }
+    }
+  }
+  const rawVersionedAssetIds = new Set(
+    rawRecords.flatMap((record) =>
+      record && typeof record === "object" && typeof (record as Record<string, unknown>).asset_id === "string"
+        ? [(record as Record<string, unknown>).asset_id as string]
+        : [],
+    ),
+  );
+  const seenIds = new Set<string>();
+  const seenAssetVersions = new Set<string>();
+  const restored = rawRecords
+    .map((record) => restoredDemoMediaVersion(record, assetsById))
+    .filter((record): record is DemoMediaVersion => record !== null && !ambiguousAssetIds.has(record.asset_id))
+    .sort((left, right) => {
+      if (left.asset_id !== right.asset_id) return left.asset_id.localeCompare(right.asset_id);
+      if (left.version_number !== right.version_number) return left.version_number - right.version_number;
+      return left.created_at.localeCompare(right.created_at);
+    })
+    .filter((record) => {
+      const assetVersion = `${record.asset_id}\u0000${record.version_number}`;
+      if (seenIds.has(record.id) || seenAssetVersions.has(assetVersion)) return false;
+      seenIds.add(record.id);
+      seenAssetVersions.add(assetVersion);
+      return true;
+    });
+
+  for (const asset of assets) {
+    if (isSourceBackedDemoAsset(asset.id)) {
+      const sourceBase = importedSourceBaseMediaVersion(asset);
+      if (sourceBase && !seenIds.has(sourceBase.id)) {
+        restored.push({
+          ...sourceBase,
+          // A valid explicit current V2 may supersede the measured base. A
+          // malformed V2 collection is handled below by retaining only base.
+          is_current: !restored.some(
+            (record) => record.asset_id === asset.id && record.version_number > 1 && record.is_current,
+          ),
+        });
+        seenIds.add(sourceBase.id);
+      }
+      continue;
+    }
+    if (
+      isBrowserLocalDemoAsset(asset) &&
+      !rawVersionedAssetIds.has(asset.id) &&
+      !restored.some((record) => record.asset_id === asset.id)
+    ) {
+      const legacy = legacyLocalMediaVersion(asset);
+      if (legacy && !seenIds.has(legacy.id)) {
+        restored.push(legacy);
+        seenIds.add(legacy.id);
+      }
+    }
+  }
+
+  const grouped = new Map<string, DemoMediaVersion[]>();
+  for (const record of restored) {
+    const list = grouped.get(record.asset_id) ?? [];
+    list.push(record);
+    grouped.set(record.asset_id, list);
+  }
+  const normalized: DemoMediaVersion[] = [];
+  for (const [assetId, records] of grouped) {
+    const sourceBase = records.find((record) => record.source_label === "Imported file") ?? null;
+    if (sourceBase) {
+      const uploaded = records.filter((record) => record.id !== sourceBase.id);
+      const uploadedCurrent = uploaded.filter((record) => record.is_current);
+      if (uploadedCurrent.length === 1) {
+        normalized.push(
+          ...records.map((record) => ({ ...record, is_current: record.id === uploadedCurrent[0].id })),
+        );
+      } else {
+        const hasUploadedHistory = rawRecords.some((value) => {
+          if (!value || typeof value !== "object") return false;
+          const record = value as Record<string, unknown>;
+          return record.asset_id === assetId && record.version_number !== 1;
+        });
+        // A known source remains a valid historical pin, but cannot silently
+        // become current when uploaded cuts lose or disagree on that authority.
+        normalized.push(...records.map((record) => ({
+          ...record,
+          is_current: !hasUploadedHistory && record.id === sourceBase.id,
+        })));
+      }
+      continue;
+    }
+
+    const current = records.filter((record) => record.is_current);
+    if (current.length === 1) {
+      normalized.push(...records.map((record) => ({ ...record, is_current: record.id === current[0].id })));
+    } else if (records.length === 1 && !assetsWithExplicitCurrentFlag.has(assetId)) {
+      // This is the only provable generic legacy representation.
+      normalized.push({ ...records[0], is_current: true });
+    }
+    // Multiple/no current flags are intentionally discarded. Selecting the
+    // numerically highest record would silently advance a review link.
+  }
+  return normalized;
+}
+
+export function resolveDemoWorkspaceCurrentVersionIdentity(
+  state: Pick<DemoWorkspaceState, "assets" | "mediaVersions">,
+  assetId: string,
+): { id: string; versionNumber: number } | null {
+  const asset = state.assets.find((candidate) => candidate.id === assetId);
+  if (!asset) return null;
+  const localVersion = currentDemoMediaVersion(state.mediaVersions, asset.id);
+  if (localVersion) {
+    return { id: localVersion.id, versionNumber: localVersion.version_number };
+  }
+  // Browser-local uploads and catalog imports must have a persisted/derived
+  // exact record. Do not reconstruct their current cut from a scalar count.
+  if (isBrowserLocalDemoAsset(asset) || isSourceBackedDemoAsset(asset.id)) return null;
+  return resolveDemoCurrentVersionIdentity({
+    assetId: asset.id,
+    versionCount: asset.version_count ?? 1,
+    sourceBacked: isSourceBackedDemoAsset(asset.id),
+  });
+}
+
+function hasExactDemoVersion(
+  state: Pick<DemoWorkspaceState, "assets" | "mediaVersions">,
+  assetId: string,
+  versionId: string,
+) {
+  const localVersions = state.mediaVersions.filter((candidate) => candidate.asset_id === assetId);
+  if (localVersions.length > 0) {
+    return localVersions.some((candidate) => candidate.id === versionId);
+  }
+  return resolveDemoWorkspaceCurrentVersionIdentity(state, assetId)?.id === versionId;
+}
+
+function normalizeRestoredDemoShareLinks(
+  raw: unknown,
+  state: Pick<DemoWorkspaceState, "assets" | "mediaVersions">,
+) {
+  if (!Array.isArray(raw)) return [] as DemoShareLink[];
+  return raw.map((value) => {
+    const link = value as DemoShareLink;
+    const assetIds = Array.isArray(link.asset_ids)
+      ? link.asset_ids.filter((assetId): assetId is string => typeof assetId === "string" && assetId.length > 0)
+      : [];
+    const requestedVersionId = typeof link.version_id === "string" && link.version_id.trim()
+      ? link.version_id.trim()
+      : null;
+    const resolvedVersionId = assetIds.length === 1
+      ? requestedVersionId ?? resolveDemoWorkspaceCurrentVersionIdentity(state, assetIds[0])?.id ?? null
+      : null;
+    const isBound = Boolean(
+      resolvedVersionId &&
+        assetIds.length === 1 &&
+        hasExactDemoVersion(state, assetIds[0], resolvedVersionId),
+    );
+
+    return {
+      ...link,
+      asset_ids: assetIds,
+      version_id: isBound ? resolvedVersionId : null,
+      version_binding_status: isBound ? "bound" as const : "reissue_required" as const,
+      // A link with an explicit but unknown version must never resolve to a
+      // newer cut. Multi-asset legacy links also need an explicit re-share.
+      is_active: isBound ? link.is_active === true : false,
+    };
+  });
+}
+
+function normalizeRestoredDemoCutMarkers(
+  raw: unknown,
+  state: Pick<DemoWorkspaceState, "assets" | "mediaVersions">,
+) {
+  if (!Array.isArray(raw)) return [] as DemoReviewCutMarker[];
+  return raw.flatMap((value) => {
+    if (!value || typeof value !== "object") return [];
+    const marker = value as Record<string, unknown>;
+    const assetId = typeof marker.asset_id === "string" ? marker.asset_id : "";
+    const versionId = typeof marker.version_id === "string" && marker.version_id.trim()
+      ? marker.version_id.trim()
+      : resolveDemoWorkspaceCurrentVersionIdentity(state, assetId)?.id ?? null;
+    if (
+      !assetId ||
+      !versionId ||
+      !hasExactDemoVersion(state, assetId, versionId) ||
+      typeof marker.id !== "string" ||
+      typeof marker.project_id !== "string" ||
+      typeof marker.time_seconds !== "number" ||
+      !Number.isFinite(marker.time_seconds) ||
+      typeof marker.created_at !== "string"
+    ) {
+      return [];
+    }
+    return [{
+      id: marker.id,
+      project_id: marker.project_id,
+      asset_id: assetId,
+      version_id: versionId,
+      time_seconds: Math.max(0, marker.time_seconds),
+      created_at: marker.created_at,
+    }];
+  });
+}
+
+/**
+ * Older browser workspaces stored review notes at the asset level. We can
+ * safely freeze one only while exactly one persisted local/source cut exists;
+ * after an append, a missing identity stays unreadable rather than following
+ * the new current cut.
+ */
+function normalizeRestoredDemoReviewComments(
+  raw: DemoReviewComment[] | undefined,
+  fallback: DemoReviewComment[],
+  state: Pick<DemoWorkspaceState, "assets" | "mediaVersions">,
+) {
+  return mergeSeededRecords(raw, fallback).map((comment) => {
+    if (typeof comment.version_id === "string" && comment.version_id.trim()) return comment;
+    const localVersions = state.mediaVersions.filter(
+      (candidate) => candidate.asset_id === comment.asset_id,
+    );
+    if (localVersions.length !== 1) return comment;
+    const current = currentDemoMediaVersion(localVersions, comment.asset_id);
+    return current ? { ...comment, version_id: current.id } : comment;
+  });
+}
+
+function normalizeRestoredDemoRevisionRequests(
+  raw: RevisionRequest[] | undefined,
+  fallback: RevisionRequest[],
+  state: Pick<DemoWorkspaceState, "assets" | "mediaVersions">,
+) {
+  return mergeSeededRecords(raw, fallback).map((request) => {
+    if (typeof request.version_id === "string" && request.version_id.trim()) return request;
+    const localVersions = state.mediaVersions.filter(
+      (candidate) => candidate.asset_id === request.asset_id,
+    );
+    if (localVersions.length !== 1) return request;
+    const current = currentDemoMediaVersion(localVersions, request.asset_id);
+    return current ? { ...request, version_id: current.id } : request;
+  });
 }
 
 function mergeSeededRecords<T extends { id: string }>(saved: T[] | undefined, seeded: T[]) {
@@ -772,38 +1224,85 @@ function mergeSeededRecords<T extends { id: string }>(saved: T[] | undefined, se
   return [...saved, ...seeded.filter((record) => !savedIds.has(record.id))];
 }
 
+/** Preserve the exact legacy local V1 identity across the first version-record upgrade.
+ * Only the previously single-cut local upload shape proves this alias. Unknown
+ * versions, multi-cut assets, and imported source history are never reassigned.
+ */
+function preserveLegacyLocalReviewIdentity(parsed: StoredWorkspaceShape): StoredWorkspaceShape {
+  const explicit = new Set((parsed.mediaVersions ?? []).map((version) => version.asset_id));
+  const aliases = new Map((parsed.assets ?? [])
+    .filter((asset) => isBrowserLocalDemoAsset(asset) && (asset.version_count ?? 1) === 1 && !explicit.has(asset.id))
+    .map((asset) => [asset.id, { projectId: asset.project_id, versionId: `local-version-${asset.id}` }]));
+  if (aliases.size === 0) return parsed;
+  function bind<T extends { asset_id: string; project_id: string; version_id?: string | null }>(record: T): T {
+    const alias = aliases.get(record.asset_id);
+    return alias && record.project_id === alias.projectId && record.version_id === "demo-version-1"
+      ? { ...record, version_id: alias.versionId }
+      : record;
+  }
+  return {
+    ...parsed,
+    reviewComments: parsed.reviewComments?.map(bind),
+    reviewCutMarkers: parsed.reviewCutMarkers?.map(bind),
+    revisionRequests: parsed.revisionRequests?.map(bind),
+    publicReviewStates: parsed.publicReviewStates?.map(bind),
+    shareLinks: parsed.shareLinks?.map((link) => {
+      const alias = link.asset_ids?.length === 1 ? aliases.get(link.asset_ids[0]) : null;
+      return alias && link.version_id === "demo-version-1" ? { ...link, version_id: alias.versionId } : link;
+    }),
+  };
+}
+
 export function restoreDemoWorkspace(raw: string | null): DemoWorkspaceState {
   if (!raw) return createInitialDemoWorkspace();
 
   try {
-    const parsed: unknown = JSON.parse(raw);
-    if (!isStoredWorkspace(parsed)) return createInitialDemoWorkspace();
+    const unwrapped: unknown = unwrapSourceWorkspace(JSON.parse(raw), sourceCatalog);
+    if (!isStoredWorkspace(unwrapped)) return createInitialDemoWorkspace();
+    const parsed = preserveLegacyLocalReviewIdentity(unwrapped);
     const fallback = createInitialDemoWorkspace();
     const savedSettings = parsed.settings;
     const legacy = parsed.schemaVersion === 1 ? migrateLegacyWorkspace(parsed, fallback) : null;
+    const restoredAssets = normalizeRestoredDemoAssets(
+      withP26LibrarySeedAssets(legacy?.assets ?? parsed.assets ?? fallback.assets),
+    );
+    const mediaVersions = normalizeRestoredDemoMediaVersions(
+      parsed.mediaVersions,
+      restoredAssets,
+    );
+    const versionedState = { assets: restoredAssets, mediaVersions };
 
     return {
       schemaVersion: 2,
       session: { ...fallback.session, ...parsed.session },
       projects: legacy?.projects ?? parsed.projects ?? fallback.projects,
       folders: legacy?.folders ?? parsed.folders ?? fallback.folders,
-      assets: normalizeRestoredDemoAssets(
-        withP26LibrarySeedAssets(legacy?.assets ?? parsed.assets ?? fallback.assets),
-      ),
+      assets: restoredAssets,
+      mediaVersions,
       archivedAssets: normalizeRestoredDemoAssets(
         parsed.archivedAssets ?? fallback.archivedAssets,
       ),
       trashedAssets: normalizeRestoredDemoAssets(
         parsed.trashedAssets ?? fallback.trashedAssets,
       ),
-      shareLinks: parsed.shareLinks ?? fallback.shareLinks,
+      shareLinks: normalizeRestoredDemoShareLinks(
+        parsed.shareLinks ?? fallback.shareLinks,
+        versionedState,
+      ),
       activity: parsed.activity ?? fallback.activity,
-      reviewComments: mergeSeededRecords(parsed.reviewComments, fallback.reviewComments),
+      reviewComments: normalizeRestoredDemoReviewComments(
+        parsed.reviewComments,
+        fallback.reviewComments,
+        versionedState,
+      ),
       // P20: states persisted before locked_asset_ids existed restore with [].
       publicReviewStates: (parsed.publicReviewStates ?? fallback.publicReviewStates).map(
         (state) => ({ ...state, locked_asset_ids: state.locked_asset_ids ?? [] }),
       ),
-      reviewCutMarkers: parsed.reviewCutMarkers ?? fallback.reviewCutMarkers,
+      reviewCutMarkers: normalizeRestoredDemoCutMarkers(
+        parsed.reviewCutMarkers ?? fallback.reviewCutMarkers,
+        versionedState,
+      ),
       tasks: parsed.tasks ?? fallback.tasks,
       approvalStages: mergeSeededRecords(parsed.approvalStages, fallback.approvalStages),
       organizations: mergeSeededRecords(parsed.organizations, fallback.organizations),
@@ -815,7 +1314,11 @@ export function restoreDemoWorkspace(raw: string | null): DemoWorkspaceState {
       selects: mergeSeededRecords(parsed.selects, fallback.selects),
       sequences: mergeSeededRecords(parsed.sequences, fallback.sequences),
       sequenceClips: mergeSeededRecords(parsed.sequenceClips, fallback.sequenceClips),
-      revisionRequests: mergeSeededRecords(parsed.revisionRequests, fallback.revisionRequests),
+      revisionRequests: normalizeRestoredDemoRevisionRequests(
+        parsed.revisionRequests,
+        fallback.revisionRequests,
+        versionedState,
+      ),
       decisions: mergeSeededRecords(parsed.decisions, fallback.decisions),
       deliverables: mergeSeededRecords(parsed.deliverables, fallback.deliverables),
       paymentMilestones: mergeSeededRecords(parsed.paymentMilestones, fallback.paymentMilestones),
@@ -894,7 +1397,7 @@ function ensureHydrated() {
   hydrated = true;
   if (migratedFromLegacy) {
     try {
-      window.localStorage.setItem(DEMO_WORKSPACE_STORAGE_KEY, JSON.stringify(currentState));
+      window.localStorage.setItem(DEMO_WORKSPACE_STORAGE_KEY, serializeSourceWorkspace(currentState, sourceCatalog));
     } catch {
       // Migration persistence is best-effort; the in-memory state is migrated.
     }
@@ -910,7 +1413,7 @@ function saveState(nextState: DemoWorkspaceState) {
   currentState = nextState;
   if (typeof window !== "undefined") {
     try {
-      window.localStorage.setItem(DEMO_WORKSPACE_STORAGE_KEY, JSON.stringify(nextState));
+      window.localStorage.setItem(DEMO_WORKSPACE_STORAGE_KEY, serializeSourceWorkspace(nextState, sourceCatalog));
     } catch {
       // The in-memory workspace remains usable if browser storage is unavailable.
     }
@@ -929,7 +1432,7 @@ function commitPersistedState(updater: (state: DemoWorkspaceState) => DemoWorksp
   if (typeof window === "undefined") return false;
 
   try {
-    window.localStorage.setItem(DEMO_WORKSPACE_STORAGE_KEY, JSON.stringify(nextState));
+    window.localStorage.setItem(DEMO_WORKSPACE_STORAGE_KEY, serializeSourceWorkspace(nextState, sourceCatalog));
   } catch {
     return false;
   }
@@ -986,15 +1489,22 @@ export function getDemoWorkspaceSnapshot(): DemoWorkspaceState {
 export function addDemoReviewCutMarker(input: {
   projectId: string;
   assetId: string;
+  /** Explicit public-review or cockpit version identity when already resolved. */
+  versionId?: string | null;
   timeSeconds: number;
 }) {
   const timeSeconds = Math.max(0, input.timeSeconds);
+  let added = false;
 
   updateState((state) => {
+    const versionId = input.versionId?.trim() || resolveDemoWorkspaceCurrentVersionIdentity(state, input.assetId)?.id;
+    if (!versionId || !hasExactDemoVersion(state, input.assetId, versionId)) return state;
     if (
       state.reviewCutMarkers.some(
         (marker) =>
-          marker.asset_id === input.assetId && Math.abs(marker.time_seconds - timeSeconds) < 0.25,
+          marker.asset_id === input.assetId &&
+          marker.version_id === versionId &&
+          Math.abs(marker.time_seconds - timeSeconds) < 0.25,
       )
     ) {
       return state;
@@ -1004,9 +1514,11 @@ export function addDemoReviewCutMarker(input: {
       id: createId("cut"),
       project_id: input.projectId,
       asset_id: input.assetId,
+      version_id: versionId,
       time_seconds: timeSeconds,
       created_at: new Date().toISOString(),
     };
+    added = true;
 
     return {
       ...state,
@@ -1020,6 +1532,7 @@ export function addDemoReviewCutMarker(input: {
             asset_title:
               state.assets.find((candidate) => candidate.id === input.assetId)?.title ?? "Asset",
             time_seconds: timeSeconds.toFixed(2),
+            version_id: versionId,
           },
           created_at: marker.created_at,
           project_id: input.projectId,
@@ -1029,6 +1542,7 @@ export function addDemoReviewCutMarker(input: {
       ],
     };
   });
+  return added;
 }
 
 export function signInDemoSession(email: string) {
@@ -1143,6 +1657,240 @@ export function addDemoAssets(assets: MediaAsset[]) {
   }));
 }
 
+export type DemoMediaVersionMutationResult =
+  | { ok: true; asset: MediaAsset; version: DemoMediaVersion }
+  | { ok: false; error: string };
+
+/**
+ * Register a new browser-local deliverable and its immutable V1 together.
+ * This is intentionally separate from addDemoAssets: imported/source assets
+ * never acquire made-up browser version history.
+ */
+export function addDemoLocalMediaAsset(input: {
+  asset: MediaAsset;
+  versionId: string;
+  mediaBlobId: string;
+  thumbnailBlobId?: string | null;
+  fileName: string;
+  fileType?: string;
+  fileSize: number;
+  durationSeconds?: number | null;
+}): DemoMediaVersionMutationResult {
+  ensureHydrated();
+  const asset = {
+    ...input.asset,
+    version_count: 1,
+    href: buildInternalDemoAssetHref(input.asset.project_id, input.asset.id),
+  };
+  if (!isBrowserLocalDemoAsset(asset)) {
+    return { ok: false, error: "Only a new browser-local upload can establish a local version." };
+  }
+  const versionResult = createInitialDemoMediaVersion({
+    assetId: asset.id,
+    versionId: input.versionId,
+    mediaBlobId: input.mediaBlobId,
+    thumbnailBlobId: input.thumbnailBlobId,
+    fileName: input.fileName,
+    fileType: input.fileType ?? asset.file_type,
+    fileSize: input.fileSize,
+    durationSeconds: input.durationSeconds ?? asset.duration_seconds ?? null,
+    createdAt: asset.created_at,
+  });
+  if (!versionResult.ok) return versionResult;
+
+  let outcome: DemoMediaVersionMutationResult = {
+    ok: true,
+    asset,
+    version: versionResult.version,
+  };
+  const committed = commitPersistedState((state) => {
+    if (state.assets.some((candidate) => candidate.id === asset.id)) {
+      outcome = { ok: false, error: "This browser-local deliverable already exists." };
+      return state;
+    }
+    if (state.mediaVersions.some((candidate) => candidate.id === versionResult.version.id)) {
+      outcome = { ok: false, error: "This local version id is already in use." };
+      return state;
+    }
+    return {
+      ...state,
+      assets: [asset, ...state.assets],
+      mediaVersions: [...state.mediaVersions, versionResult.version],
+      activity: [
+        {
+          id: createId("activity"),
+          action: "uploaded_asset",
+          actor_name: "You",
+          details: { asset_title: asset.title, version_id: versionResult.version.id, version: "1" },
+          created_at: versionResult.version.created_at,
+          project_id: asset.project_id,
+          asset_id: asset.id,
+        },
+        ...state.activity,
+      ],
+    };
+  });
+  return committed ? outcome : { ok: false, error: "Could not save this media version. Check browser storage and try again." };
+}
+
+function bindLegacyShareLinksBeforeAppend(
+  links: DemoShareLink[],
+  assetId: string,
+  priorVersionId: string,
+) {
+  return links.map((link) => {
+    if (!link.asset_ids.includes(assetId) || link.version_id) return link;
+    if (link.asset_ids.length === 1) {
+      return {
+        ...link,
+        version_id: priorVersionId,
+        version_binding_status: "bound" as const,
+      };
+    }
+    return {
+      ...link,
+      version_id: null,
+      version_binding_status: "reissue_required" as const,
+      is_active: false,
+    };
+  });
+}
+
+function bindLegacyReviewCommentsBeforeAppend(
+  comments: DemoReviewComment[],
+  assetId: string,
+  priorVersionId: string,
+) {
+  return comments.map((comment) =>
+    comment.asset_id === assetId && !comment.version_id?.trim()
+      ? { ...comment, version_id: priorVersionId }
+      : comment,
+  );
+}
+
+function bindLegacyReviewCutMarkersBeforeAppend(
+  markers: DemoReviewCutMarker[],
+  assetId: string,
+  priorVersionId: string,
+) {
+  return markers.map((marker) =>
+    marker.asset_id === assetId && !marker.version_id?.trim()
+      ? { ...marker, version_id: priorVersionId }
+      : marker,
+  );
+}
+
+function bindLegacyRevisionRequestsBeforeAppend(
+  requests: RevisionRequest[],
+  assetId: string,
+  priorVersionId: string,
+) {
+  return requests.map((request) =>
+    request.asset_id === assetId && !request.version_id?.trim()
+      ? { ...request, version_id: priorVersionId }
+      : request,
+  );
+}
+
+/**
+ * Append a browser-local cut to an established local deliverable or measured
+ * Imported file base. The asset is only a current-version projection; prior
+ * review authority stays on immutable version records and is never copied.
+ */
+export function appendDemoMediaVersion(input: {
+  projectId: string;
+  assetId: string;
+  versionId: string;
+  mediaBlobId: string;
+  thumbnailBlobId?: string | null;
+  fileName: string;
+  fileType: string;
+  fileSize: number;
+  durationSeconds?: number | null;
+}): DemoMediaVersionMutationResult {
+  ensureHydrated();
+  let outcome: DemoMediaVersionMutationResult = {
+    ok: false,
+    error: "This media is not available for a local revision.",
+  };
+
+  const committed = commitPersistedState((state) => {
+    const asset = state.assets.find((candidate) => candidate.id === input.assetId);
+    if (!asset || !isVersionedDemoAsset(asset)) {
+      outcome = { ok: false, error: "Choose a browser-local deliverable or Imported file for a new version." };
+      return state;
+    }
+    if (asset.project_id !== input.projectId) {
+      outcome = { ok: false, error: "This selected media does not belong to the open project." };
+      return state;
+    }
+    const prior = currentDemoMediaVersion(state.mediaVersions, asset.id);
+    if (!prior) {
+      outcome = { ok: false, error: "This deliverable has no established version to revise." };
+      return state;
+    }
+    const versionResult = nextDemoMediaVersion({
+      existing: state.mediaVersions,
+      assetId: asset.id,
+      versionId: input.versionId,
+      mediaBlobId: input.mediaBlobId,
+      thumbnailBlobId: input.thumbnailBlobId,
+      fileName: input.fileName,
+      fileType: input.fileType,
+      fileSize: input.fileSize,
+      durationSeconds: input.durationSeconds,
+      createdAt: new Date().toISOString(),
+    });
+    if (!versionResult.ok) {
+      outcome = versionResult;
+      return state;
+    }
+
+    const version = versionResult.version;
+    const currentAsset: MediaAsset = {
+      ...asset,
+      file_type: version.file_type,
+      duration_seconds: version.duration_seconds ?? undefined,
+      demo_thumbnail_id: version.thumbnail_blob_id ?? undefined,
+      version_count: version.version_number,
+      // The old version's review state remains in its exact rows. This current
+      // projection starts without pretending V2 inherited those responses.
+      reviewer_count: 0,
+      reviewer_done: 0,
+      comment_count: state.reviewComments.filter(
+        (comment) => comment.asset_id === asset.id && comment.version_id === version.id,
+      ).length,
+      status: "in_review",
+    };
+    outcome = { ok: true, asset: currentAsset, version };
+
+    return {
+      ...state,
+      assets: state.assets.map((candidate) => candidate.id === asset.id ? currentAsset : candidate),
+      mediaVersions: versionResult.versions,
+      // This is a last-line migration guard for a tab that had an older
+      // in-memory state. Normal restore binds unambiguous legacy records first.
+      shareLinks: bindLegacyShareLinksBeforeAppend(state.shareLinks, asset.id, prior.id),
+      reviewComments: bindLegacyReviewCommentsBeforeAppend(state.reviewComments, asset.id, prior.id),
+      reviewCutMarkers: bindLegacyReviewCutMarkersBeforeAppend(state.reviewCutMarkers, asset.id, prior.id),
+      revisionRequests: bindLegacyRevisionRequestsBeforeAppend(state.revisionRequests, asset.id, prior.id),
+      activity: [
+        {
+          id: createId("activity"),
+          action: "uploaded_new_version",
+          actor_name: "You",
+          details: { asset_title: asset.title, version_id: version.id, version: String(version.version_number) },
+          created_at: version.created_at,
+          project_id: asset.project_id,
+          asset_id: asset.id,
+        },
+        ...state.activity,
+      ],
+    };
+  });
+  return committed ? outcome : { ok: false, error: "Could not save this media version. Check browser storage and try again." };
+}
+
 export function moveDemoAssetToTrash(assetId: string) {
   updateState((state) => {
     const asset = state.assets.find((candidate) => candidate.id === assetId);
@@ -1218,6 +1966,7 @@ export function restoreDemoArchivedAsset(assetId: string) {
 }
 
 export function createDemoShareLinks(input: CreateDemoShareInput) {
+  ensureHydrated();
   const assetIds = Array.from(new Set(input.assetIds)).filter(Boolean);
   if (assetIds.length === 0) return [];
 
@@ -1225,12 +1974,14 @@ export function createDemoShareLinks(input: CreateDemoShareInput) {
   const batchId = createId("share-batch");
   const defaults = resolveShareIntentDefaults(input.shareIntent);
   const intent = getShareIntentDefinition(input.shareIntent);
-  const reviewerEmail = input.reviewerEmail.trim() || null;
+  const reviewerEmail = input.reviewerEmail.trim().toLowerCase() || null;
   const reviewerName = input.reviewerName.trim() || null;
   const notificationChannels = Array.from(new Set(input.notificationChannels));
-  const links: DemoShareLink[] = assetIds.map((assetId) => {
+  const links: DemoShareLink[] = assetIds.flatMap((assetId) => {
     const token = createId("review");
     const asset = currentState.assets.find((candidate) => candidate.id === assetId);
+    const version = resolveDemoWorkspaceCurrentVersionIdentity(currentState, assetId);
+    if (!asset || !version) return [];
     const params = new URLSearchParams({
       demo: "1",
       asset: assetId,
@@ -1261,13 +2012,16 @@ export function createDemoShareLinks(input: CreateDemoShareInput) {
       batch_id: batchId,
       notification_channels: notificationChannels,
       notification_status: notificationChannels.length > 0 ? "dry_run" : "links_only",
+      version_id: version.id,
+      version_binding_status: "bound",
       is_active: true,
       public_url: `/review/demo?${params.toString()}`,
     };
   });
+  if (links.length === 0) return [];
 
   updateState((state) => {
-    const firstAsset = state.assets.find((asset) => asset.id === assetIds[0]);
+    const firstAsset = state.assets.find((asset) => asset.id === links[0]?.asset_ids[0]);
     const outboxDrafts = dedupeOutboxDrafts(
       links.flatMap((link) =>
         buildReviewLinkDrafts({
@@ -1299,10 +2053,31 @@ export function createDemoShareLinks(input: CreateDemoShareInput) {
       updated_at: createdAt,
       created_by: "user-bailey",
     }));
+    const approvalRounds: DemoPublicReviewState[] =
+          input.shareIntent === "approval_needed"
+        ? links.flatMap((link) => {
+            const asset = state.assets.find((candidate) => candidate.id === link.asset_ids[0]);
+            if (!asset || !link.version_id) return [];
+            const round = createDemoApprovalRound({
+              projectId: asset.project_id,
+              assetId: asset.id,
+              // Link creation captured this immutable identity above. Never
+              // recompute "current" after a later browser-local append.
+              versionId: link.version_id,
+              reviewInviteId: link.id,
+              reviewerName,
+              reviewerEmail,
+              initialAssetStatus: asset.status,
+              createdAt,
+            });
+            return round ? [round] : [];
+          })
+        : [];
 
     return {
       ...state,
       shareLinks: [...links, ...state.shareLinks],
+      publicReviewStates: [...approvalRounds, ...state.publicReviewStates],
       notificationOutbox: [...outboxItems, ...state.notificationOutbox],
       activity: [
         {
@@ -1345,7 +2120,8 @@ export function addDemoReviewComment(input: {
   projectId?: string;
   assetId: string;
   versionId?: string;
-  reviewInviteId?: string;
+  reviewInviteId?: string | null;
+  parentId?: string;
   authorName?: string;
   authorEmail?: string | null;
   assetType?: string;
@@ -1353,20 +2129,38 @@ export function addDemoReviewComment(input: {
   timeSeconds: number;
   pinX?: number;
   pinY?: number;
-  /** P17: annotation stroke to persist alongside the note. */
+  /** Legacy single-stroke input retained for existing internal callers. */
   drawing?: AnnotationData | null;
+  /** Normalized vector strokes to persist alongside the note. */
+  annotations?: readonly AnnotationData[];
 }) {
   const body = input.body.trim();
   if (!body) return null;
   const hasPinX = Number.isFinite(input.pinX);
   const hasPinY = Number.isFinite(input.pinY);
   if (hasPinX !== hasPinY) return null;
+  const parsedAnnotations = parseExternalAnnotations(
+    input.annotations ?? (input.drawing ? [input.drawing] : []),
+  );
+  if (!parsedAnnotations.ok) return null;
 
   ensureHydrated();
   const createdAt = new Date().toISOString();
   const asset = currentState.assets.find((candidate) => candidate.id === input.assetId);
   const projectId = input.projectId ?? asset?.project_id ?? "demo";
-  const versionId = input.versionId ?? `demo-version-${asset?.version_count ?? 4}`;
+  const versionId = input.versionId?.trim() || resolveDemoWorkspaceCurrentVersionIdentity(currentState, input.assetId)?.id;
+  // Omitted invitations belong to internal review. Keep an explicit public
+  // round ID, but never fabricate one for a new local cockpit note.
+  const reviewInviteId = input.reviewInviteId?.trim() || null;
+  if (!versionId || !hasExactDemoVersion(currentState, input.assetId, versionId)) return null;
+  if (input.parentId !== undefined) {
+    const parent = currentState.reviewComments.find((candidate) => candidate.id === input.parentId);
+    if (
+      !parent || parent.parent_id ||
+      parent.project_id !== projectId || parent.asset_id !== input.assetId ||
+      parent.version_id !== versionId || (parent.review_invite_id ?? null) !== reviewInviteId
+    ) return null;
+  }
   const profileName =
     `${currentState.settings.profile.firstName} ${currentState.settings.profile.lastName}`.trim();
   const authorName = input.authorName?.trim() || profileName || "Content Co-op";
@@ -1375,7 +2169,8 @@ export function addDemoReviewComment(input: {
     project_id: projectId,
     asset_id: input.assetId,
     version_id: versionId,
-    review_invite_id: input.reviewInviteId ?? "invite-demo",
+    review_invite_id: reviewInviteId,
+    ...(input.parentId ? { parent_id: input.parentId } : {}),
     author_name: authorName,
     author_email: input.authorEmail ?? null,
     body,
@@ -1383,7 +2178,9 @@ export function addDemoReviewComment(input: {
       !input.assetType || input.assetType === "video" ? Math.max(0, input.timeSeconds) : 0,
     pin_x: hasPinX ? input.pinX : undefined,
     pin_y: hasPinY ? input.pinY : undefined,
-    drawing: input.drawing ?? null,
+    ...(parsedAnnotations.annotations.length > 0
+      ? { annotations: parsedAnnotations.annotations }
+      : {}),
     status: "open",
     created_at: createdAt,
   };
@@ -1414,6 +2211,82 @@ export function addDemoReviewComment(input: {
   });
 
   return committed ? comment : null;
+}
+
+interface DemoPublicReviewCommentMutation {
+  projectId: string;
+  assetId: string;
+  versionId: string;
+  reviewInviteId: string;
+  commentId: string;
+}
+
+const DEMO_REVIEW_COMMENT_BODY_LIMIT_BYTES = 32 * 1_024;
+
+function findScopedDemoReviewComment(input: DemoPublicReviewCommentMutation) {
+  return currentState.reviewComments.find(
+    (comment) => isScopedDemoReviewComment(comment, input),
+  );
+}
+
+function isScopedDemoReviewComment(
+  comment: DemoReviewComment,
+  input: DemoPublicReviewCommentMutation,
+) {
+  return (
+    comment.id === input.commentId &&
+    comment.project_id === input.projectId &&
+    comment.asset_id === input.assetId &&
+    comment.version_id === input.versionId &&
+    comment.review_invite_id === input.reviewInviteId
+  );
+}
+
+export function editDemoPublicReviewComment(
+  input: DemoPublicReviewCommentMutation & { body: string },
+) {
+  const body = input.body.trim();
+  if (!body || new TextEncoder().encode(body).byteLength > DEMO_REVIEW_COMMENT_BODY_LIMIT_BYTES) {
+    return null;
+  }
+
+  ensureHydrated();
+  const existing = findScopedDemoReviewComment(input);
+  if (!existing) return null;
+  const updated: DemoReviewComment = {
+    ...existing,
+    body,
+    updated_at: new Date().toISOString(),
+  };
+  const committed = commitPersistedState((state) => ({
+    ...state,
+    reviewComments: state.reviewComments.map((comment) =>
+      isScopedDemoReviewComment(comment, input) ? updated : comment,
+    ),
+  }));
+  return committed ? updated : null;
+}
+
+export function setDemoPublicReviewCommentResolved(
+  input: DemoPublicReviewCommentMutation & { resolved: boolean },
+) {
+  ensureHydrated();
+  const existing = findScopedDemoReviewComment(input);
+  if (!existing || existing.parent_id) return null;
+  const updatedAt = new Date().toISOString();
+  const updated: DemoReviewComment = {
+    ...existing,
+    status: input.resolved ? "resolved" : "open",
+    resolved_at: input.resolved ? updatedAt : null,
+    updated_at: updatedAt,
+  };
+  const committed = commitPersistedState((state) => ({
+    ...state,
+    reviewComments: state.reviewComments.map((comment) =>
+      isScopedDemoReviewComment(comment, input) ? updated : comment,
+    ),
+  }));
+  return committed ? updated : null;
 }
 
 const DEMO_APPROVAL_DECISIONS = new Set<ApprovalDecision>([
@@ -1463,6 +2336,16 @@ function sameDemoPublicReviewScope(
 
 export function recordDemoPublicReviewApproval(input: RecordDemoPublicReviewApprovalInput) {
   ensureHydrated();
+  const inviteState = currentState.publicReviewStates.find(
+    (state) => state.review_invite_id === input.reviewInviteId,
+  );
+  if (inviteState && !sameDemoPublicReviewScope(inviteState, input)) {
+    return {
+      ok: false as const,
+      statusCode: 403,
+      error: "This review link is not assigned to this media version.",
+    };
+  }
   const existing = currentState.publicReviewStates.find((state) =>
     sameDemoPublicReviewScope(state, input),
   );

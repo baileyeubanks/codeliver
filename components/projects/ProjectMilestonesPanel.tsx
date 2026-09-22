@@ -64,7 +64,7 @@ export default function ProjectMilestonesPanel({ projectId }: { projectId: strin
         <div>
           <h2 className={styles.panelTitle}>Milestones</h2>
           <p className={styles.panelSubtitle}>
-            Kickoff through delivery, derived from the project record.
+            The next steps, derived from the project record.
           </p>
         </div>
       </div>

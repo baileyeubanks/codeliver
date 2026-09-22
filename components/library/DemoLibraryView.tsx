@@ -9,6 +9,7 @@ import {
   useDemoWorkspace,
 } from "@/lib/demo/workspace-store";
 import { demoLibraryMetaById, demoLibraryPackages } from "@/lib/assets/demo-library";
+import { librarySurfaceData } from "@/lib/assets/library-surface-data";
 import { buildPackageManifest } from "@/lib/assets/manifest";
 import {
   facetValues,
@@ -18,6 +19,7 @@ import {
   toLibrarySearchRecord,
 } from "@/lib/assets/query";
 import { formatDurationSeconds } from "@/lib/assets/formats";
+import { sourceCatalog } from "@/lib/demo/source-catalog";
 import type { LibraryFacetFilters } from "@/lib/assets/types";
 import CutdownRequestDialog, { type CutdownRequestInput } from "./CutdownRequestDialog";
 import FormatMatrixDialog from "./FormatMatrixDialog";
@@ -37,17 +39,30 @@ export default function DemoLibraryView() {
   const [formatsAssetId, setFormatsAssetId] = useState<string | null>(null);
   const [cutdownAssetId, setCutdownAssetId] = useState<string | null>(null);
   const [openPackageId, setOpenPackageId] = useState<string | null>(null);
+  const surfaceData = useMemo(
+    () => librarySurfaceData(sourceCatalog, demoLibraryMetaById, demoLibraryPackages),
+    [],
+  );
 
   const records = useMemo(
     () =>
       workspace.assets.map((asset) =>
         toLibrarySearchRecord(
           asset,
-          demoLibraryMetaById[asset.id],
+          surfaceData.metaByAssetId[asset.id],
           workspace.libraryFavorites.includes(asset.id),
+          surfaceData.sourceFactsByAssetId[asset.id]
+            ? {
+                campaign: surfaceData.sourceFactsByAssetId[asset.id].projectName,
+                searchTerms: [
+                  surfaceData.sourceFactsByAssetId[asset.id].projectName,
+                  surfaceData.sourceFactsByAssetId[asset.id].projectId,
+                ],
+              }
+            : undefined,
         ),
       ),
-    [workspace.assets, workspace.libraryFavorites],
+    [workspace.assets, workspace.libraryFavorites, surfaceData],
   );
 
   const query = useMemo(() => {
@@ -71,11 +86,11 @@ export default function DemoLibraryView() {
       platforms: facetValues(records, "platform"),
       formats: facetValues(records, "format"),
       orientations: facetValues(records, "orientation"),
-      rights: ["paid_until", "internal_only", "unlimited"],
+      rights: surfaceData.isSourceCatalog ? [] : ["paid_until", "internal_only", "unlimited"],
       products: facetValues(records, "product"),
       talents: facetValues(records, "talent"),
     }),
-    [records],
+    [records, surfaceData.isSourceCatalog],
   );
 
   const projectNameById = useMemo(
@@ -94,10 +109,10 @@ export default function DemoLibraryView() {
     ? workspace.assets.find((asset) => asset.id === cutdownAssetId)
     : undefined;
   const openPackage = openPackageId
-    ? demoLibraryPackages.find((pkg) => pkg.id === openPackageId)
+    ? surfaceData.packages.find((pkg) => pkg.id === openPackageId)
     : undefined;
   const openManifest = openPackage
-    ? buildPackageManifest(openPackage, workspace.assets, demoLibraryMetaById)
+    ? buildPackageManifest(openPackage, workspace.assets, surfaceData.metaByAssetId)
     : undefined;
 
   function handleCutdownSubmit(input: CutdownRequestInput) {
@@ -118,8 +133,7 @@ export default function DemoLibraryView() {
           <p className="mb-1 text-[10px] font-bold uppercase text-[var(--dim)]">Asset management</p>
           <h1 className="text-[22px] font-bold leading-tight text-[var(--ink)]">Media library</h1>
           <p className="mt-1 max-w-2xl text-sm text-[var(--muted)]">
-            The searchable home for approved and final assets — with campaigns, platforms, usage
-            rights, and honest download formats for every deliverable.
+            Search the account library, then open the exact project cut you need.
           </p>
         </div>
         <Link
@@ -131,38 +145,54 @@ export default function DemoLibraryView() {
         </Link>
       </div>
 
-      <div className="mb-5 grid gap-3 sm:grid-cols-2" aria-label="Curated packages">
-        {demoLibraryPackages.map((pkg) => (
-          <button
-            key={pkg.id}
-            type="button"
-            onClick={() => setOpenPackageId(openPackageId === pkg.id ? null : pkg.id)}
-            aria-pressed={openPackageId === pkg.id}
-            data-testid={`package-card-${pkg.id}`}
-            className={`flex items-start gap-3 rounded-[var(--radius)] border px-4 py-3 text-left transition-colors ${
-              openPackageId === pkg.id
-                ? "border-[var(--accent)] bg-[var(--cvp-blue-tint)]"
-                : "border-[var(--border)] bg-[var(--surface)] hover:border-[var(--border-light)]"
-            }`}
-          >
-            <span className="mt-0.5 text-[var(--accent)]">
-              <Package size={16} aria-hidden="true" />
-            </span>
-            <span className="min-w-0">
-              <span className="block text-[10px] font-bold uppercase text-[var(--dim)]">
-                Curated package — {pkg.campaign}
+      <LibraryFilterRail
+        searchText={searchText}
+        onSearchTextChange={setSearchText}
+        facets={railFacets}
+        onFacetsChange={setRailFacets}
+        options={facetOptions}
+        resultCount={visibleAssets.length}
+        campaignLabel={surfaceData.isSourceCatalog ? "Project" : "Campaign"}
+      />
+
+      {surfaceData.packages.length > 0 ? (
+      <details className="mb-4 border-t border-[var(--border)] pt-3">
+        <summary className="cursor-pointer text-xs font-semibold text-[var(--ink)]">
+          Packages ({surfaceData.packages.length})
+        </summary>
+        <div className="mt-3 grid gap-2 sm:grid-cols-2" aria-label="Curated packages">
+          {surfaceData.packages.map((pkg) => (
+            <button
+              key={pkg.id}
+              type="button"
+              onClick={() => setOpenPackageId(openPackageId === pkg.id ? null : pkg.id)}
+              aria-pressed={openPackageId === pkg.id}
+              data-testid={`package-card-${pkg.id}`}
+              className={`flex items-start gap-3 border-l-2 px-3 py-2 text-left transition-colors ${
+                openPackageId === pkg.id
+                  ? "border-[var(--accent)] bg-[var(--cvp-blue-tint)]"
+                  : "border-[var(--border)] hover:border-[var(--accent)]"
+              }`}
+            >
+              <span className="mt-0.5 text-[var(--accent)]">
+                <Package size={16} aria-hidden="true" />
               </span>
-              <span className="mt-0.5 block truncate text-sm font-bold text-[var(--ink)]">
-                {pkg.title}
+              <span className="min-w-0">
+                <span className="block text-[10px] font-bold uppercase text-[var(--dim)]">
+                  {pkg.campaign}
+                </span>
+                <span className="mt-0.5 block truncate text-sm font-bold text-[var(--ink)]">
+                  {pkg.title}
+                </span>
+                <span className="mt-1 block text-[10px] font-bold text-[var(--accent)]">
+                  {pkg.asset_ids.length} assets — view manifest
+                </span>
               </span>
-              <span className="mt-0.5 block text-xs text-[var(--muted)]">{pkg.description}</span>
-              <span className="mt-1 block text-[10px] font-bold text-[var(--accent)]">
-                {pkg.asset_ids.length} assets — view manifest
-              </span>
-            </span>
-          </button>
-        ))}
-      </div>
+            </button>
+          ))}
+        </div>
+      </details>
+      ) : null}
 
       {openPackage && openManifest ? (
         <div className="mb-5">
@@ -173,15 +203,6 @@ export default function DemoLibraryView() {
           />
         </div>
       ) : null}
-
-      <LibraryFilterRail
-        searchText={searchText}
-        onSearchTextChange={setSearchText}
-        facets={railFacets}
-        onFacetsChange={setRailFacets}
-        options={facetOptions}
-        resultCount={visibleAssets.length}
-      />
 
       {visibleAssets.length === 0 ? (
         <div className="grid min-h-[260px] place-items-center rounded-[var(--radius)] border border-dashed border-[var(--border)] bg-[var(--surface)] px-6 py-12 text-center">
@@ -222,7 +243,8 @@ export default function DemoLibraryView() {
       ) : (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4" data-testid="library-grid">
           {visibleAssets.map((asset) => {
-            const meta = demoLibraryMetaById[asset.id];
+            const meta = surfaceData.metaByAssetId[asset.id];
+            const sourceFacts = surfaceData.sourceFactsByAssetId[asset.id];
             const projectName = projectNameById.get(asset.project_id) ?? asset.project_id;
             return (
               <LibraryAssetCard
@@ -234,10 +256,11 @@ export default function DemoLibraryView() {
                 projectHref={`/projects/${asset.project_id}?demo=1`}
                 posterUrl={asset.thumbnail_url ?? null}
                 videoUrl={asset.file_type === "video" ? (asset.file_url ?? null) : null}
-                durationSeconds={meta?.duration_seconds ?? asset.duration_seconds ?? null}
-                resolution={meta?.resolution ?? null}
-                sizeBytes={meta?.file_size_bytes ?? null}
+                durationSeconds={sourceFacts?.durationSeconds ?? meta?.duration_seconds ?? asset.duration_seconds ?? null}
+                resolution={sourceFacts?.resolution ?? meta?.resolution ?? null}
+                sizeBytes={sourceFacts?.sizeBytes ?? meta?.file_size_bytes ?? null}
                 meta={meta}
+                hasFormats={Boolean(meta?.formats.length)}
                 isFavorite={workspace.libraryFavorites.includes(asset.id)}
                 onToggleFavorite={toggleDemoLibraryFavorite}
                 onOpenFormats={setFormatsAssetId}
@@ -277,7 +300,7 @@ export default function DemoLibraryView() {
       {formatsAsset ? (
         <FormatMatrixDialog
           assetTitle={formatsAsset.title}
-          formats={demoLibraryMetaById[formatsAsset.id]?.formats ?? []}
+          formats={surfaceData.metaByAssetId[formatsAsset.id]?.formats ?? []}
           onClose={() => setFormatsAssetId(null)}
         />
       ) : null}
@@ -285,7 +308,7 @@ export default function DemoLibraryView() {
       {cutdownAsset ? (
         <CutdownRequestDialog
           assetTitle={cutdownAsset.title}
-          platforms={demoLibraryMetaById[cutdownAsset.id]?.platforms ?? []}
+          platforms={surfaceData.metaByAssetId[cutdownAsset.id]?.platforms ?? []}
           onSubmit={handleCutdownSubmit}
           onClose={() => setCutdownAssetId(null)}
         />

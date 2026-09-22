@@ -74,7 +74,7 @@ test("demo uploads bind their new asset href to the internal route builder", () 
     "utf8",
   );
   const uploadAssetFactory = projectPageSource.match(
-    /const uploadAssets: MediaAsset\[\] = selectedFiles\.map\(\(file, index\) => \{[\s\S]*?\n\s*\}\);/,
+    /addDemoLocalMediaAsset\(\{[\s\S]*?\n\s*\}\);/,
   );
 
   assert.ok(uploadAssetFactory, "could not locate the demo upload asset constructor");
@@ -85,26 +85,34 @@ test("demo uploads bind their new asset href to the internal route builder", () 
   assert.doesNotMatch(uploadAssetFactory[0], /["'`]\/review\/demo/);
 });
 
-test("dashboard demo uploads bind their new asset href to the internal route builder", () => {
+test("dashboard project list defers uploads until a project cockpit is chosen", () => {
   const projectsPageSource = readFileSync(
     resolve(repositoryRoot, "app/(dashboard)/projects/page.tsx"),
     "utf8",
   );
-  const uploadAssetFactory = projectsPageSource.match(
-    /const added: MediaAsset\[\] = Array\.from\(files\)\.map\(\(file, index\) => \{[\s\S]*?\n\s*\}\);/,
+
+  assert.doesNotMatch(projectsPageSource, /const added: MediaAsset\[\]/);
+  assert.doesNotMatch(projectsPageSource, /<AssetUpload/);
+  assert.doesNotMatch(projectsPageSource, />Upload media</);
+  assert.match(
+    projectsPageSource,
+    /href=\{`\/projects\/\$\{encodeURIComponent\(project\.id\)\}\$\{demoSuffix\}`\}/,
+  );
+});
+
+test("workspace navigation keeps the durable global rail and avoids repeated link descriptions", () => {
+  const railSource = readFileSync(
+    resolve(repositoryRoot, "components/navigation/WorkspaceRail.tsx"),
+    "utf8",
+  );
+  const drawerSource = readFileSync(
+    resolve(repositoryRoot, "components/navigation/WorkspaceNavigation.tsx"),
+    "utf8",
   );
 
-  assert.ok(uploadAssetFactory, "could not locate the dashboard demo upload constructor");
-  assert.match(
-    uploadAssetFactory[0],
-    /const assetId = `local-upload-\$\{uploadStartedAt\}-\$\{index\}`/,
-  );
-  assert.match(uploadAssetFactory[0], /id:\s*assetId/);
-  assert.match(
-    uploadAssetFactory[0],
-    /href:\s*buildInternalDemoAssetHref\(projectId,\s*assetId\)/,
-  );
-  assert.doesNotMatch(uploadAssetFactory[0], /["'`]\/review\/demo/);
+  assert.match(railSource, /\{sections\.map\(\(section\) => \(/);
+  assert.doesNotMatch(railSource, /primaryIds|secondarySections/);
+  assert.doesNotMatch(drawerSource, /<small>\{item\.description\}<\/small>/);
 });
 
 test("restored demo assets migrate to cockpit hrefs without changing public share links", () => {
@@ -153,7 +161,9 @@ test("restored demo assets migrate to cockpit hrefs without changing public shar
     restored.trashedAssets[0].href,
     buildInternalDemoAssetHref("ica", "stale-trashed"),
   );
-  assert.deepEqual(restored.shareLinks, storedWorkspace.shareLinks);
+  assert.equal(restored.shareLinks[0].id, storedWorkspace.shareLinks[0].id);
+  assert.equal(restored.shareLinks[0].version_binding_status, "reissue_required");
+  assert.equal(restored.shareLinks[0].is_active, false, "a link with no asset/version binding must not become playable");
   assert.equal(restored.shareLinks[0].public_url, publicUrl);
 });
 

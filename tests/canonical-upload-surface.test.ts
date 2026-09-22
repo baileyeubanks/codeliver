@@ -10,20 +10,29 @@ function source(relativePath: string) {
   return readFileSync(resolve(repositoryRoot, relativePath), "utf8");
 }
 
-test("the production Projects library uses the canonical TUS uploader only", () => {
+test("the selected-project cockpit owns the canonical TUS uploader", () => {
   const projectsPage = source("app/(dashboard)/projects/page.tsx");
+  const projectWorkspace = source("components/projects/ProjectWorkspaceClient.tsx");
   const uploader = source("components/assets/AssetUpload.tsx");
 
-  assert.match(projectsPage, /import AssetUpload from "@\/components\/assets\/AssetUpload"/);
-  assert.match(projectsPage, /<AssetUpload\b/);
-  assert.match(projectsPage, /inputId=\{AUTHORITATIVE_UPLOAD_INPUT_ID\}/);
-  assert.match(projectsPage, /onUploadComplete=\{refreshRemoteAssets\}/);
-  assert.match(
-    projectsPage,
-    /remoteProjects\.some\(\(project\) => project\.id === activeProject\)/,
-  );
-  assert.match(projectsPage, /remoteProjects\.map\(\(project\) => \(\{/);
-  assert.doesNotMatch(projectsPage, /fetch\(["']\/api\/folders["']/);
+  assert.doesNotMatch(projectsPage, /import AssetUpload/);
+  assert.doesNotMatch(projectsPage, /<AssetUpload\b/);
+  assert.doesNotMatch(projectsPage, />Upload media</);
+  assert.match(projectsPage, /href=\{`\/projects\/\$\{encodeURIComponent\(project\.id\)\}\$\{demoSuffix\}`\}/);
+
+  assert.match(projectWorkspace, /import AssetUpload(?:, \{ type UploadCompletion \})? from "@\/components\/assets\/AssetUpload"/);
+  assert.match(projectWorkspace, /<AssetUpload\b/);
+  assert.match(projectWorkspace, /projectId=\{id\}/);
+  assert.match(projectWorkspace, /inputId=\{authoritativeUploadInputId\}/);
+  assert.match(projectWorkspace, /onUploadComplete=\{handleRemoteUploadComplete\}/);
+  assert.match(projectWorkspace, /onUpload=\{openRemoteUploadPicker\}/);
+  assert.match(projectWorkspace, /onUploadRevision=\{openRemoteRevisionPicker\}/);
+  assert.match(projectWorkspace, /revisionTarget=\{revisionTarget\}/);
+  assert.match(projectWorkspace, /resolveRevisionUploadTarget\(await response\.json\(\), projectId, assetId\)/);
+  assert.match(projectWorkspace, /shouldApplyRevisionUploadTarget/);
+  assert.match(projectWorkspace, /onUploadChooseRevisionFile=\{chooseRemoteRevisionFile\}/);
+  assert.doesNotMatch(projectWorkspace, /uploadPickerRequest/);
+  assert.match(projectWorkspace, /params\.set\("version", revision\.versionId\)/);
   assert.match(uploader, /endpoint:\s*"\/api\/upload\/tus"/);
 
   assert.doesNotMatch(projectsPage, /createSupabaseBrowser/);
@@ -74,7 +83,12 @@ test("asset readers retain JWT authority while using migration-compatible projec
     /getProjectAccess\(\s*id,\s*user\.id,\s*"viewer",\s*authSupabase,\s*\)/,
   );
   assert.match(scoped, /authSupabase[\s\S]*?\.from\("assets"\)/);
-  assert.doesNotMatch(scoped, /\bmetadata\b/);
+  const authenticatedColumns =
+    scoped.match(/authSupabase[\s\S]*?\.select\(\s*"([^"]*)"/)?.[1] ?? "";
+  assert.doesNotMatch(authenticatedColumns, /\bmetadata\b/);
+  assert.match(scoped, /const metadataResult = await getSupabase\(\)/);
+  assert.match(scoped, /\.select\("id, metadata"\)/);
+  assert.match(scoped, /return apiJson\(\{ items \}\)/);
   assert.match(scoped, /\.eq\("project_id", id\)[\s\S]*?\.is\("deleted_at", null\)/);
 
   const detail = source("app/api/assets/[id]/route.ts");

@@ -13,24 +13,10 @@ import { getSupabase } from "@/lib/supabase";
 import { resolveAssetVersion } from "@/lib/versions";
 import { apiError, apiJson, backendUnavailable } from "@/lib/api/responses";
 
+import { buildManagedTranscodeSource } from "@/app/api/transcode/source-input";
+
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
-
-function safeExpectedSize(value: unknown): number | null {
-  if (typeof value === "number") {
-    return Number.isSafeInteger(value) && value >= 0 ? value : null;
-  }
-  if (typeof value === "string" && /^\d+$/.test(value)) {
-    const parsed = Number(value);
-    return Number.isSafeInteger(parsed) ? parsed : null;
-  }
-  return null;
-}
-
-function sourceFilename(nasPath: string, fallback: string | null): string {
-  const filename = nasPath.replace(/\\/g, "/").split("/").pop();
-  return filename || fallback || "source";
-}
 
 function pipelineErrorResponse(error: unknown) {
   if (!isMediaPipelineError(error)) {
@@ -83,7 +69,7 @@ export async function POST(req: NextRequest) {
   let assetResult;
   try { assetResult = await getSupabase()
     .from("assets")
-    .select("id, project_id, nas_path, file_url, file_size, title")
+    .select("id, project_id, nas_path, file_url, file_size")
     .eq("id", ownership.data.id)
     .maybeSingle(); } catch { return backendUnavailable(); }
   const { data: asset, error } = assetResult;
@@ -106,19 +92,42 @@ export async function POST(req: NextRequest) {
     );
   }
 
+  let receiptResult;
+  try {
+    receiptResult = await getSupabase()
+      .from("versions")
+      .select(
+        "id, asset_id, version_number, file_size, storage_provider, storage_object_key, storage_sha256, storage_provider_version_id, storage_committed_at, original_filename",
+      )
+      .eq("id", versionLookup.version.id)
+      .eq("asset_id", asset.id)
+      .maybeSingle();
+  } catch {
+    return backendUnavailable();
+  }
+  if (receiptResult.error) {
+    return apiError(
+      "Version source could not be resolved",
+      "BACKEND_UNAVAILABLE",
+      503,
+    );
+  }
+  const sourceResult = buildManagedTranscodeSource({
+    asset,
+    selectedVersion: versionLookup.version,
+    receiptRow: receiptResult.data,
+  });
+  if (!sourceResult.ok) {
+    return apiError(sourceResult.message, sourceResult.code, 409);
+  }
+
   try {
     const service = createMediaPipelineService();
     const job = await service.enqueue({
       assetId: asset.id,
       versionId: versionLookup.version.id,
       projectId: asset.project_id,
-      source: {
-        objectKey: asset.nas_path,
-        filename: sourceFilename(asset.nas_path, asset.title),
-        versionNumber: versionLookup.version.version_number,
-        expectedSize: safeExpectedSize(versionLookup.version.file_size ?? asset.file_size),
-        expectedSha256: null,
-      },
+      source: sourceResult.source,
     });
     return apiJson(
       {

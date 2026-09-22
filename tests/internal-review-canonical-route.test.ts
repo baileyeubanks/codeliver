@@ -21,11 +21,17 @@ interface InternalReviewModule {
     projectId: string,
     assetId: string,
     demoMode?: boolean,
+    versionId?: string | null,
   ) => string;
   readAuthoritativeAssetIdentity: (
     payload: unknown,
     requestedAssetId: string,
   ) => { assetId: string; projectId: string } | null;
+  readAuthoritativeVersionIdentity: (
+    payload: unknown,
+    requestedAssetId: string,
+    requestedVersionId: string,
+  ) => { assetId: string; versionId: string } | null;
 }
 
 function loadInternalReviewModule(): InternalReviewModule {
@@ -51,7 +57,8 @@ function loadInternalReviewModule(): InternalReviewModule {
       };
     }
     if (specifier === "lucide-react") return {};
-    if (specifier === "@/lib/demo/workspace") return { demoAssets: [] };
+    if (specifier === "@/lib/demo/workspace-store") return { useDemoWorkspace: () => ({ assets: [], mediaVersions: [] }) };
+    if (specifier === "@/lib/demo/media-version-authority") return { resolvePinnedDemoMediaVersion: () => null };
     throw new Error(`Unexpected InternalAssetReviewPage import: ${specifier}`);
   }
 
@@ -80,6 +87,25 @@ test("legacy internal asset URLs resolve to the canonical cockpit review state",
     internalReview.buildCanonicalInternalReviewHref("ica", "rough-cut", true),
     "/projects/ica?demo=1&asset=rough-cut&view=review",
   );
+  assert.equal(
+    internalReview.buildCanonicalInternalReviewHref("ica", "rough-cut", true, "source-version-rough-cut"),
+    "/projects/ica?demo=1&asset=rough-cut&version=source-version-rough-cut&view=review",
+  );
+});
+
+test("a legacy redirect preserves an exact demo version and validates a live version before canonicalizing", () => {
+  assert.match(componentSource, /const requestedVersionId = searchParams\.get\("version"\)/);
+  assert.match(componentSource, /const hasRequestedVersion = requestedVersionId !== null/);
+  assert.match(componentSource, /workspace\.assets\.find/);
+  assert.doesNotMatch(componentSource, /demoAssets/);
+  assert.match(componentSource, /resolvePinnedDemoMediaVersion\(workspace\.mediaVersions, assetId, requestedVersionId\)/);
+  assert.match(componentSource, /requestedDemoVersion\?\.id \?\? null/);
+  assert.match(componentSource, /hasRequestedVersion && !requestedDemoVersion/);
+  assert.match(componentSource, /requestedVersionIsMalformed/);
+  assert.match(componentSource, /\/api\/assets\/\$\{encodeURIComponent\(identity\.assetId\)\}\/versions/);
+  assert.match(componentSource, /readAuthoritativeVersionIdentity\(/);
+  assert.match(componentSource, /if \(!projectId \|\| !assetId \|\| immediateError \|\| \(isDemo && !demoRouteReady\)\) return;/);
+  assert.match(componentSource, /No substitute media was opened\./);
 });
 
 test("only an API record with authoritative asset and project identifiers can redirect", () => {
@@ -105,6 +131,32 @@ test("only an API record with authoritative asset and project identifiers can re
     null,
   );
   assert.equal(internalReview.readAuthoritativeAssetIdentity(null, "asset-a"), null);
+});
+
+test("a live legacy route preserves only one server-returned version for its asset", () => {
+  const resolved = internalReview.readAuthoritativeVersionIdentity(
+      { items: [{ id: "version-v1", asset_id: "asset-a" }] },
+      "asset-a",
+      "version-v1",
+  );
+  assert.equal(resolved?.assetId, "asset-a");
+  assert.equal(resolved?.versionId, "version-v1");
+  assert.equal(
+    internalReview.readAuthoritativeVersionIdentity(
+      { items: [{ id: "version-v1", asset_id: "asset-b" }] },
+      "asset-a",
+      "version-v1",
+    ),
+    null,
+  );
+  assert.equal(
+    internalReview.readAuthoritativeVersionIdentity(
+      { items: [{ id: "version-v1", asset_id: "asset-a" }, { id: "version-v1", asset_id: "asset-a" }] },
+      "asset-a",
+      "version-v1",
+    ),
+    null,
+  );
 });
 
 test("the internal route validates before replacing into the bright project cockpit", () => {

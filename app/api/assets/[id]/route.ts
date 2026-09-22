@@ -3,7 +3,12 @@ import {
   getAssetAccess,
   PROJECT_ROLE_RANK,
 } from "@/lib/access-control";
+import {
+  assertAssetNotLocked,
+  isAssetDeliveryLockedError,
+} from "@/lib/delivery/lock";
 import { getSupabase } from "@/lib/supabase";
+import { selectPublishedHlsPublication } from "@/lib/media-pipeline/hls-delivery";
 import { apiError, apiJson, backendUnavailable } from "@/lib/api/responses";
 
 const SAFE_ASSET_COLUMNS =
@@ -45,8 +50,10 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
     return apiError("Asset not found", "ASSET_ACCESS_DENIED", assetAccess.status);
   }
 
+  let supabase;
+  try { supabase = getSupabase(); } catch { return backendUnavailable(); }
   let result;
-  try { result = await getSupabase()
+  try { result = await supabase
     .from("assets")
     .select(SAFE_ASSET_COLUMNS)
     .eq("id", id)
@@ -56,8 +63,16 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
   if (error) return apiError("Asset could not be loaded", "BACKEND_UNAVAILABLE", 503);
   if (!data) return apiError("Asset not found", "ASSET_NOT_FOUND", 404);
 
+  let metadataResult;
+  try { metadataResult = await supabase
+    .from("assets")
+    .select("id, metadata")
+    .eq("id", id)
+    .maybeSingle(); } catch { return backendUnavailable(); }
+  if (metadataResult.error) return backendUnavailable();
+
   let versions;
-  try { versions = await getSupabase()
+  try { versions = await supabase
     .from("versions")
     .select(
       "id, asset_id, version_number, file_url, file_size, notes, uploaded_by, is_current, thumbnail_url, duration_seconds, resolution, created_at, updated_at",
@@ -70,10 +85,28 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
     return apiError("Asset versions could not be loaded", "BACKEND_UNAVAILABLE", 503);
   }
 
+  const projectedVersions = (versions.data ?? []).map((version) => {
+    const publication = metadataResult.data
+      ? selectPublishedHlsPublication({
+          assetId: id,
+          assetMetadata: metadataResult.data.metadata,
+          versionId: version.id,
+          versionAssetId: version.asset_id,
+        })
+      : null;
+    return publication
+      ? {
+          ...version,
+          file_url: `/api/assets/${id}/versions/${version.id}/hls/playlist.m3u8`,
+        }
+      : version;
+  });
+  const currentVersion = projectedVersions[0] ?? null;
   return apiJson({
     ...data,
-    current_version: versions.data?.[0] ?? null,
-    version_count: versions.data?.length ?? 0,
+    file_url: currentVersion?.file_url ?? data.file_url,
+    current_version: currentVersion,
+    version_count: projectedVersions.length,
   });
 }
 
@@ -102,6 +135,17 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
   if (!assetAccess.ok) {
     if (assetAccess.status >= 500) return backendUnavailable();
     return apiError("Asset not found", "ASSET_ACCESS_DENIED", assetAccess.status);
+  }
+
+  // Locked-delivery guard (6.4): an asset frozen in a locked delivery accepts
+  // no further edits — this is the workflow GOVERNED_ASSET_STATUSES points at.
+  try {
+    await assertAssetNotLocked(id, supabase);
+  } catch (error) {
+    if (isAssetDeliveryLockedError(error)) {
+      return apiError("Asset is part of a locked delivery", "ASSET_LOCKED", 409);
+    }
+    return backendUnavailable();
   }
 
   const updates: Record<string, unknown> = {};
@@ -212,6 +256,23 @@ export async function DELETE(_req: Request, { params }: { params: Promise<{ id: 
   if (!assetAccess.ok) {
     if (assetAccess.status >= 500) return backendUnavailable();
     return apiError("Asset not found", "ASSET_ACCESS_DENIED", assetAccess.status);
+  }
+
+  // Locked-delivery guard (6.4): an asset frozen in a locked delivery cannot
+  // be deleted; the delivery's checksum record would outlive its media.
+  let supabase;
+  try {
+    supabase = getSupabase();
+  } catch {
+    return backendUnavailable();
+  }
+  try {
+    await assertAssetNotLocked(id, supabase);
+  } catch (error) {
+    if (isAssetDeliveryLockedError(error)) {
+      return apiError("Asset is part of a locked delivery", "ASSET_LOCKED", 409);
+    }
+    return backendUnavailable();
   }
 
   let result;

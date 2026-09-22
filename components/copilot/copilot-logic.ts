@@ -24,6 +24,8 @@ export interface CopilotPoint {
 }
 
 export const COPILOT_PANEL_MARGIN = 16;
+/** Fixed project navigation reserves this much vertical room on phones. */
+export const COPILOT_MOBILE_NAV_INSET = 76;
 
 export const COPILOT_SIZES: Record<"compact" | "expanded", CopilotSize> = {
   compact: { width: 360, height: 440 },
@@ -31,6 +33,14 @@ export const COPILOT_SIZES: Record<"compact" | "expanded", CopilotSize> = {
 };
 
 export type CopilotSizeKind = keyof typeof COPILOT_SIZES;
+
+/** Reserve a fixed control area without moving the panel into negative space. */
+export function insetCopilotViewport(
+  viewport: CopilotViewport,
+  bottomInset: number,
+): CopilotViewport {
+  return { width: viewport.width, height: Math.max(0, viewport.height - bottomInset) };
+}
 
 /** Keep the whole panel inside the viewport with a uniform margin. */
 export function clampPanelPosition(

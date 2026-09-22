@@ -11,23 +11,21 @@ const componentSource = readFileSync(
   "utf8",
 );
 
-test("the Co‑VideoPro lockup renders the wordmark + one four-color registration mark", () => {
+test("the Co‑VideoPro lockup renders the wordmark + one approved blue artwork", () => {
   assert.match(componentSource, /const DEFAULT_LABEL = "Co‑VideoPro by Content Co-op"/);
   assert.match(componentSource, /role="img"/);
   assert.match(componentSource, /aria-label=\{label\}/);
-  assert.match(componentSource, /<span className=\{styles\.product\}>Co‑VideoPro<\/span>/);
   assert.match(componentSource, /by Content Co-op/);
-  assert.match(componentSource, /src="\/brand\/cvp-mark-muted\.png"/);
+  assert.match(componentSource, /src="\/brand\/cvp-long\.png"/);
   assert.doesNotMatch(componentSource, /Co-Production Pro|Co-Deliver/);
 });
 
 test("the registration mark exists on disk and is a valid PNG", () => {
-  const file = resolve(repositoryRoot, "public/brand/cvp-mark-muted.png");
+  const file = resolve(repositoryRoot, "public/brand/cvp-long.png");
   assert.ok(existsSync(file));
   assert.equal(readFileSync(file).subarray(0, 8).toString("hex"), "89504e470d0a1a0a");
 });
 
-test("variants: compact drops the wordmark, stacked keeps it; one mark per surface", () => {
-  assert.match(componentSource, /variant !== "compact-mark"/);
-  assert.equal(componentSource.match(/cvp-mark-muted\.png/g)?.length, 1, "one registration mark reference");
+test("variants share one clean source artwork", () => {
+  assert.equal(componentSource.match(/cvp-long\.png/g)?.length, 1, "one registration mark reference");
 });

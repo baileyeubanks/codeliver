@@ -19,15 +19,13 @@ import MentionText from "@/components/comments/MentionText";
 import ReplyComposer from "@/components/comments/ReplyComposer";
 import type { Comment, MentionRosterEntry } from "@/lib/types/codeliver";
 
-const DEMO_NOTE = "Demo only — changes are not saved.";
-
 interface CommentActionHandlers {
   currentUserId?: string;
   roster?: MentionRosterEntry[];
   demoMode?: boolean;
+  canReact?: boolean;
   onEdit?: (id: string, body: string) => void;
   onDelete?: (id: string) => void;
-  onDemoNote: (message: string) => void;
 }
 
 interface CommentCardProps extends CommentActionHandlers {
@@ -44,9 +42,9 @@ function CommentCard({
   showVisibilityLabel,
   currentUserId,
   demoMode,
+  canReact = true,
   onEdit,
   onDelete,
-  onDemoNote,
 }: CommentCardProps) {
   const [bodyExpanded, setBodyExpanded] = useState(false);
   const [editing, setEditing] = useState(false);
@@ -54,26 +52,18 @@ function CommentCard({
   const [confirmingDelete, setConfirmingDelete] = useState(false);
 
   const clamped = !comment.rich_body && shouldClamp(comment.body);
-  const canEdit = Boolean(onEdit) || Boolean(demoMode);
-  const canDelete = Boolean(onDelete) || Boolean(demoMode);
+  const canEdit = Boolean(onEdit);
+  const canDelete = Boolean(onDelete);
 
   function saveEdit() {
     const body = editDraft.trim();
     if (!body) return;
-    if (onEdit) {
-      onEdit(comment.id, body);
-    } else {
-      onDemoNote(DEMO_NOTE);
-    }
+    onEdit?.(comment.id, body);
     setEditing(false);
   }
 
   function confirmDelete() {
-    if (onDelete) {
-      onDelete(comment.id);
-    } else {
-      onDemoNote(DEMO_NOTE);
-    }
+    onDelete?.(comment.id);
     setConfirmingDelete(false);
   }
 
@@ -96,8 +86,8 @@ function CommentCard({
 
       <div className="min-w-0 flex-1">
         {/* Header */}
-        <div className="flex items-center gap-2">
-          <span className="text-sm font-medium text-[var(--ink)]">
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="break-words text-sm font-medium text-[var(--ink)]">
             {comment.author_name || "Anonymous"}
           </span>
           {comment.timecode_seconds != null && (
@@ -129,7 +119,7 @@ function CommentCard({
 
           {/* Hover actions: edit / delete */}
           {(canEdit || canDelete) && !editing && !confirmingDelete && (
-            <span className="ml-auto flex items-center gap-1 opacity-0 transition-opacity focus-within:opacity-100 group-hover/card:opacity-100">
+            <span className="ml-auto flex items-center gap-1 opacity-100 transition-opacity focus-within:opacity-100 group-hover/card:opacity-100 sm:opacity-0">
               {canEdit && (
                 <button
                   type="button"
@@ -257,14 +247,16 @@ function CommentCard({
         ))}
 
         {/* Reactions (local state unless a backend is wired) */}
-        <div className="mt-2">
-          <CommentReactions
-            commentId={comment.id}
-            reactions={comment.reactions ?? []}
-            userId={currentUserId}
-            persist={!demoMode}
-          />
-        </div>
+        {canReact ? (
+          <div className="mt-2">
+            <CommentReactions
+              commentId={comment.id}
+              reactions={comment.reactions ?? []}
+              userId={currentUserId}
+              persist={!demoMode}
+            />
+          </div>
+        ) : null}
       </div>
     </div>
   );
@@ -283,12 +275,14 @@ interface CommentThreadProps {
   index: number;
   canReply?: boolean;
   canResolve?: boolean;
+  canEditComment?: (comment: Comment) => boolean;
+  canReact?: boolean;
   selected?: boolean;
   onSelect?: () => void;
   showVisibilityLabel?: boolean;
   roster?: MentionRosterEntry[];
   currentUserId?: string;
-  /** Honest demo mode: actions without callbacks surface a not-saved note. */
+  /** Demo reactions remain browser-local when they are explicitly allowed. */
   demoMode?: boolean;
 }
 
@@ -305,6 +299,8 @@ export default function CommentThread({
   index,
   canReply = true,
   canResolve = true,
+  canEditComment,
+  canReact = true,
   selected = false,
   onSelect,
   showVisibilityLabel = false,
@@ -316,24 +312,25 @@ export default function CommentThread({
   const [repliesCollapsed, setRepliesCollapsed] = useState(false);
   const [resolvedOpen, setResolvedOpen] = useState(false);
   const [replyOpen, setReplyOpen] = useState(false);
-  const [demoNote, setDemoNote] = useState<string | null>(null);
 
   const isResolved = comment.status === "resolved";
   const visibleReplies = expanded ? replies : replies.slice(0, 3);
   const hiddenCount = replies.length - 3;
   const resolveHandler = isResolved ? (onUnresolve ?? onResolve) : onResolve;
 
-  const cardHandlers: CommentActionHandlers = {
-    currentUserId,
-    roster,
-    demoMode,
-    onEdit,
-    onDelete,
-    onDemoNote: setDemoNote,
-  };
+  function cardHandlers(candidate: Comment): CommentActionHandlers {
+    return {
+      currentUserId,
+      roster,
+      demoMode,
+      canReact,
+      onEdit: canEditComment?.(candidate) === false ? undefined : onEdit,
+      onDelete,
+    };
+  }
 
   function handleReplyClick() {
-    if (onReplySubmit || demoMode) {
+    if (onReplySubmit) {
       setReplyOpen((value) => !value);
     } else {
       onReply?.(comment.id);
@@ -341,27 +338,20 @@ export default function CommentThread({
   }
 
   function handleReplySubmit(body: string, mentions: string[]) {
-    if (onReplySubmit) {
-      onReplySubmit(comment.id, body, mentions);
-      setReplyOpen(false);
-    } else {
-      setDemoNote(DEMO_NOTE);
-    }
+    if (!onReplySubmit) return;
+    onReplySubmit(comment.id, body, mentions);
+    setReplyOpen(false);
   }
 
   function handleResolveClick() {
-    if (resolveHandler) {
-      resolveHandler(comment.id);
-    } else {
-      setDemoNote(DEMO_NOTE);
-    }
+    resolveHandler?.(comment.id);
   }
 
   // Resolved threads collapse to a compact row by default.
   if (isResolved && !resolvedOpen) {
     return (
       <div
-        className={`rounded-[var(--radius)] border border-[var(--green)]/20 bg-[var(--bg)]/72 px-4 py-3 opacity-75 transition-colors ${
+        className={`border-b border-[var(--green)]/20 px-1 py-3 opacity-75 transition-colors ${
           onSelect ? "cursor-pointer hover:border-[var(--accent)]/50" : ""
         }`}
         onClick={onSelect}
@@ -412,9 +402,9 @@ export default function CommentThread({
 
   return (
     <div
-      className={`rounded-[var(--radius)] border bg-[var(--bg)]/72 p-4 transition-colors ${
+      className={`border-b bg-transparent px-1 py-4 transition-colors ${
         selected
-          ? "border-[var(--accent)] shadow-[0_0_0_1px_var(--accent)]"
+          ? "border-[var(--accent)] bg-[var(--accent)]/5"
           : isResolved
             ? "border-[var(--green)]/20 opacity-75"
             : "border-[var(--border)]"
@@ -450,17 +440,17 @@ export default function CommentThread({
             comment={comment}
             onSeek={onSeek}
             showVisibilityLabel={showVisibilityLabel}
-            {...cardHandlers}
+            {...cardHandlers(comment)}
           />
         </div>
       </div>
 
       {/* Actions */}
-      {(canReply && (onReply || onReplySubmit || demoMode)) ||
-      (canResolve && (resolveHandler || demoMode)) ||
+      {(canReply && (onReply || onReplySubmit)) ||
+      (canResolve && resolveHandler) ||
       isResolved ? (
         <div className="mt-3 flex flex-wrap items-center gap-3 pl-9">
-          {canReply && (onReply || onReplySubmit || demoMode) && (
+          {canReply && (onReply || onReplySubmit) && (
             <button
               type="button"
               onClick={(event) => {
@@ -474,7 +464,7 @@ export default function CommentThread({
               Reply
             </button>
           )}
-          {canResolve && (resolveHandler || demoMode) && (
+          {canResolve && resolveHandler && (
             <button
               type="button"
               onClick={(event) => {
@@ -491,7 +481,7 @@ export default function CommentThread({
               {isResolved ? "Unresolve" : "Resolve"}
             </button>
           )}
-          {isResolved && !(canResolve && (resolveHandler || demoMode)) && (
+          {isResolved && !(canResolve && resolveHandler) && (
             <span className="flex items-center gap-1 text-xs text-[var(--green)]">
               <CheckCircle size={12} />
               Resolved
@@ -510,11 +500,6 @@ export default function CommentThread({
               <ChevronUp size={12} />
               Collapse
             </button>
-          )}
-          {demoNote && (
-            <span role="status" className="text-xs text-[var(--orange)]">
-              {demoNote}
-            </span>
           )}
         </div>
       ) : null}
@@ -556,7 +541,7 @@ export default function CommentThread({
                   onSeek={onSeek}
                   isReply
                   showVisibilityLabel={showVisibilityLabel}
-                  {...cardHandlers}
+                  {...cardHandlers(reply)}
                 />
               ))}
 

@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useRef, useEffect, type ReactNode, type RefObject } from "react";
-import Hls from "hls.js";
+import Hls, { type ErrorData, type Events } from "hls.js";
 import { normalizeReviewShortcutKey, projectPointIntoMedia, shouldIgnoreReviewShortcut } from "@/lib/review/player-policy";
 import { nextShuttleRate, stepFrames } from "@/lib/review/frame-review";
 import { usePlayerStore } from "@/lib/stores/playerStore";
@@ -10,6 +10,7 @@ interface VideoPlayerProps {
   src: string;
   poster?: string;
   onTimeUpdate?: (time: number) => void;
+  onPlaybackError?: () => void;
   onFrameClick?: (x: number, y: number, timeSeconds: number) => void;
   onCutMarker?: (time: number) => void;
   children?: ReactNode;
@@ -20,6 +21,7 @@ export default function VideoPlayer({
   src,
   poster,
   onTimeUpdate,
+  onPlaybackError,
   onFrameClick,
   onCutMarker,
   children,
@@ -29,6 +31,8 @@ export default function VideoPlayer({
   const videoRef = externalRef ?? internalRef;
   const hlsRef = useRef<Hls | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  const sourceGenerationRef = useRef(0);
+  const reportedFailureGenerationRef = useRef<number | null>(null);
 
   const {
     playing,
@@ -54,34 +58,66 @@ export default function VideoPlayer({
     });
   }, [setMuted, setPlaying]);
 
+  const reportPlaybackFailure = useCallback((sourceGeneration: number) => {
+    if (
+      sourceGeneration !== sourceGenerationRef.current ||
+      reportedFailureGenerationRef.current === sourceGeneration
+    ) {
+      return;
+    }
+
+    reportedFailureGenerationRef.current = sourceGeneration;
+    setPlaying(false);
+    setCurrentTime(0);
+    setDuration(0);
+    setBufferedEnd(0);
+    onPlaybackError?.();
+  }, [onPlaybackError, setBufferedEnd, setCurrentTime, setDuration, setPlaying]);
+
   // Attach HLS or native source
   useEffect(() => {
     const video = videoRef.current;
     if (!video) return;
 
-    if (hlsRef.current) {
-      hlsRef.current.destroy();
-      hlsRef.current = null;
-    }
+    const sourceGeneration = sourceGenerationRef.current + 1;
+    sourceGenerationRef.current = sourceGeneration;
+    reportedFailureGenerationRef.current = null;
+    let sourceIsActive = true;
+    const reportActiveFailure = () => {
+      if (sourceIsActive) reportPlaybackFailure(sourceGeneration);
+    };
+    const handleNativeError = () => reportActiveFailure();
+    video.addEventListener("error", handleNativeError);
 
-    const isHls = src.endsWith(".m3u8");
-
+    const isHls = src.split(/[?#]/, 1)[0].toLowerCase().endsWith(".m3u8");
     if (isHls && Hls.isSupported()) {
       const hls = new Hls();
+      const handleHlsError = (_event: Events.ERROR, data: ErrorData) => {
+        if (data.fatal) reportActiveFailure();
+      };
+      hls.on(Hls.Events.ERROR, handleHlsError);
       hls.loadSource(src);
       hls.attachMedia(video);
       hlsRef.current = hls;
+
+      return () => {
+        sourceIsActive = false;
+        if (sourceGenerationRef.current === sourceGeneration) sourceGenerationRef.current += 1;
+        video.removeEventListener("error", handleNativeError);
+        hls.off(Hls.Events.ERROR, handleHlsError);
+        hls.destroy();
+        if (hlsRef.current === hls) hlsRef.current = null;
+      };
     } else {
       video.src = src;
     }
 
     return () => {
-      if (hlsRef.current) {
-        hlsRef.current.destroy();
-        hlsRef.current = null;
-      }
+      sourceIsActive = false;
+      if (sourceGenerationRef.current === sourceGeneration) sourceGenerationRef.current += 1;
+      video.removeEventListener("error", handleNativeError);
     };
-  }, [src, videoRef]);
+  }, [src, videoRef, reportPlaybackFailure]);
 
   // Sync playback state to video element
   useEffect(() => {

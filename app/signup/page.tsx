@@ -4,6 +4,8 @@ import { useEffect, useRef, useState, type FormEvent } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, CheckCircle2, Eye, EyeOff, LoaderCircle, UserPlus } from "lucide-react";
+import { resolveReviewAuthReturn } from "@/lib/auth/review-return";
+import GoogleSignIn from "@/components/auth/GoogleSignIn";
 import AuthShell, { authStyles as styles } from "@/components/auth/AuthShell";
 import {
   AUTH_PASSWORD_MIN_LENGTH,
@@ -109,7 +111,7 @@ export default function SignupPage() {
       if (
         payload?.confirmation_required === false &&
         typeof payload.destination === "string" &&
-        (payload.destination === "/onboarding" || payload.destination.startsWith("/onboarding?"))
+        (payload.destination === "/onboarding" || payload.destination.startsWith("/onboarding?") || resolveReviewAuthReturn(payload.destination))
       ) {
         router.replace(payload.destination);
         router.refresh();
@@ -196,6 +198,8 @@ export default function SignupPage() {
               <h1 id="signup-title">Create your account</h1>
               <p>Use one identity for comments, approvals, and delivery activity.</p>
             </header>
+
+        {!demoMode ? <GoogleSignIn next={returnTarget} /> : null}
 
             {error ? (
               <div

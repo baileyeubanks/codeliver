@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 
+import { requireAuth } from "@/lib/auth";
 import { isOpaqueRouteToken } from "@/lib/dynamic-route-authority";
 import { admitReviewInvite } from "@/lib/review/admission-authority";
 import {
@@ -9,6 +10,7 @@ import {
   REVIEW_ADMISSION_GRANT_TTL_SECONDS,
   serializeReviewAdmissionCookie,
 } from "@/lib/review/admission-grant";
+import { reviewRecipientHashForConfirmedUser } from "@/lib/review/recipient-identity";
 import {
   readReviewJsonObject,
   reviewAdmissionNetworkBucket,
@@ -69,12 +71,27 @@ async function admit(
   const admissionId = prior?.claims.admissionId ?? randomUUID();
   assertReviewAdmissionSigningConfiguration();
   const networkBucket = reviewAdmissionNetworkBucket(request);
+  let recipientHash: string | null = null;
+  let recipientAuthUnavailable = false;
+  try {
+    recipientHash = reviewRecipientHashForConfirmedUser(await requireAuth());
+  } catch {
+    // Recipient-bound invites still fail closed in durable authority. Keep
+    // unbound bearer links available when the optional auth lookup is down.
+    recipientAuthUnavailable = true;
+    recipientHash = null;
+  }
   const result = await admitReviewInvite({
     token,
     admissionId,
     networkBucket,
+    recipientHash,
   });
   if (!result.ok) {
+    const recipientAuthRequired =
+      result.code === "REVIEW_RECIPIENT_AUTH_REQUIRED";
+    const recipientAuthFailure =
+      recipientAuthRequired && recipientAuthUnavailable;
     const headers =
       result.status === 429
         ? {
@@ -84,11 +101,17 @@ async function admit(
           }
         : undefined;
     return reviewError(
-      result.status === 429
+      recipientAuthFailure
+        ? "Review sign-in is temporarily unavailable"
+        : result.status === 429
         ? "Review admission rate exceeded"
+        : recipientAuthRequired
+          ? "Sign in with the invited email to open this review"
         : "Review link is unavailable",
-      result.code,
-      result.status,
+      recipientAuthFailure
+        ? "REVIEW_RECIPIENT_AUTH_UNAVAILABLE"
+        : result.code,
+      recipientAuthFailure ? 503 : result.status,
       headers,
     );
   }
@@ -99,6 +122,13 @@ async function admit(
     now + REVIEW_ADMISSION_GRANT_TTL_SECONDS,
   );
   if (grantExpiresAt <= now) return reviewBackendUnavailable();
+  if (result.admission.recipientRequired && !recipientHash) {
+    return reviewError(
+      "Sign in with the invited email to open this review",
+      "REVIEW_RECIPIENT_AUTH_REQUIRED",
+      403,
+    );
+  }
 
   const grant = issueReviewAdmissionGrant({
     token,
@@ -109,6 +139,9 @@ async function admit(
     issuedAt: now,
     expiresAt: grantExpiresAt,
     admissionExpiresAt: result.admission.expiresAt,
+    ...(result.admission.recipientRequired && recipientHash
+      ? { recipientHash }
+      : {}),
   });
   const cookie = serializeReviewAdmissionCookie({
     admissionId: result.admission.admissionId,

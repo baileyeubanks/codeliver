@@ -1,18 +1,26 @@
 "use client";
 
 import Link from "next/link";
-import { useParams, useRouter } from "next/navigation";
-import { useEffect, useState, useRef } from "react";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
+import { useCallback, useEffect, useState, useRef } from "react";
+import { flushSync } from "react-dom";
 import { ArrowRight, LoaderCircle, SearchX } from "lucide-react";
 import { useDemoMode } from "@/lib/demo/mode";
 import { buildInternalDemoAssetHref } from "@/lib/demo/workspace";
 import {
-  addDemoAssets,
+  addDemoLocalMediaAsset,
+  appendDemoMediaVersion,
   useDemoWorkspace,
 } from "@/lib/demo/workspace-store";
 import ProjectCockpit, { type CockpitUploadStatus } from "@/components/projects/ProjectCockpit";
+import {
+  resolveRevisionUploadTarget,
+  shouldApplyRevisionUploadTarget,
+  supersedeRevisionUploadRequest,
+  type RevisionUploadTarget,
+} from "@/lib/uploads/revision-upload";
 import ProjectWorkspaceTabs from "@/components/projects/ProjectWorkspaceTabs";
-import AssetUpload from "@/components/assets/AssetUpload";
+import AssetUpload, { type UploadCompletion } from "@/components/assets/AssetUpload";
 import CoProductionBrand from "@/components/brand/CoProductionBrand";
 import type { MediaAsset } from "@/components/projects/MediaCard";
 import { putDemoMediaBlob } from "@/lib/demo/media-blob-store";
@@ -53,12 +61,18 @@ interface Asset {
   href?: string;
 }
 
+type DemoUploadTarget =
+  | { kind: "new_asset" }
+  | { kind: "revision"; assetId: string };
+
 export default function ProjectWorkspaceClient() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const demoMode = useDemoMode();
   const demoWorkspace = useDemoWorkspace();
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const uploadTargetRef = useRef<DemoUploadTarget>({ kind: "new_asset" });
   const [remoteProject, setRemoteProject] = useState<Project | null>(null);
   const [remoteProjects, setRemoteProjects] = useState<Project[]>([]);
   const [remoteAssets, setRemoteAssets] = useState<Asset[]>([]);
@@ -67,6 +81,10 @@ export default function ProjectWorkspaceClient() {
   const [remoteError, setRemoteError] = useState("");
   const [uploading, setUploading] = useState(false);
   const [uploadStatus, setUploadStatus] = useState<CockpitUploadStatus | null>(null);
+  const [revisionTarget, setRevisionTarget] = useState<RevisionUploadTarget | null>(null);
+  const revisionRequest = useRef(0);
+  const activeProjectIdRef = useRef(id);
+  activeProjectIdRef.current = id;
   const demoProject = demoWorkspace.projects.find((candidate) => candidate.id === id);
   const project: Project | null = demoMode
     ? demoProject
@@ -100,6 +118,19 @@ export default function ProjectWorkspaceClient() {
   const loading = demoMode ? false : remoteLoading;
   const authoritativeUploadInputId = `project-${id}-asset-upload`;
 
+  const invalidateRemoteRevisionUpload = useCallback(() => {
+    const supersession = supersedeRevisionUploadRequest(revisionRequest.current);
+    revisionRequest.current = supersession.request;
+    setRevisionTarget(null);
+    setUploading(supersession.uploading);
+    setUploadStatus(null);
+  }, []);
+
+  useEffect(() => {
+    if (demoMode) return;
+    invalidateRemoteRevisionUpload();
+  }, [demoMode, id, invalidateRemoteRevisionUpload]);
+
   useEffect(() => {
     if (!id || demoMode) return;
     const controller = new AbortController();
@@ -116,9 +147,10 @@ export default function ProjectWorkspaceClient() {
     ])
       .then(async ([projectResponse, assetsResponse, projectsResponse, sessionResponse]) => {
         if (!projectResponse.ok) throw new Error("Project could not be loaded.");
+        if (!assetsResponse.ok) throw new Error("Project media could not be loaded. Please retry.");
         const [projectPayload, assetsPayload, projectsPayload, sessionPayload] = await Promise.all([
           projectResponse.json(),
-          assetsResponse.ok ? assetsResponse.json() : { items: [] },
+          assetsResponse.json(),
           projectsResponse.ok ? projectsResponse.json() : { items: [] },
           sessionResponse.ok ? sessionResponse.json() : {},
         ]);
@@ -152,139 +184,183 @@ export default function ProjectWorkspaceClient() {
     };
   }, [demoMode, id]);
 
-  async function handleUpload(files: FileList | null) {
+  async function handleUpload(
+    files: FileList | null,
+    target: DemoUploadTarget = uploadTargetRef.current,
+  ) {
     if (!demoMode || !files || files.length === 0) return;
     setUploading(true);
     const selectedFiles = Array.from(files);
-    const addedAssets: MediaAsset[] = [];
+    let completed = 0;
     let keepTerminalStatus = false;
     let activeFileName = selectedFiles[0]?.name ?? "Media";
+    let completedAssetId: string | undefined;
+    let completedVersionId: string | undefined;
+    let completedVersionNumber: number | undefined;
 
     try {
-      if (demoMode) {
-        const uploadStartedAt = Date.now();
-        const uploadAssets: MediaAsset[] = selectedFiles.map((file, index) => {
-          const assetId = `local-upload-${uploadStartedAt}-${index}`;
-          return {
-            id: assetId,
-            project_id: id,
-            title: file.name.replace(/\.[^.]+$/, ""),
-            file_type: "document",
-            status: "draft",
-            version_count: 1,
-            reviewer_count: 0,
-            reviewer_done: 0,
-            comment_count: 0,
-            created_at: new Date().toISOString(),
-            href: buildInternalDemoAssetHref(id, assetId),
-          };
+      if (target.kind === "revision" && selectedFiles.length !== 1) {
+        throw new Error("Choose one file for a replacement version.");
+      }
+      const uploadStartedAt = Date.now();
+
+      for (const [index, file] of selectedFiles.entries()) {
+        activeFileName = file.name;
+        const assetId = target.kind === "revision"
+          ? target.assetId
+          : `local-upload-${uploadStartedAt}-${index}`;
+        const versionId = target.kind === "revision"
+          ? `local-version-${assetId}-${uploadStartedAt}`
+          : `local-version-${assetId}`;
+        setUploadStatus({
+          fileName: file.name,
+          phase: "validating",
+          progress: Math.round((index / selectedFiles.length) * 100),
+          completed: index,
+          total: selectedFiles.length,
+          mode: "demo",
+          kind: target.kind,
+          message: `Checking ${formatFileSize(file.size)} against the accepted media types.`,
         });
 
-        for (const [index, file] of selectedFiles.entries()) {
-          activeFileName = file.name;
-          setUploadStatus({
-            fileName: file.name,
-            phase: "validating",
-            progress: Math.round((index / selectedFiles.length) * 100),
-            completed: index,
-            total: selectedFiles.length,
-            mode: "demo",
-            message: `Checking ${formatFileSize(file.size)} against the accepted media types.`,
-          });
+        const validation = await validateDemoUpload(file, { allowDocuments: true });
+        if (!validation.ok) throw new Error(validation.reason);
 
-          const validation = await validateDemoUpload(file, { allowDocuments: true });
-          if (!validation.ok) {
-            throw new Error(validation.reason);
-          }
-
-          const inspectionPromise = inspectSelectedMedia(file);
-          const storageResult = await putDemoMediaBlob(uploadAssets[index].id, file, {
-            onProgress: ({ bytesStored, bytesTotal, percent }) => {
-              const overallProgress = Math.round(
-                ((index + Math.min(percent, 96) / 100) / selectedFiles.length) * 100,
-              );
-              setUploadStatus({
-                fileName: file.name,
-                phase: "transferring",
-                progress: overallProgress,
-                completed: index,
-                total: selectedFiles.length,
-                mode: "demo",
-                message: `Stored ${formatFileSize(bytesStored)} of ${formatFileSize(bytesTotal)} locally.`,
-              });
-            },
-          });
-          const inspection = await inspectionPromise;
-          const asset = uploadAssets[index];
-          asset.file_type = inspection.kind === "unknown" ? "document" : inspection.kind;
-          if (inspection.duration.status === "available") {
-            asset.duration_seconds = inspection.duration.seconds;
-          }
-          if (inspection.thumbnail.status === "available") {
-            const thumbnailId = `${asset.id}-preview`;
-            const thumbnailFile = new File(
-              [inspection.thumbnail.blob],
-              `${asset.id}-preview.jpg`,
-              { type: inspection.thumbnail.mimeType },
+        const inspectionPromise = inspectSelectedMedia(file);
+        const storageResult = await putDemoMediaBlob(versionId, file, {
+          onProgress: ({ bytesStored, bytesTotal, percent }) => {
+            const overallProgress = Math.round(
+              ((index + Math.min(percent, 96) / 100) / selectedFiles.length) * 100,
             );
-            await putDemoMediaBlob(thumbnailId, thumbnailFile);
-            asset.demo_thumbnail_id = thumbnailId;
-          }
-          if (!storageResult.persistent) {
             setUploadStatus({
               fileName: file.name,
               phase: "transferring",
-              progress: Math.round(((index + 0.96) / selectedFiles.length) * 100),
+              progress: overallProgress,
               completed: index,
               total: selectedFiles.length,
               mode: "demo",
-              message:
-                "Browser disk storage is unavailable, so this source will remain available for the current session only.",
+              kind: target.kind,
+              message: `Stored ${formatFileSize(bytesStored)} of ${formatFileSize(bytesTotal)} locally.`,
             });
-          }
-
+          },
+        });
+        const inspection = await inspectionPromise;
+        const fileType = inspection.kind === "unknown" ? "document" : inspection.kind;
+        const durationSeconds = inspection.duration.status === "available"
+          ? inspection.duration.seconds
+          : null;
+        let thumbnailBlobId: string | null = null;
+        if (inspection.thumbnail.status === "available") {
+          thumbnailBlobId = `${versionId}-preview`;
+          const thumbnailFile = new File(
+            [inspection.thumbnail.blob],
+            `${versionId}-preview.jpg`,
+            { type: inspection.thumbnail.mimeType },
+          );
+          await putDemoMediaBlob(thumbnailBlobId, thumbnailFile);
+        }
+        if (!storageResult.persistent) {
           setUploadStatus({
             fileName: file.name,
-            phase: "indexing",
-            progress: Math.round(((index + 0.98) / selectedFiles.length) * 100),
+            phase: "transferring",
+            progress: Math.round(((index + 0.96) / selectedFiles.length) * 100),
             completed: index,
             total: selectedFiles.length,
             mode: "demo",
-            message: "Registering this source in the project, version, and review records.",
+            kind: target.kind,
+            message: "Browser disk storage is unavailable, so this cut remains available for the current session only.",
           });
-          addDemoAssets([asset]);
-          addedAssets.push(asset);
         }
 
         setUploadStatus({
-          fileName: selectedFiles.at(-1)?.name ?? "Media",
-          phase: "complete",
-          progress: 100,
-          completed: selectedFiles.length,
+          fileName: file.name,
+          phase: "indexing",
+          progress: Math.round(((index + 0.98) / selectedFiles.length) * 100),
+          completed: index,
           total: selectedFiles.length,
           mode: "demo",
-          message: "The uploaded source is stored and ready to play in this project.",
-          assetId: addedAssets.at(-1)?.id,
+          kind: target.kind,
+          message: target.kind === "revision"
+            ? "Binding this new cut to the selected media without moving prior review authority."
+            : "Registering this new browser-local deliverable and its first review version.",
         });
-        keepTerminalStatus = true;
-        return;
+
+        const result = target.kind === "revision"
+          ? appendDemoMediaVersion({
+              projectId: id,
+              assetId,
+              versionId,
+              mediaBlobId: versionId,
+              thumbnailBlobId,
+              fileName: file.name,
+              fileType,
+              fileSize: file.size,
+              durationSeconds,
+            })
+          : addDemoLocalMediaAsset({
+              asset: {
+                id: assetId,
+                project_id: id,
+                title: file.name.replace(/\.[^.]+$/, ""),
+                file_type: fileType,
+                status: "in_review",
+                version_count: 1,
+                reviewer_count: 0,
+                reviewer_done: 0,
+                comment_count: 0,
+                duration_seconds: durationSeconds ?? undefined,
+                demo_thumbnail_id: thumbnailBlobId ?? undefined,
+                created_at: new Date().toISOString(),
+                href: buildInternalDemoAssetHref(id, assetId),
+              },
+              versionId,
+              mediaBlobId: versionId,
+              thumbnailBlobId,
+              fileName: file.name,
+              fileType,
+              fileSize: file.size,
+              durationSeconds,
+            });
+        if (!result.ok) throw new Error(result.error);
+        completed += 1;
+        completedAssetId = result.asset.id;
+        completedVersionId = result.version.id;
+        completedVersionNumber = result.version.version_number;
       }
 
+      setUploadStatus({
+        fileName: selectedFiles.at(-1)?.name ?? "Media",
+        phase: "complete",
+        progress: 100,
+        completed,
+        total: selectedFiles.length,
+        mode: "demo",
+        kind: target.kind,
+        assetId: completedAssetId,
+        versionId: completedVersionId,
+        versionNumber: completedVersionNumber,
+        message: target.kind === "revision"
+          ? "The new cut is stored locally and ready for its own review link."
+          : "The browser-local deliverable is stored and ready to play in this project.",
+      });
+      keepTerminalStatus = true;
     } catch (uploadError) {
       keepTerminalStatus = true;
       setUploadStatus({
         fileName: activeFileName,
         phase: "error",
-        progress: Math.round((addedAssets.length / selectedFiles.length) * 100),
-        completed: addedAssets.length,
+        progress: Math.round((completed / selectedFiles.length) * 100),
+        completed,
         total: selectedFiles.length,
-        mode: demoMode ? "demo" : "production",
+        mode: "demo",
+        kind: target.kind,
         message: uploadError instanceof Error
           ? uploadError.message
           : "Media ingest failed unexpectedly.",
       });
     } finally {
       setUploading(false);
+      uploadTargetRef.current = { kind: "new_asset" };
       if (!keepTerminalStatus) setUploadStatus(null);
       if (fileInputRef.current) fileInputRef.current.value = "";
     }
@@ -300,14 +376,115 @@ export default function ProjectWorkspaceClient() {
     }
   }
 
-  function refreshRemoteAssets() {
-    void fetch(`/api/projects/${id}/assets`, { cache: "no-store" })
-      .then(async (response) => {
-        if (!response.ok) return;
-        const payload = (await response.json()) as { items?: Asset[] };
-        setRemoteAssets(payload.items ?? []);
-      })
-      .catch(() => undefined);
+  function openDemoUploadPicker(target: DemoUploadTarget) {
+    uploadTargetRef.current = target;
+    fileInputRef.current?.click();
+  }
+
+  async function refreshRemoteAssets() {
+    const response = await fetch(`/api/projects/${id}/assets`, {
+      cache: "no-store", signal: AbortSignal.timeout(20_000),
+    });
+    if (!response.ok) throw new Error("File saved. The media list could not refresh. Reload this project to try again.");
+    const payload = (await response.json()) as { items?: Asset[] };
+    setRemoteAssets(payload.items ?? []);
+  }
+
+  function openRemoteUploadPicker() {
+    // The native input must observe a cleared revision target in this same user
+    // gesture, so a regular upload cannot inherit an older replacement target.
+    flushSync(() => {
+      invalidateRemoteRevisionUpload();
+    });
+    document.getElementById(authoritativeUploadInputId)?.click();
+  }
+
+  async function openRemoteRevisionPicker(assetId: string) {
+    const projectId = id;
+    const request = ++revisionRequest.current;
+    setRevisionTarget(null);
+    setUploading(true);
+    setUploadStatus({
+      fileName: "Replacement version",
+      phase: "validating",
+      progress: 0,
+      completed: 0,
+      total: 1,
+      mode: "production",
+      kind: "revision",
+      message: "Confirming the selected media and its current version.",
+    });
+    try {
+      const response = await fetch(`/api/assets/${encodeURIComponent(assetId)}`, {
+        cache: "no-store",
+        signal: AbortSignal.timeout(20_000),
+      });
+      if (!response.ok) throw new Error("The selected media is unavailable for a replacement version.");
+      const target = resolveRevisionUploadTarget(await response.json(), projectId, assetId);
+      if (!target) throw new Error("The selected media has no current version available to replace.");
+      if (!shouldApplyRevisionUploadTarget({
+        request,
+        latestRequest: revisionRequest.current,
+        requestedProjectId: projectId,
+        activeProjectId: activeProjectIdRef.current,
+      })) return;
+      setRevisionTarget(target);
+      setUploadStatus({
+        fileName: "Replacement version",
+        phase: "ready",
+        progress: 0,
+        completed: 0,
+        total: 1,
+        mode: "production",
+        kind: "revision",
+        message: "This media is still current. Choose one replacement file to continue.",
+      });
+    } catch (error) {
+      if (!shouldApplyRevisionUploadTarget({
+        request,
+        latestRequest: revisionRequest.current,
+        requestedProjectId: projectId,
+        activeProjectId: activeProjectIdRef.current,
+      })) return;
+      setUploadStatus({
+        fileName: "Replacement version",
+        phase: "error",
+        progress: 0,
+        completed: 0,
+        total: 1,
+        mode: "production",
+        kind: "revision",
+        message: error instanceof Error ? error.message : "The selected media is unavailable for a replacement version.",
+      });
+    } finally {
+      if (shouldApplyRevisionUploadTarget({
+        request,
+        latestRequest: revisionRequest.current,
+        requestedProjectId: projectId,
+        activeProjectId: activeProjectIdRef.current,
+      })) setUploading(false);
+    }
+  }
+
+  function chooseRemoteRevisionFile() {
+    if (!revisionTarget || activeProjectIdRef.current !== id) return;
+    setUploadStatus(null);
+    document.getElementById(authoritativeUploadInputId)?.click();
+  }
+
+  function dismissRemoteUploadStatus() {
+    invalidateRemoteRevisionUpload();
+  }
+
+  async function handleRemoteUploadComplete(completions: UploadCompletion[]) {
+    await refreshRemoteAssets();
+    const revision = completions.find((completion) => completion.revision);
+    if (!revision) return;
+    const params = new URLSearchParams(searchParams.toString());
+    params.set("asset", revision.assetId);
+    params.set("version", revision.versionId);
+    params.set("view", "review");
+    router.push(`/projects/${id}?${params.toString()}`);
   }
 
   if (loading) {
@@ -384,7 +561,7 @@ export default function ProjectWorkspaceClient() {
           multiple
           accept="video/*,image/*,audio/*,.pdf,.doc,.docx"
           className="hidden"
-          onChange={(event) => handleUpload(event.target.files)}
+          onChange={(event) => void handleUpload(event.target.files, uploadTargetRef.current)}
         />
         <ProjectWorkspaceTabs
           project={demoProject}
@@ -392,7 +569,8 @@ export default function ProjectWorkspaceClient() {
           projects={demoWorkspace.projects}
           uploading={uploading}
           uploadStatus={uploadStatus}
-          onUpload={() => fileInputRef.current?.click()}
+          onUpload={() => openDemoUploadPicker({ kind: "new_asset" })}
+          onUploadRevision={(assetId) => openDemoUploadPicker({ kind: "revision", assetId })}
           onUploadDismiss={dismissUploadStatus}
         />
       </>
@@ -407,15 +585,20 @@ export default function ProjectWorkspaceClient() {
         assets={cockpitAssets}
         demoMode={false}
         viewer={viewer}
-        uploading={false}
-        uploadStatus={null}
-        onUpload={() => document.getElementById(authoritativeUploadInputId)?.click()}
+        uploading={uploading}
+        uploadStatus={uploadStatus}
+        onUpload={openRemoteUploadPicker}
+        onUploadRevision={openRemoteRevisionPicker}
+        onUploadChooseRevisionFile={chooseRemoteRevisionFile}
+        onUploadDismiss={dismissRemoteUploadStatus}
       />
       <AssetUpload
         projectId={id}
         inputId={authoritativeUploadInputId}
         variant="cockpit"
-        onUploadComplete={refreshRemoteAssets}
+        onUploadComplete={handleRemoteUploadComplete}
+        resumeScope={viewer.email}
+        revisionTarget={revisionTarget}
       />
     </>
   );

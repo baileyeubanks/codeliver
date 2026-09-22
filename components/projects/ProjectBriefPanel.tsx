@@ -18,6 +18,7 @@ import {
 } from "@/lib/projects/briefs.ts";
 import { projectBrandGuardrails } from "@/lib/projects/guardrails.ts";
 import { formatDateShort } from "@/lib/projects/dates.ts";
+import { sourceCatalog } from "@/lib/demo/source-catalog";
 import { saveBrief, useDemoWorkspace } from "@/lib/demo/workspace-store";
 import { currentBrief } from "@/lib/covideopro/record.ts";
 import styles from "./ProjectWorkspaceTabs.module.css";
@@ -73,6 +74,7 @@ export default function ProjectBriefPanel({
       : null;
   const diff = viewed && previous ? diffBriefVersions(previous, viewed) : null;
   const guardrails = projectBrandGuardrails(projectId);
+  const importedContext = sourceCatalog?.projects.find((project) => project.id === projectId) ?? null;
 
   function startEdit() {
     setEditing(true);
@@ -102,7 +104,7 @@ export default function ProjectBriefPanel({
         <div>
           <h2 className={styles.panelTitle}>Creative brief</h2>
           <p className={styles.panelSubtitle}>
-            The living brief for {projectName} — every version stays on file.
+            The versioned brief for {projectName}.
           </p>
         </div>
         {!editing && (
@@ -169,15 +171,32 @@ export default function ProjectBriefPanel({
             <button type="button" className={styles.secondaryButton} onClick={() => setEditing(false)}>
               Cancel
             </button>
-            <span className={styles.editNote}>
+            <span className={styles.editNote} aria-label="Earlier versions stay on file.">
               Saving creates a new draft version — earlier versions stay on file.
             </span>
           </div>
         </form>
       ) : viewed === null ? (
-        <div className={styles.emptyState}>
-          No creative brief yet. Start one to anchor objectives, audience, and messaging.
-        </div>
+        importedContext ? (
+        <section className={styles.card} aria-label="Imported project context">
+          <h3 className={styles.cardTitle}>Imported project context</h3>
+          {importedContext?.summary ? (
+            <p className={styles.briefField}>{importedContext.summary}</p>
+          ) : (
+            <p className={styles.briefField}>No versioned creative brief has been created for this project.</p>
+          )}
+          {importedContext?.source_label && (
+            <p className={styles.muted}>Source: {importedContext.source_label}</p>
+          )}
+          <p className={styles.muted}>
+            Imported context is not a formal brief or evidence of approval. Start the brief when the project needs a versioned record.
+          </p>
+        </section>
+        ) : (
+          <div className={styles.emptyState}>
+            No creative brief yet. Start one to anchor objectives, audience, and messaging.
+          </div>
+        )
       ) : (
         <>
           <div className={styles.versionRail} aria-label="Brief version history">
@@ -246,10 +265,10 @@ export default function ProjectBriefPanel({
           </section>
 
           {diff && (
-            <section className={styles.card} aria-label={`Changes from v${diff.fromVersion} to v${diff.toVersion}`}>
-              <h3 className={styles.cardTitle}>
+            <details className={styles.card} aria-label={`Changes from v${diff.fromVersion} to v${diff.toVersion}`}>
+              <summary className={styles.cardTitle}>
                 Changes from v{diff.fromVersion} → v{diff.toVersion}
-              </h3>
+              </summary>
               {diff.changedFieldCount === 0 ? (
                 <p className={styles.muted}>No changes between these versions.</p>
               ) : (
@@ -280,7 +299,7 @@ export default function ProjectBriefPanel({
                   )}
                 </>
               )}
-            </section>
+            </details>
           )}
         </>
       )}

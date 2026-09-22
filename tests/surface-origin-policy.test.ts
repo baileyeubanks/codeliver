@@ -250,7 +250,7 @@ test("server env and email links keep public and internal surfaces separate", as
       );
       assert.match(
         approval.html,
-        /href="https:\/\/client\.contentco-op\.com\/review\/approval-token"/,
+        /href="https:\/\/co-videopro\.com\/review\/approval-token"/,
       );
 
       const share = emailTemplates.shareInvite({
@@ -261,7 +261,7 @@ test("server env and email links keep public and internal surfaces separate", as
       });
       assert.match(
         share.html,
-        /href="https:\/\/client\.contentco-op\.com\/review\/share-token"/,
+        /href="https:\/\/co-videopro\.com\/review\/share-token"/,
       );
 
       const comment = emailTemplates.commentNotification(

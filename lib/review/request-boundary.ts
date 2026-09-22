@@ -1,5 +1,6 @@
 import { createHmac } from "node:crypto";
 import { isIP } from "node:net";
+import { resolveApprovedSurfaceHost } from "../auth/host-surface.ts";
 
 const MAX_REVIEW_MUTATION_BYTES = 2_048;
 const MAX_REVIEW_MUTATION_EDGE_BYTES = 64 * 1_024;
@@ -43,9 +44,21 @@ function exactOrigin(request: Request): boolean {
   if (!supplied || supplied === "null") return false;
   try {
     const parsed = new URL(supplied);
+    const requestUrl = new URL(request.url);
+    const host = request.headers.get("host");
+    // Next's production Request URL can use its loopback listener hostname.
+    // The ingress pins Host, and proxy.ts independently admits only this same
+    // host allowlist. Never derive authority from forwarded host/proto values.
+    const approvedHost = resolveApprovedSurfaceHost(host ?? requestUrl.host);
+    const localRequest =
+      ["localhost", "127.0.0.1", "[::1]"].includes(requestUrl.hostname) &&
+      (host === null || host === requestUrl.host);
+    const expectedOrigin = approvedHost
+      ? `https://${approvedHost}`
+      : localRequest ? requestUrl.origin : null;
     return (
       supplied === parsed.origin &&
-      parsed.origin === new URL(request.url).origin
+      parsed.origin === expectedOrigin
     );
   } catch {
     return false;

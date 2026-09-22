@@ -105,6 +105,7 @@ function loadModule(modulePath: string): Record<string, unknown> {
   };
   const evaluate = runInNewContext(
     `(function (require, module, exports) { ${transpile(modulePath)}\n })`,
+    { process: { env: {} } },
   ) as (loader: typeof localRequire, moduleRecord: typeof loadedModule, exports: unknown) => void;
   evaluate(localRequire, loadedModule, loadedModule.exports);
   return loadedModule.exports;
@@ -216,6 +217,22 @@ fileMocks.set(resolve(repositoryRoot, "components/projects/ProjectTeamPanel.tsx"
 fileMocks.set(resolve(repositoryRoot, "components/projects/ProjectFilesPanel.tsx"), stubPanel("files-stub"));
 fileMocks.set(resolve(repositoryRoot, "components/projects/ProjectCommsPanel.tsx"), stubPanel("comms-stub"));
 fileMocks.set(resolve(repositoryRoot, "components/projects/ProjectCalendarPanel.tsx"), stubPanel("calendar-stub"));
+fileMocks.set(resolve(repositoryRoot, "components/cockpit/CockpitNavigation.tsx"), {
+  CockpitProjectNavigation: ({ activeRecordTab }: { activeRecordTab?: string }) => React.createElement(
+    "nav",
+    { "data-testid": "shared-project-rail", "data-active-record": activeRecordTab ?? "" },
+    "Shared project rail",
+  ),
+  CockpitProjectNavigationDrawer: () => React.createElement("div", { "data-testid": "shared-project-drawer" }),
+  CockpitMobileNavigation: () => React.createElement("div", { "data-testid": "shared-project-mobile" }),
+});
+fileMocks.set(resolve(repositoryRoot, "components/cockpit/useCockpitLayout.ts"), {
+  useCockpitLayout: () => ({ layout: { rail: "expanded" }, toggleRail: () => undefined }),
+});
+fileMocks.set(resolve(repositoryRoot, "components/brand/CoProductionBrand.tsx"), {
+  __esModule: true,
+  default: () => React.createElement("span", { "data-testid": "brand" }),
+});
 
 /* Evaluate the tabs module while the panel stubs are in place (its imports
  * capture them), then drop the stubs so the panels can be rendered for real
@@ -248,38 +265,52 @@ function tabsProps(): Record<string, unknown> {
 
 const tabsPath = resolve(repositoryRoot, "components/projects/ProjectWorkspaceTabs.tsx");
 const tabsSource = readFileSync(tabsPath, "utf8");
+const tabsStyles = readFileSync(
+  resolve(repositoryRoot, "components/projects/ProjectWorkspaceTabs.module.css"),
+  "utf8",
+);
 
-test("tab bar exposes tablist semantics with all eight tabs plus the whiteboard link", () => {
+test("legacy tab routes retain their panels while the visible project taxonomy lives in the shared rail", () => {
   fixtureWorkspace = baseWorkspace();
   currentSearch = "";
   const markup = render(tabsPath, tabsProps());
 
-  assert.match(markup, /role="tablist"[^>]*aria-label="ICA project workspace"/);
-  assert.equal(markup.match(/role="tab"/g)?.length, 8, "eight tabs");
-  assert.match(markup, /id="project-tab-overview"[^>]*aria-selected="true"[^>]*tabindex="0"/);
-  assert.match(markup, /id="project-tab-brief"[^>]*aria-selected="false"[^>]*tabindex="-1"/);
-  assert.match(markup, /aria-controls="project-tabpanel-calendar"/);
-  assert.match(markup, /role="tabpanel"[^>]*id="project-tabpanel-overview"[^>]*aria-labelledby="project-tab-overview"/);
-  assert.ok(markup.includes('href="/projects/ica/whiteboard?demo=1"'), "whiteboard links to the existing route");
+  assert.doesNotMatch(markup, /role="tablist"/, "retired tab strip is not mounted");
+  assert.match(tabsSource, /<CockpitProjectNavigation/);
+  assert.match(tabsSource, /activeRecordTab=\{activeTab\}/);
   assert.ok(markup.includes("cockpit-stub"), "overview renders the existing cockpit");
+});
+
+test("legacy record routes use the cockpit shell, shared drawer, and mobile rail contract", () => {
+  assert.match(tabsSource, /className=\{`cockpit-shell \$\{styles\.recordShell\}`\}/);
+  assert.match(tabsSource, /<CockpitProjectNavigationDrawer/);
+  assert.match(tabsSource, /<CockpitMobileNavigation/);
+  assert.match(tabsSource, /className="cockpit-sidebar"/);
+  assert.match(tabsSource, /className=\{`cockpit-main \$\{styles\.recordMain\}`\}/);
+  assert.match(tabsSource, /useCockpitLayout\(project\.id\)/);
+  assert.match(tabsSource, /data-rail=\{compactRail \? "compact" : "expanded"\}/);
+  assert.match(tabsStyles, /\.recordShell\s*\{/);
+  assert.match(tabsStyles, /\.recordShell\[data-rail="compact"\]/);
+  assert.match(
+    tabsStyles,
+    /@media \(max-width: 900px\) \{\s*\.recordShell\[data-rail="compact"\],\s*\.recordShell\[data-rail="expanded"\]\s*\{\s*grid-template-columns: minmax\(0, 1fr\);/,
+  );
 });
 
 test("tab selection follows the ?tab= search param", () => {
   fixtureWorkspace = baseWorkspace();
   currentSearch = "demo=1&tab=brief";
   const markup = render(tabsPath, tabsProps());
-  assert.match(markup, /id="project-tab-brief"[^>]*aria-selected="true"/);
+  assert.match(markup, /data-testid="shared-project-rail"[^>]*data-active-record="brief"/);
   assert.match(markup, /id="project-tabpanel-brief"/);
   assert.ok(markup.includes("brief-stub"));
   assert.ok(!markup.includes("cockpit-stub"), "cockpit unmounts outside the overview tab");
 });
 
-test("arrow-key tab switching is wired on the tablist", () => {
-  assert.match(tabsSource, /onKeyDown=\{onTabListKeyDown\}/);
-  for (const key of ["ArrowRight", "ArrowLeft", "Home", "End"]) {
-    assert.ok(tabsSource.includes(`"${key}"`), `handles ${key}`);
-  }
-  assert.match(tabsSource, /tabRefs\.current\[nextIndex\]\?\.focus\(\)/, "focus follows the active tab");
+test("legacy routes keep their query contract while cockpit destinations clear only tab", () => {
+  assert.match(tabsSource, /const activeTab: WorkspaceTabId = isWorkspaceTab\(tabParam\) \? tabParam : "overview"/);
+  assert.match(tabsSource, /params\.delete\("tab"\)/);
+  assert.match(tabsSource, /params\.set\("surface", section\)/);
 });
 
 /* -------------------------------------------------------------------------- */
@@ -315,14 +346,12 @@ test("brief panel edit creates a new version through saveBrief (append, never ov
 /* Deliverables panel                                                         */
 /* -------------------------------------------------------------------------- */
 
-test("deliverables panel rolls up statuses and links rows to the real review surface", () => {
+test("deliverables panel feeds export rows from the canonical API and media rows from the store", () => {
   fixtureWorkspace = baseWorkspace();
   const markup = render(resolve(repositoryRoot, "components/projects/ProjectDeliverablesPanel.tsx"), { projectId: "ica" });
 
-  assert.ok(markup.includes("ICA_ROADSHOW_MASTER_16x9.mov"), "export row renders");
+  // Media rows project live assets from the workspace store.
   assert.ok(markup.includes("Denie McDonald_v4"), "media row renders");
-  assert.ok(markup.includes("1 delivered"), "rollup counts delivered");
-  assert.ok(markup.includes("1 in qc"), "rollup counts QC");
   assert.ok(
     markup.includes('href="/projects/ica?demo=1&amp;asset=ica-roadshow-final&amp;view=review"'),
     "review link points at the real review surface",
@@ -330,6 +359,12 @@ test("deliverables panel rolls up statuses and links rows to the real review sur
   assert.ok(markup.includes("1:11"), "duration formats as m:ss");
   assert.ok(markup.includes("Not scheduled"), "no invented due dates");
   assert.ok(!/markup_pct|margin|unit_rate/i.test(markup), "no internal margin vocabulary");
+
+  // Locked delivery (6.4): export rows come from the deliverables API (SSR
+  // markup carries no effect-fed rows), never from the demo store.
+  const source = readFileSync(resolve(repositoryRoot, "components/projects/ProjectDeliverablesPanel.tsx"), "utf8");
+  assert.match(source, /fetch\(`\/api\/projects\/\$\{projectId\}\/deliverables`/);
+  assert.doesNotMatch(source, /workspace\.deliverables/);
 });
 
 /* -------------------------------------------------------------------------- */
@@ -365,6 +400,8 @@ test("files panel groups honestly: real downloads only, request states otherwise
   assert.ok(markup.includes('href="/demo/ica-ceo-preview.mp4"'), "real file downloads");
   assert.ok(markup.includes("Available on request"), "request-only rows are honest");
   assert.ok(markup.includes("No scripts on file yet."), "empty groups say so");
+  assert.ok(markup.includes("categories without file records"), "empty categories stay on demand");
+  assert.ok(markup.includes("Available file records ("), "real files remain the primary list");
 });
 
 test("comms panel renders the decision log and per-asset conversations", () => {
@@ -376,6 +413,21 @@ test("comms panel renders the decision log and per-asset conversations", () => {
   assert.ok(markup.includes("Denie McDonald_v4"), "thread grouped by asset");
   assert.ok(markup.includes("Please shorten this section."));
   assert.ok(markup.includes("Resolved"), "comment status chips render");
+});
+
+test("comms and calendar state when no project records are indexed", () => {
+  const workspace = baseWorkspace();
+  workspace.decisions = [];
+  workspace.reviewComments = [];
+  fixtureWorkspace = workspace;
+
+  const comms = render(resolve(repositoryRoot, "components/projects/ProjectCommsPanel.tsx"), { projectId: "ica" });
+  assert.ok(comms.includes("No record-backed communications"));
+  assert.ok(comms.includes("No decisions or review conversations are indexed for this project."));
+
+  fixtureWorkspace = baseWorkspace();
+  const calendar = render(resolve(repositoryRoot, "components/projects/ProjectCalendarPanel.tsx"), { projectId: "ica" });
+  assert.ok(calendar.includes("No dated project records in"));
 });
 
 test("calendar panel places real seed dates and marks today", () => {

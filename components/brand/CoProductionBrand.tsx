@@ -16,10 +16,9 @@ export interface CoProductionBrandProps {
 
 const DEFAULT_LABEL = "Co‑VideoPro by Content Co-op";
 
-/**
- * The Co‑VideoPro lockup: monumental display wordmark + the CVP four-color
- * monogram (Bailey's artwork). One mark per surface, per the Co‑VideoPro
- * design bible (docs/COPROVIDEO_DESIGN_BIBLE.md).
+/** Bailey's blue horizontal artwork, registered in commit 4910acf.
+ * One image per surface; compact layouts crop the mark from the same clean asset.
+ * See docs/COPROVIDEO_DESIGN_BIBLE.md for the current light product contract.
  */
 export function CoProductionBrand({
   variant = "horizontal",
@@ -35,20 +34,15 @@ export function CoProductionBrand({
     <span className={rootClassName} data-brand-variant={variant} role="img" aria-label={label}>
       <Image
         className={styles.mark}
-        src="/brand/cvp-mark-muted.png"
+        src="/brand/cvp-long.png"
         alt=""
-        width={900}
-        height={461}
+        width={730}
+        height={187}
         priority={priority}
         unoptimized
         draggable={false}
       />
-      {variant !== "compact-mark" ? (
-        <span className={styles.wordmark} aria-hidden="true">
-          <span className={styles.product}>Co‑VideoPro</span>
-          <span className={styles.company}>by Content Co-op</span>
-        </span>
-      ) : null}
+
     </span>
   );
 }

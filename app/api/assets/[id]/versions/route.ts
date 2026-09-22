@@ -1,6 +1,7 @@
 import { apiError, apiJson } from "@/lib/api/responses";
 import { requireAuth } from "@/lib/auth";
 import { getAssetAccess } from "@/lib/access-control";
+import { selectPublishedHlsPublication } from "@/lib/media-pipeline/hls-delivery";
 import { getSupabase } from "@/lib/supabase";
 import { versionUploadRetiredResponse } from "@/lib/versions/retirement";
 import { withAssetRouteBoundary } from "../../asset-route-boundary";
@@ -13,12 +14,22 @@ async function GETHandler(_req: Request, { params }: { params: Promise<{ id: str
   const user = await requireAuth();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const assetAccess = await getAssetAccess(id, user.id, "viewer");
+  const supabase = getSupabase();
+  const assetAccess = await getAssetAccess(id, user.id, "viewer", supabase);
   if (!assetAccess.ok) {
     return NextResponse.json({ error: assetAccess.error }, { status: assetAccess.status });
   }
 
-  const { data, error } = await getSupabase()
+  const assetResult = await supabase
+    .from("assets")
+    .select("id, metadata")
+    .eq("id", id)
+    .maybeSingle();
+  if (assetResult.error) {
+    return apiError("Asset versions are unavailable", "BACKEND_UNAVAILABLE", 503);
+  }
+
+  const { data, error } = await supabase
     .from("versions")
     .select(
       "id, asset_id, version_number, file_url, file_size, notes, uploaded_by, is_current, thumbnail_url, duration_seconds, resolution, created_at, updated_at",
@@ -27,7 +38,23 @@ async function GETHandler(_req: Request, { params }: { params: Promise<{ id: str
     .order("version_number", { ascending: false });
 
   if (error) return apiError("Asset versions are unavailable", "BACKEND_UNAVAILABLE", 503);
-  return NextResponse.json({ items: data });
+  const items = (data ?? []).map((version) => {
+    const publication = assetResult.data
+      ? selectPublishedHlsPublication({
+          assetId: id,
+          assetMetadata: assetResult.data.metadata,
+          versionId: version.id,
+          versionAssetId: version.asset_id,
+        })
+      : null;
+    return publication
+      ? {
+          ...version,
+          file_url: `/api/assets/${id}/versions/${version.id}/hls/playlist.m3u8`,
+        }
+      : version;
+  });
+  return NextResponse.json({ items });
 }
 
 async function POSTHandler() {

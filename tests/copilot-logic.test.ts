@@ -4,12 +4,14 @@ import test from "node:test";
 import {
   COPILOT_HONESTY_FOOTNOTE,
   COPILOT_MENU_ACTIONS,
+  COPILOT_MOBILE_NAV_INSET,
   COPILOT_PANEL_MARGIN,
   COPILOT_SIZES,
   buildCopilotReply,
   clampPanelPosition,
   classifyCopilotPrompt,
   defaultPanelPosition,
+  insetCopilotViewport,
   type CopilotContext,
 } from "../components/copilot/copilot-logic.ts";
 
@@ -83,6 +85,14 @@ test("defaultPanelPosition rests bottom-right inside the margin", () => {
     x: VIEWPORT.width - size.width - COPILOT_PANEL_MARGIN,
     y: VIEWPORT.height - size.height - COPILOT_PANEL_MARGIN,
   });
+});
+
+test("mobile project navigation reserves vertical space before panel placement", () => {
+  const mobileViewport = insetCopilotViewport({ width: 390, height: 844 }, COPILOT_MOBILE_NAV_INSET);
+  assert.deepEqual(mobileViewport, { width: 390, height: 768 });
+  const point = defaultPanelPosition(COPILOT_SIZES.compact, mobileViewport);
+  assert.equal(point.y + COPILOT_SIZES.compact.height, 752);
+  assert.ok(point.y + COPILOT_SIZES.compact.height < 768);
 });
 
 test("classifyCopilotPrompt routes prompts to the right canned intent", () => {

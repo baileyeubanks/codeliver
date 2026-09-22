@@ -1,3 +1,4 @@
+import { sourceCatalog, sourceMediaUrl } from "../demo/source-catalog.ts";
 import type {
   ApprovalStep,
   Comment,
@@ -77,7 +78,7 @@ function daysAgo(days: number) {
   return new Date(now.getTime() - days * 24 * 60 * 60 * 1000).toISOString();
 }
 
-export const demoReviewPayload: DemoReviewPayload = {
+const illustrativeReviewPayload: DemoReviewPayload = {
   asset: {
     id: "demo-asset",
     title: "Denie McDonald_v4",
@@ -474,3 +475,13 @@ export const demoReviewPayload: DemoReviewPayload = {
     },
   ],
 };
+
+const sourceAsset = sourceCatalog?.assets[0];
+export const demoReviewPayload: DemoReviewPayload = sourceAsset ? {
+  asset: { id: sourceAsset.id, title: sourceAsset.title, file_type: "video", file_url: sourceMediaUrl(sourceAsset.id), status: "draft", frame_rate: sourceAsset.frame_rate,
+    projects: { name: sourceCatalog?.projects.find((project) => project.id === sourceAsset.project_id)?.name ?? "Schneider Electric" } },
+  comments: [], approvals: [], versions: [], permissions: "comment", reviewer_name: null, reviewer_email: null, workflow_mode: null,
+  watermark_enabled: false, watermark_text: null,
+  expires_at: null, download_enabled: false,
+  invite: { id: "local-source-preview", view_count: 0, max_views: null },
+} : illustrativeReviewPayload;

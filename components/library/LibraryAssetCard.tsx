@@ -27,6 +27,7 @@ export interface LibraryAssetCardProps {
   resolution: string | null;
   sizeBytes: number | null;
   meta: LibraryAssetMeta | undefined;
+  hasFormats?: boolean;
   isFavorite: boolean;
   onToggleFavorite: (assetId: string) => void;
   onOpenFormats: (assetId: string) => void;
@@ -45,6 +46,7 @@ export default function LibraryAssetCard({
   resolution,
   sizeBytes,
   meta,
+  hasFormats = true,
   isFavorite,
   onToggleFavorite,
   onOpenFormats,
@@ -152,6 +154,7 @@ export default function LibraryAssetCard({
             {projectName}
           </Link>
           <span className="flex shrink-0 gap-1">
+            {hasFormats ? (
             <button
               type="button"
               onClick={() => onOpenFormats(id)}
@@ -161,6 +164,7 @@ export default function LibraryAssetCard({
               <Download size={11} aria-hidden="true" />
               Formats
             </button>
+            ) : null}
             <button
               type="button"
               onClick={() => onRequestCutdown(id)}

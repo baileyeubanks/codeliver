@@ -78,6 +78,48 @@ test("failed admission never attempts the review payload", async () => {
   }
 });
 
+test("recipient-bound admission exposes a constrained sign-in return", async () => {
+  const token = "a".repeat(32);
+  const calls: string[] = [];
+  const priorFetch = globalThis.fetch;
+  globalThis.fetch = (async (input: string | URL | Request) => {
+    calls.push(String(input));
+    return Response.json(
+      {
+        error: "Sign in with the invited email to open this review",
+        code: "REVIEW_RECIPIENT_AUTH_REQUIRED",
+      },
+      { status: 403 },
+    );
+  }) as typeof fetch;
+
+  try {
+    const {
+      loadAdmittedPublicReview,
+      PublicReviewAdmissionError,
+      recipientReviewLoginHref,
+    } = await import(
+      pathToFileURL(
+        resolve(repositoryRoot, "lib/review/public-admission-client.ts"),
+      ).href,
+    );
+    await assert.rejects(
+      loadAdmittedPublicReview(token),
+      (error: unknown) =>
+        error instanceof PublicReviewAdmissionError &&
+        error.code === "REVIEW_RECIPIENT_AUTH_REQUIRED",
+    );
+    assert.equal(
+      recipientReviewLoginHref(token),
+      `/login?next=%2Freview%2F${token}`,
+    );
+    assert.equal(recipientReviewLoginHref("../outside"), null);
+    assert.deepEqual(calls, [`/api/review/${token}/admission`]);
+  } finally {
+    globalThis.fetch = priorFetch;
+  }
+});
+
 test("overlapping initial and renewal admission calls share one server admission", async () => {
   let releaseResponse: ((response: Response) => void) | undefined;
   const calls: string[] = [];
@@ -132,4 +174,6 @@ test("production page defers invite authority to admission and renews long sessi
   assert.match(client, /REVIEW_ADMISSION_RENEWAL_INTERVAL_MS/);
   assert.match(client, /visibilitychange/);
   assert.match(client, /window\.addEventListener\("focus"/);
+  assert.match(client, /recipientReviewLoginHref\(token\)/);
+  assert.match(client, /REVIEW_RECIPIENT_AUTH_REQUIRED/);
 });

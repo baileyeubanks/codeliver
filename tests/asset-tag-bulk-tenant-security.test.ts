@@ -60,6 +60,26 @@ registerHooks({
         context,
       );
     }
+    if (specifier === "@/lib/delivery/lock") {
+      return nextResolve(
+        pathToFileURL(resolve(repositoryRoot, "lib/delivery/lock.ts")).href,
+        context,
+      );
+    }
+    if (specifier === "@/lib/media-pipeline/hls-delivery") {
+      return nextResolve(
+        pathToFileURL(
+          resolve(repositoryRoot, "lib/media-pipeline/hls-delivery.ts"),
+        ).href,
+        context,
+      );
+    }
+    if (specifier === "@/lib/api/backend") {
+      return nextResolve(
+        pathToFileURL(resolve(repositoryRoot, "lib/api/backend.ts")).href,
+        context,
+      );
+    }
     if (specifier.endsWith("asset-route-boundary")) {
       return nextResolve(`${specifier}.ts`, context);
     }
@@ -376,7 +396,10 @@ test("single-asset move rejects a destination folder from another project", asyn
   );
 
   assert.equal(response.status, 404);
-  assert.deepEqual(supabase.reads[0]?.filters, [
+  // reads[0] is the locked-delivery guard lookup (6.4); the folder
+  // tenant check follows it.
+  const folderRead = supabase.reads.find((read) => read.table === "folders");
+  assert.deepEqual(folderRead?.filters, [
     { operator: "eq", column: "id", value: "folder-b" },
     { operator: "eq", column: "project_id", value: projectA },
   ]);
@@ -728,7 +751,10 @@ test("bulk move rejects a destination folder from another project", async () => 
   );
 
   assert.equal(response.status, 404);
-  assert.deepEqual(supabase.reads[1]?.filters, [
+  // reads[0] authorizes the selection; the locked-delivery guard reads
+  // deliverable_items/deliverables next (6.4); the folder tenant check is last.
+  const folderRead = supabase.reads.find((read) => read.table === "folders");
+  assert.deepEqual(folderRead?.filters, [
     { operator: "eq", column: "id", value: "folder-b" },
     { operator: "eq", column: "project_id", value: projectA },
   ]);

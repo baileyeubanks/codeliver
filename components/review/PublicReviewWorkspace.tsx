@@ -3,12 +3,10 @@
 import Image from "next/image";
 import {
   CircleAlert,
-  Clapperboard,
-  ListChecks,
+  Focus,
   LoaderCircle,
-  MessageSquareText,
 } from "lucide-react";
-import React, { type CSSProperties } from "react";
+import React, { useState, type CSSProperties } from "react";
 import { CoProductionBrand } from "@/components/brand/CoProductionBrand";
 import styles from "./PublicReviewWorkspace.module.css";
 
@@ -57,6 +55,10 @@ interface RailSection {
 export interface ReviewWorkspaceProps {
   loading: boolean;
   error: string;
+  errorAction?: {
+    href: string;
+    label: string;
+  };
   brand?: {
     displayName: string;
     playerLabel: string;
@@ -68,37 +70,17 @@ export interface ReviewWorkspaceProps {
   rail: RailSection;
 }
 
-function ReviewStats({
-  stats,
-  label,
-  rail = false,
-}: {
-  stats: string[];
-  label: string;
-  rail?: boolean;
-}) {
-  if (stats.length === 0) return null;
-
-  return (
-    <ul
-      className={`${styles.stats} ${rail ? styles.railStats : ""}`}
-      aria-label={label}
-    >
-      {stats.map((stat, index) => (
-        <li key={`${stat}-${index}`}>{stat}</li>
-      ))}
-    </ul>
-  );
-}
-
 export default function PublicReviewWorkspace({
   loading,
   error,
+  errorAction,
   brand,
   header,
   stage,
   rail,
 }: ReviewWorkspaceProps) {
+  const [focused, setFocused] = useState(false);
+
   if (loading) {
     return (
       <div className={`${styles.shell} ${styles.state}`} role="status" aria-live="polite">
@@ -133,6 +115,7 @@ export default function PublicReviewWorkspace({
           <div>
             <strong>Review unavailable</strong>
             <p>{error}</p>
+            {errorAction ? <a href={errorAction.href}>{errorAction.label}</a> : null}
           </div>
         </div>
       </div>
@@ -141,7 +124,7 @@ export default function PublicReviewWorkspace({
 
   return (
     <div
-      className={styles.shell}
+      className={`${styles.shell} ${focused ? styles.focused : ""}`}
       style={
         brand
           ? ({ "--accent": brand.primaryColor } as CSSProperties)
@@ -186,55 +169,56 @@ export default function PublicReviewWorkspace({
 
       <main id="public-review-workspace" className={styles.body} tabIndex={-1}>
         <section className={styles.stage} aria-labelledby="public-review-stage-heading">
-          <header className={styles.stageHeader}>
-            <div className={styles.sectionLead}>
-              <span className={styles.sectionIcon} aria-hidden="true">
-                <Clapperboard size={16} strokeWidth={1.9} />
-              </span>
-              <div className={styles.sectionCopy}>
-                <p className={styles.kicker}>{stage.kicker}</p>
-                <h2 id="public-review-stage-heading" className={styles.heading}>
-                  {stage.title}
-                </h2>
-                <p className={styles.description}>{stage.description}</p>
-              </div>
-            </div>
-
-            <ReviewStats stats={stage.stats} label="Review statistics" />
-          </header>
+          <div className={styles.stageToolbar}>
+            <h2 id="public-review-stage-heading" className={styles.visuallyHidden}>
+              {stage.title}
+            </h2>
+            <button
+              type="button"
+              className={styles.focusButton}
+              aria-pressed={focused}
+              onClick={() => setFocused((value) => !value)}
+            >
+              <Focus size={15} aria-hidden="true" />
+              {focused ? "Show review" : "Focus player"}
+            </button>
+          </div>
 
           <div className={styles.media}>{stage.media}</div>
-          <section className={styles.context} aria-label="Review context" aria-live="polite">
-            {stage.context}
-          </section>
+          {stage.context ? (
+            <section className={styles.context} aria-label="Selected comment" aria-live="polite">
+              {stage.context}
+            </section>
+          ) : null}
         </section>
 
         <aside className={styles.rail} aria-labelledby="public-review-rail-heading">
           <header className={styles.railHeader}>
-            <div className={styles.sectionLead}>
-              <span className={styles.sectionIcon} aria-hidden="true">
-                <MessageSquareText size={16} strokeWidth={1.9} />
-              </span>
-              <div className={styles.sectionCopy}>
-                <p className={styles.kicker}>{rail.kicker}</p>
-                <h2 id="public-review-rail-heading" className={styles.heading}>
-                  {rail.title}
-                </h2>
-                <p className={styles.description}>{rail.description}</p>
-              </div>
+            <div>
+              <h2 id="public-review-rail-heading" className={styles.railTitle}>
+                {rail.title}
+              </h2>
+              <p className={styles.visuallyHidden}>{rail.description}</p>
             </div>
-            <ReviewStats stats={rail.stats} label="Review rail statistics" rail />
+            <div className={styles.railMeta}>
+              <span>{rail.comments.countLabel}</span>
+              {rail.stats[0] ? <span>{rail.stats[0]}</span> : null}
+            </div>
           </header>
 
           {rail.intro ? (
             <section className={styles.guide} aria-labelledby="public-review-guide-heading">
-              <div className={styles.panelHeading}>
-                <ListChecks size={15} aria-hidden="true" />
-                <h3 id="public-review-guide-heading">Review flow</h3>
-              </div>
+              <h3 id="public-review-guide-heading" className={styles.visuallyHidden}>
+                Review flow
+              </h3>
               <div className={styles.guideContent}>{rail.intro}</div>
             </section>
           ) : null}
+
+          {/* Keep the note composer at the top of the review pane. Approval
+              steps can be long, and a reviewer must not have to scroll past
+              them before they can leave a timecoded note. */}
+          <div className={styles.composer}>{rail.composer}</div>
 
           {rail.approval ? (
             <section className={styles.approval} aria-label="Approval">
@@ -253,27 +237,25 @@ export default function PublicReviewWorkspace({
           ) : null}
 
           <section className={styles.comments} aria-labelledby="public-review-comments-heading">
-            <header className={styles.commentsHeader}>
-              <div className={styles.commentsTitleRow}>
-                <h3 id="public-review-comments-heading">{rail.comments.title}</h3>
-                <span>{rail.comments.countLabel}</span>
-              </div>
-              <p>{rail.comments.description}</p>
-            </header>
+            <h3 id="public-review-comments-heading" className={styles.visuallyHidden}>
+              {rail.comments.title}
+            </h3>
 
-            <div className={styles.filters} role="group" aria-label="Comment filters">
-              {rail.comments.filters.map((filter) => (
-                <button
-                  key={filter.id}
-                  type="button"
-                  onClick={filter.onClick}
-                  aria-pressed={filter.active}
-                  className={filter.active ? styles.activeFilter : undefined}
-                >
-                  {filter.label}
-                </button>
-              ))}
-            </div>
+            {rail.comments.filters.length > 0 ? (
+              <div className={styles.filters} role="group" aria-label="Comment filters">
+                {rail.comments.filters.map((filter) => (
+                  <button
+                    key={filter.id}
+                    type="button"
+                    onClick={filter.onClick}
+                    aria-pressed={filter.active}
+                    className={filter.active ? styles.activeFilter : undefined}
+                  >
+                    {filter.label}
+                  </button>
+                ))}
+              </div>
+            ) : null}
 
             <div className={styles.commentList}>
               {rail.comments.hasResults ? (
@@ -286,8 +268,6 @@ export default function PublicReviewWorkspace({
               )}
             </div>
           </section>
-
-          <div className={styles.composer}>{rail.composer}</div>
         </aside>
       </main>
     </div>

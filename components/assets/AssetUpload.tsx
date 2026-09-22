@@ -13,6 +13,16 @@ import {
 } from "lucide-react";
 import { formatFileSize } from "@/lib/utils/media";
 import * as tus from "tus-js-client";
+import { TransferIntent, setTransferTimeout } from "@/lib/uploads/transfer-intent";
+import {
+  buildUploadFingerprintScope,
+  buildUploadTargetMetadata,
+  parseUploadCompletionReceipt,
+  shouldRetryUploadStatus,
+  type RevisionUploadTarget,
+  type UploadCompletionReceipt,
+} from "@/lib/uploads/revision-upload";
+import styles from "./AssetUpload.module.css";
 import type { Tag } from "@/lib/types/codeliver";
 
 type Asset = {
@@ -55,10 +65,11 @@ type UploadItem = {
   error?: string;
   tusUpload?: tus.Upload;
   asset?: Asset;
+  revisionTarget: RevisionUploadTarget | null;
 };
 
 const WARN_EXT = new Set(["exe", "bat", "sh", "cmd", "msi"]);
-const CHUNK_SIZE = 50 * 1024 * 1024; // 50 MB chunks
+const CHUNK_SIZE = 8 * 1024 * 1024; // Keep mobile retries small and below the proxy buffer.
 
 type StorageReadiness = {
   phase: "checking" | "ready" | "blocked";
@@ -84,20 +95,30 @@ type StorageReadinessResponse = {
   error?: string;
 };
 
+export type UploadCompletion = UploadCompletionReceipt;
+
 export default function AssetUpload({
   projectId,
+  resumeScope = "",
   folderId,
   inputId,
   onUploadComplete,
+  revisionTarget = null,
   variant = "dropzone",
 }: {
   projectId: string;
+  resumeScope?: string;
   folderId?: string;
   inputId?: string;
-  onUploadComplete: (assets: Asset[]) => void;
+  onUploadComplete: (uploads: UploadCompletion[]) => void | Promise<void>;
+  revisionTarget?: RevisionUploadTarget | null;
   variant?: "dropzone" | "cockpit";
 }) {
   const [items, setItems] = useState<UploadItem[]>([]);
+  const [minimized, setMinimized] = useState(false);
+  const intent = useRef(new TransferIntent());
+  const uploads = useRef(new Map<string, tus.Upload>());
+  const mounted = useRef(true);
   const [dragOver, setDragOver] = useState(false);
   const [storage, setStorage] = useState<StorageReadiness>({
     phase: "checking",
@@ -119,7 +140,7 @@ export default function AssetUpload({
     try {
       const response = await fetch("/api/storage/readiness", {
         cache: "no-store",
-        signal,
+        signal: signal ? AbortSignal.any([signal, AbortSignal.timeout(20_000)]) : AbortSignal.timeout(20_000),
       });
       const payload = (await response.json()) as StorageReadinessResponse;
       if (!response.ok || !payload.readyForWrites) {
@@ -160,13 +181,21 @@ export default function AssetUpload({
   }, []);
 
   useEffect(() => {
+    mounted.current = true;
     const controller = new AbortController();
+    const activeUploads = uploads.current;
     void refreshStorageReadiness(controller.signal);
-    return () => controller.abort();
+    return () => {
+      mounted.current = false;
+      controller.abort();
+      activeUploads.forEach((upload) => { void upload.abort(); });
+    };
   }, [refreshStorageReadiness]);
 
   const updateItem = useCallback(
     (id: string, patch: Partial<UploadItem>) => {
+      if (!mounted.current || intent.current.isCancelled(id)) return;
+      if (intent.current.isPaused(id) && (patch.status === "uploading" || patch.status === "processing")) return;
       setItems((prev) =>
         prev.map((i) => (i.id === id ? { ...i, ...patch } : i))
       );
@@ -176,6 +205,7 @@ export default function AssetUpload({
 
   const startTusUpload = useCallback(
     (item: UploadItem, readiness: StorageReadiness = storage) => {
+      if (!mounted.current || intent.current.isCancelled(item.id)) return;
       if (readiness.phase !== "ready") {
         updateItem(item.id, {
           status: "error",
@@ -185,46 +215,111 @@ export default function AssetUpload({
       }
       let serverState = "receiving";
       let originalReleaseReady = false;
+      let uploadAssetHeader: string | null = null;
+      let uploadVersionHeader: string | null = null;
+      let receiptStorageKey: string | null = null;
+      const backingUrlStorage = tus.defaultOptions.urlStorage;
+      // Tus clears this before onSuccess when configured normally. Keep it through
+      // receipt parsing, then remove only this upload's exact storage entry.
+      const receiptBoundUrlStorage = {
+        findAllUploads: () => backingUrlStorage.findAllUploads(),
+        findUploadsByFingerprint: (fingerprint: string) => backingUrlStorage.findUploadsByFingerprint(fingerprint),
+        async addUpload(fingerprint: string, previousUpload: Parameters<typeof backingUrlStorage.addUpload>[1]) {
+          const key = await backingUrlStorage.addUpload(fingerprint, previousUpload);
+          receiptStorageKey = key;
+          return key;
+        },
+        removeUpload: (key: string) => backingUrlStorage.removeUpload(key),
+      };
+      const removeReceiptFingerprint = async () => {
+        if (!receiptStorageKey) return;
+        const key = receiptStorageKey;
+        receiptStorageKey = null;
+        try {
+          await receiptBoundUrlStorage.removeUpload(key);
+        } catch (error) {
+          // A confirmed catalog receipt is authoritative; leave a diagnostic rather
+          // than converting a completed upload into a retryable duplicate.
+          console.error("[tus] Unable to clear confirmed upload resume record:", error);
+        }
+      };
       const upload = new tus.Upload(item.file, {
         endpoint: "/api/upload/tus",
         chunkSize: readiness.maxChunkBytes,
+        onBeforeRequest(request) {
+          const xhr = request.getUnderlyingObject();
+          if (xhr instanceof XMLHttpRequest) setTransferTimeout(xhr);
+        },
+        fingerprint: async (file) => JSON.stringify([
+          "cvp-v2",
+          buildUploadFingerprintScope(projectId, resumeScope, folderId, item.revisionTarget),
+          file.name,
+          file.size,
+          file.type,
+          file.lastModified,
+        ]),
         retryDelays: [0, 1000, 3000, 5000, 10000],
-        removeFingerprintOnSuccess: true,
+        // Keep this exact session recoverable until its signed catalog receipt has
+        // been parsed. A missing final receipt is an error, not a new upload.
+        removeFingerprintOnSuccess: false,
+        urlStorage: receiptBoundUrlStorage,
         metadata: {
           filename: item.file.name,
           filetype: item.file.type || "application/octet-stream",
           projectId,
           idempotencyKey: item.attemptId,
-          version: "1",
-          ...(folderId ? { folderId } : {}),
+          ...buildUploadTargetMetadata(item.revisionTarget),
+          ...(!item.revisionTarget && folderId ? { folderId } : {}),
         },
         onAfterResponse(request, response) {
           void request;
           serverState = response.getHeader("Upload-State") || serverState;
           originalReleaseReady =
             response.getHeader("Upload-Original-Ready") === "true";
+          uploadAssetHeader = response.getHeader("Upload-Asset") ?? uploadAssetHeader;
+          uploadVersionHeader = response.getHeader("Upload-Version") ?? uploadVersionHeader;
         },
         onProgress(bytesUploaded, bytesTotal) {
-          const progress = bytesTotal > 0
-            ? Math.round((bytesUploaded / bytesTotal) * 100)
-            : 0;
+          // Wire bytes can be retried. The bar advances only on acknowledged chunks.
+          if (bytesUploaded === bytesTotal) updateItem(item.id, { status: "processing" });
+        },
+        onChunkComplete(_chunkSize, bytesAccepted, bytesTotal) {
           updateItem(item.id, {
-            progress,
-            bytesUploaded,
-            bytesTotal,
-            status: "uploading",
+            progress: Math.round((bytesAccepted / bytesTotal) * 100),
+            bytesUploaded: bytesAccepted, bytesTotal,
+            status: bytesAccepted === bytesTotal ? "processing" : "uploading",
           });
         },
-        onSuccess() {
-          const quarantined =
-            serverState !== "committed" || !originalReleaseReady;
-          updateItem(item.id, {
-            status: quarantined ? "quarantined" : "done",
-            progress: 100,
-            bytesUploaded: item.bytesTotal,
-            bytesTotal: item.bytesTotal,
-          });
-          onUploadComplete([]);
+        async onSuccess() {
+          const quarantined = serverState !== "committed" || !originalReleaseReady;
+          updateItem(item.id, { status: "processing", progress: 100,
+            bytesUploaded: item.bytesTotal, bytesTotal: item.bytesTotal });
+          try {
+            const completion = parseUploadCompletionReceipt({
+              get(name) {
+                if (name === "Upload-Asset") return uploadAssetHeader;
+                if (name === "Upload-Version") return uploadVersionHeader;
+                return null;
+              },
+            }, item.revisionTarget);
+            if (quarantined) {
+              updateItem(item.id, { status: "quarantined" });
+              return;
+            }
+            if (!completion) {
+              updateItem(item.id, {
+                status: "error",
+                error: "Upload finished without a verified catalog receipt. Retry the same upload to reconcile it.",
+              });
+              return;
+            }
+            await removeReceiptFingerprint();
+            await onUploadComplete([completion]);
+            updateItem(item.id, { status: "done" });
+          } catch {
+            updateItem(item.id, { status: quarantined ? "quarantined" : "done",
+              error: "File saved. Reload the project to refresh your media list." });
+          }
         },
         onError(error) {
           console.error("[tus] Upload error:", error);
@@ -236,19 +331,11 @@ export default function AssetUpload({
         onShouldRetry(err) {
           const status = (err as { originalResponse?: { getStatus(): number } })
             ?.originalResponse?.getStatus();
-          // Don't retry on 4xx client errors (except 409 offset conflict — tus will fix itself)
-          if (
-            status &&
-            status >= 400 &&
-            status < 500 &&
-            ![409, 423, 429].includes(status)
-          ) {
-            return false;
-          }
-          return true;
+          return shouldRetryUploadStatus(status, item.revisionTarget !== null);
         },
       });
 
+      uploads.current.set(item.id, upload);
       updateItem(item.id, {
         tusUpload: upload,
         status: "uploading",
@@ -258,10 +345,13 @@ export default function AssetUpload({
       void upload
         .findPreviousUploads()
         .then((previousUploads) => {
+          if (!mounted.current || intent.current.isCancelled(item.id)) return;
           if (previousUploads.length > 0) {
+            receiptStorageKey = previousUploads[0].urlStorageKey;
             upload.resumeFromPreviousUpload(previousUploads[0]);
           }
-          upload.start();
+          intent.current.ready(item.id);
+          if (intent.current.canStart(item.id)) upload.start();
         })
         .catch((error: unknown) => {
           updateItem(item.id, {
@@ -270,16 +360,28 @@ export default function AssetUpload({
           });
         });
     },
-    [projectId, folderId, onUploadComplete, storage, updateItem]
+    [projectId, resumeScope, folderId, onUploadComplete, storage, updateItem]
   );
 
   const addFiles = useCallback(
     (files: FileList | File[]) => {
+      if (revisionTarget && files.length !== 1) {
+        const item = Array.from(files)[0];
+        if (!item) return;
+        setItems((current) => [...current, {
+          file: item,
+          id: crypto.randomUUID(),
+          attemptId: crypto.randomUUID(),
+          progress: 0,
+          bytesUploaded: 0,
+          bytesTotal: item.size,
+          status: "error",
+          error: "Choose exactly one file for a replacement version.",
+          revisionTarget,
+        }]);
+        return;
+      }
       const newItems: UploadItem[] = Array.from(files).map((file) => {
-        const tooLarge = storage.maxUploadBytes > 0 && file.size > storage.maxUploadBytes;
-        const readinessError = storage.phase === "ready" ? undefined : storage.phase === "checking"
-          ? "Storage readiness is still being checked. Retry after it is ready."
-          : `Storage is blocked: ${storage.message}`;
         const id = crypto.randomUUID();
         return {
           file,
@@ -288,26 +390,44 @@ export default function AssetUpload({
           progress: 0,
           bytesUploaded: 0,
           bytesTotal: file.size,
-          status: tooLarge || readinessError ? "error" : "pending",
-          ...(tooLarge
-            ? { error: `File exceeds the ${formatFileSize(storage.maxUploadBytes)} limit` }
-            : readinessError
-              ? { error: readinessError }
-              : {}),
+          status: "pending",
+          revisionTarget,
         };
       });
+      setMinimized(false);
       setItems((prev) => [...prev, ...newItems]);
-      newItems
-        .filter((item) => item.status === "pending")
-        .forEach((item) => startTusUpload(item));
+      const begin = (readiness: StorageReadiness | null) => {
+        newItems.forEach((item) => {
+          if (!mounted.current || intent.current.isCancelled(item.id)) return;
+          if (!readiness || readiness.phase !== "ready") {
+            updateItem(item.id, {
+              status: "error",
+              error: readiness?.message || "Storage readiness could not be confirmed",
+            });
+          } else if (readiness.maxUploadBytes > 0 && item.file.size > readiness.maxUploadBytes) {
+            updateItem(item.id, {
+              status: "error",
+              error: `File exceeds the ${formatFileSize(readiness.maxUploadBytes)} limit`,
+            });
+          } else {
+            startTusUpload(item, readiness);
+          }
+        });
+      };
+      if (storage.phase === "ready") {
+        begin(storage);
+      } else {
+        void refreshStorageReadiness().then(begin);
+      }
     },
-    [startTusUpload, storage]
+    [startTusUpload, storage, refreshStorageReadiness, updateItem, revisionTarget]
   );
 
   const pauseUpload = useCallback(
     (id: string) => {
       const item = items.find((current) => current.id === id);
       if (!item?.tusUpload) return;
+      intent.current.pause(id);
       updateItem(id, { status: "pausing" });
       void item.tusUpload.abort()
         .then(() => updateItem(id, { status: "paused" }))
@@ -325,7 +445,8 @@ export default function AssetUpload({
     (id: string) => {
       const item = items.find((current) => current.id === id);
       if (!item?.tusUpload) return;
-      item.tusUpload.start();
+      intent.current.resume(id);
+      if (intent.current.canStart(id)) item.tusUpload.start();
       updateItem(id, { status: "uploading" });
     },
     [items, updateItem]
@@ -335,9 +456,13 @@ export default function AssetUpload({
     (id: string) => {
       const item = items.find((i) => i.id === id);
       if (item) {
+        intent.current.reset(id);
         const retryItem: UploadItem = {
           ...item,
-          attemptId: crypto.randomUUID(),
+          // A final PATCH can fail after bytes are committed but before the
+          // catalog/V1 response reaches this client. Keep the durable upload
+          // identity so a fresh Tus client can HEAD and reconcile that session.
+          attemptId: item.attemptId,
           progress: 0,
           bytesUploaded: 0,
           status: "pending",
@@ -361,24 +486,18 @@ export default function AssetUpload({
             });
           });
         };
-        if (item.tusUpload) {
-          void item.tusUpload.abort(true)
-            .then(restart)
-            .catch((error: unknown) => {
-              updateItem(id, {
-                status: "error",
-                error: error instanceof Error ? error.message : "Unable to restart upload",
-              });
-            });
-        } else {
-          restart();
-        }
+        // Do not terminate an errored upload: its original bytes may already
+        // be committed, and the canonical route recovers catalog attachment on
+        // the next HEAD request.
+        restart();
       }
     },
     [items, refreshStorageReadiness, startTusUpload, storage.phase, updateItem]
   );
 
   const removeUploadItem = useCallback((id: string) => {
+    intent.current.cancel(id);
+    uploads.current.delete(id);
     setItems((prev) => prev.filter((item) => item.id !== id));
   }, []);
 
@@ -390,9 +509,11 @@ export default function AssetUpload({
         return;
       }
       updateItem(id, { status: "cancelling" });
+      intent.current.cancel(id);
       void item.tusUpload.abort(true)
         .then(() => removeUploadItem(id))
         .catch((error: unknown) => {
+          intent.current.cancellationFailed(id);
           updateItem(id, {
             status: "error",
             error: error instanceof Error ? error.message : "Unable to cancel upload",
@@ -417,7 +538,7 @@ export default function AssetUpload({
       case "cancelling":
         return "Cancelling...";
       case "processing":
-        return "Processing...";
+        return "Verifying & saving…";
       case "quarantined":
         return "Security scan pending";
       case "done":
@@ -442,12 +563,13 @@ export default function AssetUpload({
   const overallByteProgress = `${formatFileSize(uploadedBytes)} of ${formatFileSize(totalBytes)} uploaded`;
   const uploadTerminal = items.length > 0 && activeUploadCount === 0;
   const uploadTitle = activeUploadCount > 0
-    ? "Preparing your media"
+    ? items.every((item) => item.status === "processing" || item.status === "done")
+      ? "Verifying your media" : "Uploading media"
     : failedUploadCount > 0
       ? "Upload needs attention"
       : items.some((item) => item.status === "quarantined")
         ? "Upload received"
-        : "Ready for review";
+        : items.some((item) => item.error) ? "Upload saved" : "Ready for review";
   const uploadMessage = activeUploadCount > 0
     ? "Keep this window open while Co‑VideoPro transfers and prepares the review asset."
     : failedUploadCount > 0
@@ -518,7 +640,7 @@ export default function AssetUpload({
           id={inputId}
           ref={inputRef}
           type="file"
-          multiple
+          multiple={!revisionTarget}
           aria-label="Upload files"
           className="hidden"
           onChange={(e) => {
@@ -530,18 +652,25 @@ export default function AssetUpload({
 
       {items.length > 0 && (
         <div
-          className={variant === "cockpit" ? "cockpit-upload-overlay" : ""}
+          className={variant === "cockpit" ? styles.dock : ""}
           role={variant === "cockpit" ? "presentation" : undefined}
         >
           <section
-            className={variant === "cockpit" ? "" : "contents"}
+            className={variant === "cockpit" ? `${styles.panel} ${minimized ? styles.minimized : ""}` : "contents"}
             role={variant === "cockpit" ? "dialog" : undefined}
-            aria-modal={variant === "cockpit" ? true : undefined}
+            aria-modal={variant === "cockpit" ? false : undefined}
             aria-labelledby={variant === "cockpit" ? "asset-upload-title" : undefined}
             aria-live={variant === "cockpit" ? "polite" : undefined}
           >
             {variant === "cockpit" ? (
               <>
+                <div className={styles.toolbar}>
+                  <span>CO-VIDEOPRO · TRANSFERS</span>
+                  <button type="button" aria-label={uploadTerminal ? "Close upload panel" : minimized ? "Expand uploads" : "Minimize uploads"}
+                    onClick={() => uploadTerminal ? setItems([]) : setMinimized(!minimized)}>
+                    {uploadTerminal ? <X size={18} /> : minimized ? "+" : "−"}
+                  </button>
+                </div>
                 <div className="cockpit-upload-icon">
                   {activeUploadCount > 0 ? (
                     <Upload size={28} />
@@ -551,7 +680,7 @@ export default function AssetUpload({
                     <CheckCircle size={28} />
                   )}
                 </div>
-                <p>Media ingest</p>
+
                 <h2 id="asset-upload-title">{uploadTitle}</h2>
                 <strong title={items.map((item) => item.file.name).join(", ")}>
                   {items.length === 1 ? items[0].file.name : `${items.length} files`}
@@ -574,7 +703,7 @@ export default function AssetUpload({
               </>
             ) : null}
 
-            <div className="space-y-2 cockpit-upload-queue">
+            <div className={`space-y-2 cockpit-upload-queue ${styles.queue}`}>
               {items.map((item) => (
             <div
               key={item.id}
@@ -638,7 +767,7 @@ export default function AssetUpload({
                     />
                   </div>
                 )}
-                {item.status === "error" && (
+                {item.error && (
                   <p className="text-xs text-[var(--red)]" role="alert">{item.error}</p>
                 )}
               </div>
@@ -755,7 +884,7 @@ export default function AssetUpload({
                 </span>
                 {uploadTerminal ? (
                   <button type="button" onClick={() => setItems([])}>
-                    Close
+                    Back to project
                   </button>
                 ) : (
                   <small>Uploads can be paused, resumed, or cancelled per file.</small>

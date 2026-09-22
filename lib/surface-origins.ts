@@ -270,3 +270,16 @@ export function getDemoSiteUrl(runtimeOrigin: string): string {
 export function toDemoSiteUrl(destination: string, runtimeOrigin: string): string {
   return buildSurfaceUrl(getDemoSiteUrl(runtimeOrigin), destination);
 }
+
+/** Review links are served by CVP, independently of the CCO account portal. */
+export function getReviewSiteUrl(runtimeOrigin?: string): string {
+  if (process.env.NODE_ENV !== "production" && runtimeOrigin) {
+    const origin = normalizeSurfaceOrigin(runtimeOrigin, "review runtime origin");
+    if (isLocalOrigin(origin)) return origin;
+  }
+  return LEGACY_UNIFIED_PRODUCTION_ORIGIN;
+}
+
+export function toReviewSiteUrl(destination: string, runtimeOrigin?: string): string {
+  return buildSurfaceUrl(getReviewSiteUrl(runtimeOrigin), destination);
+}

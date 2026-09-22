@@ -2,6 +2,17 @@
 
 **Adopted:** 2026-07-17 · **Authority:** user-supplied Co‑VideoPro master spec — supersedes the Webster board system (that name is retired; the product is **co-videopro, styled Co‑VideoPro**, by Content Co-op). This file registers the governing tokens and the adoption tranches; the full user spec text is the reference of record.
 
+## Current product contract — 2026-09-09
+
+Bailey's current direction supersedes the historical graphite product palette below: CVP should share ACS OS's clear white surfaces, blue actions, readable slate text and restrained interactions, while retaining CVP identity. Do not introduce navy upload panels, red chrome, or rainbow navigation.
+
+- Reference: ACS OS live `eacebd7e`, `app/globals.css` (white cards, blue primary, slate text). This is visual continuity, not shared company data or a copied logo.
+- CVP source of truth: `app/brand-tokens.css`, Sapphire Light adopted in `d85adf2`; sapphire `#0057ff`, white surfaces, `#f7f9fc` canvas, 8/12px corners, Inter. Upload panels use these tokens directly and remain opaque and nonmodal.
+- Artwork: `public/brand/cvp-long.png`, Bailey's blue horizontal artwork registered in `4910acf`, matching the original `CVP BLUE LONG.png` byte for byte; see `docs/COVIDEOPRO_INTENTIONALITY.md:43–45`. Render exactly one image per brand slot. Compact navigation uses a CSS viewport of its clean mark. Do not use the retired muted rainbow mark or the malformed `cvp-mark.png` export.
+- Acceptance: inspect phone and desktop together; verify one visible logo, readable labels, no clipping or persistent page scrim. Functional upload, playback and comment receipts remain distinct from design acceptance.
+
+The older palette and tranche text below is historical; it does not override this current product contract.
+
 ## Positioning
 
 A premium Content Co-op film-production universe: cinematic, editorial, tactile, luxurious, precise, spacious, calm. Not a dashboard — a living production environment: part independent film journal, part private client screening room, part creative archive, part studio command center.

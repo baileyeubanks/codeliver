@@ -17,7 +17,14 @@ const memoryFallback = new Map<string, string>();
 function readSnapshot(key: string) {
   if (typeof window === "undefined") return "";
   try {
-    return window.localStorage.getItem(key) ?? memoryFallback.get(key) ?? "";
+    const current = window.localStorage.getItem(key) ?? memoryFallback.get(key);
+    if (current) return current;
+
+    // v2 closes the simplified workspace dock once, but keeps the user's
+    // deliberate rail width from the v1 project layout until a new save.
+    const legacyKey = key.replace("co-deliver.cockpit-layout.v2:", "co-deliver.cockpit-layout.v1:");
+    const legacy = window.localStorage.getItem(legacyKey) ?? memoryFallback.get(legacyKey);
+    return legacy ? JSON.stringify(parseCockpitLayout(legacy)) : "";
   } catch {
     return memoryFallback.get(key) ?? "";
   }

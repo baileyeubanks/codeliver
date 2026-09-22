@@ -16,6 +16,8 @@ test("activity page presents production audit history as a cockpit surface", () 
   assert.match(activityPage, /Audit history/);
   assert.match(activityPage, /Production activity/);
   assert.match(activityPage, /activityReadiness/);
+  assert.match(activityPage, /const hasActivity = activityReadiness\.some\(\(item\) => item\.value > 0\)/);
+  assert.match(activityPage, /\{hasActivity \? \(/);
   assert.match(activityPage, /Activity readiness/);
   assert.match(activityPage, /Review comments/);
   assert.match(activityPage, /Decision trail/);

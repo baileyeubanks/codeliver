@@ -125,7 +125,9 @@ test("the active production upload never publishes a raw storage URL before rele
   );
   assert.match(uploader, /serverState !== "committed" \|\| !originalReleaseReady/);
   assert.doesNotMatch(uploader, /if \(!quarantined\) onUploadComplete\(\[\]\)/);
-  assert.match(uploader, /onUploadComplete\(\[\]\)/);
+  assert.doesNotMatch(uploader, /onUploadComplete\(\[\]\)/);
+  assert.match(uploader, /parseUploadCompletionReceipt/);
+  assert.match(uploader, /onUploadComplete\(\[completion\]\)/);
 });
 
 test("the resumable upload surface exposes readiness, progress, pause, retry, quarantine, and error states", () => {
@@ -175,9 +177,11 @@ test("share modal keeps compact cockpit controls while preserving the share cont
 
   assert.match(shareModal, /role="dialog"/);
   assert.match(shareModal, /aria-modal="true"/);
-  assert.match(shareModal, /Co‑VideoPro sharing controls/);
-  assert.match(shareModal, /aria-pressed=\{selected\}/);
-  assert.match(shareModal, /Create \$\{intentDefinition\.label\.toLowerCase\(\)\} link/);
+  // The modal was rewritten to a compact cockpit; the accessible contract is what must hold,
+  // not the former source strings. Assert the labelled dialog and the intent toggles.
+  assert.match(shareModal, /aria-label="Share review"/);
+  assert.match(shareModal, /aria-pressed=\{shareIntent === intent\.value\}/);
+  assert.match(shareModal, /"Create & send" : "Create link"/);
   assert.doesNotMatch(shareModal, /rounded-full/);
   assert.doesNotMatch(shareModal, /bg-black\/70/);
 });

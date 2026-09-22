@@ -6,8 +6,9 @@ import {
   surfaceForRole,
   type HostSurface,
 } from "@/lib/auth/host-surface";
+import { resolveReviewAuthReturn } from "@/lib/auth/review-return";
 import { resolveProvisionedRole } from "@/lib/auth/provisioning";
-import { buildPendingAccessPath } from "@/lib/auth/flow";
+import { buildPendingAccessPath, resolveAuthRequestOrigin } from "@/lib/auth/flow";
 import { createSupabaseAuth } from "@/lib/supabase-auth";
 
 function noStoreRedirect(url: URL): NextResponse {
@@ -42,7 +43,9 @@ function surfaceMismatchRedirect(
 
 export async function GET(request: Request) {
   const requestUrl = new URL(request.url);
-  const { searchParams, origin } = requestUrl;
+  const { searchParams } = requestUrl;
+  const origin = resolveAuthRequestOrigin(request);
+  if (!origin) return NextResponse.json({ error: "Invalid authentication host" }, { status: 400 });
   const code = searchParams.get("code");
   const flow = searchParams.get("flow");
   const requestedTarget = searchParams.get("next") ?? searchParams.get("redirect");
@@ -69,12 +72,19 @@ export async function GET(request: Request) {
       return noStoreRedirect(new URL("/reset-password", origin));
     }
 
+    // A public review is not a workspace entitlement. Its admission cookie and
+    // invite permissions remain mandatory in the review handlers.
+    const reviewTarget = resolveReviewAuthReturn(requestedTarget);
+    if (reviewTarget && resolveHostSurface(new URL(origin).host)) {
+      return noStoreRedirect(new URL(reviewTarget, origin));
+    }
+
     const role = resolveProvisionedRole(identity.data.user);
     if (!role) {
       return noStoreRedirect(new URL(buildPendingAccessPath(safeTarget), origin));
     }
 
-    const currentSurface = resolveHostSurface(requestUrl.host);
+    const currentSurface = resolveHostSurface(new URL(origin).host);
     if (!currentSurface || !roleCanAccessSurface(role, currentSurface)) {
       await supabase.auth.signOut({ scope: "local" });
       return surfaceMismatchRedirect(origin, surfaceForRole(role), safeTarget);

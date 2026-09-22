@@ -12,7 +12,7 @@ export default async function AssetReviewRoute({
   searchParams,
 }: {
   params: Promise<{ id: string; assetId: string }>;
-  searchParams: Promise<{ demo?: string }>;
+  searchParams: Promise<{ demo?: string; version?: string }>;
 }) {
   const [{ id, assetId }, query, requestHeaders] = await Promise.all([params, searchParams, headers()]);
   const isDemo = isLocalDemoServerRequest({

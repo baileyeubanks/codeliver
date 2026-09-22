@@ -246,7 +246,7 @@ export default function FieldPage() {
                       setNotice(result.ok ? `${release.person_name} → ${next}.` : result.reason);
                     }}
                   >
-                    {release.status === "unsent" ? "Send release" : "Mark signed"}
+                    {release.status === "unsent" ? "Mark sent" : "Mark signed"}
                   </button>
                 ) : null}
               </div>

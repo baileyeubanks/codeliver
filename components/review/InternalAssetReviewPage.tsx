@@ -4,7 +4,8 @@ import Link from "next/link";
 import { AlertCircle, ArrowLeft, RefreshCw } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
-import { demoAssets } from "@/lib/demo/workspace";
+import { useDemoWorkspace } from "@/lib/demo/workspace-store";
+import { resolvePinnedDemoMediaVersion } from "@/lib/demo/media-version-authority";
 
 interface AssetIdentity {
   assetId: string;
@@ -34,13 +35,21 @@ const DEMO_ASSET_NOT_FOUND_ERROR: ReviewRouteError = {
   retryable: false,
 };
 
+const REQUESTED_VERSION_UNAVAILABLE_ERROR: ReviewRouteError = {
+  title: "Requested version unavailable",
+  message: "This review link names a media version that is not available. No newer cut was opened.",
+  retryable: false,
+};
+
 export function buildCanonicalInternalReviewHref(
   projectId: string,
   assetId: string,
   demoMode = false,
+  versionId?: string | null,
 ) {
   const demoQuery = demoMode ? "demo=1&" : "";
-  return `/projects/${encodeURIComponent(projectId)}?${demoQuery}asset=${encodeURIComponent(assetId)}&view=review`;
+  const versionQuery = versionId ? `version=${encodeURIComponent(versionId)}&` : "";
+  return `/projects/${encodeURIComponent(projectId)}?${demoQuery}asset=${encodeURIComponent(assetId)}&${versionQuery}view=review`;
 }
 
 export function readAuthoritativeAssetIdentity(
@@ -61,6 +70,26 @@ export function readAuthoritativeAssetIdentity(
   }
 
   return { assetId: record.id, projectId: record.project_id };
+}
+
+export function readAuthoritativeVersionIdentity(
+  payload: unknown,
+  requestedAssetId: string,
+  requestedVersionId: string,
+) {
+  if (!payload || typeof payload !== "object" || Array.isArray(payload)) return null;
+  const items = (payload as Record<string, unknown>).items;
+  if (!Array.isArray(items)) return null;
+  const matches = items.filter((item): item is Record<string, unknown> =>
+    Boolean(item)
+    && typeof item === "object"
+    && !Array.isArray(item)
+    && item.id === requestedVersionId
+    && item.asset_id === requestedAssetId,
+  );
+  return matches.length === 1
+    ? { assetId: requestedAssetId, versionId: requestedVersionId }
+    : null;
 }
 
 function firstRouteParam(value: string | string[] | undefined) {
@@ -95,22 +124,41 @@ export default function InternalAssetReviewPage() {
   const params = useParams<{ id?: string | string[]; assetId?: string | string[] }>();
   const router = useRouter();
   const searchParams = useSearchParams();
+  const workspace = useDemoWorkspace();
   const projectId = firstRouteParam(params?.id);
   const assetId = firstRouteParam(params?.assetId);
   const isDemo = searchParams.get("demo") === "1";
+  const requestedVersionId = searchParams.get("version");
+  const hasRequestedVersion = requestedVersionId !== null;
+  const requestedVersionIsMalformed = hasRequestedVersion && !requestedVersionId.trim();
+  // The workspace is restored after the initial client render. Do not turn a
+  // route into a missing-media error while that restore is still settling.
+  const [demoRouteReady, setDemoRouteReady] = useState(false);
+  useEffect(() => {
+    if (!isDemo) return;
+    const frame = window.requestAnimationFrame(() => setDemoRouteReady(true));
+    return () => window.cancelAnimationFrame(frame);
+  }, [isDemo]);
   const demoAsset = isDemo
-    ? demoAssets.find(
+    ? workspace.assets.find(
         (candidate) => candidate.id === assetId && candidate.project_id === projectId,
       )
     : undefined;
-  const requestKey = `${isDemo ? "demo" : "live"}:${projectId}:${assetId}`;
+  const requestedDemoVersion = isDemo && hasRequestedVersion
+    ? resolvePinnedDemoMediaVersion(workspace.mediaVersions, assetId, requestedVersionId)
+    : null;
+  const requestKey = `${isDemo ? "demo" : "live"}:${projectId}:${assetId}:${hasRequestedVersion ? requestedVersionId || "empty" : "current"}`;
   const [loadFailure, setLoadFailure] = useState<ReviewRouteFailure | null>(null);
   const [retryAttempt, setRetryAttempt] = useState(0);
   const errorHeadingRef = useRef<HTMLHeadingElement>(null);
   const immediateError = !projectId || !assetId
     ? INCOMPLETE_ROUTE_ERROR
-    : isDemo && !demoAsset
+    : isDemo && demoRouteReady && !demoAsset
       ? DEMO_ASSET_NOT_FOUND_ERROR
+      : isDemo && demoRouteReady && hasRequestedVersion && !requestedDemoVersion
+        ? REQUESTED_VERSION_UNAVAILABLE_ERROR
+      : !isDemo && requestedVersionIsMalformed
+          ? REQUESTED_VERSION_UNAVAILABLE_ERROR
       : null;
   const loadError = immediateError
     ?? (loadFailure?.requestKey === requestKey ? loadFailure.error : null);
@@ -121,13 +169,18 @@ export default function InternalAssetReviewPage() {
   }, [loadError]);
 
   useEffect(() => {
-    if (!projectId || !assetId) return;
+    if (!projectId || !assetId || immediateError || (isDemo && !demoRouteReady)) return;
 
     if (isDemo) {
       if (!demoAsset) return;
 
       router.replace(
-        buildCanonicalInternalReviewHref(demoAsset.project_id, demoAsset.id, true),
+        buildCanonicalInternalReviewHref(
+          demoAsset.project_id,
+          demoAsset.id,
+          true,
+          requestedDemoVersion?.id ?? null,
+        ),
       );
       return;
     }
@@ -164,9 +217,39 @@ export default function InternalAssetReviewPage() {
           return;
         }
 
-        router.replace(
-          buildCanonicalInternalReviewHref(identity.projectId, identity.assetId),
-        );
+        if (hasRequestedVersion) {
+          const versionResponse = await fetch(
+            `/api/assets/${encodeURIComponent(identity.assetId)}/versions`,
+            { cache: "no-store", signal: controller.signal },
+          );
+          if (!current) return;
+          if (!versionResponse.ok) {
+            setLoadFailure({ requestKey, error: responseError(versionResponse.status) });
+            return;
+          }
+          const versionsPayload: unknown = await versionResponse.json();
+          if (!current) return;
+          const versionIdentity = readAuthoritativeVersionIdentity(
+            versionsPayload,
+            identity.assetId,
+            requestedVersionId,
+          );
+          if (!versionIdentity) {
+            setLoadFailure({ requestKey, error: REQUESTED_VERSION_UNAVAILABLE_ERROR });
+            return;
+          }
+          router.replace(
+            buildCanonicalInternalReviewHref(
+              identity.projectId,
+              versionIdentity.assetId,
+              false,
+              versionIdentity.versionId,
+            ),
+          );
+          return;
+        }
+
+        router.replace(buildCanonicalInternalReviewHref(identity.projectId, identity.assetId));
       } catch {
         if (!current || controller.signal.aborted) return;
         setLoadFailure({
@@ -185,7 +268,7 @@ export default function InternalAssetReviewPage() {
       current = false;
       controller.abort();
     };
-  }, [assetId, demoAsset, isDemo, projectId, requestKey, retryAttempt, router]);
+  }, [assetId, demoAsset, demoRouteReady, hasRequestedVersion, immediateError, isDemo, projectId, requestKey, retryAttempt, router, requestedVersionId, requestedDemoVersion]);
 
   const projectsHref = isDemo ? "/projects?demo=1" : "/projects";
   const projectHref = projectId

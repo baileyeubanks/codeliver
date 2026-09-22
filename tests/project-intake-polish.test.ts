@@ -13,14 +13,13 @@ function source(path: string): string {
 test("project intake stays focused on the four fields needed to open a workspace", () => {
   const newProjectPage = source("app/(dashboard)/projects/new/page.tsx");
 
-  assert.match(newProjectPage, /Project intake/);
-  assert.match(newProjectPage, /New production workspace/);
-  assert.match(newProjectPage, /Workspace details/);
+  assert.match(newProjectPage, /New project/);
+  assert.match(newProjectPage, /Project details/);
   assert.match(newProjectPage, /Project name/);
   assert.match(newProjectPage, /Client \/ company/);
   assert.match(newProjectPage, /Brief/);
   assert.match(newProjectPage, /Business context/);
-  assert.match(newProjectPage, /Create workspace/);
+  assert.match(newProjectPage, /Create project/);
   assert.match(newProjectPage, /Cancel/);
   assert.doesNotMatch(newProjectPage, /intakePath/);
   assert.doesNotMatch(newProjectPage, /frontOfficeReadiness/);
@@ -44,8 +43,8 @@ test("project intake validates the workspace contract before routing", () => {
   assert.match(newProjectPage, /descriptionPayload/);
   assert.match(newProjectPage, /Client \/ company/);
   assert.match(newProjectPage, /Business context/);
-  assert.match(newProjectPage, /Creating workspace\.\.\./);
-  assert.match(newProjectPage, /These details become the starting project record/);
+  assert.match(newProjectPage, /Creating project\.\.\./);
+  assert.match(newProjectPage, /disabled=\{loading\}/);
   assert.doesNotMatch(newProjectPage, /Activity trail/);
   assert.doesNotMatch(newProjectPage, /readiness-gated/);
   assert.doesNotMatch(newProjectPage, /AI cleanup complete/i);

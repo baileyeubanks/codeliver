@@ -21,7 +21,7 @@ import {
   formatShareIntentMeta,
   type ShareIntent,
 } from "@/lib/sharing/share-intent";
-import { toClientSiteUrl } from "@/lib/surface-origins";
+import { toReviewSiteUrl } from "@/lib/surface-origins";
 import type { ShareLink, SharePermission } from "@/lib/types/codeliver";
 
 interface ShareLinkListProps {
@@ -51,7 +51,7 @@ function resolveReviewUrl(token: string): string | null {
 
   try {
     const runtimeOrigin = typeof window === "undefined" ? undefined : window.location.origin;
-    return toClientSiteUrl(`/review/${encodeURIComponent(token)}`, runtimeOrigin);
+    return toReviewSiteUrl(`/review/${encodeURIComponent(token)}`, runtimeOrigin);
   } catch {
     return null;
   }
@@ -72,6 +72,7 @@ export default function ShareLinkList({ assetId, refreshKey = 0 }: ShareLinkList
     requestKey: string;
     message: string;
   } | null>(null);
+  const [copyError, setCopyError] = useState("");
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [localRefresh, setLocalRefresh] = useState(0);
   const [rotatingId, setRotatingId] = useState<string | null>(null);
@@ -128,10 +129,16 @@ export default function ShareLinkList({ assetId, refreshKey = 0 }: ShareLinkList
     [links],
   );
 
-  function copyLink(publicUrl: string, id: string) {
-    navigator.clipboard.writeText(publicUrl);
-    setCopiedId(id);
-    setTimeout(() => setCopiedId(null), 2000);
+  async function copyLink(publicUrl: string, id: string) {
+    try {
+      await navigator.clipboard.writeText(publicUrl);
+      setCopyError("");
+      setCopiedId(id);
+      setTimeout(() => setCopiedId(null), 2000);
+    } catch {
+      setCopiedId(null);
+      setCopyError("Could not copy the link. Use Open review to access it.");
+    }
   }
 
   async function revokeLink(id: string) {
@@ -215,8 +222,9 @@ export default function ShareLinkList({ assetId, refreshKey = 0 }: ShareLinkList
   }
 
   return (
-    <div className="space-y-3">
-      <h4 className="text-xs font-semibold uppercase tracking-[0.14em] text-[var(--muted)]">
+    <div>
+      {copyError ? <p role="alert">{copyError}</p> : null}
+      <h4 className="pb-2 text-xs font-semibold uppercase tracking-[0.14em] text-[var(--muted)]">
         Handoffs ({orderedLinks.length})
       </h4>
 
@@ -237,7 +245,7 @@ export default function ShareLinkList({ assetId, refreshKey = 0 }: ShareLinkList
         return (
           <div
             key={link.id}
-            className={`rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface)] px-4 py-4 ${
+            className={`border-b border-[var(--border)] px-1 py-4 ${
               disabled ? "opacity-60" : ""
             }`}
           >
@@ -257,11 +265,11 @@ export default function ShareLinkList({ assetId, refreshKey = 0 }: ShareLinkList
                   >
                     {meta.label}
                   </span>
-                  <span className="rounded-full bg-[var(--surface-2)] px-3 py-1 text-[11px] text-[var(--muted)]">
+                  <span className="text-[11px] text-[var(--muted)]">
                     {capabilityLabel(link.permissions)}
                   </span>
                   {link.version ? (
-                    <span className="rounded-full bg-[var(--surface-2)] px-3 py-1 text-[11px] text-[var(--muted)]">
+                    <span className="text-[11px] text-[var(--muted)]">
                       v{link.version.version_number}
                     </span>
                   ) : (

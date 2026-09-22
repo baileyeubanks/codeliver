@@ -22,10 +22,21 @@ export const REPLAY_TOLERANCE_SECONDS = 0.5;
 /** Strokes smaller than this (normalized units) are treated as mis-taps. */
 export const MIN_STROKE_SPAN = 0.01;
 
+/** Public review persistence accepts at most this many shapes per comment. */
+export const MAX_REVIEW_ANNOTATIONS = 20;
+
+/** Coordinate scalars accepted for one persisted freehand path (256 points). */
+export const MAX_FREEHAND_COORDINATES = 512;
+
 /** Arrowhead length in normalized units. */
 export const ARROW_HEAD_LENGTH = 0.04;
 
 const ARROW_HEAD_ANGLE = Math.PI / 7;
+const FREEHAND_CAPTURE_TARGET_COORDINATES = 384;
+
+export type PreparedReviewAnnotations =
+  | { ok: true; annotations: AnnotationData[] }
+  | { ok: false; reason: "too_many_strokes" };
 
 export function clamp01(value: number): number {
   if (!Number.isFinite(value)) return 0;
@@ -61,6 +72,134 @@ export function beginStroke(tool: AnnotationTool, point: NormalizedPoint): Annot
   }
 }
 
+function pointSegmentDistanceSquared(
+  pointX: number,
+  pointY: number,
+  startX: number,
+  startY: number,
+  endX: number,
+  endY: number,
+): number {
+  const deltaX = endX - startX;
+  const deltaY = endY - startY;
+  if (deltaX === 0 && deltaY === 0) {
+    return (pointX - startX) ** 2 + (pointY - startY) ** 2;
+  }
+  const projection = Math.min(
+    1,
+    Math.max(
+      0,
+      ((pointX - startX) * deltaX + (pointY - startY) * deltaY) /
+        (deltaX ** 2 + deltaY ** 2),
+    ),
+  );
+  const nearestX = startX + projection * deltaX;
+  const nearestY = startY + projection * deltaY;
+  return (pointX - nearestX) ** 2 + (pointY - nearestY) ** 2;
+}
+
+function simplifyFreehandAtTolerance(
+  points: number[],
+  toleranceSquared: number,
+): number[] {
+  const pointCount = Math.floor(points.length / 2);
+  if (pointCount <= 2) return points.slice(0, pointCount * 2);
+
+  const keep = new Uint8Array(pointCount);
+  keep[0] = 1;
+  keep[pointCount - 1] = 1;
+  const pending: Array<[number, number]> = [[0, pointCount - 1]];
+
+  while (pending.length > 0) {
+    const [start, end] = pending.pop() ?? [0, 0];
+    let furthest = -1;
+    let furthestDistance = toleranceSquared;
+    for (let index = start + 1; index < end; index += 1) {
+      const distance = pointSegmentDistanceSquared(
+        points[index * 2],
+        points[index * 2 + 1],
+        points[start * 2],
+        points[start * 2 + 1],
+        points[end * 2],
+        points[end * 2 + 1],
+      );
+      if (distance > furthestDistance) {
+        furthest = index;
+        furthestDistance = distance;
+      }
+    }
+    if (furthest >= 0) {
+      keep[furthest] = 1;
+      pending.push([start, furthest], [furthest, end]);
+    }
+  }
+
+  const simplified: number[] = [];
+  for (let index = 0; index < pointCount; index += 1) {
+    if (keep[index]) simplified.push(points[index * 2], points[index * 2 + 1]);
+  }
+  return simplified;
+}
+
+/**
+ * Keep a freehand polyline inside the persistence boundary while retaining
+ * endpoints and the strongest turns. The tolerance search applies the
+ * Ramer-Douglas-Peucker path simplifier in normalized frame space.
+ */
+function boundFreehandCoordinates(
+  points: number[],
+  maxCoordinates: number = MAX_FREEHAND_COORDINATES,
+): number[] {
+  const evenLength = points.length - (points.length % 2);
+  const source = points.slice(0, evenLength);
+  if (source.length <= maxCoordinates) return source;
+
+  let lowerToleranceSquared = 0;
+  let upperToleranceSquared = 2;
+  let best = [source[0], source[1], source[source.length - 2], source[source.length - 1]];
+
+  for (let iteration = 0; iteration < 28; iteration += 1) {
+    const toleranceSquared =
+      (lowerToleranceSquared + upperToleranceSquared) / 2;
+    const candidate = simplifyFreehandAtTolerance(source, toleranceSquared);
+    if (candidate.length > maxCoordinates) {
+      lowerToleranceSquared = toleranceSquared;
+    } else {
+      best = candidate;
+      upperToleranceSquared = toleranceSquared;
+    }
+  }
+  return best;
+}
+
+export function canAppendReviewAnnotation(strokeCount: number): boolean {
+  return (
+    Number.isSafeInteger(strokeCount) &&
+    strokeCount >= 0 &&
+    strokeCount < MAX_REVIEW_ANNOTATIONS
+  );
+}
+
+/** Bound vectors at the final client transport boundary. */
+export function prepareReviewAnnotations(
+  annotations: readonly AnnotationData[],
+): PreparedReviewAnnotations {
+  if (annotations.length > MAX_REVIEW_ANNOTATIONS) {
+    return { ok: false, reason: "too_many_strokes" };
+  }
+  return {
+    ok: true,
+    annotations: annotations.map((annotation) =>
+      annotation.kind === "freehand"
+        ? {
+            ...annotation,
+            points: boundFreehandCoordinates(annotation.points),
+          }
+        : annotation,
+    ),
+  };
+}
+
 /** Advance an in-progress stroke to the current pointer position. */
 export function moveStroke(stroke: AnnotationData, point: NormalizedPoint): AnnotationData {
   switch (stroke.kind) {
@@ -74,8 +213,16 @@ export function moveStroke(stroke: AnnotationData, point: NormalizedPoint): Anno
         width: point.x - stroke.x,
         height: point.y - stroke.y,
       };
-    case "freehand":
-      return { kind: "freehand", points: [...stroke.points, point.x, point.y] };
+    case "freehand": {
+      const points = [...stroke.points, point.x, point.y];
+      return {
+        kind: "freehand",
+        points:
+          points.length > MAX_FREEHAND_COORDINATES
+            ? boundFreehandCoordinates(points, FREEHAND_CAPTURE_TARGET_COORDINATES)
+            : points,
+      };
+    }
     default:
       return stroke;
   }
@@ -112,7 +259,10 @@ export function endStroke(stroke: AnnotationData): AnnotationData | null {
     case "freehand": {
       if (stroke.points.length < 4) return null;
       if (freehandLength(stroke.points) < MIN_STROKE_SPAN) return null;
-      return stroke;
+      return {
+        kind: "freehand",
+        points: boundFreehandCoordinates(stroke.points),
+      };
     }
     default:
       return null;

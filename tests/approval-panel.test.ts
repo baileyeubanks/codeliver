@@ -183,6 +183,38 @@ test("panel renders the asset state pill and truthful step chips", () => {
   assert.match(markup, /value="Client Reviewer"/, "name is prefilled from identity");
 });
 
+test("an approval link without steps reports that setup is not configured", () => {
+  const markup = renderToStaticMarkup(
+    React.createElement(loadPanelWithRealReact(), {
+      steps: [],
+      comments: [{ id: "comment-1" }],
+      onDecide: () => {},
+    }),
+  );
+
+  assert.match(markup, /Not configured/);
+  assert.doesNotMatch(markup, /Feedback submitted/);
+});
+
+test("a changes-requested step stays distinct from rejection and shows its note", () => {
+  const markup = renderToStaticMarkup(
+    React.createElement(loadPanelWithRealReact(), {
+      steps: [
+        makeStep({
+          status: "changes_requested",
+          decision_note: "Please tighten the opening before final approval.",
+          decided_at: "2026-09-22T15:00:00.000Z",
+        }),
+      ],
+      onDecide: () => {},
+    }),
+  );
+
+  assert.match(markup, /Changes requested/);
+  assert.match(markup, /Please tighten the opening before final approval\./);
+  assert.doesNotMatch(markup, />Rejected</);
+});
+
 /* For static-markup tests we need the real React inside the component. */
 function loadPanelWithRealReact() {
   const Icon = (props: Record<string, unknown>) => React.createElement("svg", props);

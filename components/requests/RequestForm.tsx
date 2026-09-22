@@ -130,6 +130,7 @@ export default function RequestForm({
   if (!kind) {
     return (
       <section aria-label="Choose a request type" data-testid="request-kind-picker">
+        <p className="text-[10px] font-bold uppercase text-[var(--dim)]">Step 1 of 2</p>
         <h2 className="text-sm font-bold text-[var(--ink)]">What do you need?</h2>
         <p className="mt-1 text-xs text-[var(--muted)]">
           Pick the closest match — the next step only asks for what that kind needs.
@@ -180,7 +181,7 @@ export default function RequestForm({
           Back
         </button>
         <p className="text-[10px] font-bold uppercase text-[var(--dim)]">
-          {REQUEST_KIND_LABELS[kind]}
+          Step 2 of 2 · {REQUEST_KIND_LABELS[kind]}
         </p>
       </div>
 
@@ -363,12 +364,16 @@ export default function RequestForm({
         </div>
       ) : null}
 
+      <p data-testid="request-local-scope" className="text-[11px] leading-4 text-[var(--muted)]">
+        Saved in this browser only — it is not sent to the production team.
+      </p>
+
       <button
         type="submit"
         data-testid="request-submit"
         className="inline-flex min-h-11 w-full items-center justify-center rounded-[var(--radius-sm)] bg-[var(--accent)] px-3 text-xs font-bold text-white hover:bg-[var(--accent-hover)]"
       >
-        Record request
+        Save request locally
       </button>
     </form>
   );

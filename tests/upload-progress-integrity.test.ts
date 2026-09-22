@@ -49,7 +49,8 @@ test("demo progress steps describe work the browser actually performs", () => {
 
 test("the terminal upload action opens the newly registered media", () => {
   assert.match(cockpitSource, /assetId\?: string/);
-  assert.match(projectWorkspaceClientSource, /assetId: addedAssets\.at\(-1\)\?\.id/);
+  assert.match(projectWorkspaceClientSource, /completedAssetId = result\.asset\.id/);
+  assert.match(projectWorkspaceClientSource, /assetId: completedAssetId/);
   assert.match(
     projectWorkspaceClientSource,
     /if \(uploadStatus\?\.phase === "complete" && uploadStatus\.assetId\)[\s\S]*?router\.push\(\s*buildInternalDemoAssetHref\(id, uploadStatus\.assetId\)/,

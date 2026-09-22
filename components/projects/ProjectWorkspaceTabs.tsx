@@ -1,21 +1,17 @@
 "use client";
 
 /**
- * P24 Project Workspace tabs.
+ * Project workspace route compatibility.
  *
- * The project route becomes a tabbed workspace: the existing cockpit is the
- * Overview tab, and Brief / Milestones / Deliverables / Team / Files / Comms /
- * Calendar are live views over the same Project Operating Record. Whiteboard
- * stays its own full-screen route and is linked, not rebuilt.
- *
- * A11y: role=tablist/tab/tabpanel with roving tabindex; ArrowLeft/ArrowRight/
- * Home/End move between tabs (automatic activation). Every target is ≥44px.
+ * The player-first cockpit and the retained ?tab= record routes are views into
+ * the same project. The shared project rail is the only visible taxonomy; a
+ * retained record route expands its named secondary group and marks itself.
  */
 
 import Link from "next/link";
 import { useParams, usePathname, useRouter, useSearchParams } from "next/navigation";
-import { useCallback, useRef, type KeyboardEvent } from "react";
-import { Presentation } from "lucide-react";
+import { useCallback, useState, type ReactNode } from "react";
+import { BriefcaseBusiness, ChevronDown, Menu, Plus } from "lucide-react";
 import ProjectCockpit, { type CockpitUploadStatus } from "./ProjectCockpit";
 import ProjectBriefPanel from "./ProjectBriefPanel";
 import ProjectMilestonesPanel from "./ProjectMilestonesPanel";
@@ -24,6 +20,14 @@ import ProjectTeamPanel from "./ProjectTeamPanel";
 import ProjectFilesPanel from "./ProjectFilesPanel";
 import ProjectCommsPanel from "./ProjectCommsPanel";
 import ProjectCalendarPanel from "./ProjectCalendarPanel";
+import type { CockpitSection } from "@/components/cockpit/cockpit-navigation";
+import {
+  CockpitMobileNavigation,
+  CockpitProjectNavigation,
+  CockpitProjectNavigationDrawer,
+} from "@/components/cockpit/CockpitNavigation";
+import CoProductionBrand from "@/components/brand/CoProductionBrand";
+import { useCockpitLayout } from "@/components/cockpit/useCockpitLayout";
 import type { DemoProject } from "@/lib/demo/workspace";
 import type { MediaAsset } from "./MediaCard";
 import styles from "./ProjectWorkspaceTabs.module.css";
@@ -52,7 +56,128 @@ export interface ProjectWorkspaceTabsProps {
   uploading: boolean;
   uploadStatus: CockpitUploadStatus | null;
   onUpload: () => void;
+  onUploadRevision?: (assetId: string) => void;
   onUploadDismiss?: () => void;
+}
+
+export interface ProjectWorkspaceChromeProps {
+  activeRecordTab?: WorkspaceTabId;
+  activeWhiteboard?: boolean;
+  children: ReactNode;
+  project: DemoProject;
+  projects?: DemoProject[];
+  demoMode: boolean;
+  projectQuery: string;
+  uploading: boolean;
+  onUpload: () => void;
+  primaryActionLabel?: string;
+  onSelect: (section: CockpitSection) => void;
+}
+
+export function ProjectWorkspaceChrome({
+  activeRecordTab,
+  activeWhiteboard = false,
+  children,
+  project,
+  projects,
+  demoMode,
+  projectQuery,
+  uploading,
+  onUpload,
+  primaryActionLabel = "Upload",
+  onSelect,
+}: ProjectWorkspaceChromeProps) {
+  const router = useRouter();
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
+  const { layout, toggleRail } = useCockpitLayout(project.id);
+  const compactRail = layout.rail === "compact";
+
+  return (
+    <div className={`cockpit-shell ${styles.recordShell}`} data-rail={compactRail ? "compact" : "expanded"}>
+      <a className={styles.skipLink} href="#project-record-content">Skip to project workspace</a>
+      <header className="cockpit-header">
+        <Link className="cockpit-brand" href={demoMode ? "/projects?demo=1" : "/projects"} aria-label="Co‑VideoPro projects">
+          <CoProductionBrand className={styles.brandLockup} priority />
+        </Link>
+        <div className="cockpit-project-switcher">
+          <button
+            className="cockpit-mobile-menu"
+            type="button"
+            onClick={() => setMobileNavOpen(true)}
+            aria-label="Open project navigation"
+            aria-expanded={mobileNavOpen}
+          >
+            <Menu size={20} />
+          </button>
+          <BriefcaseBusiness size={21} />
+          <label>
+            <span>Projects</span>
+            <select
+              value={project.id}
+              onChange={(event) => router.push(`/projects/${event.target.value}${demoMode ? "?demo=1" : ""}`)}
+              aria-label="Current project"
+            >
+              {(projects ?? [project]).map((candidate) => (
+                <option key={candidate.id} value={candidate.id}>{candidate.name}</option>
+              ))}
+            </select>
+          </label>
+          <ChevronDown size={15} aria-hidden="true" />
+        </div>
+        <span className={styles.recordHeaderFill} aria-hidden="true" />
+        <div className="cockpit-header-actions">
+          <button
+            className="cockpit-action-primary"
+            type="button"
+            onClick={onUpload}
+            disabled={uploading}
+            aria-label={uploading ? "Uploading media" : primaryActionLabel === "Upload" ? "Upload media" : primaryActionLabel}
+          >
+            <Plus size={18} /> <span>{uploading ? "Uploading" : primaryActionLabel}</span>
+          </button>
+        </div>
+      </header>
+
+      <aside className="cockpit-sidebar" aria-label="Project navigation rail">
+        <CockpitProjectNavigation
+          activeSection="overview"
+          dueTodayCount={0}
+          projectId={project.id}
+          projectQuery={projectQuery}
+          activeRecordTab={activeRecordTab}
+          activeWhiteboard={activeWhiteboard}
+          demoMode={demoMode}
+          compact={compactRail}
+          onSelect={onSelect}
+          onCollapse={toggleRail}
+        />
+      </aside>
+      <CockpitProjectNavigationDrawer
+        open={mobileNavOpen}
+        activeSection="overview"
+        dueTodayCount={0}
+        projectId={project.id}
+        projectQuery={projectQuery}
+        activeRecordTab={activeRecordTab}
+        activeWhiteboard={activeWhiteboard}
+        demoMode={demoMode}
+        onSelect={onSelect}
+        onClose={() => setMobileNavOpen(false)}
+      />
+      <CockpitMobileNavigation
+        activeSection="overview"
+        dueTodayCount={0}
+        activeRecordTab={activeRecordTab}
+        activeWhiteboard={activeWhiteboard}
+        drawerOpen={mobileNavOpen}
+        onSelect={onSelect}
+        onOpenDrawer={() => setMobileNavOpen(true)}
+      />
+      <main id="project-record-content" className={`cockpit-main ${styles.recordMain}`} tabIndex={-1}>
+        {children}
+      </main>
+    </div>
+  );
 }
 
 export default function ProjectWorkspaceTabs(props: ProjectWorkspaceTabsProps) {
@@ -63,77 +188,23 @@ export default function ProjectWorkspaceTabs(props: ProjectWorkspaceTabsProps) {
   const searchParams = useSearchParams();
   const tabParam = searchParams.get("tab");
   const activeTab: WorkspaceTabId = isWorkspaceTab(tabParam) ? tabParam : "overview";
-  const tabRefs = useRef<(HTMLButtonElement | null)[]>([]);
-
-  const selectTab = useCallback(
-    (tab: WorkspaceTabId) => {
+  const selectCockpitSection = useCallback(
+    (section: CockpitSection) => {
       const params = new URLSearchParams(searchParams.toString());
-      if (tab === "overview") {
-        params.delete("tab");
-      } else {
-        params.set("tab", tab);
-      }
-      const query = params.toString();
-      router.replace(query ? `${pathname}?${query}` : pathname, { scroll: false });
+      params.delete("tab");
+      params.set("surface", section);
+      router.push(`${pathname}?${params.toString()}`, { scroll: false });
     },
     [pathname, router, searchParams],
   );
 
-  function onTabListKeyDown(event: KeyboardEvent<HTMLDivElement>) {
-    const currentIndex = WORKSPACE_TABS.findIndex((tab) => tab.id === activeTab);
-    let nextIndex = -1;
-    if (event.key === "ArrowRight") nextIndex = (currentIndex + 1) % WORKSPACE_TABS.length;
-    else if (event.key === "ArrowLeft") {
-      nextIndex = (currentIndex - 1 + WORKSPACE_TABS.length) % WORKSPACE_TABS.length;
-    } else if (event.key === "Home") nextIndex = 0;
-    else if (event.key === "End") nextIndex = WORKSPACE_TABS.length - 1;
-    if (nextIndex === -1) return;
-    event.preventDefault();
-    selectTab(WORKSPACE_TABS[nextIndex].id);
-    tabRefs.current[nextIndex]?.focus();
-  }
-
-  return (
-    <div>
-      <div
-        className={styles.tabBar}
-        role="tablist"
-        aria-label={`${project.name} project workspace`}
-        onKeyDown={onTabListKeyDown}
-      >
-        {WORKSPACE_TABS.map((tab, index) => (
-          <button
-            key={tab.id}
-            ref={(element) => {
-              tabRefs.current[index] = element;
-            }}
-            type="button"
-            role="tab"
-            id={`project-tab-${tab.id}`}
-            aria-selected={activeTab === tab.id}
-            aria-controls={`project-tabpanel-${tab.id}`}
-            tabIndex={activeTab === tab.id ? 0 : -1}
-            className={activeTab === tab.id ? styles.tabActive : styles.tab}
-            onClick={() => selectTab(tab.id)}
-          >
-            {tab.label}
-          </button>
-        ))}
-        <Link
-          className={styles.tabLink}
-          href={`/projects/${encodeURIComponent(id)}/whiteboard?demo=1`}
-        >
-          <Presentation size={15} aria-hidden="true" />
-          Whiteboard
-        </Link>
-      </div>
-
-      <div
-        role="tabpanel"
-        id={`project-tabpanel-${activeTab}`}
-        aria-labelledby={`project-tab-${activeTab}`}
-        className={activeTab === "overview" ? undefined : styles.panel}
-      >
+  const recordPanel = (
+    <div
+      role="tabpanel"
+      id={`project-tabpanel-${activeTab}`}
+      aria-label={`${project.name} ${activeTab} workspace`}
+      className={activeTab === "overview" ? undefined : styles.panel}
+    >
         {activeTab === "overview" && (
           <ProjectCockpit
             project={project}
@@ -143,6 +214,7 @@ export default function ProjectWorkspaceTabs(props: ProjectWorkspaceTabsProps) {
             uploading={props.uploading}
             uploadStatus={props.uploadStatus}
             onUpload={props.onUpload}
+            onUploadRevision={props.onUploadRevision}
             onUploadDismiss={props.onUploadDismiss}
           />
         )}
@@ -153,7 +225,23 @@ export default function ProjectWorkspaceTabs(props: ProjectWorkspaceTabsProps) {
         {activeTab === "files" && <ProjectFilesPanel projectId={id} />}
         {activeTab === "comms" && <ProjectCommsPanel projectId={id} />}
         {activeTab === "calendar" && <ProjectCalendarPanel projectId={id} />}
-      </div>
     </div>
+  );
+
+  if (activeTab === "overview") return recordPanel;
+
+  return (
+    <ProjectWorkspaceChrome
+      activeRecordTab={activeTab}
+      project={project}
+      projects={props.projects}
+      demoMode
+      projectQuery={searchParams.toString()}
+      uploading={props.uploading}
+      onUpload={props.onUpload}
+      onSelect={selectCockpitSection}
+    >
+      {recordPanel}
+    </ProjectWorkspaceChrome>
   );
 }

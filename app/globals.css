@@ -1242,16 +1242,24 @@ a { color: inherit; text-decoration: none; }
   text-transform: uppercase;
 }
 
-.demo-share-overlay { padding: 16px; background: rgba(16, 27, 47, 0.64); }
+.modal-overlay.demo-share-overlay { padding: 16px; background: rgba(16, 27, 47, 0.64); z-index: 700; }
 
 .modal.demo-share-modal {
-  --share-accent: #4a7dff;
-  --share-accent-strong: #6b93ff;
-  --share-accent-soft: rgba(74, 125, 255, 0.13);
-  --share-ink: #f2ede2;
-  --share-copy: #d5cfc0;
-  --share-muted: #a8a294;
-  --share-border: rgba(242, 237, 226, 0.09);
+  --share-accent: #0057ff;
+  --share-accent-strong: #0046cc;
+  --share-accent-soft: #eaf0ff;
+  --share-ink: #142033;
+  --share-copy: #34435a;
+  --share-muted: #526078;
+  --share-border: #cbd5e1;
+  --surface: #ffffff;
+  --surface-2: #f3f6fa;
+  --surface-hover: #eaf0ff;
+  --bg-elevated: #f6f8fb;
+  --ink: var(--share-ink);
+  --ink-secondary: var(--share-copy);
+  --muted: var(--share-muted);
+  --border: var(--share-border);
   width: min(1040px, calc(100vw - 32px));
   max-width: 1040px;
   max-height: calc(100vh - 32px);
@@ -3019,7 +3027,7 @@ a { color: inherit; text-decoration: none; }
     flex-wrap: wrap;
   }
 
-  .demo-share-overlay { align-items: flex-end; padding: 0; }
+  .modal-overlay.demo-share-overlay { align-items: flex-end; padding: 0; }
   .modal.demo-share-modal { width: 100%; max-width: 100%; max-height: 96dvh; border-radius: 8px 8px 0 0; }
   .demo-share-header { padding: 15px 14px; }
   .demo-share-header h2 { font-size: 17px; }
@@ -3606,6 +3614,7 @@ a { color: inherit; text-decoration: none; }
 }
 
 .cockpit-video-poster { z-index: 1; object-fit: cover; transition: opacity 120ms ease; }
+.cockpit-video-frame > [data-player-root] { position: relative; z-index: 2; width: 100%; height: 100%; border-radius: 0; }
 .cockpit-video-frame video { position: relative; z-index: 2; display: block; width: 100%; height: 100%; object-fit: cover; visibility: hidden; }
 .cockpit-video-frame video.active { visibility: visible; }
 .cockpit-video-frame:has(video.active) .cockpit-video-poster { opacity: 0; }
@@ -4013,11 +4022,11 @@ a { color: inherit; text-decoration: none; }
   .cockpit-activity-panel article { grid-template-columns: 28px minmax(0, 1fr); }
   .cockpit-activity-panel article time { display: none; }
   .cockpit-secondary-view { min-height: 520px; padding: 14px; }
-  .cockpit-secondary-view > header { align-items: start; }
+  .cockpit-secondary-view > header { align-items: start; flex-wrap: wrap; }
+  .cockpit-secondary-view > header > div { min-width: 0; flex: 1 1 190px; }
   .cockpit-secondary-view > header p { max-width: 220px; }
-  .cockpit-secondary-view > header > button { width: 34px; padding: 0; justify-content: center; }
-  .cockpit-secondary-view > header > button:not(:has(svg)) { width: auto; padding: 0 10px; }
-  .cockpit-secondary-view > header > button svg + * { display: none; }
+  .cockpit-secondary-view > header > button { width: auto; min-height: 44px; flex: 0 0 auto; padding: 0 12px; justify-content: center; white-space: nowrap; }
+  .cockpit-section-heading .cockpit-empty-upload { min-height: 44px; flex: 0 0 auto; white-space: nowrap; }
   .cockpit-media-grid { grid-template-columns: 1fr; }
   .cockpit-sequence-list > button { grid-template-columns: 82px minmax(0, 1fr) auto; }
   .cockpit-sequence-list img { width: 82px; height: 48px; }
@@ -5367,8 +5376,8 @@ input[type="range"].cv-range:focus-visible {
 .cv-timeline__video { width: 100%; max-height: 320px; object-fit: contain; background: #000; }
 .cv-timeline__play { position: absolute; right: 12px; bottom: 12px; padding: 6px 14px; border: 0; border-radius: 6px; background: #2f66e0; color: #fff; font-size: 11px; font-weight: 650; }
 .cv-timeline__novideo { padding: 34px 18px; color: #66778f; font-size: 11px; text-align: center; }
-.cv-timeline__track { position: relative; display: flex; height: 56px; border-top: 1px solid #1a222d; background: repeating-linear-gradient(90deg, #0d131b 0 59px, #101722 59px 60px); cursor: crosshair; }
-.cv-timeline__clip { position: relative; display: flex; flex-direction: column; justify-content: space-between; min-width: 28px; padding: 7px 8px 5px; border-right: 1px solid #06090d; background: linear-gradient(180deg, #233c66, #1a2c4d); overflow: hidden; cursor: pointer; }
+.cv-timeline__track { position: relative; height: 56px; border-top: 1px solid #1a222d; background: repeating-linear-gradient(90deg, #0d131b 0 59px, #101722 59px 60px); cursor: crosshair; }
+.cv-timeline__clip { position: absolute; top: 0; bottom: 0; display: flex; flex-direction: column; justify-content: space-between; min-width: 0; padding: 7px 8px 5px; border-right: 1px solid #06090d; background: linear-gradient(180deg, #233c66, #1a2c4d); overflow: hidden; cursor: pointer; }
 .cv-timeline__clip:nth-child(odd) { background: linear-gradient(180deg, #1f355a, #172844); }
 .cv-timeline__clip.is-selected { background: linear-gradient(180deg, #2f66e0, #1f49a8); outline: 1px solid #6ea2ff; outline-offset: -1px; }
 .cv-timeline__clip-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 9.5px; font-weight: 600; color: #d7e5ff; }
@@ -6125,6 +6134,29 @@ body {
   outline-offset: 2px;
 }
 
+/* Project video controls occupy the lower edge on desktop. */
+@media (min-width: 901px) {
+  body:has(.cockpit-shell) .cvp-copilot-pill {
+    bottom: 96px;
+  }
+}
+
 @media (max-width: 480px) {
   .cvp-copilot { max-width: calc(100vw - 32px); }
+}
+
+/* Project routes have their own mobile navigation outside the workspace shell. */
+@media (max-width: 900px) {
+  /* The fixed project navigation starts 76px above the visual viewport edge.
+     The panel's inline desktop cap cannot account for it, so reserve both that
+     bar and the panel margin before the browser calculates its actual height. */
+  body:has(.cockpit-shell) .cvp-copilot {
+    max-height: calc(100dvh - 108px - env(safe-area-inset-bottom)) !important;
+  }
+
+  body:has(.cockpit-shell) .cvp-copilot-pill {
+    right: 12px;
+    bottom: calc(76px + env(safe-area-inset-bottom));
+    min-height: 44px;
+  }
 }

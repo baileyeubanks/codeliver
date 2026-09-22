@@ -1,13 +1,16 @@
 "use client";
 
+import { sourceCatalog } from "@/lib/demo/source-catalog";
+
 import { useEffect, useRef, useState } from "react";
-import { useParams, useSearchParams } from "next/navigation";
+import { useParams, usePathname, useSearchParams } from "next/navigation";
 import {
   ArrowLeft,
   CheckCircle2,
   Download,
   GitCompare,
   MapPin,
+  Printer,
   Settings2,
   X,
 } from "lucide-react";
@@ -38,22 +41,35 @@ import {
   type AnnotationTool,
 } from "@/lib/review/annotation";
 import {
+  addDemoReviewComment,
   addDemoReviewCutMarker,
+  editDemoPublicReviewComment,
   recordDemoPublicReviewApproval,
+  setDemoPublicReviewCommentResolved,
   useDemoWorkspace,
 } from "@/lib/demo/workspace-store";
+import {
+  currentDemoMediaVersion,
+  resolvePinnedDemoMediaVersion,
+  toDemoReviewVersion,
+} from "@/lib/demo/media-version-authority";
 import {
   bindDemoReviewApprovals,
   demoReviewPayload,
 } from "@/lib/review/demoReview";
 import {
+  bindDemoReviewComments,
+  buildDemoVersionAuthority,
+} from "@/lib/review/demo-version-authority";
+import { openReviewReport } from "@/lib/review/open-report";
+import { resolveDemoReviewerEmail } from "@/lib/review/demo-reviewer-identity";
+import { projectPersistedDemoReviewComment } from "@/lib/review/demo-comment-projection";
+import { resolvePublicReviewIntent } from "@/lib/review/public-intent-authority";
+import {
   deriveReviewState,
-  formatAssetStatusLabel,
 } from "@/lib/review-state";
 import {
-  deriveShareIntent,
   formatShareIntentMeta,
-  normalizeShareIntent,
   resolveShareIntentDefaults,
   type ShareIntent,
 } from "@/lib/sharing/share-intent";
@@ -61,6 +77,8 @@ import { usePlayerStore } from "@/lib/stores/playerStore";
 import { resolveReviewFrameRate } from "@/lib/review/frame-review";
 import {
   loadAdmittedPublicReview,
+  PublicReviewAdmissionError,
+  recipientReviewLoginHref,
   renewPublicReviewAdmission,
   REVIEW_ADMISSION_RENEWAL_INTERVAL_MS,
 } from "@/lib/review/public-admission-client";
@@ -114,9 +132,17 @@ interface ReviewPayload {
   reviewer_name: string | null;
   expires_at: string | null;
   download_enabled: boolean;
+  download_url: string | null;
   watermark_enabled: boolean;
   watermark_text: string | null;
   workflow_mode: WorkflowMode | null;
+  /** Locked-delivery block (6.4); present only when the pinned version is in
+   * a locked delivery. */
+  delivery?: {
+    locked: boolean;
+    locked_at: string | null;
+    sha256: string | null;
+  } | null;
   invite: {
     id: string;
     view_count: number;
@@ -159,8 +185,13 @@ function defaultActiveApprovalIds(
     .map((approval) => approval.id);
 }
 
-export default function PublicReviewPage() {
+export default function PublicReviewPage({
+  demoMode = false,
+}: {
+  demoMode?: boolean;
+}) {
   const { token } = useParams<{ token: string }>();
+  const pathname = usePathname();
   const searchParams = useSearchParams();
   const videoRef = useRef<HTMLVideoElement>(null);
   const imageRef = useRef<HTMLImageElement>(null);
@@ -180,10 +211,9 @@ export default function PublicReviewPage() {
   const [activeApprovalIds, setActiveApprovalIds] = useState<string[]>([]);
   const [approvalAccessMessage, setApprovalAccessMessage] = useState("");
   const [storedComments, setComments] = useState<ReviewComment[]>([]);
-  // P17: the demo workspace store has no annotation column, so drawings ride
-  // on the in-memory comment after submit. The demo loader rebuilds comments
-  // from persisted state whenever the store changes; this map re-applies each
-  // drawing to its comment for the rest of the session (local preview).
+  // Normalized vectors survive workspace reloads. Raster previews remain
+  // session-only; this map keeps them attached when store hydration rebuilds
+  // the durable comment objects.
   const [drawingsByCommentId, setDrawingsByCommentId] = useState<
     Record<string, Pick<ReviewComment, "annotations" | "attachments">>
   >({});
@@ -193,6 +223,8 @@ export default function PublicReviewPage() {
   const [permissions, setPermissions] = useState<SharePermission>("view");
   const [shareIntent, setShareIntent] = useState<ShareIntent>("client_review");
   const [workflowMode, setWorkflowMode] = useState<WorkflowMode | null>(null);
+  const [delivery, setDelivery] = useState<ReviewPayload["delivery"]>(null);
+  const [downloadUrl, setDownloadUrl] = useState<string | null>(null);
   const [reviewerName, setReviewerName] = useState("");
   const [reviewerEmail, setReviewerEmail] = useState<string | null>(null);
   const [selectedCommentId, setSelectedCommentId] = useState<string | null>(null);
@@ -204,6 +236,7 @@ export default function PublicReviewPage() {
   const [compareMode, setCompareMode] = useState(false);
   const [railTab, setRailTab] = useState<"comments" | "summary">("comments");
   const [replyError, setReplyError] = useState("");
+  const [reportError, setReportError] = useState("");
   const [shareSettingsOpen, setShareSettingsOpen] = useState(false);
   const [shareSettingsRevision, setShareSettingsRevision] = useState(0);
   const [currentVersionOnly, setCurrentVersionOnly] = useState(false);
@@ -221,17 +254,56 @@ export default function PublicReviewPage() {
   const [cutMarkerError, setCutMarkerError] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [admissionRecoveryHref, setAdmissionRecoveryHref] = useState<string | null>(null);
   const [approvalSubmitting, setApprovalSubmitting] = useState(false);
   const [approvalError, setApprovalError] = useState("");
-  const demoMode = token === "demo" || searchParams.get("demo") === "1";
-  const requestedDemoShareToken = demoMode ? searchParams.get("share") : null;
+  // Canonical local links keep the share token in the visible route after
+  // redirection; the proxy can still supply "demo" as the route param.
+  const pathShareToken = /^\/review\/([^/]+)$/.exec(pathname)?.[1];
+  const requestedDemoShareToken = demoMode
+    ? searchParams.get("share") ?? (pathShareToken !== "demo" ? pathShareToken : null) ?? null
+    : null;
   const requestedDemoShare = requestedDemoShareToken
     ? demoWorkspace.shareLinks.find((link) => link.token === requestedDemoShareToken)
     : null;
+  // A token-bound demo link owns its asset identity. Query parameters remain
+  // useful for an unshared local preview, but may never move a reviewer from
+  // the asset/version captured by their link.
   const requestedDemoAssetId = demoMode
-    ? searchParams.get("asset") ?? requestedDemoShare?.asset_ids[0] ?? null
+    ? requestedDemoShare?.asset_ids[0] ?? searchParams.get("asset") ?? sourceCatalog?.assets[0]?.id ?? null
     : null;
-  const demoMediaUrl = useDemoMediaObjectUrl(requestedDemoAssetId);
+  const requestedDemoLocalVersions = requestedDemoAssetId
+    ? demoWorkspace.mediaVersions.filter((candidate) => candidate.asset_id === requestedDemoAssetId)
+    : [];
+  const requestedDemoRequiresExactVersion = Boolean(
+    requestedDemoAssetId && (
+      requestedDemoAssetId.startsWith("local-upload-") ||
+      sourceCatalog?.assets.some((candidate) => candidate.id === requestedDemoAssetId)
+    ),
+  );
+  const pinnedDemoLocalVersion = requestedDemoShare?.version_id && requestedDemoAssetId
+    ? resolvePinnedDemoMediaVersion(
+      demoWorkspace.mediaVersions,
+      requestedDemoAssetId,
+      requestedDemoShare.version_id,
+    )
+    : null;
+  const selectedDemoLocalVersion = requestedDemoShare
+    ? pinnedDemoLocalVersion
+    : currentDemoMediaVersion(demoWorkspace.mediaVersions, requestedDemoAssetId ?? "");
+  const isSourcePreview = Boolean(
+    demoMode &&
+      sourceCatalog &&
+      !requestedDemoShare &&
+      selectedDemoLocalVersion?.source_label === "Imported file",
+  );
+  // A known local asset with a missing pin gets no blob fallback. This is the
+  // fail-closed path that prevents an old link from following a newer cut.
+  const demoMediaBlobId = selectedDemoLocalVersion?.media_blob_id
+    ?? (requestedDemoRequiresExactVersion ? null : requestedDemoAssetId);
+  const demoThumbnailBlobId = selectedDemoLocalVersion?.thumbnail_blob_id ?? null;
+  const demoMediaUrl = useDemoMediaObjectUrl(demoMediaBlobId);
+  const demoThumbnailUrl = useDemoMediaObjectUrl(demoThumbnailBlobId);
 
   // P19b/P22: the demo review surface resolves against the browser-local
   // share-link store (the same one ShareSettingsDialog writes). The plain
@@ -281,10 +353,14 @@ export default function PublicReviewPage() {
     if (!demoMode || !asset?.id) return;
     setCutMarkers(
       demoWorkspace.reviewCutMarkers
-        .filter((marker) => marker.asset_id === asset.id)
+        .filter(
+          (marker) =>
+            marker.asset_id === asset.id &&
+            marker.version_id === (activeVersionId ?? version?.id),
+        )
         .map((marker) => ({ id: marker.id, time: marker.time_seconds, status: "accepted" })),
     );
-  }, [asset?.id, demoMode, demoWorkspace.reviewCutMarkers]);
+  }, [activeVersionId, asset?.id, demoMode, demoWorkspace.reviewCutMarkers, version?.id]);
 
   useEffect(() => {
     let cancelled = false;
@@ -298,36 +374,109 @@ export default function PublicReviewPage() {
           if (requestedDemoShare && !requestedDemoShare.is_active) {
             throw new Error("This review link has been revoked.");
           }
+          if (requestedDemoShare && requestedDemoShare.version_binding_status !== "bound") {
+            throw new Error("This review link needs to be re-shared for one exact media version.");
+          }
 
           const workspaceAsset = demoWorkspace.assets.find(
             (candidate) => candidate.id === requestedDemoAssetId,
           );
+          if (requestedDemoShare && !workspaceAsset) {
+            throw new Error("This review link is not bound to an available media asset.");
+          }
+          if (requestedDemoRequiresExactVersion && !selectedDemoLocalVersion) {
+            throw new Error("This media does not have one established local review version.");
+          }
           const workspaceProject = demoWorkspace.projects.find(
             (candidate) => candidate.id === workspaceAsset?.project_id,
           );
           const publicAssetId = workspaceAsset?.id ?? demoReviewPayload.asset.id;
+          const sourceRecord = sourceCatalog?.assets.find((record) => record.id === publicAssetId);
           const publicProjectId = workspaceAsset?.project_id ?? "demo";
-          const publicVersionId = `demo-version-${workspaceAsset?.version_count ?? 4}`;
-          const requestedIntent =
-            requestedDemoShare?.share_intent ??
-            normalizeShareIntent(searchParams.get("intent")) ??
-            deriveShareIntent({
+          if (
+            requestedDemoShare?.version_id &&
+            requestedDemoLocalVersions.length > 0 &&
+            !selectedDemoLocalVersion
+          ) {
+            throw new Error("This review link is pinned to a media version that is no longer available locally.");
+          }
+          const fallbackDemoVersionAuthority = buildDemoVersionAuthority({
+            assetId: publicAssetId,
+            versionCount: workspaceAsset?.version_count ?? 4,
+            fileUrl: demoMediaUrl ?? workspaceAsset?.file_url ?? demoReviewPayload.asset.file_url ?? "",
+            thumbnailUrl:
+              workspaceAsset?.thumbnail_url ?? (sourceCatalog ? null : "/demo/ceraweek-speaker.jpg"),
+            durationSeconds: workspaceAsset?.duration_seconds ?? null,
+            createdAt: workspaceAsset?.created_at ?? new Date().toISOString(),
+            seededVersions: sourceCatalog ? [] : demoReviewPayload.versions,
+            sourceMetadata: sourceRecord ? { fileSize: sourceRecord.bytes, resolution: `${sourceRecord.width} × ${sourceRecord.height}` } : undefined,
+          });
+          if (
+            requestedDemoShare?.version_id &&
+            !selectedDemoLocalVersion &&
+            fallbackDemoVersionAuthority.current.id !== requestedDemoShare.version_id
+          ) {
+            throw new Error("This review link is pinned to a media version that is no longer available.");
+          }
+          const demoVersionAuthority = selectedDemoLocalVersion
+            ? {
+                current: toDemoReviewVersion(
+                  selectedDemoLocalVersion,
+                  demoMediaUrl ?? selectedDemoLocalVersion.source_url ?? "",
+                  demoThumbnailUrl ?? (
+                    selectedDemoLocalVersion.source_label === "Imported file"
+                      ? workspaceAsset?.thumbnail_url ?? null
+                      : null
+                  ),
+                ),
+                // Direct local preview shows the current cut; a shared local
+                // review shows only its immutable pin. Both avoid pretending
+                // the browser can compare a different blob without authority.
+                versions: [toDemoReviewVersion(
+                  selectedDemoLocalVersion,
+                  demoMediaUrl ?? selectedDemoLocalVersion.source_url ?? "",
+                  demoThumbnailUrl ?? (
+                    selectedDemoLocalVersion.source_label === "Imported file"
+                      ? workspaceAsset?.thumbnail_url ?? null
+                      : null
+                  ),
+                )],
+              }
+            : fallbackDemoVersionAuthority;
+          const publicVersionId = demoVersionAuthority.current.id;
+          const requestedIntent = resolvePublicReviewIntent({
+            sourceCatalogPreview: Boolean(sourceCatalog),
+            tokenBoundShare: requestedDemoShare
+              ? {
+                  shareIntent: requestedDemoShare.share_intent,
+                  permissions: requestedDemoShare.permission,
+                  downloadEnabled: requestedDemoShare.allow_downloads,
+                  watermarkEnabled: requestedDemoShare.watermark_enabled ?? false,
+                }
+              : null,
+            queryIntent: searchParams.get("intent"),
+            fallback: {
               permissions: demoReviewPayload.permissions,
               downloadEnabled: demoReviewPayload.download_enabled,
               watermarkEnabled: demoReviewPayload.watermark_enabled,
-            });
-          const intentDefaults = resolveShareIntentDefaults(requestedIntent);
+            },
+          });
+          const intentDefaults = sourceCatalog && !requestedDemoShare
+            ? { permissions: "comment" as const, downloadEnabled: false, watermarkEnabled: false }
+            : resolveShareIntentDefaults(requestedIntent);
           const review = {
             ...demoReviewPayload,
             asset: {
               ...demoReviewPayload.asset,
               id: publicAssetId,
               title: workspaceAsset?.title ?? demoReviewPayload.asset.title,
-              file_url: demoMediaUrl ?? demoReviewPayload.asset.file_url,
+              file_type: selectedDemoLocalVersion?.file_type ?? workspaceAsset?.file_type ?? demoReviewPayload.asset.file_type,
+              frame_rate: sourceCatalog?.assets.find((asset) => asset.id === publicAssetId)?.frame_rate ?? demoReviewPayload.asset.frame_rate,
+              file_url: demoVersionAuthority.current.file_url,
               status: workspaceAsset?.status ?? demoReviewPayload.asset.status,
               projects: {
                 name: workspaceProject
-                  ? `${workspaceProject.name} / Client Review`
+                  ? `${workspaceProject.name} / ${isSourcePreview ? "Source preview" : "Client Review"}`
                   : demoReviewPayload.asset.projects?.name ?? "Client Review",
               },
             },
@@ -343,27 +492,26 @@ export default function PublicReviewPage() {
               demoReviewPayload.watermark_text,
             reviewer_name:
               requestedDemoShare?.reviewer_name ??
-              (requestedIntent === "approval_needed"
+              (sourceCatalog || requestedIntent === "approval_needed"
                 ? demoReviewPayload.reviewer_name
                 : "Client Reviewer"),
-            reviewer_email:
-              requestedDemoShare?.reviewer_email ??
-              (requestedIntent === "approval_needed" ? demoReviewPayload.reviewer_email : null),
+            reviewer_email: resolveDemoReviewerEmail({
+              shareReviewerEmail: requestedDemoShare?.reviewer_email,
+              permissions: requestedDemoShare?.permission ?? intentDefaults.permissions,
+            }),
             approvals: bindDemoReviewApprovals({
               approvals: demoReviewPayload.approvals,
               assetId: publicAssetId,
-              reviewerEmail:
-                requestedDemoShare?.reviewer_email ??
-                (requestedIntent === "approval_needed"
-                  ? demoReviewPayload.reviewer_email
-                  : null),
+              reviewerEmail: resolveDemoReviewerEmail({
+                shareReviewerEmail: requestedDemoShare?.reviewer_email,
+                permissions: requestedDemoShare?.permission ?? intentDefaults.permissions,
+              }),
               permission: requestedDemoShare?.permission ?? intentDefaults.permissions,
             }),
-            comments: demoReviewPayload.comments.map((comment) => ({
-              ...comment,
-              asset_id: publicAssetId,
-              version_id: publicVersionId,
-            })),
+            comments: bindDemoReviewComments(
+              demoReviewPayload.comments,
+              publicAssetId,
+            ),
             invite: {
               ...demoReviewPayload.invite,
               id: requestedDemoShare?.id ?? demoReviewPayload.invite.id,
@@ -379,91 +527,52 @@ export default function PublicReviewPage() {
               state.review_invite_id === review.invite.id,
           );
           const persistedComments: ReviewComment[] = demoWorkspace.reviewComments
-            .filter(
-              (comment) =>
-                comment.project_id === publicProjectId &&
-                comment.asset_id === publicAssetId &&
-                comment.version_id === publicVersionId,
+            .map((comment) =>
+              projectPersistedDemoReviewComment(comment, {
+                projectId: publicProjectId,
+                assetId: publicAssetId,
+                versionId: publicVersionId,
+                reviewInviteId: review.invite.id,
+                assetType: review.asset.file_type,
+              }),
             )
-            .map((comment) => ({
-              id: comment.id,
-              review_id: null,
-              review_invite_id: comment.review_invite_id ?? review.invite.id,
-              asset_id: comment.asset_id,
-              version_id: comment.version_id ?? publicVersionId,
-              parent_id: null,
-              author_name: comment.author_name,
-              author_email: comment.author_email ?? null,
-              author_id: null,
-              body: comment.body,
-              rich_body: null,
-              timecode_seconds:
-                review.asset.file_type === "video" ? comment.time_seconds : null,
-              frame_number: null,
-              pin_x: comment.pin_x ?? null,
-              pin_y: comment.pin_y ?? null,
-              mentions: [],
-              status: comment.status,
-              visibility: "external",
-              resolved_by: null,
-              resolved_at: null,
-              created_at: comment.created_at,
-              updated_at: comment.created_at,
-            }));
+            .filter((comment): comment is ReviewComment => comment !== null);
           const restoredComments = [...review.comments, ...persistedComments];
           const restoredApprovals = persistedApprovalState?.approvals ?? review.approvals;
           const restoredAsset = {
             ...review.asset,
             status: persistedApprovalState?.asset_status ?? review.asset.status,
           };
-          const demoVersion: Version = {
-            id: publicVersionId,
-            asset_id: publicAssetId,
-            version_number: workspaceAsset?.version_count ?? 4,
-            file_url: review.asset.file_url ?? "",
-            file_size: null,
-            thumbnail_url: "/demo/ceraweek-speaker.jpg",
-            duration_seconds: workspaceAsset?.duration_seconds ?? null,
-            resolution: "1920 x 1080",
-            is_current: true,
-            notes: "Local demo review version",
-            uploaded_by: null,
-            created_at: workspaceAsset?.created_at ?? new Date().toISOString(),
-          };
+          const demoVersion = demoVersionAuthority.current;
           const rootComments = restoredComments.filter((comment) => !comment.parent_id);
           const initialSelection =
             rootComments.find((comment) => comment.status === "open")?.id ??
             rootComments[0]?.id ??
             null;
 
-          // P19: the demo payload carries the V1–V3 seed list (P19a); a
-          // payload without one falls back to the single version the loader
-          // has always built — the switcher then shows one chip.
-          const seededVersions = (demoReviewPayload as { versions?: Version[] }).versions;
-          const versionList = seededVersions?.length
-            ? sortVersions(
-                seededVersions.map((candidate) => ({
-                  ...candidate,
-                  asset_id: publicAssetId,
-                  file_url:
-                    candidate.is_current && demoMediaUrl
-                      ? demoMediaUrl
-                      : candidate.file_url,
-                })),
-              )
-            : [demoVersion];
+          // A link-bound local version may never be redirected through ?v=.
+          // Its URL and all persisted review state remain pinned to this cut.
+          const versionList = demoVersionAuthority.versions;
           // ?v= is the canonical deep-link; ?version= is honored as an alias.
           const requestedVersion = resolveVersionParam(
             versionList,
             searchParams.get("v") ?? searchParams.get("version"),
           );
-          const initialVersion = requestedVersion ?? currentVersion(versionList) ?? demoVersion;
+          const initialVersion = requestedDemoShare?.version_id || selectedDemoLocalVersion
+            ? demoVersion
+            : requestedVersion ?? currentVersion(versionList) ?? demoVersion;
 
+          // Local shares arrive with the persisted workspace after hydration.
+          // A successful resolution must replace any initial missing-link error.
+          setError("");
           setAsset(restoredAsset);
-          setVersion(demoVersion);
+          setVersion(initialVersion);
           setVersions(versionList);
           setActiveVersionId(initialVersion.id);
           setReviewerEmail(review.reviewer_email ?? null);
+          setDownloadUrl(
+            review.download_enabled ? initialVersion.file_url : null,
+          );
           setInvite({
             id: review.invite.id,
             reviewer_name: persistedApprovalState?.reviewer_name ?? review.reviewer_name,
@@ -527,6 +636,7 @@ export default function PublicReviewPage() {
         setReviewerEmail(
           (review as ReviewPayload & { reviewer_email?: string | null }).reviewer_email ?? null,
         );
+        setDownloadUrl(review.download_url);
         setInvite({
           id: review.invite.id,
           reviewer_name: review.reviewer_name,
@@ -560,11 +670,19 @@ export default function PublicReviewPage() {
         setPermissions(review.permissions);
         setShareIntent(review.share_intent);
         setWorkflowMode(review.workflow_mode);
+        setDelivery(review.delivery ?? null);
         setReviewerName(review.reviewer_name ?? "");
         setSelectedCommentId(initialSelection);
       } catch (loadError) {
         if (cancelled) return;
         setError(loadError instanceof Error ? loadError.message : "Could not load this review.");
+        setAdmissionRecoveryHref(
+          !demoMode &&
+            loadError instanceof PublicReviewAdmissionError &&
+            loadError.code === "REVIEW_RECIPIENT_AUTH_REQUIRED"
+            ? recipientReviewLoginHref(token)
+            : null,
+        );
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -577,8 +695,10 @@ export default function PublicReviewPage() {
     };
   }, [
     demoMediaUrl,
+    demoThumbnailUrl,
     demoMode,
     demoWorkspace.assets,
+    demoWorkspace.mediaVersions,
     demoWorkspace.projects,
     demoWorkspace.publicReviewStates,
     demoWorkspace.reviewComments,
@@ -652,13 +772,41 @@ export default function PublicReviewPage() {
   // P19b derived version state. linkVersions applies the share record's
   // current_version_only scope; the switcher and compare both consume it.
   const orderedVersions = sortVersions(versions);
-  const linkVersions = currentVersionOnly
+  const linkVersions = requestedDemoShare?.version_id
+    ? orderedVersions
+    : currentVersionOnly
     ? orderedVersions.filter((candidate) => candidate.is_current)
     : orderedVersions;
   const activeVersion =
     versions.find((candidate) => candidate.id === activeVersionId) ??
     currentVersion(versions) ??
     version;
+  const demoWorkspaceAsset = demoMode && asset
+    ? demoWorkspace.assets.find((candidate) => candidate.id === asset.id)
+    : null;
+  const localReviewBinding =
+    demoWorkspaceAsset && asset && activeVersion && invite
+      ? {
+          projectId: demoWorkspaceAsset.project_id,
+          assetId: asset.id,
+          versionId: activeVersion.id,
+          reviewInviteId: invite.id,
+          assetType: asset.file_type,
+        }
+      : null;
+  const localReviewCommentIds = new Set(
+    localReviewBinding
+      ? demoWorkspace.reviewComments
+          .filter(
+            (comment) =>
+              comment.project_id === localReviewBinding.projectId &&
+              comment.asset_id === localReviewBinding.assetId &&
+              comment.version_id === localReviewBinding.versionId &&
+              comment.review_invite_id === localReviewBinding.reviewInviteId,
+          )
+          .map((comment) => comment.id)
+      : [],
+  );
   const viewingOlderVersion = Boolean(
     activeVersion && !activeVersion.is_current && versions.length > 1,
   );
@@ -666,10 +814,11 @@ export default function PublicReviewPage() {
   // P19a/P20: locked assets live on the persisted public-review state, keyed
   // by asset. A locked approval is terminal — the panel renders it read-only.
   const approvalLocked = Boolean(
-    asset &&
-      demoWorkspace.publicReviewStates.some(
-        (state) => state.asset_id === asset.id && state.locked_asset_ids?.includes(asset.id),
-      ),
+    delivery?.locked ||
+      (asset &&
+        demoWorkspace.publicReviewStates.some(
+          (state) => state.asset_id === asset.id && state.locked_asset_ids?.includes(asset.id),
+        )),
   );
 
   // P18 roster: the people already on this review — honest, no fake handles.
@@ -729,23 +878,11 @@ export default function PublicReviewPage() {
     workflowMode,
   });
   const openThreads = reviewState.counts.openThreads;
-  const resolvedThreads = reviewState.counts.resolvedThreads;
-  const pendingApprovals = orderedApprovals.filter((approval) => approval.status === "pending");
-  const completedApprovals = approvals.filter((approval) => approval.status !== "pending");
-  const activeApprovalIdSet = new Set(activeApprovalIds);
-  const activeApproval =
-    orderedApprovals.find((approval) => activeApprovalIdSet.has(approval.id)) ?? pendingApprovals[0] ?? null;
   const expiresLabel = formatShortDate(invite?.expires_at);
-  const shareMeta = formatShareIntentMeta(shareIntent);
-  const pageDescription =
-    shareIntent === "final_delivery"
-      ? "Approved delivery and review history."
-      : shareIntent === "approval_needed"
-        ? "Client approval is active for this version."
-        : shareIntent === "internal_review"
-          ? "Internal review is active for this version."
-          : "Client review is active for this version.";
-  const stageTitle = shareIntent === "final_delivery" ? "Delivery player" : "Review player";
+  const shareMeta = isSourcePreview
+    ? { ...formatShareIntentMeta(shareIntent), label: "Source preview", permissionsLabel: "Local notes" }
+    : formatShareIntentMeta(shareIntent);
+  const stageTitle = isSourcePreview ? "Source player" : shareIntent === "final_delivery" ? "Delivery player" : "Review player";
   const stageDescription = compareMode
     ? "A/B compare — linked playback, no pins or drawings"
     : drawMode
@@ -754,6 +891,7 @@ export default function PublicReviewPage() {
     ? "Pin mode active"
     : cutMarkers.length > 0
       ? `${cutMarkers.length} cut ${cutMarkers.length === 1 ? "decision" : "decisions"} marked`
+    : isSourcePreview ? "Imported file"
     : shareIntent === "final_delivery"
       ? "Approved version and delivery history"
       : `Version ${activeVersion?.version_number ?? version?.version_number ?? 1} · Client review`;
@@ -802,6 +940,9 @@ export default function PublicReviewPage() {
   function handleVersionSelect(next: Version) {
     if (next.id === activeVersionId) return;
     setActiveVersionId(next.id);
+    if (demoMode && invite?.download_enabled) {
+      setDownloadUrl(next.file_url);
+    }
     resetPlayer();
     setFrameRate(resolveReviewFrameRate(asset?.frame_rate));
     setSelectedCommentId(null);
@@ -828,43 +969,41 @@ export default function PublicReviewPage() {
     setShareSettingsRevision((revision) => revision + 1);
   }
 
-  // P18: threaded replies. The demo workspace store has no parent_id column
-  // (same gap as P17 annotations), so demo replies ride in memory for the
-  // session — honest local preview. The remote path posts parent_id to the
-  // real comments API.
+  // Local replies commit with their parent and exact review identity before
+  // appearing saved. Remote replies use the admitted comments API.
   async function handleReplySubmit(parentId: string, body: string) {
     const replyBody = body.trim();
     if (!asset || !replyBody) return;
     const authorName =
-      reviewerName.trim() || invite?.reviewer_name?.trim() || "Client Reviewer";
+      reviewerName.trim() || invite?.reviewer_name?.trim() || (sourceCatalog ? "Local reviewer" : "Client Reviewer");
 
     if (demoMode) {
-      const now = new Date().toISOString();
-      const reply: ReviewComment = {
-        id: `reply-${crypto.randomUUID()}`,
-        review_id: null,
-        review_invite_id: invite?.id ?? "invite-demo",
-        asset_id: asset.id,
-        version_id: version?.id ?? null,
-        parent_id: parentId,
-        author_name: authorName,
-        author_email: reviewerEmail,
-        author_id: null,
+      if (!canComment || !localReviewBinding) {
+        setReplyError("This review is not available for replies.");
+        return;
+      }
+      const persisted = addDemoReviewComment({
+        projectId: localReviewBinding.projectId,
+        assetId: localReviewBinding.assetId,
+        versionId: localReviewBinding.versionId,
+        reviewInviteId: localReviewBinding.reviewInviteId,
+        parentId,
+        authorName,
+        authorEmail: reviewerEmail,
+        assetType: asset.file_type,
         body: replyBody,
-        rich_body: null,
-        timecode_seconds: null,
-        frame_number: null,
-        pin_x: null,
-        pin_y: null,
-        mentions: [],
-        status: "open",
-        visibility: "external",
-        resolved_by: null,
-        resolved_at: null,
-        created_at: now,
-        updated_at: now,
-      };
-      setComments((current) => [...current, reply]);
+        timeSeconds: 0,
+      });
+      if (!persisted) {
+        setReplyError("Could not save your reply. Check this review and browser storage, then try again.");
+        return;
+      }
+      const reply = projectPersistedDemoReviewComment(persisted, {
+        ...localReviewBinding,
+      });
+      if (reply) setComments((current) =>
+        current.some((comment) => comment.id === reply.id) ? current : [...current, reply],
+      );
       setReplyError("");
       return;
     }
@@ -903,6 +1042,52 @@ export default function PublicReviewPage() {
           : "Could not post your reply.",
       );
     }
+  }
+
+  function handleLocalCommentEdit(commentId: string, body: string) {
+    if (!canComment || !localReviewBinding || !localReviewCommentIds.has(commentId)) return;
+    const persisted = editDemoPublicReviewComment({
+      projectId: localReviewBinding.projectId,
+      assetId: localReviewBinding.assetId,
+      versionId: localReviewBinding.versionId,
+      reviewInviteId: localReviewBinding.reviewInviteId,
+      commentId,
+      body,
+    });
+    const projected = persisted
+      ? projectPersistedDemoReviewComment(persisted, localReviewBinding)
+      : null;
+    if (!projected) {
+      setReplyError("Could not save this edit. Check this review and browser storage, then try again.");
+      return;
+    }
+    setComments((current) =>
+      current.map((comment) => (comment.id === projected.id ? projected : comment)),
+    );
+    setReplyError("");
+  }
+
+  function handleLocalCommentResolution(commentId: string, resolved: boolean) {
+    if (!canComment || !localReviewBinding || !localReviewCommentIds.has(commentId)) return;
+    const persisted = setDemoPublicReviewCommentResolved({
+      projectId: localReviewBinding.projectId,
+      assetId: localReviewBinding.assetId,
+      versionId: localReviewBinding.versionId,
+      reviewInviteId: localReviewBinding.reviewInviteId,
+      commentId,
+      resolved,
+    });
+    const projected = persisted
+      ? projectPersistedDemoReviewComment(persisted, localReviewBinding)
+      : null;
+    if (!projected) {
+      setReplyError("Could not update this thread. Check this review and browser storage, then try again.");
+      return;
+    }
+    setComments((current) =>
+      current.map((comment) => (comment.id === projected.id ? projected : comment)),
+    );
+    setReplyError("");
   }
 
   function handleFramePin(x: number, y: number, timeSeconds: number) {
@@ -1015,11 +1200,15 @@ export default function PublicReviewPage() {
 
     if (demoMode && asset) {
       const workspaceAsset = demoWorkspace.assets.find((candidate) => candidate.id === asset.id);
-      addDemoReviewCutMarker({
+      const saved = addDemoReviewCutMarker({
         projectId: workspaceAsset?.project_id ?? "demo",
         assetId: asset.id,
+        versionId: activeVersion?.id ?? version?.id ?? null,
         timeSeconds: normalizedTime,
       });
+      if (!saved) {
+        setCutMarkerError("This cut marker could not be bound to the version being reviewed.");
+      }
       return;
     }
 
@@ -1113,9 +1302,10 @@ export default function PublicReviewPage() {
           versionId: version.id,
           reviewInviteId: invite.id,
           reviewerName: actorName,
-          reviewerEmail:
-            requestedDemoShare?.reviewer_email ??
-            (permissions === "approve" ? demoReviewPayload.reviewer_email : null),
+          reviewerEmail: resolveDemoReviewerEmail({
+            shareReviewerEmail: requestedDemoShare?.reviewer_email,
+            permissions,
+          }),
           permission: permissions,
           workflowMode,
           approvals,
@@ -1280,6 +1470,8 @@ export default function PublicReviewPage() {
             demoMode={demoMode}
             assetId={asset.id}
             assetType={asset.file_type}
+            versionId={activeVersion?.id ?? null}
+            reviewInviteId={invite?.id ?? null}
             reviewerName={reviewerName}
             onReviewerNameChange={setReviewerName}
             timecode={commentPin.timeSeconds ?? currentTime}
@@ -1321,6 +1513,11 @@ export default function PublicReviewPage() {
     <ReviewWorkspace
       loading={loading}
       error={workspaceError}
+      errorAction={
+        admissionRecoveryHref
+          ? { href: admissionRecoveryHref, label: "Sign in with the invited email" }
+          : undefined
+      }
       brand={demoMode ? demoWorkspace.settings.brand : undefined}
       header={
         <>
@@ -1329,15 +1526,12 @@ export default function PublicReviewPage() {
               {demoMode ? (
                 <span className="client-review-back-link" aria-label="External review">
                   <ArrowLeft size={13} />
-                  Shared review
+                  {isSourcePreview ? "Source preview" : "Shared review"}
                 </span>
               ) : null}
               {demoMode ? <span aria-hidden="true">/</span> : null}
               <span className="client-review-project-name">
                 {asset?.projects?.name ?? "Project"}
-              </span>
-              <span className="client-review-intent-badge">
-                {shareMeta.label}
               </span>
             </div>
 
@@ -1345,52 +1539,101 @@ export default function PublicReviewPage() {
               <h1 className="review-display">
                 {asset?.title ?? "Review"}
               </h1>
-              {asset ? (
-                <span className="client-review-status-badge">
-                  {formatAssetStatusLabel(asset.status)}
-                </span>
-              ) : null}
+              <span className="client-review-status-badge">
+                {delivery?.locked ? "Locked final delivery" : isSourcePreview ? "Source file" : reviewState.label}
+              </span>
             </div>
-            <p className="client-review-page-description">{pageDescription}</p>
           </div>
 
           <div className="client-review-header-summary">
-            <div className="client-review-access-row">
-              <span className="client-review-state-badge">
-              {reviewState.label}
-              </span>
-              <span>{shareMeta.permissionsLabel}</span>
-            </div>
-            {reviewerName || invite?.reviewer_name ? (
-              <p className="client-review-reviewer">
-                Reviewing as <strong>{reviewerName || invite?.reviewer_name}</strong>
-              </p>
-            ) : null}
-            <div className="client-review-link-meta">
-              <span>{invite?.view_count ?? 0} views</span>
-              {expiresLabel ? <span>Expires {expiresLabel}</span> : null}
-            </div>
-            {invite?.download_enabled && (activeVersion?.file_url || asset?.file_url) ? (
-              <a
-                href={activeVersion?.file_url ?? asset?.file_url ?? undefined}
-                download
-                className="client-review-download"
-              >
-                <Download size={13} />
-                Download
-              </a>
-            ) : null}
-            {demoMode ? (
-              <button
-                type="button"
-                onClick={() => setShareSettingsOpen(true)}
-                title="Review link settings (local preview — this browser only)"
-                className="client-review-download"
-              >
-                <Settings2 size={13} />
-                Share settings
-              </button>
-            ) : null}
+            <details className="client-review-tools">
+              <summary>Review details</summary>
+              <div className="client-review-tools-panel">
+                <div className="client-review-detail-grid">
+                  <span>
+                    Review
+                    <strong>{shareMeta.label}</strong>
+                  </span>
+                  <span>
+                    Access
+                    <strong>{shareMeta.permissionsLabel}</strong>
+                  </span>
+                  {reviewerName || invite?.reviewer_name ? (
+                    <span>
+                      Reviewer
+                      <strong>{reviewerName || invite?.reviewer_name}</strong>
+                    </span>
+                  ) : null}
+                  <span>
+                    Views
+                    <strong>{invite?.view_count ?? 0}</strong>
+                  </span>
+                  {expiresLabel ? (
+                    <span>
+                      Expires
+                      <strong>{expiresLabel}</strong>
+                    </span>
+                  ) : null}
+                  {delivery?.locked ? (
+                    <span>
+                      Delivery
+                      <strong>Locked final</strong>
+                    </span>
+                  ) : null}
+                  {delivery?.locked && delivery.sha256 ? (
+                    <span>
+                      Checksum
+                      <strong>{delivery.sha256.slice(0, 12)}…</strong>
+                    </span>
+                  ) : null}
+                </div>
+                <div className="client-review-tool-actions">
+                  {invite?.download_enabled && downloadUrl ? (
+                    <a
+                      href={downloadUrl ?? undefined}
+                      download
+                      className="client-review-download"
+                    >
+                      <Download size={13} />
+                      Download
+                    </a>
+                  ) : null}
+                  {asset && activeVersion && !isSourcePreview ? (
+                    <button
+                      type="button"
+                      className="client-review-download"
+                      onClick={() => {
+                        const opened = openReviewReport({
+                          assetId: asset.id,
+                          assetTitle: asset.title,
+                          projectName: asset.projects?.name ?? "Review",
+                          versionId: activeVersion.id,
+                          versionNumber: activeVersion.version_number,
+                          approvalLabel: reviewState.label,
+                          comments,
+                        });
+                        setReportError(opened ? "" : "Allow pop-ups for this site, then open the review report again.");
+                      }}
+                    >
+                      <Printer size={13} />
+                      Review report
+                    </button>
+                  ) : null}
+                  {demoMode ? (
+                    <button
+                      type="button"
+                      onClick={() => setShareSettingsOpen(true)}
+                      title="Review link settings (local preview — this browser only)"
+                      className="client-review-download"
+                    >
+                      <Settings2 size={13} />
+                      Share settings
+                    </button>
+                  ) : null}
+                </div>
+                {reportError ? <p role="alert" className="text-xs text-[var(--muted)]">{reportError}</p> : null}
+              </div>
+            </details>
           </div>
         </>
       }
@@ -1440,26 +1683,22 @@ export default function PublicReviewPage() {
               <X size={12} />
             </button>
           </>
-        ) : (
-          <>
-            <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[var(--dim)]">
-              Review state
-            </p>
-            <p className="mt-2 text-sm font-medium text-[var(--ink)]">{reviewState.label}</p>
-            <p className="mt-2 text-sm leading-6 text-[var(--muted)]">{reviewState.summary}</p>
-            <p className="mt-2 text-xs leading-5 text-[var(--dim)]">Next: {reviewState.nextStep}</p>
-          </>
-        ),
+        ) : null,
         media: (
           <div>
             {orderedVersions.length > 0 ? (
               <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2 border-b border-white/10 bg-black px-3 py-2">
-                <VersionSwitcher
-                  versions={linkVersions}
-                  activeVersionId={activeVersion?.id ?? null}
-                  onSelect={handleVersionSelect}
-                  currentVersionOnly={currentVersionOnly}
-                />
+                {isSourcePreview && orderedVersions.length === 1 ? (
+                  <span className="text-xs font-medium text-white/80">Imported file</span>
+                ) : (
+                  <VersionSwitcher
+                    versions={linkVersions}
+                    activeVersionId={activeVersion?.id ?? null}
+                    onSelect={handleVersionSelect}
+                    currentVersionOnly={currentVersionOnly}
+                    pinnedVersionId={requestedDemoShare?.version_id}
+                  />
+                )}
                 {viewingOlderVersion ? (
                   <span className="text-[11px] text-amber-300/90">
                     Viewing an older version — notes and approvals belong to
@@ -1506,10 +1745,14 @@ export default function PublicReviewPage() {
               <ReviewMediaSurface
                 assetType={asset?.file_type ?? "other"}
                 assetTitle={asset?.title ?? "Review"}
-                assetUrl={activeVersion?.file_url || asset?.file_url || null}
+                assetUrl={
+                  demoMode && activeVersion
+                    ? activeVersion.file_url || null
+                    : activeVersion?.file_url ?? asset?.file_url ?? null
+                }
                 poster={
                   activeVersion?.thumbnail_url ??
-                  (demoMode ? "/demo/ceraweek-speaker.jpg" : undefined)
+                  (demoMode && !sourceCatalog ? "/demo/ceraweek-speaker.jpg" : undefined)
                 }
                 videoRef={videoRef}
                 imageRef={imageRef}
@@ -1531,25 +1774,27 @@ export default function PublicReviewPage() {
                         onCommentSelect={(comment) => handleCommentSelect(comment as ReviewComment)}
                         selectedCommentId={selectedCommentId}
                       />
-                      <p
-                        className={`min-h-5 text-xs ${
-                          cutMarkerError ? "text-[var(--red)]" : "text-[var(--dim)]"
-                        }`}
-                        role={cutMarkerError ? "alert" : "status"}
-                        aria-live="polite"
-                      >
-                        {cutMarkerError ||
-                          (canComment
-                            ? "Press Down to propose a version-bound cut at the playhead."
-                            : "Cut decisions are read-only for this link.")}
-                      </p>
+                      {cutMarkerError ? (
+                        <p className="min-h-5 text-xs text-[var(--red)]" role="alert" aria-live="polite">
+                          {cutMarkerError}
+                        </p>
+                      ) : (
+                        <details className="review-timeline-help">
+                          <summary>Timeline shortcut</summary>
+                          <p>
+                            {canComment
+                              ? "Press Down to propose a version-bound cut at the playhead."
+                              : "Cut decisions are read-only for this link."}
+                          </p>
+                        </details>
+                      )}
                     </div>
                   ),
                 }}
                 fallbackAction={
-                  invite?.download_enabled && (activeVersion?.file_url || asset?.file_url) ? (
+                  invite?.download_enabled && downloadUrl ? (
                     <a
-                      href={activeVersion?.file_url ?? asset?.file_url ?? undefined}
+                      href={downloadUrl ?? undefined}
                       download
                       className="inline-flex items-center gap-2 rounded-[var(--radius-sm)] bg-[var(--accent)] px-3 py-2 text-sm font-medium text-white transition-colors hover:bg-[var(--accent-hover)]"
                     >
@@ -1573,14 +1818,7 @@ export default function PublicReviewPage() {
         intro: null,
         approval: permissions === "approve"
           ? {
-              header: (
-                <div className="flex flex-wrap items-center justify-between gap-3">
-                  <span className="text-xs text-[var(--dim)]">Sign-off progress</span>
-                  <span className="rounded-full bg-[var(--bg)] px-3 py-1 text-xs text-[var(--muted)]">
-                    {completedApprovals.length}/{approvals.length || 1} decided
-                  </span>
-                </div>
-              ),
+              header: null,
               // The decision context lives inside ApprovalPanel ("Your decision"
               // card) — a second summary card here duplicated it and buried the
               // comments rail. Removed in the visual normalization pass.
@@ -1620,9 +1858,9 @@ export default function PublicReviewPage() {
             }
           : null,
         comments: {
-          title: railTab === "summary" ? "Producer summary" : commentsTitle,
+          title: railTab === "summary" && !isSourcePreview ? "Producer summary" : commentsTitle,
           description:
-            railTab === "summary"
+            railTab === "summary" && !isSourcePreview
               ? "One-page brief of this review — classifications are rule-based suggestions."
               : commentsDescription,
           countLabel: `${rootComments.length} total`,
@@ -1634,8 +1872,9 @@ export default function PublicReviewPage() {
           emptyDescription: emptyCommentsDescription,
           content: (
             <div className="space-y-3">
-              <div role="group" aria-label="Rail view" className="flex items-center gap-1.5">
-                {(["comments", "summary"] as const).map((tab) => (
+              {!isSourcePreview ? (
+                <div role="group" aria-label="Rail view" className="flex items-center gap-1.5">
+                  {(["comments", "summary"] as const).map((tab) => (
                   <button
                     key={tab}
                     type="button"
@@ -1649,10 +1888,11 @@ export default function PublicReviewPage() {
                   >
                     {tab === "comments" ? "Comments" : "Summary"}
                   </button>
-                ))}
-              </div>
+                  ))}
+                </div>
+              ) : null}
 
-              {railTab === "summary" ? (
+              {railTab === "summary" && !isSourcePreview ? (
                 <ProducerSummaryPanel
                   projectName={asset?.projects?.name ?? "Project"}
                   assetTitle={asset?.title ?? "Review"}
@@ -1674,10 +1914,27 @@ export default function PublicReviewPage() {
                     comments={comments}
                     roster={mentionRoster}
                     demoMode={demoMode}
+                    canReact={canComment}
                     selectedId={selectedCommentId}
                     onSelect={(comment) => handleCommentSelect(comment as ReviewComment)}
                     onSeek={(time) => seekTo(time)}
-                    onReplySubmit={(parentId, body) => void handleReplySubmit(parentId, body)}
+                    onReplySubmit={canComment
+                      ? (parentId, body) => void handleReplySubmit(parentId, body)
+                      : undefined}
+                    canReplyTo={(comment) =>
+                      !demoMode || localReviewCommentIds.has(comment.id)
+                    }
+                    onEdit={demoMode && canComment && localReviewBinding
+                      ? handleLocalCommentEdit
+                      : undefined}
+                    canEditComment={(comment) => localReviewCommentIds.has(comment.id)}
+                    onResolve={demoMode && canComment && localReviewBinding
+                      ? (commentId) => handleLocalCommentResolution(commentId, true)
+                      : undefined}
+                    onUnresolve={demoMode && canComment && localReviewBinding
+                      ? (commentId) => handleLocalCommentResolution(commentId, false)
+                      : undefined}
+                    canResolveComment={(comment) => localReviewCommentIds.has(comment.id)}
                   />
                 </>
               )}
@@ -1690,6 +1947,8 @@ export default function PublicReviewPage() {
             demoMode={demoMode}
             assetId={asset.id}
             assetType={asset.file_type}
+            versionId={activeVersion?.id ?? null}
+            reviewInviteId={invite?.id ?? null}
             shareIntent={shareIntent}
             canComment={canComment}
             reviewerName={reviewerName}

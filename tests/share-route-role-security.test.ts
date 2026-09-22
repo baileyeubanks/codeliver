@@ -137,6 +137,7 @@ registerHooks({
     }
     if (specifier === "@/lib/supabase") return nextResolve(supabaseStubUrl, context);
     if (specifier === "@/lib/versions") return nextResolve(versionsStubUrl, context);
+    if (specifier === "@/lib/surface-origins") return nextResolve(pathToFileURL(resolve(repositoryRoot, "lib/surface-origins.ts")).href, context);
     if (specifier === "@/lib/api/responses") {
       return nextResolve(
         pathToFileURL(resolve(repositoryRoot, "lib/api/responses.ts")).href,

@@ -5,6 +5,7 @@
  * processes it, and marks it complete or failed.
  */
 
+import { assertAssetNotLocked } from "@/lib/delivery/lock";
 import { getSupabase } from "@/lib/supabase";
 
 export interface TranscodeJob {
@@ -28,12 +29,18 @@ export interface TranscodeJob {
 
 /**
  * Enqueue a new transcode job for an asset.
+ *
+ * Locked-delivery guard (6.4): transcode flips assets.status and the worker
+ * rewrites media metadata on completion, so a locked asset refuses the
+ * enqueue with AssetDeliveryLockedError before any write happens.
  */
 export async function enqueueTranscode(params: {
   assetId: string;
   versionId?: string;
   inputPath: string;
 }): Promise<TranscodeJob | null> {
+  await assertAssetNotLocked(params.assetId, getSupabase());
+
   const { data, error } = await getSupabase()
     .from("transcode_jobs")
     .insert({

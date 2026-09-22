@@ -36,12 +36,8 @@
   min-width: 0;
 }
 
-.brandMark {
-  display: none;
-}
-
 .brandLockup {
-  --co-production-brand-width: 172px;
+  width: 180px;
 }
 
 .shell :global(.cockpit-header) {
@@ -70,24 +66,6 @@
   grid-template-columns: 64px minmax(0, 1fr);
 }
 
-.shell[data-rail="compact"] :global(.cockpit-header) {
-  grid-template-columns: 64px minmax(230px, 270px) auto minmax(220px, 1fr) auto;
-}
-
-.shell[data-rail="compact"] :global(.cockpit-brand) {
-  justify-content: center;
-  padding: 8px;
-}
-
-.shell[data-rail="compact"] .brandLockup {
-  display: none;
-}
-
-.shell[data-rail="compact"] .brandMark {
-  --co-production-brand-width: 40px;
-  display: block;
-}
-
 .shell[data-rail="compact"] :global(.cockpit-sidebar) {
   padding-inline: 8px;
 }
@@ -114,8 +92,131 @@
   margin-bottom: 7px;
 }
 
+.shell :global(.cockpit-review-strip),
+.shell :global(.cockpit-pipeline-strip) {
+  display: none;
+}
+
 .overviewWithoutDock {
   grid-template-columns: minmax(0, 1fr) !important;
+}
+
+.reviewCenterColumn {
+  width: 100%;
+  max-width: 1000px;
+  margin: 0 auto;
+}
+
+.reviewSummary {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin: 0 0 8px;
+}
+
+.reviewSummaryLine {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  overflow: hidden;
+  color: var(--cockpit-muted, #707b91);
+  font-size: 11px;
+  line-height: 1.35;
+  white-space: nowrap;
+}
+
+.reviewSummaryLine > svg {
+  flex: none;
+  color: var(--cockpit-accent, #156bff);
+}
+
+.reviewSummaryLine strong {
+  flex: none;
+  color: var(--cockpit-copy, #3f4962);
+  font-weight: 650;
+}
+
+.reviewSummaryLine > span:last-of-type {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.reviewSummaryLine a {
+  min-height: 28px;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--orange, #b05a24);
+  font-weight: 650;
+  text-decoration: none;
+}
+
+.reviewDetailsToggle,
+.timelineToggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  border: 1px solid var(--cockpit-border, #d9e2ef);
+  border-radius: 8px;
+  background: var(--cockpit-panel, #fff);
+  color: var(--cockpit-accent, #156bff);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.reviewDetailsToggle {
+  min-height: 44px;
+  flex: none;
+  padding: 0 14px;
+}
+
+.reviewDetailsToggle[aria-expanded="true"] {
+  border-color: var(--cockpit-accent, #156bff);
+  background: var(--cockpit-accent-soft, #edf4ff);
+}
+
+.timelineDisclosure {
+  margin-top: 10px;
+}
+
+.timelineToggle {
+  min-height: 44px;
+  width: 100%;
+  justify-content: flex-start;
+  padding: 0 13px;
+  color: var(--cockpit-copy, #3f4962);
+}
+
+.timelineToggle small {
+  margin-left: auto;
+  color: var(--cockpit-muted, #707b91);
+  font-size: 10px;
+  font-weight: 550;
+}
+
+.timelineToggle > svg:last-child {
+  transition: transform 140ms ease;
+}
+
+.timelineToggle[aria-expanded="true"] > svg:last-child {
+  transform: rotate(180deg);
+}
+
+.timelineDisclosure :global(.cockpit-timeline) {
+  margin-top: 8px;
+}
+
+.reviewArchive {
+  margin-top: 10px;
+}
+
+.reviewArchive > :global(.cockpit-panel) {
+  margin-bottom: 0 !important;
 }
 
 .operatorDock {
@@ -258,14 +359,6 @@
     grid-template-columns: 240px minmax(250px, 292px) auto minmax(320px, 1fr) auto;
   }
 
-  .shell[data-rail="compact"] {
-    grid-template-columns: 64px minmax(0, 1fr);
-  }
-
-  .shell[data-rail="compact"] :global(.cockpit-header) {
-    grid-template-columns: 64px minmax(250px, 292px) auto minmax(320px, 1fr) auto;
-  }
-
   .shell :global(.cockpit-main) {
     padding-inline: 34px;
   }
@@ -285,22 +378,12 @@
     grid-template-columns: 64px 230px auto minmax(180px, 1fr) auto;
   }
 
-  .shell .brandLockup {
-    display: none;
-  }
-
-  .shell .brandMark {
-    --co-production-brand-width: 40px;
-    display: block;
-  }
+  .shell .brandLockup { width:44px; height:34px; }
+  .shell .brandLockup img { width:110px; max-width:none; }
 
   .shell :global(.cockpit-brand) {
     justify-content: center;
     padding: 8px;
-  }
-
-  .shell :global(.cockpit-sidebar) {
-    padding-inline: 8px;
   }
 
   .shell :global(.cockpit-overview-grid) {
@@ -321,24 +404,17 @@
   .shell[data-rail="compact"] :global(.cockpit-header),
   .shell[data-rail="expanded"] :global(.cockpit-header) {
     grid-row: 1;
-    grid-template-columns: 56px minmax(0, 1fr) auto;
+    grid-template-columns: minmax(0, 1fr) auto;
   }
 
-  .shell :global(.cockpit-brand) {
-    width: 56px;
-    height: 64px;
-    display: flex;
-    justify-content: center;
-    padding: 8px;
-  }
-
-  .shell .brandLockup {
+  /* The stage chip is a fourth grid item in a three-track phone header.
+     Stage remains available in the Lifecycle drawer. */
+  .shell .stageChip {
     display: none;
   }
 
-  .shell .brandMark {
-    --co-production-brand-width: 40px;
-    display: block;
+  .shell :global(.cockpit-brand) {
+    display: none;
   }
 
   .toolbarSlot {
@@ -347,15 +423,16 @@
     top: 64px;
   }
 
-  .shell :global(.cockpit-sidebar) {
-    display: none;
-  }
-
   .shell :global(.cockpit-main) {
     grid-column: 1;
     grid-row: 3;
     padding-top: 15px;
-    padding-bottom: 36px;
+    /* Keep the final review actions above both fixed navigation and Copilot. */
+    padding-bottom: calc(100px + env(safe-area-inset-bottom));
+  }
+
+  .shell :global(.cockpit-mobile-review-strip) {
+    scroll-margin-bottom: calc(144px + env(safe-area-inset-bottom));
   }
 
   .shell :global(.cockpit-overview-grid) {
@@ -376,6 +453,17 @@
 }
 
 @media (max-width: 640px) {
+  .reviewSummary {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 6px;
+  }
+
+  .reviewDetailsToggle {
+    width: 100%;
+    justify-content: center;
+  }
+
   .shell[data-mode="edit"] :global(.cockpit-welcome),
   .shell[data-mode="focus"] :global(.cockpit-welcome) {
     display: none;
@@ -526,4 +614,33 @@
   min-width: 0 !important;
   width: 64px;
   flex: 0 0 auto !important;
+}
+.playerControls:global(.cockpit-video-controls) {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 8px 14px;
+  background: linear-gradient(0deg, rgba(9, 15, 25, .96), rgba(9, 15, 25, .84));
+  backdrop-filter: blur(12px);
+}
+.playerControls:global(.cockpit-video-controls) .playerSeek {
+  order: -1;
+  flex: 0 0 100%;
+  width: 100%;
+  height: 26px;
+  margin: 0;
+  accent-color: #4385ff;
+  cursor: pointer;
+}
+.playerControls:global(.cockpit-video-controls) > span { margin-right: auto; }
+.playerControls:global(.cockpit-video-controls) button,
+.playerControls:global(.cockpit-video-controls) select { min-height: 36px; }
+.playerControls :focus-visible { outline: 2px solid #73a6ff; outline-offset: 2px; }
+@media (max-width: 640px) {
+  .playerControls:global(.cockpit-video-controls) { padding: 4px 10px; gap: 4px; }
+  .playerControls:global(.cockpit-video-controls) button,
+  .playerControls:global(.cockpit-video-controls) select { min-height: 44px; min-width: 40px; }
+  .playerControls:global(.cockpit-video-controls) > span { display: inline; font-size: 10px; }
+  .playerControls:global(.cockpit-video-controls) select[aria-label="Keyboard seek interval"],
+  .playerControls:global(.cockpit-video-controls) .volumeSlider { display: none; }
 }

@@ -104,6 +104,7 @@ export default function ActivityPage() {
       icon: ShieldCheck,
     },
   ];
+  const hasActivity = activityReadiness.some((item) => item.value > 0);
 
   useEffect(() => {
     if (demoMode) return;
@@ -147,33 +148,35 @@ export default function ActivityPage() {
         </div>
       </header>
 
-      <section
-        aria-label="Activity readiness"
-        className="grid gap-2 sm:grid-cols-2 xl:grid-cols-4"
-      >
-        {activityReadiness.map((item) => {
-          const Icon = item.icon;
-          return (
-            <div
-              key={item.label}
-              className="grid min-h-[74px] grid-cols-[32px_minmax(0,1fr)] items-center gap-3 rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3 py-2"
-            >
-              <span className="flex h-8 w-8 items-center justify-center rounded-md bg-[var(--surface)] text-[var(--accent)]">
-                <Icon size={16} />
-              </span>
-              <span className="min-w-0">
-                <span className="block text-[11px] font-semibold uppercase tracking-[0.08em] text-[var(--dim)]">
-                  {item.label}
+      {hasActivity ? (
+        <section
+          aria-label="Activity readiness"
+          className="grid gap-2 sm:grid-cols-2 xl:grid-cols-4"
+        >
+          {activityReadiness.map((item) => {
+            const Icon = item.icon;
+            return (
+              <div
+                key={item.label}
+                className="grid min-h-[74px] grid-cols-[32px_minmax(0,1fr)] items-center gap-3 rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3 py-2"
+              >
+                <span className="flex h-8 w-8 items-center justify-center rounded-md bg-[var(--surface)] text-[var(--accent)]">
+                  <Icon size={16} />
                 </span>
-                <span className="mt-0.5 flex items-baseline gap-2">
-                  <strong className="text-xl font-semibold text-[var(--ink)]">{item.value}</strong>
-                  <span className="truncate text-xs text-[var(--muted)]">{item.detail}</span>
+                <span className="min-w-0">
+                  <span className="block text-[11px] font-semibold uppercase tracking-[0.08em] text-[var(--dim)]">
+                    {item.label}
+                  </span>
+                  <span className="mt-0.5 flex items-baseline gap-2">
+                    <strong className="text-xl font-semibold text-[var(--ink)]">{item.value}</strong>
+                    <span className="truncate text-xs text-[var(--muted)]">{item.detail}</span>
+                  </span>
                 </span>
-              </span>
-            </div>
-          );
-        })}
-      </section>
+              </div>
+            );
+          })}
+        </section>
+      ) : null}
 
       {loading ? (
         <div className="rounded-lg border border-[var(--border)] bg-[var(--surface)]">

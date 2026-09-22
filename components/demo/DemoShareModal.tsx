@@ -419,6 +419,12 @@ export default function DemoShareModal({
                     })}
                   </div>
 
+                  <p className="demo-share-authority">
+                    <ShieldCheck size={15} />
+                    {intentDefinition.label} · {selectedAssets.length} selected {selectedAssets.length === 1 ? "asset" : "assets"} · {reviewerEmail.trim() || "recipient pending"}
+                  </p>
+
+                  <h4>Recipient</h4>
                   <div className="demo-share-recipient-grid">
                     <label>
                       <span>Reviewer name</span>
@@ -444,53 +450,43 @@ export default function DemoShareModal({
                     </label>
                   </div>
 
-                  <div className="demo-share-permissions">
-                    <label>
-                      <input type="checkbox" checked={requireName} onChange={(event) => setRequireName(event.target.checked)} />
-                      <span><strong>Identify reviewers</strong><small>Require a name before feedback.</small></span>
-                    </label>
-                    <label>
-                      <input type="checkbox" checked={watermark} onChange={(event) => setWatermark(event.target.checked)} />
-                      <span><strong>Watermark</strong><small>Overlay recipient identity.</small></span>
-                    </label>
-                    <label>
-                      <input type="checkbox" checked={allowDownload} onChange={(event) => setAllowDownload(event.target.checked)} />
-                      <span><strong>Allow download</strong><small>Expose the delivery file.</small></span>
-                    </label>
-                  </div>
-                </section>
-
-                <section aria-labelledby="demo-share-delivery-title">
-                  <div className="demo-share-section-heading">
-                    <div>
-                      <span>3</span>
-                      <div>
-                        <h3 id="demo-share-delivery-title">Notify</h3>
-                        <p>{channels.size === 0 ? "Links only" : "Local dry run"}</p>
-                      </div>
+                  <details>
+                    <summary>Access and delivery options</summary>
+                    <div className="demo-share-permissions">
+                      <label>
+                        <input type="checkbox" checked={requireName} onChange={(event) => setRequireName(event.target.checked)} />
+                        <span><strong>Identify reviewers</strong><small>Require a name before feedback.</small></span>
+                      </label>
+                      <label>
+                        <input type="checkbox" checked={watermark} onChange={(event) => setWatermark(event.target.checked)} />
+                        <span><strong>Watermark</strong><small>Overlay recipient identity.</small></span>
+                      </label>
+                      <label>
+                        <input type="checkbox" checked={allowDownload} onChange={(event) => setAllowDownload(event.target.checked)} />
+                        <span><strong>Allow download</strong><small>Expose the delivery file.</small></span>
+                      </label>
                     </div>
-                  </div>
-
-                  <div className="demo-share-channels">
-                    {notificationOptions.map((option) => {
-                      const ChannelIcon = option.icon;
-                      return (
-                        <label key={option.id} className={!option.available ? "disabled" : ""}>
-                          <ChannelIcon size={16} aria-hidden />
-                          <span><strong>{option.label}</strong><small>{option.detail}</small></span>
-                          <input
-                            type="checkbox"
-                            checked={channels.has(option.id)}
-                            disabled={!option.available}
-                            onChange={() => toggleChannel(option.id)}
-                          />
-                        </label>
-                      );
-                    })}
-                  </div>
-                  <p className="demo-share-authority">
-                    <ShieldCheck size={15} /> Local preview never sends externally. Selected channels are stored as a delivery plan only.
-                  </p>
+                    <div className="demo-share-channels">
+                      {notificationOptions.map((option) => {
+                        const ChannelIcon = option.icon;
+                        return (
+                          <label key={option.id} className={!option.available ? "disabled" : ""}>
+                            <ChannelIcon size={16} aria-hidden />
+                            <span><strong>{option.label}</strong><small>{option.detail}</small></span>
+                            <input
+                              type="checkbox"
+                              checked={channels.has(option.id)}
+                              disabled={!option.available}
+                              onChange={() => toggleChannel(option.id)}
+                            />
+                          </label>
+                        );
+                      })}
+                    </div>
+                    <p className="demo-share-authority">
+                      <ShieldCheck size={15} /> Local preview never sends externally. Selected channels are stored as a delivery plan only.
+                    </p>
+                  </details>
                 </section>
               </div>
             </div>
@@ -500,7 +496,9 @@ export default function DemoShareModal({
             <footer className="demo-share-footer">
               <div>
                 <Eye size={15} />
-                <span>{selectedAssets.length} {selectedAssets.length === 1 ? "link" : "links"} · {intentDefinition.shortLabel}</span>
+                <span>
+                  Local preview · links work in this browser · {reviewerEmail.trim() || "recipient pending"}
+                </span>
               </div>
               <button type="button" className="btn btn-secondary" onClick={onClose}>Cancel</button>
               <button type="submit" className="btn btn-primary" disabled={selectedIds.size === 0}>

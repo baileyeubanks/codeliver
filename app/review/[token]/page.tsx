@@ -47,14 +47,14 @@ export default async function PublicReviewRoute({
       ) {
         permanentRedirect(`/review/${query.share}?demo=1`);
       }
-      return <PublicReviewPage />;
+      return <PublicReviewPage demoMode={isDemo} />;
     }
     // Demo review tokens resolve against the demo workspace only — an unknown
     // token is a missing record here, never a production database lookup.
     if (!isKnownDemoShareRoute(token)) notFound();
-    return <PublicReviewPage />;
+    return <PublicReviewPage demoMode={isDemo} />;
   }
 
   if (!isOpaqueRouteToken(token)) notFound();
-  return <PublicReviewPage />;
+  return <PublicReviewPage demoMode={isDemo} />;
 }

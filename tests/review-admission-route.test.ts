@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
 import { existsSync } from "node:fs";
 import { registerHooks } from "node:module";
 import { dirname, extname, resolve } from "node:path";
@@ -8,6 +9,7 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 import {
   issueReviewAdmissionGrant,
   reviewAdmissionCookieName,
+  verifyReviewAdmissionGrant,
 } from "../lib/review/admission-grant.ts";
 
 const repositoryRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
@@ -31,6 +33,12 @@ const ids = {
 type RouteState = typeof globalThis & {
   __cvpAdmissionRouteCalls: Array<Record<string, unknown>>;
   __cvpAdmissionRouteResult: Record<string, unknown>;
+  __cvpAdmissionRouteAuthCalls: number;
+  __cvpAdmissionRouteAuthUser: {
+    email?: string | null;
+    email_confirmed_at?: string | null;
+  } | null;
+  __cvpAdmissionRouteAuthThrows: boolean;
 };
 const state = globalThis as RouteState;
 
@@ -40,6 +48,15 @@ const authorityStub = `data:text/javascript,${encodeURIComponent(`
     return globalThis.__cvpAdmissionRouteResult;
   }
 `)}`;
+const authStub = `data:text/javascript,${encodeURIComponent(`
+  export async function requireAuth() {
+    globalThis.__cvpAdmissionRouteAuthCalls += 1;
+    if (globalThis.__cvpAdmissionRouteAuthThrows) {
+      throw new Error("auth backend unavailable");
+    }
+    return globalThis.__cvpAdmissionRouteAuthUser;
+  }
+`)}`;
 
 registerHooks({
   resolve(specifier, context, nextResolve) {
@@ -47,6 +64,7 @@ registerHooks({
     if (specifier === "@/lib/review/admission-authority") {
       return nextResolve(authorityStub, context);
     }
+    if (specifier === "@/lib/auth") return nextResolve(authStub, context);
     if (specifier.startsWith("@/")) {
       const base = resolve(repositoryRoot, specifier.slice(2));
       const path = extname(base)
@@ -84,6 +102,7 @@ function request(
 
 test("cross-origin admission is rejected before network or database authority", async () => {
   state.__cvpAdmissionRouteCalls = [];
+  state.__cvpAdmissionRouteAuthCalls = 0;
   state.__cvpAdmissionRouteResult = { ok: true };
   const { POST } = await import(pathToFileURL(routePath).href);
   const response = await POST(
@@ -93,6 +112,7 @@ test("cross-origin admission is rejected before network or database authority", 
 
   assert.equal(response.status, 403);
   assert.deepEqual(state.__cvpAdmissionRouteCalls, []);
+  assert.equal(state.__cvpAdmissionRouteAuthCalls, 0);
   assert.equal(response.headers.get("set-cookie"), null);
   assert.equal(
     response.headers.get("cross-origin-resource-policy"),
@@ -103,6 +123,9 @@ test("cross-origin admission is rejected before network or database authority", 
 test("valid admission sets a bounded opaque grant only after durable authority", async () => {
   const now = Math.floor(Date.now() / 1_000);
   state.__cvpAdmissionRouteCalls = [];
+  state.__cvpAdmissionRouteAuthCalls = 0;
+  state.__cvpAdmissionRouteAuthUser = null;
+  state.__cvpAdmissionRouteAuthThrows = false;
   state.__cvpAdmissionRouteResult = {
     ok: true,
     admission: {
@@ -110,6 +133,7 @@ test("valid admission sets a bounded opaque grant only after durable authority",
       expiresAt: now + 8 * 60 * 60,
       viewCount: 1,
       maxViews: 1,
+      recipientRequired: false,
     },
   };
   const { POST } = await import(pathToFileURL(routePath).href);
@@ -139,6 +163,7 @@ test("valid admission sets a bounded opaque grant only after durable authority",
   assert.equal(cookie.includes(token), false);
   assert.equal(JSON.stringify(payload).includes(token), false);
   assert.equal(state.__cvpAdmissionRouteCalls.length, 1);
+  assert.equal(state.__cvpAdmissionRouteAuthCalls, 1);
   assert.match(
     String(state.__cvpAdmissionRouteCalls[0]?.admissionId),
     /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i,
@@ -147,6 +172,135 @@ test("valid admission sets a bounded opaque grant only after durable authority",
     String(state.__cvpAdmissionRouteCalls[0]?.networkBucket),
     /^[0-9a-f]{64}$/,
   );
+});
+
+test("recipient-bound admission sends only a confirmed identity hash into durable authority", async () => {
+  const now = Math.floor(Date.now() / 1_000);
+  state.__cvpAdmissionRouteCalls = [];
+  state.__cvpAdmissionRouteAuthCalls = 0;
+  state.__cvpAdmissionRouteAuthUser = {
+    email: " Reviewer@Example.test ",
+    email_confirmed_at: "2026-09-22T00:00:00.000Z",
+  };
+  state.__cvpAdmissionRouteAuthThrows = false;
+  state.__cvpAdmissionRouteResult = {
+    ok: true,
+    admission: {
+      ...ids,
+      expiresAt: now + 8 * 60 * 60,
+      viewCount: 1,
+      maxViews: 1,
+      recipientRequired: true,
+    },
+  };
+
+  const { POST } = await import(pathToFileURL(routePath).href);
+  const response = await POST(request(), {
+    params: Promise.resolve({ token }),
+  });
+
+  assert.equal(response.status, 201);
+  assert.equal(state.__cvpAdmissionRouteAuthCalls, 1);
+  assert.equal(
+    state.__cvpAdmissionRouteCalls[0]?.recipientHash,
+    createHash("sha256").update("reviewer@example.test", "utf8").digest("hex"),
+  );
+  assert.equal(
+    JSON.stringify(state.__cvpAdmissionRouteCalls).includes("reviewer@example.test"),
+    false,
+  );
+  const grant = (response.headers.get("set-cookie") ?? "")
+    .match(/^[^=]+=([^;]+)/)?.[1];
+  assert.ok(grant);
+  assert.equal(
+    verifyReviewAdmissionGrant(grant, { token })?.recipientHash,
+    createHash("sha256").update("reviewer@example.test", "utf8").digest("hex"),
+  );
+});
+
+test("unconfirmed recipient identity cannot mint a grant", async () => {
+  state.__cvpAdmissionRouteCalls = [];
+  state.__cvpAdmissionRouteAuthCalls = 0;
+  state.__cvpAdmissionRouteAuthUser = {
+    email: "reviewer@example.test",
+    email_confirmed_at: null,
+  };
+  state.__cvpAdmissionRouteAuthThrows = false;
+  state.__cvpAdmissionRouteResult = {
+    ok: false,
+    status: 403,
+    code: "REVIEW_RECIPIENT_AUTH_REQUIRED",
+  };
+
+  const { POST } = await import(pathToFileURL(routePath).href);
+  const response = await POST(request(), {
+    params: Promise.resolve({ token }),
+  });
+
+  assert.equal(response.status, 403);
+  assert.equal(response.headers.get("set-cookie"), null);
+  assert.equal(state.__cvpAdmissionRouteAuthCalls, 1);
+  assert.equal(state.__cvpAdmissionRouteCalls[0]?.recipientHash, null);
+});
+
+test("recipient admission reports an auth outage without minting a grant", async () => {
+  state.__cvpAdmissionRouteCalls = [];
+  state.__cvpAdmissionRouteAuthCalls = 0;
+  state.__cvpAdmissionRouteAuthUser = null;
+  state.__cvpAdmissionRouteAuthThrows = true;
+  state.__cvpAdmissionRouteResult = {
+    ok: false,
+    status: 403,
+    code: "REVIEW_RECIPIENT_AUTH_REQUIRED",
+  };
+
+  try {
+    const { POST } = await import(pathToFileURL(routePath).href);
+    const response = await POST(request(), {
+      params: Promise.resolve({ token }),
+    });
+    assert.equal(response.status, 503);
+    assert.deepEqual(await response.json(), {
+      error: "Review sign-in is temporarily unavailable",
+      code: "REVIEW_RECIPIENT_AUTH_UNAVAILABLE",
+    });
+    assert.equal(response.headers.get("set-cookie"), null);
+    assert.equal(state.__cvpAdmissionRouteAuthCalls, 1);
+    assert.equal(state.__cvpAdmissionRouteCalls[0]?.recipientHash, null);
+  } finally {
+    state.__cvpAdmissionRouteAuthThrows = false;
+  }
+});
+
+test("blank-recipient admission remains bearer access during an auth outage", async () => {
+  const now = Math.floor(Date.now() / 1_000);
+  state.__cvpAdmissionRouteCalls = [];
+  state.__cvpAdmissionRouteAuthCalls = 0;
+  state.__cvpAdmissionRouteAuthUser = null;
+  state.__cvpAdmissionRouteAuthThrows = true;
+  state.__cvpAdmissionRouteResult = {
+    ok: true,
+    admission: {
+      ...ids,
+      expiresAt: now + 8 * 60 * 60,
+      viewCount: 1,
+      maxViews: 1,
+      recipientRequired: false,
+    },
+  };
+
+  try {
+    const { POST } = await import(pathToFileURL(routePath).href);
+    const response = await POST(request(), {
+      params: Promise.resolve({ token }),
+    });
+    assert.equal(response.status, 201);
+    assert.equal(state.__cvpAdmissionRouteAuthCalls, 1);
+    assert.equal(state.__cvpAdmissionRouteCalls[0]?.recipientHash, null);
+    assert.notEqual(response.headers.get("set-cookie"), null);
+  } finally {
+    state.__cvpAdmissionRouteAuthThrows = false;
+  }
 });
 
 test("an expired short grant renews the same live admission without consuming another view", async () => {
@@ -159,6 +313,7 @@ test("an expired short grant renews the same live admission without consuming an
     admissionExpiresAt: now + 7 * 60 * 60,
   });
   state.__cvpAdmissionRouteCalls = [];
+  state.__cvpAdmissionRouteAuthCalls = 0;
   state.__cvpAdmissionRouteResult = {
     ok: true,
     admission: {
@@ -221,6 +376,7 @@ test("malformed rotation configuration fails before a view can be consumed", asy
   process.env.CO_PRODUCTION_REVIEW_ADMISSION_VERIFICATION_KEYS =
     "not-a-32-byte-key";
   state.__cvpAdmissionRouteCalls = [];
+  state.__cvpAdmissionRouteAuthCalls = 0;
   state.__cvpAdmissionRouteResult = {
     ok: true,
     admission: {
@@ -237,6 +393,7 @@ test("malformed rotation configuration fails before a view can be consumed", asy
     });
     assert.equal(response.status, 503);
     assert.deepEqual(state.__cvpAdmissionRouteCalls, []);
+    assert.equal(state.__cvpAdmissionRouteAuthCalls, 0);
     assert.equal(response.headers.get("set-cookie"), null);
   } finally {
     if (previousVerificationKeys === undefined) {

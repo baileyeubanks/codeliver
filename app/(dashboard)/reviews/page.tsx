@@ -3,7 +3,6 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import {
-  CheckCircle2,
   Clock3,
   Link2,
   Copy,
@@ -14,7 +13,6 @@ import {
   Eye,
   Plus,
   Send,
-  Users,
   X,
 } from "lucide-react";
 import { useDemoMode } from "@/lib/demo/mode";
@@ -22,7 +20,7 @@ import {
   setDemoShareLinkActive,
   useDemoWorkspace,
 } from "@/lib/demo/workspace-store";
-import { toClientSiteUrl, toDemoSiteUrl } from "@/lib/surface-origins";
+import { toDemoSiteUrl, toReviewSiteUrl } from "@/lib/surface-origins";
 
 interface ShareLink {
   id: string;
@@ -52,7 +50,7 @@ function timeAgo(iso: string) {
 function resolvePublicLink(value: string, demoMode: boolean, runtimeOrigin?: string): string | null {
   try {
     if (demoMode && runtimeOrigin) return toDemoSiteUrl(value, runtimeOrigin);
-    return toClientSiteUrl(value, runtimeOrigin);
+    return toReviewSiteUrl(value, runtimeOrigin);
   } catch {
     return null;
   }
@@ -102,33 +100,6 @@ export default function ReviewsPage() {
     ? "/projects/bp?asset=bp-rodeo-v2&view=review&demo=1"
     : "/projects";
   const projectHref = demoMode ? "/projects?demo=1" : "/projects";
-  const reviewReadiness = [
-    {
-      label: "Share links",
-      value: links.length,
-      detail: "Review portals created",
-      icon: Link2,
-    },
-    {
-      label: "Active links",
-      value: links.filter((link) => link.is_active !== false).length,
-      detail: "Ready for recipients",
-      icon: CheckCircle2,
-    },
-    {
-      label: "Approval links",
-      value: links.filter((link) => link.permission === "approve").length,
-      detail: "Decision authority",
-      icon: Shield,
-    },
-    {
-      label: "Recipients",
-      value: links.reduce((total, link) => total + (link.invited_count ?? 0), 0),
-      detail: "Invited reviewers",
-      icon: Users,
-    },
-  ];
-
   function copyLink(url: string) {
     navigator.clipboard.writeText(url).catch(() => {});
   }
@@ -144,17 +115,14 @@ export default function ReviewsPage() {
   }
 
   return (
-    <div className="mx-auto flex w-full max-w-6xl flex-1 flex-col gap-5 px-4 py-4 sm:px-6">
+    <div className="mx-auto flex w-full max-w-6xl flex-1 flex-col gap-3 px-4 py-4 sm:px-6">
       <header className="flex flex-col gap-4 border-b border-[var(--border)] pb-4 lg:flex-row lg:items-end lg:justify-between">
         <div className="max-w-2xl">
-          <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[var(--accent)]">
-            Review authority
-          </p>
-          <h1 className="mt-1 text-2xl font-semibold tracking-tight text-[var(--ink)]">
+          <h1 className="text-2xl font-semibold tracking-tight text-[var(--ink)]">
             Review links
           </h1>
           <p className="mt-1 text-sm text-[var(--muted)]">
-            Track client portals, approval authority, recipient readiness, download access, and share status.
+            Open the exact recipient link and inspect its active access.
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -175,34 +143,7 @@ export default function ReviewsPage() {
         </div>
       </header>
 
-      <section
-        aria-label="Review readiness"
-        className="grid gap-2 sm:grid-cols-2 xl:grid-cols-4"
-      >
-        {reviewReadiness.map((item) => {
-          const Icon = item.icon;
-          return (
-            <div
-              key={item.label}
-              className="grid min-h-[74px] grid-cols-[32px_minmax(0,1fr)] items-center gap-3 rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3 py-2"
-            >
-              <span className="flex h-8 w-8 items-center justify-center rounded-md bg-[var(--surface)] text-[var(--accent)]">
-                <Icon size={16} />
-              </span>
-              <span className="min-w-0">
-                <span className="block text-[11px] font-semibold uppercase tracking-[0.08em] text-[var(--dim)]">
-                  {item.label}
-                </span>
-                <span className="mt-0.5 flex items-baseline gap-2">
-                  <strong className="text-xl font-semibold text-[var(--ink)]">{item.value}</strong>
-                  <span className="truncate text-xs text-[var(--muted)]">{item.detail}</span>
-                </span>
-              </span>
-            </div>
-          );
-        })}
-      </section>
-
+      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[var(--border)] pb-2">
       <div className="flex flex-wrap gap-1" role="tablist" aria-label="Review link filters">
         <button
           type="button"
@@ -231,8 +172,10 @@ export default function ReviewsPage() {
           Created by me
         </button>
       </div>
+        <span className="text-xs text-[var(--dim)]">{filtered.length} {filtered.length === 1 ? "link" : "links"}</span>
+      </div>
 
-      <section className="overflow-hidden rounded-lg border border-[var(--border)] bg-[var(--surface)]">
+      <section className="overflow-hidden border-y border-[var(--border)] bg-[var(--surface)]">
         {loading ? (
           <div className="divide-y divide-[var(--border)]">
             {[1, 2, 3].map((i) => (

@@ -110,7 +110,7 @@ export const CO_PRODUCE_PERMISSION_CONTRACTS = {
   },
   "delivery:manage": {
     authority: "workspace-rbac",
-    state: "planned",
+    state: "enforced",
     description: "Prepare and confirm final delivery, distribution, and compliance records.",
   },
   "business:manage": {
@@ -657,18 +657,20 @@ export const CO_PRODUCE_RECORDS = {
       transitionRule: "No audio mix status is authoritative yet.",
     },
   },
-  "planned.delivery_record": {
+  delivery_record: {
     authority: "co-deliver",
-    deployment: "planned",
-    storage: null,
+    deployment: "canonical",
+    storage: "deliverables",
     scope: "version",
     parent: "version",
-    writeRule: "A final delivery must bind approved versions, package checksums, recipients, and proof of handoff.",
+    writeRule:
+      "A final delivery binds approved versions with checksums; the lock command stamps locked_at/locked_by plus the approval evidence in one write.",
     status: {
-      kind: "not-implemented",
-      field: null,
-      values: [],
-      transitionRule: "Exports and downloads do not prove final delivery.",
+      kind: "authoritative-field",
+      field: "deliverables.status",
+      values: ["specced", "encoding", "qc", "ready", "delivered", "expired"],
+      transitionRule:
+        "delivered requires a positive approval on every bound asset and stamps the lock atomically; a locked delivery's version set is immutable.",
     },
   },
   "planned.distribution_record": {
@@ -676,7 +678,7 @@ export const CO_PRODUCE_RECORDS = {
     deployment: "planned",
     storage: null,
     scope: "version",
-    parent: "planned.delivery_record",
+    parent: "delivery_record",
     writeRule: "Distribution requires destination, policy, attempt, and outcome evidence.",
     status: {
       kind: "not-implemented",
@@ -1693,15 +1695,26 @@ export const CO_PRODUCE_CAPABILITY_GROUPS = [
           surface("delivery-assets.deliverables", "Deliverables", "lifecycle-dashboard", "system-map"),
           surface("nav.deliverables", "Deliverables", "lifecycle-dashboard"),
         ],
-        route: unavailableRoute("open-deliverables", "Exports exist, but no canonical final-delivery record or route exists."),
+        route: { kind: "page", intent: "manage-project-deliverables", routeId: "project" },
         permission: workspacePermission("delivery:manage"),
         data: {
-          primary: "planned.delivery_record",
+          primary: "delivery_record",
           supporting: ["project", "asset", "version", "approval_step"],
           authorityRule: "Only a delivery record can prove selected approved versions and handoff outcome.",
         },
-        audit: unavailableAudit("No final delivery may be recorded from this surface."),
-        readiness: unavailableReadiness("Final delivery preparation and handoff are not canonical."),
+        audit: {
+          responsibility: "append-after-commit",
+          record: "activity_event",
+          events: ["delivery.locked"],
+          rule: "Append the lock event with deliverable, approval evidence, and bound version ids after the lock commits.",
+        },
+        readiness: {
+          state: "guarded",
+          claim: "The deliverables API specs, lists, and locks deliveries on the canonical record.",
+          blockers: [
+            "Distribution and compliance records remain planned; a locked delivery is the handoff proof, not publication.",
+          ],
+        },
       },
       {
         id: "delivery-assets.asset-library",
@@ -1767,7 +1780,7 @@ export const CO_PRODUCE_CAPABILITY_GROUPS = [
         permission: workspacePermission("delivery:manage"),
         data: {
           primary: "planned.distribution_record",
-          supporting: ["planned.delivery_record", "version"],
+          supporting: ["delivery_record", "version"],
           authorityRule: "No integration or webhook may imply successful publication without a distribution receipt.",
         },
         audit: unavailableAudit("No distribution or publication action is live."),
@@ -1803,7 +1816,7 @@ export const CO_PRODUCE_CAPABILITY_GROUPS = [
         permission: workspacePermission("delivery:manage"),
         data: {
           primary: "planned.compliance_record",
-          supporting: ["project", "planned.delivery_record"],
+          supporting: ["project", "delivery_record"],
           authorityRule: "Project archive status cannot establish rights, retention, legal hold, or continuity compliance.",
         },
         audit: unavailableAudit("No compliance mutation is available."),

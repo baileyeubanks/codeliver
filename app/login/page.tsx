@@ -4,6 +4,7 @@ import { useEffect, useRef, useState, type FormEvent } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Eye, EyeOff, LoaderCircle, LogIn, ShieldCheck } from "lucide-react";
+import GoogleSignIn from "@/components/auth/GoogleSignIn";
 import AuthShell, { authStyles as styles } from "@/components/auth/AuthShell";
 import {
   authFailureMessage,
@@ -139,6 +140,8 @@ export default function LoginPage() {
           <h1 id="login-title">Sign in to Co‑VideoPro</h1>
           <p>Review and approve work with Content Co-op.</p>
         </header>
+
+        {!demoMode ? <GoogleSignIn next={requestedPath} /> : null}
 
         {surfaceMismatch && !demoMode ? (
           <div className={styles.alert} role="alert">

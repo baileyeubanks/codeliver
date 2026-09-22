@@ -4,7 +4,8 @@ import { getAssetAccess, PROJECT_ROLE_RANK } from "@/lib/access-control";
 import { recordApprovalDecision } from "@/lib/approval-decisions";
 import { createApprovalInvite, normalizeReviewerEmail } from "@/lib/review-invites";
 import { getSupabase } from "@/lib/supabase";
-import { sendEmail, emailTemplates, getBaseUrl } from "@/lib/email";
+import { sendEmail, emailTemplates } from "@/lib/email";
+import { getReviewSiteUrl } from "@/lib/surface-origins";
 import { withAssetRouteBoundary } from "../../asset-route-boundary";
 
 const NextResponse = { json: (body: Record<string, unknown>, init: ResponseInit = {}) =>
@@ -157,7 +158,7 @@ async function POSTHandler(req: Request, { params }: { params: Promise<{ id: str
               : null,
           createdBy: user.id,
         });
-        const reviewUrl = `${getBaseUrl()}/review/${reviewInvite.token}`;
+        const reviewUrl = `${getReviewSiteUrl()}/review/${reviewInvite.token}`;
         const emailPayload = emailTemplates.approvalRequest(
           verifiedEmail,
           asset.data.title,

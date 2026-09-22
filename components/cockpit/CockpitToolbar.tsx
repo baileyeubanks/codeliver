@@ -270,6 +270,17 @@ export default function CockpitToolbar({
 
       <div className={styles.lifecycle}>{lifecycleControl}</div>
 
+      <button
+        className={styles.toolsButton}
+        type="button"
+        aria-label={dockOpen ? "Close review tools" : "Open review tools"}
+        aria-expanded={dockOpen}
+        onClick={onToggleDock}
+      >
+        <PanelRight size={16} aria-hidden="true" />
+        <span>Tools</span>
+      </button>
+
       <div className={styles.presence} aria-label={`${collaborators.length} collaborators in this project`}>
         <div className={styles.avatars} aria-hidden="true">
           {collaborators.slice(0, 3).map((name) => <span key={name} title={name}>{initials(name)}</span>)}

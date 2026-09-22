@@ -3,6 +3,7 @@ import { readFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
+import { runInNewContext } from "node:vm";
 
 const repositoryRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const cockpitSource = readFileSync(
@@ -21,8 +22,14 @@ const cockpitProjectStyles = readFileSync(
   resolve(repositoryRoot, "components/projects/ProjectCockpit.module.css"),
   "utf8",
 );
-const globalStyles = readFileSync(resolve(repositoryRoot, "app/globals.css"), "utf8");
-const shellSource = readFileSync(resolve(repositoryRoot, "components/Shell.tsx"), "utf8");
+const globalStyles = readFileSync(
+  resolve(repositoryRoot, "app/globals.css"),
+  "utf8",
+);
+const shellSource = readFileSync(
+  resolve(repositoryRoot, "components/Shell.tsx"),
+  "utf8",
+);
 const projectWorkspaceClientSource = readFileSync(
   resolve(repositoryRoot, "components/projects/ProjectWorkspaceClient.tsx"),
   "utf8",
@@ -38,15 +45,21 @@ test("a focused review deep link releases control when the operator changes mode
     /const \[reviewViewActive, setReviewViewActive\] = useState\(reviewViewRequested\)/,
   );
   assert.match(cockpitSource, /params\.delete\("view"\)/);
-  assert.match(cockpitSource, /const changeMode = useCallback\([\s\S]*?leaveReviewView\(\);[\s\S]*?setMode\(mode\)/);
+  assert.match(
+    cockpitSource,
+    /const changeMode = useCallback\([\s\S]*?leaveReviewView\(\);[\s\S]*?setMode\(mode\)/,
+  );
   assert.match(cockpitSource, /onModeChange=\{changeMode\}/);
-  assert.match(cockpitSource, /function selectDockTab[\s\S]*?leaveReviewView\(\);[\s\S]*?setDockTab\(tab\)/);
+  assert.match(
+    cockpitSource,
+    /function selectDockTab[\s\S]*?leaveReviewView\(\);[\s\S]*?setDockTab\(tab\)/,
+  );
 });
 
 test("cockpit surfaces follow the URL and preserve browser back navigation", () => {
   assert.match(
     cockpitSource,
-    /useEffect\(\(\) => \{[\s\S]*?searchParams\.get\("surface"\)[\s\S]*?setActiveSection\([\s\S]*?setReviewViewActive\(searchParams\.get\("view"\) === "review"\)[\s\S]*?\}, \[searchParams\]\)/,
+    /useEffect\(\(\) => \{[\s\S]*?setActiveSection\(cockpitSectionFromSearchParams\(searchParams\)\)[\s\S]*?setReviewViewActive\(searchParams\.get\("view"\) === "review"\)[\s\S]*?\}, \[searchParams\]\)/,
   );
 
   const selectSectionBody = cockpitSource.match(
@@ -54,11 +67,12 @@ test("cockpit surfaces follow the URL and preserve browser back navigation", () 
   )?.[1];
 
   assert.ok(selectSectionBody, "surface navigation handler is missing");
-  assert.match(selectSectionBody, /params\.delete\("view"\)/);
-  assert.match(selectSectionBody, /params\.delete\("surface"\)/);
-  assert.match(selectSectionBody, /params\.set\("surface", section\)/);
+  assert.match(selectSectionBody, /projectCockpitSurfaceHref\(project\.id, searchParams, section\)/);
+  assert.match(selectSectionBody, /if \(href !== currentHref\) router\.push\(href\)/);
   assert.match(selectSectionBody, /router\.push\(/);
   assert.doesNotMatch(selectSectionBody, /router\.replace\(/);
+  assert.doesNotMatch(cockpitSource, /Demo transcript not processed/);
+  assert.match(cockpitSource, /Transcript has not been processed for this imported source/);
 });
 
 test("the cockpit uses the truthful shared review timeline", () => {
@@ -89,7 +103,10 @@ test("the review cockpit surfaces systems health only when it needs attention", 
 test("review readiness is one chip row, not a wall of status cards", () => {
   // The player is the subject. Readiness is a single flex row of icon+value
   // chips; explanatory detail belongs in a title tooltip, never on screen.
-  assert.match(globalStyles, /\.cockpit-review-strip \{[^}]*display: flex;[^}]*flex-wrap: wrap;/);
+  assert.match(
+    globalStyles,
+    /\.cockpit-review-strip \{[^}]*display: flex;[^}]*flex-wrap: wrap;/,
+  );
   // the chip rule must not reintroduce card sizing
   const chipRule = globalStyles.slice(
     globalStyles.indexOf(".cockpit-review-strip article,"),
@@ -112,16 +129,24 @@ test("review readiness is one chip row, not a wall of status cards", () => {
 });
 
 test("mobile review tools keep only distinct primary actions", () => {
-  const stripStart = cockpitSource.indexOf('className="cockpit-mobile-review-strip"');
+  const stripStart = cockpitSource.indexOf(
+    'className="cockpit-mobile-review-strip"',
+  );
   assert.notEqual(stripStart, -1, "mobile review strip is missing");
-  const stripEnd = cockpitSource.indexOf("</div>\n                ) : null}", stripStart);
+  const stripEnd = cockpitSource.indexOf(
+    "</div>\n                ) : null}",
+    stripStart,
+  );
   const mobileStrip = cockpitSource.slice(stripStart, stripEnd);
 
   assert.equal(mobileStrip.match(/<button/g)?.length, 2);
   assert.match(mobileStrip, />Comments</);
   assert.match(mobileStrip, />Share</);
   assert.doesNotMatch(mobileStrip, />Transcript</);
-  assert.match(globalStyles, /\.cockpit-mobile-review-strip \{[\s\S]*?grid-template-columns: repeat\(2, minmax\(0, 1fr\)\);/);
+  assert.match(
+    globalStyles,
+    /\.cockpit-mobile-review-strip \{[\s\S]*?grid-template-columns: repeat\(2, minmax\(0, 1fr\)\);/,
+  );
 });
 
 test("the review dock carries no live-session status prose", () => {
@@ -133,11 +158,17 @@ test("the review dock carries no live-session status prose", () => {
   assert.doesNotMatch(cockpitSource, /Presence is ephemeral/);
   assert.doesNotMatch(cockpitSource, /Comments are record/);
   assert.doesNotMatch(cockpitSource, /Start screen share/);
-  assert.doesNotMatch(cockpitSource, /aria-label="Live collaboration readiness"/);
+  assert.doesNotMatch(
+    cockpitSource,
+    /aria-label="Live collaboration readiness"/,
+  );
 });
 
 test("operator dock tabs stay compact instead of exposing crowded labels by viewport", () => {
-  assert.match(cockpitDockStyles, /\.tab > span:not\(\.count\) \{\s*display: none;/);
+  assert.match(
+    cockpitDockStyles,
+    /\.tab > span:not\(\.count\) \{\s*display: none;/,
+  );
   assert.match(
     cockpitDockStyles,
     /@media \(max-width: 390px\) \{[\s\S]*?\.tab > span:not\(\.count\) \{\s*display: none;/,
@@ -150,12 +181,30 @@ test("operator dock tabs stay compact instead of exposing crowded labels by view
 
 test("390px cockpit guards prevent header and composer crowding", () => {
   assert.match(cockpitProjectStyles, /@media \(max-width: 390px\)/);
-  assert.match(cockpitProjectStyles, /\.shell :global\(\.cockpit-project-switcher\) \{[\s\S]*?padding-inline: 7px;/);
-  assert.match(cockpitProjectStyles, /\.shell :global\(\.cockpit-header-actions\) \{[\s\S]*?gap: 2px;/);
-  assert.match(cockpitProjectStyles, /\.shell :global\(\.cockpit-section-heading\) \{[\s\S]*?flex-wrap: nowrap;/);
-  assert.match(cockpitProjectStyles, /\.shell :global\(\.cockpit-section-heading select\) \{[\s\S]*?flex: 1 1 0;/);
-  assert.match(cockpitProjectStyles, /\.shell :global\(\.cockpit-comment-composer\) \{[\s\S]*?grid-template-columns: 28px minmax\(0, 1fr\);/);
-  assert.match(cockpitProjectStyles, /\.shell :global\(\.cockpit-comment-composer input\),[\s\S]*?\.shell :global\(\.cockpit-timecode\),[\s\S]*?\.shell :global\(\.cockpit-add-comment\) \{[\s\S]*?width: 100%;/);
+  assert.match(
+    cockpitProjectStyles,
+    /\.shell :global\(\.cockpit-project-switcher\) \{[\s\S]*?padding-inline: 7px;/,
+  );
+  assert.match(
+    cockpitProjectStyles,
+    /\.shell :global\(\.cockpit-header-actions\) \{[\s\S]*?gap: 2px;/,
+  );
+  assert.match(
+    cockpitProjectStyles,
+    /\.shell :global\(\.cockpit-section-heading\) \{[\s\S]*?flex-wrap: nowrap;/,
+  );
+  assert.match(
+    cockpitProjectStyles,
+    /\.shell :global\(\.cockpit-section-heading select\) \{[\s\S]*?flex: 1 1 0;/,
+  );
+  assert.match(
+    cockpitProjectStyles,
+    /\.shell :global\(\.cockpit-comment-composer\) \{[\s\S]*?grid-template-columns: 28px minmax\(0, 1fr\);/,
+  );
+  assert.match(
+    cockpitProjectStyles,
+    /\.shell :global\(\.cockpit-comment-composer input\),[\s\S]*?\.shell :global\(\.cockpit-timecode\),[\s\S]*?\.shell :global\(\.cockpit-add-comment\) \{[\s\S]*?width: 100%;/,
+  );
 });
 
 test("mobile navigation drawer sizes the supplied raster brand wrapper", () => {
@@ -173,21 +222,52 @@ test("opening the operator dock from another section renders the actual overview
 
   assert.ok(toggleDockBody, "operator-dock handler is missing");
   assert.match(toggleDockBody, /activeSection !== "overview"/);
-  assert.match(toggleDockBody, /setActiveSection\("overview"\)/);
-  assert.match(toggleDockBody, /if \(compactViewport\) setMobileDockOpen\(true\)/);
+  assert.match(toggleDockBody, /selectSection\("overview"\)/);
+  assert.match(
+    toggleDockBody,
+    /if \(compactViewport\) setMobileDockOpen\(true\)/,
+  );
   assert.match(toggleDockBody, /else if \(!layout\.dockOpen\) toggleDock\(\)/);
 });
 
 test("production project routes render exactly one application shell", () => {
   assert.match(
     shellSource,
-    /const isProjectCockpit = \/\^\\\/projects\\\/.*\.test\(pathname\)/,
+    /const isProjectCockpit = PROJECT_WORKSPACE_SURFACE_PATH\.test\(pathname\)/,
   );
-  assert.doesNotMatch(shellSource, /const isProjectCockpit = Boolean\(demoSuffix\)/);
+  assert.doesNotMatch(
+    shellSource,
+    /const isProjectCockpit = Boolean\(demoSuffix\)/,
+  );
+});
+
+test("the project shell owns only root and Whiteboard project routes", () => {
+  const routePatternSource = shellSource.match(
+    /export const PROJECT_WORKSPACE_SURFACE_PATH = (\/\^[^;]+\$\/);/,
+  )?.[1];
+  assert.ok(routePatternSource, "project shell route matcher is missing");
+  const routePattern = runInNewContext(`(${routePatternSource})`) as RegExp;
+
+  for (const pathname of ["/projects/el-paso", "/projects/el-paso/whiteboard", "/projects/ica"]) {
+    assert.equal(routePattern.test(pathname), true, pathname);
+  }
+  for (const pathname of [
+    "/projects",
+    "/projects/new",
+    "/projects/archive",
+    "/projects/trash",
+    "/projects/el-paso/assets/asset-1",
+    "/review/projects/el-paso",
+  ]) {
+    assert.equal(routePattern.test(pathname), false, pathname);
+  }
 });
 
 test("project transitions clear stale data and cancel superseded requests", () => {
-  assert.match(projectWorkspaceClientSource, /const controller = new AbortController\(\)/);
+  assert.match(
+    projectWorkspaceClientSource,
+    /const controller = new AbortController\(\)/,
+  );
   assert.match(projectWorkspaceClientSource, /setRemoteProject\(null\)/);
   assert.match(projectWorkspaceClientSource, /setRemoteAssets\(\[\]\)/);
   assert.match(projectWorkspaceClientSource, /projectPayload\.id !== id/);
@@ -196,9 +276,12 @@ test("project transitions clear stale data and cancel superseded requests", () =
 
 test("production asset detail is committed only to its matching selected asset", () => {
   assert.match(cockpitSource, /const liveAssetRequestRef = useRef\(0\)/);
-  assert.match(cockpitSource, /liveAssetDataId === activeAsset\?\.id \? liveComments : \[\]/);
+  assert.match(
+    cockpitSource,
+    /activeLiveReviewKey && liveAssetDataKey === activeLiveReviewKey \? liveComments : \[\]/,
+  );
   assert.match(cockpitSource, /liveAssetRequestRef\.current !== requestId/);
-  assert.match(cockpitSource, /setLiveAssetDataId\(assetId\)/);
+  assert.match(cockpitSource, /setLiveAssetDataKey\(`\$\{assetId\}:\$\{versionId\}`\)/);
 });
 
 test("the down-arrow shortcut creates a reviewable cut proposal, not an accepted edit", () => {
@@ -212,15 +295,25 @@ test("frame-pin coordinates are measured against the full video frame", () => {
   )?.[1];
 
   assert.ok(handlerBody, "review frame click handler is missing");
-  assert.match(handlerBody, /videoFrameRef\.current\?\.getBoundingClientRect\(\)/);
+  assert.match(
+    handlerBody,
+    /videoFrameRef\.current\?\.getBoundingClientRect\(\)/,
+  );
   assert.match(handlerBody, /event\.currentTarget\.getBoundingClientRect\(\)/);
   assert.match(handlerBody, /Math\.max\(0, Math\.min\(100,/);
-  assert.match(handlerBody, /setPendingPin\(\{ x, y, timeSeconds: currentTime \}\)/);
+  assert.match(
+    handlerBody,
+    /setPendingPin\(\{ x, y, timeSeconds: currentTime \}\)/,
+  );
 });
 
 test("production approval and version labels come from indexed records", () => {
-  assert.match(projectAssetsRouteSource, /approvals\(id, status, step_order, role_label, assignee_email\)/);
-  assert.match(projectAssetsRouteSource, /versions\(count\)/);
+  assert.match(
+    projectAssetsRouteSource,
+    /approvals\(id, status, step_order, role_label, assignee_email\)/,
+  );
+  assert.match(projectAssetsRouteSource, /versions\(id\)/);
+  assert.match(projectAssetsRouteSource, /count: asset\.versions\?\.length \?\? 0/);
   assert.match(cockpitSource, /approval\.role_label \|\| "Approval"/);
   assert.doesNotMatch(cockpitSource, /Assigned reviewer/);
   assert.match(cockpitSource, /Version not indexed/);
@@ -233,22 +326,48 @@ test("media inspector never fabricates unprobed resolution or frame rate", () =>
   assert.match(cockpitSource, /Not reported/);
   assert.doesNotMatch(cockpitSource, /1920 x 1080/);
   assert.doesNotMatch(cockpitSource, /23\.98 fps/);
-  assert.equal(cockpitSource.match(/mediaResolutionLabel\(activeAsset, demoMode\)/g)?.length, 2);
-  assert.equal(cockpitSource.match(/mediaFrameRateLabel\(activeAsset, demoMode\)/g)?.length, 2);
+  assert.equal(
+    cockpitSource.match(/mediaResolutionLabel\(activeAsset, demoMode\)/g)
+      ?.length,
+    2,
+  );
+  assert.equal(
+    cockpitSource.match(/mediaFrameRateLabel\(activeAsset, demoMode\)/g)
+      ?.length,
+    2,
+  );
 });
 
 test("demo upload terminal states stay readable and dismissible", () => {
   assert.match(cockpitSource, /onUploadDismiss\?: \(\) => void/);
-  assert.match(cockpitSource, /const uploadTerminal =\s*uploadStatus\?\.phase === "complete" \|\| uploadStatus\?\.phase === "error"/);
+  assert.match(
+    cockpitSource,
+    /const uploadTerminal =\s*uploadStatus\?\.phase === "complete" \|\| uploadStatus\?\.phase === "error"/,
+  );
   assert.match(cockpitSource, /\{uploadStatus \? \(/);
   assert.match(cockpitSource, /className="cockpit-upload-close"/);
-  assert.match(cockpitSource, /A new version is now available in Project Browser and Version history/);
-  assert.match(cockpitSource, /No version was added\. Retry from Upload when the issue is fixed/);
-  assert.match(cockpitSource, /Review new version/);
+  assert.match(
+    cockpitSource,
+    /Existing links, comments, and approvals remain pinned to their earlier cut/,
+  );
+  assert.match(
+    cockpitSource,
+    /No version was added\. Retry from Upload when the issue is fixed/,
+  );
+  assert.match(cockpitSource, /Review V\$\{uploadStatus\.versionNumber/);
   assert.match(projectWorkspaceClientSource, /let keepTerminalStatus = false/);
   assert.match(projectWorkspaceClientSource, /keepTerminalStatus = true/);
-  assert.match(projectWorkspaceClientSource, /function dismissUploadStatus\(\)/);
-  assert.match(projectWorkspaceClientSource, /onUploadDismiss=\{dismissUploadStatus\}/);
+  assert.match(
+    projectWorkspaceClientSource,
+    /function dismissUploadStatus\(\)/,
+  );
+  assert.match(
+    projectWorkspaceClientSource,
+    /onUploadDismiss=\{dismissUploadStatus\}/,
+  );
   assert.match(globalStyles, /\.cockpit-upload-close \{/);
-  assert.match(globalStyles, /section\[data-state="complete"\] footer > button/);
+  assert.match(
+    globalStyles,
+    /section\[data-state="complete"\] footer > button/,
+  );
 });

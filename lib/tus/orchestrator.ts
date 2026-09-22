@@ -1225,6 +1225,6 @@ export function createDefaultUploadOrchestrator(
       runtime.config.filesystemRoot,
       runtime.config.lockTtlMs
     ),
-    scanner: createMalwareScanHook(runtime.config.malwarePolicy),
+    scanner: createMalwareScanHook(runtime.config.malwarePolicy, env),
   });
 }

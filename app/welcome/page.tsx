@@ -1,12 +1,10 @@
 import Link from "next/link";
-import Image from "next/image";
 import { ArrowRight } from "lucide-react";
 import CoProductionBrand from "@/components/brand/CoProductionBrand";
 import styles from "./welcome.module.css";
 
 /**
- * Public product door — Sapphire Light chrome; dark reserved for the player well.
- * Real CCO review media is the face (not a centered auth card).
+ * Public product door — one clear entry point into the same bright workspace.
  */
 export default function WelcomePage() {
   return (
@@ -44,11 +42,10 @@ export default function WelcomePage() {
           <div className={styles.copy}>
             <p className={styles.brandSignal}>Co‑VideoPro</p>
             <h1 className={styles.title}>
-              Production and review in one workspace.
+              A clear workspace for video production.
             </h1>
             <p className={styles.deck}>
-              Plan shoots, share cuts, collect approvals, and deliver finals —
-              with a clear record from brief to handoff.
+              Keep projects, review, and delivery connected from the first brief to the final handoff.
             </p>
             <div className={styles.actions}>
               <Link href="/login" className={styles.primary}>
@@ -59,37 +56,6 @@ export default function WelcomePage() {
               </Link>
             </div>
           </div>
-
-          <aside className={styles.player} aria-label="Review player preview">
-            <div className={styles.playerChrome}>
-              <span className={styles.playerDot} aria-hidden="true" />
-              <span className={styles.playerLabel}>Review</span>
-              <span className={styles.playerTitle}>ICA CEO · cut v3</span>
-            </div>
-            <div className={styles.playerStage}>
-              <video
-                className={styles.playerVideo}
-                src="/demo/ica-ceo-preview.mp4"
-                muted
-                playsInline
-                loop
-                autoPlay
-                preload="metadata"
-                aria-label="Sample review cut from a Content Co-op project"
-              />
-            </div>
-            <div className={styles.filmstripWrap}>
-              <Image
-                className={styles.filmstrip}
-                src="/demo/ica-review-filmstrip.jpg"
-                alt="Frame strip from the ICA CEO review cut"
-                width={1600}
-                height={180}
-                priority
-                unoptimized
-              />
-            </div>
-          </aside>
         </div>
       </section>
     </main>

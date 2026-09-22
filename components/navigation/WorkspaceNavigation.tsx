@@ -167,10 +167,7 @@ export default function WorkspaceNavigation({
                               onClick={onCloseDrawer}
                             >
                               <span className={styles.linkIcon}><Icon size={17} /></span>
-                              <span className={styles.linkCopy}>
-                                <strong>{item.label}</strong>
-                                <small>{item.description}</small>
-                              </span>
+                              <span className={styles.linkCopy}>{item.label}</span>
                             </Link>
                           );
                         })}
@@ -182,7 +179,7 @@ export default function WorkspaceNavigation({
             </div>
 
             <footer className={styles.drawerFooter}>
-              <span>Co‑VideoPro workspace</span>
+              <span>Workspace role</span>
               <strong>{role}</strong>
             </footer>
           </aside>

@@ -41,6 +41,10 @@ interface CommentListPropsForTest {
   onUnresolve?: (id: string) => void;
   onEdit?: (id: string, body: string) => void;
   onDelete?: (id: string) => void;
+  canReplyTo?: (comment: Comment) => boolean;
+  canResolveComment?: (comment: Comment) => boolean;
+  canEditComment?: (comment: Comment) => boolean;
+  canReact?: boolean;
 }
 
 interface CommentListModule {
@@ -352,9 +356,37 @@ test("reply composer keyboard contract: Enter sends, Shift+Enter newlines, autoc
   assert.match(composerSource, /onSubmit\(body, parseMentions\(body\)\)/);
 });
 
-test("comment thread keeps the resolved treatment and honest demo note", () => {
-  assert.match(threadSource, /Demo only — changes are not saved\./);
-  assert.match(threadSource, /role="status"/);
+test("demo mode alone never invents comment mutation controls", () => {
+  const markup = renderList({
+    onReplySubmit: undefined,
+    onResolve: undefined,
+    onUnresolve: undefined,
+    onEdit: undefined,
+    onDelete: undefined,
+    canReact: false,
+  });
+  assert.doesNotMatch(markup, />Reply<\/button>/);
+  assert.doesNotMatch(markup, />Resolve<\/button>/);
+  assert.doesNotMatch(markup, /aria-label="Edit comment by/);
+  assert.doesNotMatch(markup, /aria-label="Delete comment by/);
+  assert.doesNotMatch(markup, /aria-label="Comment reactions"/);
+  assert.doesNotMatch(threadSource, /Demo only — changes are not saved\./);
+});
+
+test("mutation predicates expose callbacks only for the bound local comment", () => {
+  const markup = renderList({
+    canReplyTo: (comment) => comment.id === "c-1",
+    canResolveComment: (comment) => comment.id === "c-1",
+    canEditComment: (comment) => comment.id === "c-1",
+  });
+  assert.equal(markup.match(/>Reply<\/button>/g)?.length, 1);
+  assert.equal(markup.match(/>Resolve<\/button>/g)?.length, 1);
+  assert.equal(markup.match(/aria-label="Edit comment by/g)?.length, 1);
+  assert.match(markup, /aria-label="Edit comment by Client Reviewer"/);
+  assert.equal(markup.match(/aria-label="Delete comment by/g)?.length, 3);
+});
+
+test("comment thread keeps the resolved treatment", () => {
   assert.match(threadSource, /CommentThreadFilter|status === "resolved"/);
 });
 

@@ -186,7 +186,7 @@ test("token routes defer production review authority to admission while team inv
   );
   assert.match(
     publicReviewPage,
-    /return <PublicReviewPage \/>/,
+    /return <PublicReviewPage demoMode=\{isDemo\} \/>/,
   );
   assert.match(teamInvitePage, /if \(error\) throw new BackendUnavailableError/);
 });

@@ -112,8 +112,10 @@ import { useDemoMediaObjectUrl } from "@/lib/demo/media-blob-store";
 import {
   currentDemoMediaVersion,
   isRevisionableDemoMedia,
+  resolvePinnedDemoMediaVersion,
   sortDemoMediaVersions,
 } from "@/lib/demo/media-version-authority";
+import { canOperateExactInternalReviewVersion } from "@/lib/review/internal-version-operations";
 import { formatSmpteTimecode } from "@/components/player/timecode";
 import VideoPlayer from "@/components/player/VideoPlayer";
 import { normalizeReviewSeekStep, normalizeReviewShortcutKey, shouldIgnoreReviewShortcut } from "@/lib/review/player-policy";
@@ -463,6 +465,7 @@ export default function ProjectCockpit({
   const notificationButtonRef = useRef<HTMLButtonElement>(null);
   const accountButtonRef = useRef<HTMLButtonElement>(null);
   const requestedAssetId = searchParams.get("asset");
+  const requestedVersionId = searchParams.get("version");
   const reviewViewRequested = searchParams.get("view") === "review";
   const [reviewViewActive, setReviewViewActive] = useState(reviewViewRequested);
   const [activeSection, setActiveSection] = useState<CockpitSection>(() => cockpitSectionFromSearchParams(searchParams));
@@ -590,10 +593,34 @@ export default function ProjectCockpit({
     activeAsset && sourceCatalog?.assets.some((source) => source.id === activeAsset.id),
   );
   const versionedDemoActive = localUploadActive || sourceBackedActive;
+  const requestedDemoVersion = demoMode && activeAsset && requestedVersionId
+    ? resolvePinnedDemoMediaVersion(workspace.mediaVersions, activeAsset.id, requestedVersionId)
+    : null;
   const activeDemoVersion = demoMode && activeAsset
-    ? currentDemoMediaVersion(workspace.mediaVersions, activeAsset.id)
+    ? requestedVersionId
+      ? requestedDemoVersion
+      : currentDemoMediaVersion(workspace.mediaVersions, activeAsset.id)
     : null;
   const activeDemoVersionId = activeDemoVersion?.id ?? null;
+  const reviewOperationsAllowed = canOperateExactInternalReviewVersion({
+    demoMode,
+    requestedVersionId,
+    activeDemoVersionId,
+  });
+  // Live project data has no version-scoped fetch contract yet. A direct
+  // historical URL must not silently substitute the current asset.
+  const requestedLiveVersionUnavailable = Boolean(!demoMode && requestedVersionId);
+  const requestedReviewVersionUnavailable = !reviewOperationsAllowed;
+  const historicalDemoVersion = Boolean(
+    demoMode && activeDemoVersion && !activeDemoVersion.is_current,
+  );
+  const versionScopedReview = historicalDemoVersion || requestedReviewVersionUnavailable;
+  // The header's project Share remains intentionally project-scoped. Every
+  // asset-context action below must stop here unless it can prove this cut.
+  const contextualShareAllowed = Boolean(activeAsset && !versionScopedReview);
+  const activeDemoVersions = demoMode && activeAsset
+    ? sortDemoMediaVersions(workspace.mediaVersions.filter((version) => version.asset_id === activeAsset.id))
+    : [];
   const revisionableActiveAsset = Boolean(
     demoMode &&
       activeAsset &&
@@ -609,14 +636,18 @@ export default function ProjectCockpit({
   const demoPosterUrl = useDemoMediaObjectUrl(
     activeDemoVersion?.thumbnail_blob_id ?? activeAsset?.demo_thumbnail_id ?? null,
   );
-  const activeMediaUrl = demoMode
+  const activeMediaUrl = requestedReviewVersionUnavailable
+    ? null
+    : demoMode
     ? demoMediaUrl ?? activeDemoVersion?.source_url ?? (
       versionedDemoActive
         ? null
         : activeAsset?.file_url ?? (sourceCatalog ? null : "/demo/ica-ceo-preview.mp4")
     )
     : activeAsset?.file_url ?? null;
-  const activePosterUrl = demoMode
+  const activePosterUrl = requestedReviewVersionUnavailable
+    ? null
+    : demoMode
     ? activeDemoVersion?.thumbnail_blob_id
       ? demoPosterUrl
       : activeDemoVersion?.source_label === "Imported file"
@@ -679,26 +710,32 @@ export default function ProjectCockpit({
   const canShare = roleCan(workspaceRole, "reviews:comment");
 
   const comments = demoMode
-    ? workspace.reviewComments.filter(
+    ? activeAsset && activeDemoVersionId
+      ? workspace.reviewComments.filter(
       (comment) =>
         comment.asset_id === activeAsset?.id &&
-        (!activeDemoVersionId || comment.version_id === activeDemoVersionId),
-    )
-    : liveAssetDataId === activeAsset?.id ? liveComments : [];
+        comment.version_id === activeDemoVersionId,
+      )
+      : []
+    : requestedLiveVersionUnavailable ? [] : liveAssetDataId === activeAsset?.id ? liveComments : [];
   const cutMarkers = demoMode
-    ? workspace.reviewCutMarkers.filter(
+    ? activeAsset && activeDemoVersionId
+      ? workspace.reviewCutMarkers.filter(
       (marker) =>
         marker.asset_id === activeAsset?.id &&
-        (!activeDemoVersionId || marker.version_id === activeDemoVersionId),
-    )
-    : liveAssetDataId === activeAsset?.id ? liveCutMarkers : [];
+        marker.version_id === activeDemoVersionId,
+      )
+      : []
+    : requestedLiveVersionUnavailable ? [] : liveAssetDataId === activeAsset?.id ? liveCutMarkers : [];
   const visibleComments = comments.filter((comment) => comment.status === commentStatus);
   const projectTasks = demoMode
     ? workspace.tasks.filter((task) => task.project_id === project.id)
     : liveTasks;
-  const approvalStages: CockpitApprovalStage[] = demoMode
-    ? workspace.approvalStages.filter((stage) => stage.asset_id === activeAsset?.id)
-    : [...(activeAsset?.approval_records ?? [])]
+  const approvalStages: CockpitApprovalStage[] = versionScopedReview
+    ? []
+    : demoMode
+      ? workspace.approvalStages.filter((stage) => stage.asset_id === activeAsset?.id)
+      : [...(activeAsset?.approval_records ?? [])]
       .sort((left, right) => (left.step_order ?? 0) - (right.step_order ?? 0))
       .map((approval) => ({
         id: approval.id,
@@ -722,11 +759,13 @@ export default function ProjectCockpit({
   const projectActivity = demoMode
     ? workspace.activity.filter((item) => item.project_id === project.id)
     : liveActivity;
-  const projectLinks = demoMode
-    ? workspace.shareLinks.filter((link) =>
+  const projectLinks = versionScopedReview
+    ? []
+    : demoMode
+      ? workspace.shareLinks.filter((link) =>
         link.asset_ids.some((assetId) => assets.some((asset) => asset.id === assetId)),
-      )
-    : liveAssetDataId === activeAsset?.id ? liveShareLinks : [];
+        )
+      : liveAssetDataId === activeAsset?.id ? liveShareLinks : [];
   const demoVersionHistory = demoMode
     ? assets.map((asset) => ({
         asset,
@@ -753,10 +792,10 @@ export default function ProjectCockpit({
     {
       id: "status",
       label: "Status",
-      value: formatAssetStatus(activeAsset.status),
-      detail: versionLabel(activeAsset, demoMode),
+      value: requestedReviewVersionUnavailable ? "Version unavailable" : historicalDemoVersion ? `Historical V${activeDemoVersion?.version_number}` : formatAssetStatus(activeAsset.status),
+      detail: versionScopedReview ? "Version-specific review" : versionLabel(activeAsset, demoMode),
       icon: Circle,
-      tone: activeAsset.status === "approved" || activeAsset.status === "final" ? "approved" : "active",
+      tone: !versionScopedReview && (activeAsset.status === "approved" || activeAsset.status === "final") ? "approved" : "active",
     },
     {
       id: "comments",
@@ -769,8 +808,8 @@ export default function ProjectCockpit({
     {
       id: "approvals",
       label: "Approvals",
-      value: approvalStages.length > 0 ? `${approvedStageCount}/${approvalStages.length} stages` : "No workflow",
-      detail: reviewerSlotCount > 0 ? `${approvedReviewerCount}/${reviewerSlotCount} reviewers` : "Approval link pending",
+      value: versionScopedReview ? "Not recorded for this cut" : approvalStages.length > 0 ? `${approvedStageCount}/${approvalStages.length} stages` : "No workflow",
+      detail: versionScopedReview ? "Asset-level decisions are not applied to a historical cut." : reviewerSlotCount > 0 ? `${approvedReviewerCount}/${reviewerSlotCount} reviewers` : "Approval link pending",
       icon: CheckCircle2,
       tone: approvalStages.length > 0 && approvedStageCount === approvalStages.length ? "approved" : "neutral",
     },
@@ -1223,6 +1262,34 @@ export default function ProjectCockpit({
     setSimulatedPlayback(false);
     setPendingPin(null);
     setResumeAfterComment(false);
+    if (requestedVersionId) {
+      const params = new URLSearchParams(searchParams.toString());
+      params.set("asset", asset.id);
+      params.delete("version");
+      router.replace(`/projects/${project.id}?${params.toString()}`);
+    }
+  }
+
+  function selectDemoReviewVersion(versionId: string) {
+    if (!demoMode || !activeAsset) return;
+    const version = resolvePinnedDemoMediaVersion(workspace.mediaVersions, activeAsset.id, versionId);
+    if (!version) {
+      setToast("Requested media version unavailable.");
+      return;
+    }
+    const params = new URLSearchParams(searchParams.toString());
+    params.set("demo", "1");
+    params.set("asset", activeAsset.id);
+    params.set("version", version.id);
+    router.replace(`/projects/${project.id}?${params.toString()}`);
+    setCurrentTime(0);
+    setNativeDuration(0);
+    setIsPlaying(false);
+    setHasEnded(false);
+    setPendingPin(null);
+    setResumeAfterComment(false);
+    if (typeof videoRef.current?.pause === "function") videoRef.current.pause();
+    if (typeof videoRef.current?.load === "function") videoRef.current.load();
   }
 
   function openReviewCockpit() {
@@ -1238,6 +1305,7 @@ export default function ProjectCockpit({
     const params = new URLSearchParams();
     if (demoMode) params.set("demo", "1");
     params.set("asset", activeAsset.id);
+    if (demoMode && activeDemoVersionId) params.set("version", activeDemoVersionId);
     params.set("view", "review");
     router.replace(`/projects/${project.id}?${params.toString()}`);
     window.requestAnimationFrame(() => {
@@ -1250,6 +1318,7 @@ export default function ProjectCockpit({
   }
 
   async function togglePlayback() {
+    if (!reviewOperationsAllowed) return;
     setPlaybackError(null);
     const video = videoRef.current;
     if (!video || typeof video.play !== "function" || typeof video.pause !== "function") {
@@ -1282,6 +1351,7 @@ export default function ProjectCockpit({
   }
 
   async function replayFromStart() {
+    if (!reviewOperationsAllowed) return;
     setPlaybackError(null);
     const video = videoRef.current;
     setHasEnded(false);
@@ -1302,6 +1372,7 @@ export default function ProjectCockpit({
   }
 
   function seekTo(seconds: number) {
+    if (!reviewOperationsAllowed) return;
     const normalized = Math.max(0, Math.min(previewDuration, seconds));
     if (videoRef.current) videoRef.current.currentTime = normalized;
     if (normalized < previewDuration) setHasEnded(false);
@@ -1309,14 +1380,20 @@ export default function ProjectCockpit({
   }
 
   function changeVolume(nextVolume: number) {
+    if (!reviewOperationsAllowed) return;
     const normalized = Math.max(0, Math.min(1, nextVolume));
     setVolume(normalized);
     if (videoRef.current) videoRef.current.volume = normalized;
     if (normalized > 0 && isMuted) setIsMuted(false);
   }
 
+  function toggleMute() {
+    if (!reviewOperationsAllowed) return;
+    setIsMuted((muted) => !muted);
+  }
+
   function handleReviewFrameClick(event: ReactMouseEvent<HTMLDivElement>) {
-    if (!activeAsset) return;
+    if (!reviewOperationsAllowed || !activeAsset) return;
     const frameRect = videoFrameRef.current?.getBoundingClientRect()
       ?? event.currentTarget.getBoundingClientRect();
     const x = Math.max(0, Math.min(100, ((event.clientX - frameRect.left) / frameRect.width) * 100));
@@ -1331,8 +1408,12 @@ export default function ProjectCockpit({
   }
 
   async function addCutDecision() {
-    if (!activeAsset) return;
+    if (!reviewOperationsAllowed || !activeAsset) return;
     if (demoMode) {
+      if (!activeDemoVersionId) {
+        setToast("Requested media version unavailable.");
+        return;
+      }
       const saved = addDemoReviewCutMarker({
         projectId: project.id,
         assetId: activeAsset.id,
@@ -1392,6 +1473,7 @@ export default function ProjectCockpit({
     insideControl: boolean,
     isComposing: boolean,
   ) {
+    if (!reviewOperationsAllowed) return false;
     const key = normalizeReviewShortcutKey(event.key);
     if (shouldIgnoreReviewShortcut({
       key,
@@ -1432,7 +1514,11 @@ export default function ProjectCockpit({
   }
 
   async function submitComment() {
-    if (!activeAsset || !commentBody.trim() || commentSubmitting) return;
+    if (!reviewOperationsAllowed || !activeAsset || !commentBody.trim() || commentSubmitting) return;
+    if (demoMode && !activeDemoVersionId) {
+      setToast("Requested media version unavailable.");
+      return;
+    }
     const shouldResume = resumeAfterComment;
     const submittedBody = commentBody.trim();
     const submittedTime = pendingPin?.timeSeconds ?? currentTime;
@@ -1500,7 +1586,7 @@ export default function ProjectCockpit({
   }
 
   async function toggleCommentStatus(comment: DemoReviewComment) {
-    if (!activeAsset) return;
+    if (!reviewOperationsAllowed || !activeAsset) return;
     if (demoMode) {
       toggleDemoReviewCommentResolved(comment.id);
       return;
@@ -1589,7 +1675,7 @@ export default function ProjectCockpit({
       keywords: ["client", "link", "review"],
       section: "Actions",
       icon: Share2,
-      disabled: !activeAsset || !canShare,
+      disabled: !contextualShareAllowed || !canShare,
       onSelect: () => setShareOpen(true),
     },
     {
@@ -1922,20 +2008,38 @@ export default function ProjectCockpit({
             <div className={`cockpit-overview-grid ${dockVisible ? "" : styles.overviewWithoutDock}`}>
               <div className={`cockpit-center-column ${reviewViewActive ? styles.reviewCenterColumn : ""}`}>
                 <div className="cockpit-section-heading">
-                  <h2>{activeAsset ? "Latest review" : "Review workspace"}</h2>
+                  <h2>{
+                    !activeAsset ? "Review workspace"
+                      : requestedReviewVersionUnavailable ? "Review unavailable"
+                        : historicalDemoVersion ? `Review V${activeDemoVersion?.version_number}`
+                          : "Latest review"
+                  }</h2>
                   {activeAsset ? (
                     <>
-                      <span>{versionLabel(activeAsset, demoMode)}</span>
+                      <span>{requestedReviewVersionUnavailable ? "Requested cut" : activeDemoVersion?.source_label ?? (activeDemoVersion ? `V${activeDemoVersion.version_number}` : versionLabel(activeAsset, demoMode))}</span>
                       <select
                         value={activeAsset.id}
                         onChange={(event) => {
                           const asset = assets.find((candidate) => candidate.id === event.target.value);
                           if (asset) selectAsset(asset);
                         }}
-                        aria-label="Latest review media"
+                        aria-label="Review media"
                       >
                         {assets.map((asset) => <option key={asset.id} value={asset.id}>{asset.title}</option>)}
                       </select>
+                      {demoMode && activeDemoVersions.length > 0 && !requestedReviewVersionUnavailable ? (
+                        <select
+                          value={activeDemoVersionId ?? ""}
+                          onChange={(event) => selectDemoReviewVersion(event.target.value)}
+                          aria-label="Review media version"
+                        >
+                          {activeDemoVersions.map((version) => (
+                            <option key={version.id} value={version.id}>
+                              V{version.version_number}{version.source_label ? ` · ${version.source_label}` : ""}
+                            </option>
+                          ))}
+                        </select>
+                      ) : null}
                     </>
                   ) : (
                     <button className="cockpit-action-primary cockpit-empty-upload" type="button" onClick={onUpload}>
@@ -1949,7 +2053,7 @@ export default function ProjectCockpit({
                     <div className={styles.reviewSummary} aria-label="Review summary">
                       <p className={styles.reviewSummaryLine}>
                         <Circle size={12} aria-hidden="true" />
-                        <strong>{formatAssetStatus(activeAsset.status)}</strong>
+                        <strong>{requestedReviewVersionUnavailable ? "Version unavailable" : historicalDemoVersion ? `Historical V${activeDemoVersion?.version_number}` : formatAssetStatus(activeAsset.status)}</strong>
                         <span aria-hidden="true">·</span>
                         <span>{openCommentCount} open {openCommentCount === 1 ? "comment" : "comments"}</span>
                         {systemsReadiness.tone === "attention" ? (
@@ -1988,7 +2092,16 @@ export default function ProjectCockpit({
                   )
                 ) : null}
 
-                {activeAsset ? (
+                {activeAsset && requestedReviewVersionUnavailable ? (
+                  <section className="cockpit-review-stage" role="alert" aria-label="Requested review version unavailable">
+                    <EmptyState
+                      title="Requested version unavailable"
+                      body={demoMode
+                        ? "This review link does not match a saved version for this media. No newer cut was opened."
+                        : "This workspace cannot open the requested historical version yet. No substitute media was opened."}
+                    />
+                  </section>
+                ) : activeAsset ? (
                   <section className="cockpit-review-stage" aria-label={`Review ${activeAsset.title}`}>
                     <div
                       ref={videoFrameRef}
@@ -2126,7 +2239,7 @@ export default function ProjectCockpit({
                         </select>
                         <button
                           type="button"
-                          onClick={() => setIsMuted((muted) => !muted)}
+                          onClick={toggleMute}
                           aria-label={isMuted ? "Unmute" : "Mute"}
                         >
                           {isMuted ? <VolumeX size={19} /> : <Volume2 size={19} />}
@@ -2262,10 +2375,12 @@ export default function ProjectCockpit({
                       <MessageSquareText size={15} />
                       <span>Comments</span>
                     </button>
-                    <button type="button" onClick={() => setShareOpen(true)} disabled={!canShare}>
-                      <Share2 size={15} />
-                      <span>Share</span>
-                    </button>
+                    {contextualShareAllowed ? (
+                      <button type="button" onClick={() => setShareOpen(true)} disabled={!canShare}>
+                        <Share2 size={15} />
+                        <span>Share</span>
+                      </button>
+                    ) : null}
                   </div>
                 ) : null}
 
@@ -2298,9 +2413,18 @@ export default function ProjectCockpit({
                     ) : effectiveDockTab === "review" ? (
                       <div className={styles.dockStack}>
                         <section className={styles.dockSection}>
-                          <h2>Review status</h2>
-                          <p className="cockpit-review-status"><i /> {formatAssetStatus(activeAsset.status)}</p>
-                          {approvalStages.length > 0 ? (
+                          <h2>{versionScopedReview ? "Review context" : "Review status"}</h2>
+                          {versionScopedReview ? (
+                            <>
+                              <p className="cockpit-review-status"><i /> {requestedReviewVersionUnavailable ? "Version unavailable" : `Historical V${activeDemoVersion?.version_number}`}</p>
+                              <p className="cockpit-rail-empty">
+                                This cut keeps its own notes and markers. Current approval and share state are not applied here.
+                              </p>
+                            </>
+                          ) : (
+                            <>
+                              <p className="cockpit-review-status"><i /> {formatAssetStatus(activeAsset.status)}</p>
+                              {approvalStages.length > 0 ? (
                             <>
                               <div className="cockpit-progress">
                                 <span
@@ -2333,12 +2457,14 @@ export default function ProjectCockpit({
                                 </button>
                               )}
                             </>
-                          ) : (
+                              ) : (
                             <>
                               <p className="cockpit-rail-empty">No approval workflow has been requested.</p>
                               <button className="cockpit-rail-secondary" type="button" onClick={() => setShareOpen(true)} disabled={!canShare}>
                                 Start review
                               </button>
+                            </>
+                              )}
                             </>
                           )}
                         </section>
@@ -2467,17 +2593,24 @@ export default function ProjectCockpit({
                           </div>
                         </section>
 
-                        <section className={styles.dockSection}>
-                          <header><h2>Share readiness</h2><button type="button" onClick={() => selectSection("reviews")}>Links</button></header>
-                          <dl className="cockpit-details">
-                            <div><dt>Asset link</dt><dd>{projectLinks.some((link) => link.is_active) ? "Active" : "Not created"}</dd></div>
-                            <div><dt>Batch share</dt><dd>{assets.length > 1 ? `${assets.length} assets ready` : "Single asset"}</dd></div>
-                            <div><dt>Downloads</dt><dd>{workspaceRole === "viewer" ? "Restricted" : "Permission aware"}</dd></div>
-                          </dl>
-                          <button className="cockpit-rail-secondary" type="button" onClick={() => setShareOpen(true)} disabled={!canShare}>
-                            Open share controls
-                          </button>
-                        </section>
+                        {versionScopedReview ? (
+                          <section className={styles.dockSection}>
+                            <h2>Version scope</h2>
+                            <p className="cockpit-rail-empty">Create a new project-level link from Share to choose a version explicitly.</p>
+                          </section>
+                        ) : (
+                          <section className={styles.dockSection}>
+                            <header><h2>Share readiness</h2><button type="button" onClick={() => selectSection("reviews")}>Links</button></header>
+                            <dl className="cockpit-details">
+                              <div><dt>Asset link</dt><dd>{projectLinks.some((link) => link.is_active) ? "Active" : "Not created"}</dd></div>
+                              <div><dt>Batch share</dt><dd>{assets.length > 1 ? `${assets.length} assets ready` : "Single asset"}</dd></div>
+                              <div><dt>Downloads</dt><dd>{workspaceRole === "viewer" ? "Restricted" : "Permission aware"}</dd></div>
+                            </dl>
+                            <button className="cockpit-rail-secondary" type="button" onClick={() => setShareOpen(true)} disabled={!canShare}>
+                              Open share controls
+                            </button>
+                          </section>
+                        )}
                       </div>
                     ) : effectiveDockTab === "versions" ? (
                       <VersionCompareDock
@@ -2576,7 +2709,7 @@ export default function ProjectCockpit({
 
             {activeSection === "reviews" ? (
               <>
-                <header><div><h2>Review links</h2><p>Active and revocable links for client review and delivery.</p></div><button type="button" onClick={activeAsset ? () => setShareOpen(true) : onUpload}>{activeAsset ? <Share2 size={16} /> : <Upload size={16} />} {activeAsset ? "Create link" : "Upload media"}</button></header>
+                <header><div><h2>Review links</h2><p>Active and revocable links for client review and delivery.</p></div><button type="button" onClick={activeAsset ? () => setShareOpen(true) : onUpload} disabled={Boolean(activeAsset && (!contextualShareAllowed || !canShare))}>{activeAsset ? <Share2 size={16} /> : <Upload size={16} />} {activeAsset ? "Create link" : "Upload media"}</button></header>
                 <div className="cockpit-table-list">
                   {projectLinks.map((link) => (
                     <article key={link.id}>

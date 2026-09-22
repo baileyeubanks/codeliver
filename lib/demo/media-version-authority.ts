@@ -83,9 +83,10 @@ export function resolvePinnedDemoMediaVersion(
   versionId: string | null | undefined,
 ): DemoMediaVersion | null {
   if (!versionId?.trim()) return null;
-  return versions.find(
+  const matches = versions.filter(
     (candidate) => candidate.asset_id === assetId && candidate.id === versionId,
-  ) ?? null;
+  );
+  return matches.length === 1 ? matches[0] : null;
 }
 
 /** Source becomes revisionable only after its explicit Imported file base exists. */

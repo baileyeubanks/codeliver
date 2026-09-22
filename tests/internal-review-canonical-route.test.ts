@@ -21,6 +21,7 @@ interface InternalReviewModule {
     projectId: string,
     assetId: string,
     demoMode?: boolean,
+    versionId?: string | null,
   ) => string;
   readAuthoritativeAssetIdentity: (
     payload: unknown,
@@ -51,7 +52,8 @@ function loadInternalReviewModule(): InternalReviewModule {
       };
     }
     if (specifier === "lucide-react") return {};
-    if (specifier === "@/lib/demo/workspace") return { demoAssets: [] };
+    if (specifier === "@/lib/demo/workspace-store") return { useDemoWorkspace: () => ({ assets: [], mediaVersions: [] }) };
+    if (specifier === "@/lib/demo/media-version-authority") return { resolvePinnedDemoMediaVersion: () => null };
     throw new Error(`Unexpected InternalAssetReviewPage import: ${specifier}`);
   }
 
@@ -80,6 +82,21 @@ test("legacy internal asset URLs resolve to the canonical cockpit review state",
     internalReview.buildCanonicalInternalReviewHref("ica", "rough-cut", true),
     "/projects/ica?demo=1&asset=rough-cut&view=review",
   );
+  assert.equal(
+    internalReview.buildCanonicalInternalReviewHref("ica", "rough-cut", true, "source-version-rough-cut"),
+    "/projects/ica?demo=1&asset=rough-cut&version=source-version-rough-cut&view=review",
+  );
+});
+
+test("a legacy redirect preserves an exact demo version and refuses a live version fallback", () => {
+  assert.match(componentSource, /const requestedVersionId = searchParams\.get\("version"\)/);
+  assert.match(componentSource, /workspace\.assets\.find/);
+  assert.doesNotMatch(componentSource, /demoAssets/);
+  assert.match(componentSource, /resolvePinnedDemoMediaVersion\(workspace\.mediaVersions, assetId, requestedVersionId\)/);
+  assert.match(componentSource, /requestedDemoVersion\?\.id \?\? null/);
+  assert.match(componentSource, /LIVE_VERSION_UNAVAILABLE_ERROR/);
+  assert.match(componentSource, /if \(!projectId \|\| !assetId \|\| immediateError \|\| \(isDemo && !demoRouteReady\)\) return;/);
+  assert.match(componentSource, /No substitute media was opened\./);
 });
 
 test("only an API record with authoritative asset and project identifiers can redirect", () => {

@@ -4,7 +4,8 @@ import Link from "next/link";
 import { AlertCircle, ArrowLeft, RefreshCw } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
-import { demoAssets } from "@/lib/demo/workspace";
+import { useDemoWorkspace } from "@/lib/demo/workspace-store";
+import { resolvePinnedDemoMediaVersion } from "@/lib/demo/media-version-authority";
 
 interface AssetIdentity {
   assetId: string;
@@ -34,13 +35,27 @@ const DEMO_ASSET_NOT_FOUND_ERROR: ReviewRouteError = {
   retryable: false,
 };
 
+const REQUESTED_VERSION_UNAVAILABLE_ERROR: ReviewRouteError = {
+  title: "Requested version unavailable",
+  message: "This review link names a media version that is not available. No newer cut was opened.",
+  retryable: false,
+};
+
+const LIVE_VERSION_UNAVAILABLE_ERROR: ReviewRouteError = {
+  title: "Versioned internal review unavailable",
+  message: "This workspace cannot open the requested historical version yet. No substitute media was opened.",
+  retryable: false,
+};
+
 export function buildCanonicalInternalReviewHref(
   projectId: string,
   assetId: string,
   demoMode = false,
+  versionId?: string | null,
 ) {
   const demoQuery = demoMode ? "demo=1&" : "";
-  return `/projects/${encodeURIComponent(projectId)}?${demoQuery}asset=${encodeURIComponent(assetId)}&view=review`;
+  const versionQuery = versionId ? `version=${encodeURIComponent(versionId)}&` : "";
+  return `/projects/${encodeURIComponent(projectId)}?${demoQuery}asset=${encodeURIComponent(assetId)}&${versionQuery}view=review`;
 }
 
 export function readAuthoritativeAssetIdentity(
@@ -95,22 +110,39 @@ export default function InternalAssetReviewPage() {
   const params = useParams<{ id?: string | string[]; assetId?: string | string[] }>();
   const router = useRouter();
   const searchParams = useSearchParams();
+  const workspace = useDemoWorkspace();
   const projectId = firstRouteParam(params?.id);
   const assetId = firstRouteParam(params?.assetId);
   const isDemo = searchParams.get("demo") === "1";
+  const requestedVersionId = searchParams.get("version");
+  // The workspace is restored after the initial client render. Do not turn a
+  // route into a missing-media error while that restore is still settling.
+  const [demoRouteReady, setDemoRouteReady] = useState(false);
+  useEffect(() => {
+    if (!isDemo) return;
+    const frame = window.requestAnimationFrame(() => setDemoRouteReady(true));
+    return () => window.cancelAnimationFrame(frame);
+  }, [isDemo]);
   const demoAsset = isDemo
-    ? demoAssets.find(
+    ? workspace.assets.find(
         (candidate) => candidate.id === assetId && candidate.project_id === projectId,
       )
     : undefined;
-  const requestKey = `${isDemo ? "demo" : "live"}:${projectId}:${assetId}`;
+  const requestedDemoVersion = isDemo && requestedVersionId
+    ? resolvePinnedDemoMediaVersion(workspace.mediaVersions, assetId, requestedVersionId)
+    : null;
+  const requestKey = `${isDemo ? "demo" : "live"}:${projectId}:${assetId}:${requestedVersionId ?? "current"}`;
   const [loadFailure, setLoadFailure] = useState<ReviewRouteFailure | null>(null);
   const [retryAttempt, setRetryAttempt] = useState(0);
   const errorHeadingRef = useRef<HTMLHeadingElement>(null);
   const immediateError = !projectId || !assetId
     ? INCOMPLETE_ROUTE_ERROR
-    : isDemo && !demoAsset
+    : isDemo && demoRouteReady && !demoAsset
       ? DEMO_ASSET_NOT_FOUND_ERROR
+      : isDemo && demoRouteReady && requestedVersionId && !requestedDemoVersion
+        ? REQUESTED_VERSION_UNAVAILABLE_ERROR
+        : !isDemo && requestedVersionId
+          ? LIVE_VERSION_UNAVAILABLE_ERROR
       : null;
   const loadError = immediateError
     ?? (loadFailure?.requestKey === requestKey ? loadFailure.error : null);
@@ -121,13 +153,18 @@ export default function InternalAssetReviewPage() {
   }, [loadError]);
 
   useEffect(() => {
-    if (!projectId || !assetId) return;
+    if (!projectId || !assetId || immediateError || (isDemo && !demoRouteReady)) return;
 
     if (isDemo) {
       if (!demoAsset) return;
 
       router.replace(
-        buildCanonicalInternalReviewHref(demoAsset.project_id, demoAsset.id, true),
+        buildCanonicalInternalReviewHref(
+          demoAsset.project_id,
+          demoAsset.id,
+          true,
+          requestedDemoVersion?.id ?? null,
+        ),
       );
       return;
     }
@@ -185,7 +222,7 @@ export default function InternalAssetReviewPage() {
       current = false;
       controller.abort();
     };
-  }, [assetId, demoAsset, isDemo, projectId, requestKey, retryAttempt, router]);
+  }, [assetId, demoAsset, demoRouteReady, immediateError, isDemo, projectId, requestKey, retryAttempt, router, requestedVersionId, requestedDemoVersion]);
 
   const projectsHref = isDemo ? "/projects?demo=1" : "/projects";
   const projectHref = projectId

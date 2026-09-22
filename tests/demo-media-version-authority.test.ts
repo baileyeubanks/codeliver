@@ -75,6 +75,14 @@ test("a share pin never falls forward to the current version", () => {
   );
 });
 
+test("an ambiguous exact pin fails closed", () => {
+  const v1 = version({ is_current: false });
+  assert.equal(
+    resolvePinnedDemoMediaVersion([v1, { ...v1 }], v1.asset_id, v1.id),
+    null,
+  );
+});
+
 test("ambiguous persisted current flags do not select a highest cut", () => {
   const v1 = version({ is_current: false });
   const v2 = version({

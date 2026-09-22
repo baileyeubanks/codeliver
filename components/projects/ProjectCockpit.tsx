@@ -2,6 +2,9 @@
 
 import Image from "next/image";
 import Link from "next/link";
+import { sourceCatalog } from "@/lib/demo/source-catalog";
+import ProjectSourceArchive from "./ProjectSourceArchive";
+
 import { useRouter, useSearchParams } from "next/navigation";
 import {
   useCallback,
@@ -448,6 +451,7 @@ export default function ProjectCockpit({
   const [isPlaying, setIsPlaying] = useState(false);
   const [simulatedPlayback, setSimulatedPlayback] = useState(false);
   const [nativeVideoActive, setNativeVideoActive] = useState(false);
+  const [playbackError, setPlaybackError] = useState<string | null>(null);
   const [isMuted, setIsMuted] = useState(false);
   const [playbackSpeed, setPlaybackSpeed] = useState(1);
   const [volume, setVolume] = useState(1);
@@ -550,11 +554,11 @@ export default function ProjectCockpit({
   const demoPosterUrl = useDemoMediaObjectUrl(activeAsset?.demo_thumbnail_id ?? null);
   const localUploadActive = isLocalUploadAsset(activeAsset);
   const activeMediaUrl = demoMode
-    ? demoMediaUrl ?? (localUploadActive ? null : "/demo/ica-ceo-preview.mp4")
+    ? demoMediaUrl ?? activeAsset?.file_url ?? (localUploadActive || sourceCatalog ? null : "/demo/ica-ceo-preview.mp4")
     : activeAsset?.file_url ?? null;
   const activePosterUrl = activeAsset?.thumbnail_url
     ?? demoPosterUrl
-    ?? (demoMode && !localUploadActive ? "/demo/ceraweek-speaker.jpg" : null);
+    ?? (demoMode && !localUploadActive && !sourceCatalog ? "/demo/ceraweek-speaker.jpg" : null);
   const hlsMediaActive = activeMediaUrl?.split(/[?#]/, 1)[0].toLowerCase().endsWith(".m3u8") ?? false;
   useEffect(() => {
     if (!hlsMediaActive) return;
@@ -590,7 +594,7 @@ export default function ProjectCockpit({
     };
   }, [activeMediaUrl, hlsMediaActive, isMuted, volume]);
   const duration = Math.max(1, nativeDuration || activeAsset?.duration_seconds || (demoMode ? 5 : 1));
-  const previewDuration = demoMode
+  const previewDuration = demoMode && !sourceCatalog && !localUploadActive
     ? activeAsset?.id === "denie-mcdonald-v4"
       ? 5
       : Math.min(duration, 5)
@@ -1179,8 +1183,10 @@ export default function ProjectCockpit({
   }
 
   async function togglePlayback() {
+    setPlaybackError(null);
     const video = videoRef.current;
     if (!video || typeof video.play !== "function" || typeof video.pause !== "function") {
+      if (sourceCatalog || localUploadActive || !demoMode) { setPlaybackError("Video playback is unavailable. Reload and try again."); return; }
       setSimulatedPlayback(true);
       if (hasEnded) {
         setHasEnded(false);
@@ -1201,6 +1207,7 @@ export default function ProjectCockpit({
         video.pause();
       }
     } catch {
+      if (sourceCatalog || localUploadActive || !demoMode) { setIsPlaying(false); setPlaybackError("This video could not play. Try again or choose another file."); return; }
       setSimulatedPlayback(true);
       setNativeVideoActive(false);
       setIsPlaying((playing) => !playing);
@@ -1208,6 +1215,7 @@ export default function ProjectCockpit({
   }
 
   async function replayFromStart() {
+    setPlaybackError(null);
     const video = videoRef.current;
     setHasEnded(false);
     setCurrentTime(0);
@@ -1221,6 +1229,7 @@ export default function ProjectCockpit({
         setNativeVideoActive(false);
       }
     }
+    if (sourceCatalog || localUploadActive || !demoMode) { setIsPlaying(false); setPlaybackError("This video could not play. Try again or choose another file."); return; }
     setSimulatedPlayback(true);
     setIsPlaying(true);
   }
@@ -1845,6 +1854,7 @@ export default function ProjectCockpit({
       <main id="cockpit-workspace-content" className="cockpit-main" tabIndex={-1}>
         {activeSection === "overview" ? (
           <>
+            {demoMode ? <ProjectSourceArchive projectId={project.id} /> : null}
             <div className={`cockpit-overview-grid ${dockVisible ? "" : styles.overviewWithoutDock}`}>
               <div className="cockpit-center-column">
                 <div className="cockpit-section-heading">
@@ -1925,11 +1935,13 @@ export default function ProjectCockpit({
                           playsInline
                           muted={isMuted}
                           onLoadedMetadata={(event) => {
+                            setPlaybackError(null);
                             if (Number.isFinite(event.currentTarget.duration)) {
                               setNativeDuration(event.currentTarget.duration);
                               event.currentTarget.playbackRate = playbackSpeed;
                             }
                           }}
+                          onError={() => { setIsPlaying(false); setPlaybackError("This video could not load. Check that the source file is available."); }}
                           onPlay={() => {
                             setIsPlaying(true);
                             setHasEnded(false);
@@ -1943,6 +1955,7 @@ export default function ProjectCockpit({
                         />
                       )}
                       <time>{formatClock(currentTime)}</time>
+                      {playbackError ? <p role="alert">{playbackError}</p> : null}
                       <div
                         className={`cockpit-review-overlay ${styles.stageOverlay}`}
                         data-review-overlay

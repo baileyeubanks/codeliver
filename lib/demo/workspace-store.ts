@@ -129,8 +129,10 @@ import {
 } from "@/lib/requests/lifecycle.ts";
 import { shapeWorkOrder, type WorkOrderDeliverable } from "@/lib/requests/work-order.ts";
 
-export const DEMO_WORKSPACE_STORAGE_KEY = "co-videopro.workspace.v2";
-export const LEGACY_DEMO_WORKSPACE_STORAGE_KEYS = ["co-deliver.demo-workspace.v1"];
+import { sourceCatalog, sourceWorkspace, serializeSourceWorkspace, unwrapSourceWorkspace } from "./source-catalog.ts";
+
+export const DEMO_WORKSPACE_STORAGE_KEY = sourceCatalog ? "co-videopro.schneider-source.v1" : "co-videopro.workspace.v2";
+export const LEGACY_DEMO_WORKSPACE_STORAGE_KEYS = sourceCatalog ? [] : ["co-deliver.demo-workspace.v1"];
 
 export type DemoSharePermission = "view" | "comment" | "approve";
 export type DemoShareNotificationChannel = "email" | "sms" | "imessage";
@@ -431,7 +433,7 @@ function cloneSettings(settings = DEFAULT_SETTINGS): DemoWorkspaceSettings {
 }
 
 export function createInitialDemoWorkspace(): DemoWorkspaceState {
-  return {
+  const workspace: DemoWorkspaceState = {
     schemaVersion: 2,
     session: {
       authenticated: true,
@@ -701,6 +703,7 @@ export function createInitialDemoWorkspace(): DemoWorkspaceState {
     })),
     performanceMetrics: seedDemoPerformanceMetrics().map((metric) => ({ ...metric })),
   };
+  return sourceCatalog ? sourceWorkspace(workspace, sourceCatalog) : workspace;
 }
 
 const SERVER_SNAPSHOT = createInitialDemoWorkspace();
@@ -759,6 +762,7 @@ function normalizeRestoredDemoAssets(assets: MediaAsset[]) {
 /** P26: append the real-file-backed library seeds to restored workspaces that
  * predate them (append-only; existing assets are never rewritten). */
 function withP26LibrarySeedAssets(assets: MediaAsset[]): MediaAsset[] {
+  if (sourceCatalog) return assets;
   const missing = demoLibrarySeedAssets.filter(
     (seed) => !assets.some((asset) => asset.id === seed.id),
   );
@@ -776,7 +780,7 @@ export function restoreDemoWorkspace(raw: string | null): DemoWorkspaceState {
   if (!raw) return createInitialDemoWorkspace();
 
   try {
-    const parsed: unknown = JSON.parse(raw);
+    const parsed: unknown = unwrapSourceWorkspace(JSON.parse(raw), sourceCatalog);
     if (!isStoredWorkspace(parsed)) return createInitialDemoWorkspace();
     const fallback = createInitialDemoWorkspace();
     const savedSettings = parsed.settings;
@@ -894,7 +898,7 @@ function ensureHydrated() {
   hydrated = true;
   if (migratedFromLegacy) {
     try {
-      window.localStorage.setItem(DEMO_WORKSPACE_STORAGE_KEY, JSON.stringify(currentState));
+      window.localStorage.setItem(DEMO_WORKSPACE_STORAGE_KEY, serializeSourceWorkspace(currentState, sourceCatalog));
     } catch {
       // Migration persistence is best-effort; the in-memory state is migrated.
     }
@@ -910,7 +914,7 @@ function saveState(nextState: DemoWorkspaceState) {
   currentState = nextState;
   if (typeof window !== "undefined") {
     try {
-      window.localStorage.setItem(DEMO_WORKSPACE_STORAGE_KEY, JSON.stringify(nextState));
+      window.localStorage.setItem(DEMO_WORKSPACE_STORAGE_KEY, serializeSourceWorkspace(nextState, sourceCatalog));
     } catch {
       // The in-memory workspace remains usable if browser storage is unavailable.
     }
@@ -929,7 +933,7 @@ function commitPersistedState(updater: (state: DemoWorkspaceState) => DemoWorksp
   if (typeof window === "undefined") return false;
 
   try {
-    window.localStorage.setItem(DEMO_WORKSPACE_STORAGE_KEY, JSON.stringify(nextState));
+    window.localStorage.setItem(DEMO_WORKSPACE_STORAGE_KEY, serializeSourceWorkspace(nextState, sourceCatalog));
   } catch {
     return false;
   }

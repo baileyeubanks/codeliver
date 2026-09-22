@@ -1,5 +1,7 @@
 "use client";
 
+import { sourceCatalog } from "@/lib/demo/source-catalog";
+
 import { useEffect, useRef, useState } from "react";
 import { useParams, useSearchParams } from "next/navigation";
 import {
@@ -247,7 +249,7 @@ export default function PublicReviewPage() {
     ? demoWorkspace.shareLinks.find((link) => link.token === requestedDemoShareToken)
     : null;
   const requestedDemoAssetId = demoMode
-    ? searchParams.get("asset") ?? requestedDemoShare?.asset_ids[0] ?? null
+    ? searchParams.get("asset") ?? requestedDemoShare?.asset_ids[0] ?? sourceCatalog?.assets[0]?.id ?? null
     : null;
   const demoMediaUrl = useDemoMediaObjectUrl(requestedDemoAssetId);
 
@@ -328,12 +330,12 @@ export default function PublicReviewPage() {
           const demoVersionAuthority = buildDemoVersionAuthority({
             assetId: publicAssetId,
             versionCount: workspaceAsset?.version_count ?? 4,
-            fileUrl: demoMediaUrl ?? demoReviewPayload.asset.file_url ?? "",
+            fileUrl: demoMediaUrl ?? workspaceAsset?.file_url ?? demoReviewPayload.asset.file_url ?? "",
             thumbnailUrl:
-              workspaceAsset?.thumbnail_url ?? "/demo/ceraweek-speaker.jpg",
+              workspaceAsset?.thumbnail_url ?? (sourceCatalog ? null : "/demo/ceraweek-speaker.jpg"),
             durationSeconds: workspaceAsset?.duration_seconds ?? null,
             createdAt: workspaceAsset?.created_at ?? new Date().toISOString(),
-            seededVersions: demoReviewPayload.versions,
+            seededVersions: sourceCatalog ? [] : demoReviewPayload.versions,
           });
           const publicVersionId = demoVersionAuthority.current.id;
           const requestedIntent =
@@ -351,6 +353,7 @@ export default function PublicReviewPage() {
               ...demoReviewPayload.asset,
               id: publicAssetId,
               title: workspaceAsset?.title ?? demoReviewPayload.asset.title,
+              frame_rate: sourceCatalog?.assets.find((asset) => asset.id === publicAssetId)?.frame_rate ?? demoReviewPayload.asset.frame_rate,
               file_url: demoVersionAuthority.current.file_url,
               status: workspaceAsset?.status ?? demoReviewPayload.asset.status,
               projects: {

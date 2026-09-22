@@ -7,6 +7,7 @@ import { fileURLToPath } from "node:url";
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const source = (path: string) => readFileSync(resolve(root, path), "utf8");
 const migration = source("supabase/migrations/20260922073000_version_bound_approval_rounds.sql");
+const preflight = source("supabase/tests/version_bound_approval_rounds_preflight.sql");
 
 test("approval rounds keep legacy rows nullable and bind exact version identities", () => {
   assert.match(migration, /approval_workflows[\s\S]*ADD COLUMN IF NOT EXISTS version_id uuid/);
@@ -47,10 +48,24 @@ test("decision transaction fails stale revisions and cross-invite decisions clos
 });
 
 test("approval RPCs are service-role-only with an empty search path", () => {
-  for (const name of ["create_version_approval_workflow", "record_version_approval_decision"]) {
+  for (const name of [
+    "create_version_approval_workflow",
+    "record_version_approval_decision",
+    "publish_version_media_derivatives",
+  ]) {
     assert.match(migration, new RegExp(`REVOKE ALL ON FUNCTION co_production\\.${name}\\([\\s\\S]*FROM PUBLIC, anon, authenticated`));
     assert.match(migration, new RegExp(`GRANT EXECUTE ON FUNCTION co_production\\.${name}\\([\\s\\S]*TO service_role`));
   }
+});
+
+test("rollback preflight covers live negative and concurrency gates without durable fixture writes", () => {
+  assert.match(preflight, /^BEGIN;/m);
+  assert.match(preflight, /^ROLLBACK;/m);
+  assert.match(preflight, /identical create was not idempotent/);
+  assert.match(preflight, /conflicting create succeeded/);
+  assert.match(preflight, /cross-invite decision succeeded/);
+  assert.match(preflight, /stale-version decision succeeded/);
+  assert.match(preflight, /Concurrency fixture \(two SQL sessions/);
 });
 
 test("routes and shares carry the exact version, workflow, step, and invite binding", () => {
@@ -79,8 +94,12 @@ test("routes and shares carry the exact version, workflow, step, and invite bind
 
 test("late media pipeline state cannot erase a human request for changes", () => {
   const repository = source("lib/media-pipeline/repository.ts");
-  assert.equal((repository.match(/\["approved", "final", "needs_changes"\]/g) ?? []).length, 3);
-  assert.match(repository, /publishesCurrentVersion[\s\S]*currentVersionId: publishesCurrentVersion/);
-  assert.match(repository, /const nextStatus = !publishesCurrentVersion/);
-  assert.match(repository, /duration_seconds: publishesCurrentVersion/);
+  assert.equal((repository.match(/\.not\("status", "in", "\(approved,final,needs_changes\)"\)/g) ?? []).length, 2);
+  assert.match(repository, /rpc\("publish_version_media_derivatives"/);
+  assert.doesNotMatch(repository, /const nextStatus|currentVersionId:/);
+  const publishRpc = migration.slice(migration.indexOf("publish_version_media_derivatives"));
+  assert.match(publishRpc, /assets AS asset[\s\S]*FOR UPDATE/);
+  assert.match(publishRpc, /WHEN asset\.status IN \('approved', 'final', 'needs_changes'\) THEN asset\.status/);
+  assert.match(publishRpc, /WHEN NOT v_is_current THEN asset\.status/);
+  assert.match(publishRpc, /WHEN v_is_current THEN NULLIF\(p_duration_seconds, 0\)/);
 });

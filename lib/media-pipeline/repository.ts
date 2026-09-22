@@ -12,12 +12,6 @@ export interface MediaPipelineRepository {
   publish(job: MediaPipelineJob): Promise<void>;
 }
 
-function asRecord(value: unknown): Record<string, unknown> {
-  return value && typeof value === "object" && !Array.isArray(value)
-    ? { ...(value as Record<string, unknown>) }
-    : {};
-}
-
 function pipelinePublication(job: MediaPipelineJob): Record<string, unknown> {
   return {
     schemaVersion: 1,
@@ -57,21 +51,12 @@ export class SupabaseMediaPipelineRepository implements MediaPipelineRepository 
     );
     if (error) throw new Error("Could not persist media pipeline queue projection: " + error.message);
 
-    const asset = await supabase
+    const update = await supabase
       .from("assets")
-      .select("status")
+      .update({ status: "processing", updated_at: new Date().toISOString() })
       .eq("id", job.assetId)
-      .maybeSingle();
-    if (asset.error || !asset.data) {
-      throw new Error("Could not load asset for media pipeline state");
-    }
-    if (!["approved", "final", "needs_changes"].includes(asset.data.status)) {
-      const update = await supabase
-        .from("assets")
-        .update({ status: "processing", updated_at: new Date().toISOString() })
-        .eq("id", job.assetId);
-      if (update.error) throw new Error("Could not mark asset as processing: " + update.error.message);
-    }
+      .not("status", "in", "(approved,final,needs_changes)");
+    if (update.error) throw new Error("Could not mark asset as processing: " + update.error.message);
   }
 
   async recordRunning(job: MediaPipelineJob): Promise<void> {
@@ -113,21 +98,12 @@ export class SupabaseMediaPipelineRepository implements MediaPipelineRepository 
     if (error) throw new Error("Could not persist media pipeline terminal state: " + error.message);
 
     if (job.status === "failed" || job.status === "quarantined") {
-      const asset = await getSupabase()
+      const update = await getSupabase()
         .from("assets")
-        .select("status")
+        .update({ status: "failed", updated_at: new Date().toISOString() })
         .eq("id", job.assetId)
-        .maybeSingle();
-      if (asset.error || !asset.data) {
-        throw new Error("Could not load asset for media pipeline failure state");
-      }
-      if (!["approved", "final", "needs_changes"].includes(asset.data.status)) {
-        const update = await getSupabase()
-          .from("assets")
-          .update({ status: "failed", updated_at: new Date().toISOString() })
-          .eq("id", job.assetId);
-        if (update.error) throw new Error("Could not mark failed media asset: " + update.error.message);
-      }
+        .not("status", "in", "(approved,final,needs_changes)");
+      if (update.error) throw new Error("Could not mark failed media asset: " + update.error.message);
     }
   }
 
@@ -136,55 +112,12 @@ export class SupabaseMediaPipelineRepository implements MediaPipelineRepository 
       throw new Error("Media pipeline publication is missing verified derivatives");
     }
     const supabase = getSupabase();
-    const assetLookup = await supabase
-      .from("assets")
-      .select("metadata, status, duration_seconds")
-      .eq("id", job.assetId)
-      .maybeSingle();
-    if (assetLookup.error || !assetLookup.data) {
-      throw new Error("Could not load asset before pipeline publication");
-    }
-    const versionLookup = await supabase
-      .from("versions")
-      .select("is_current")
-      .eq("id", job.versionId)
-      .eq("asset_id", job.assetId)
-      .maybeSingle();
-    if (versionLookup.error || !versionLookup.data) {
-      throw new Error("Could not load exact version before pipeline publication");
-    }
-    const publishesCurrentVersion = versionLookup.data.is_current === true;
-
-    const metadata = asRecord(assetLookup.data.metadata);
-    const existingPipeline = asRecord(metadata.media_pipeline);
-    const versions = asRecord(existingPipeline.versions);
-    versions[job.versionId] = pipelinePublication(job);
-    metadata.media_pipeline = {
-      schemaVersion: 1,
-      currentVersionId: publishesCurrentVersion
-        ? job.versionId
-        : typeof existingPipeline.currentVersionId === "string"
-          ? existingPipeline.currentVersionId
-          : null,
-      versions,
-    };
-
-    const nextStatus = !publishesCurrentVersion
-      ? assetLookup.data.status
-      : ["approved", "final", "needs_changes"].includes(assetLookup.data.status)
-      ? assetLookup.data.status
-      : "ready";
-    const assetUpdate = await supabase
-      .from("assets")
-      .update({
-        metadata,
-        status: nextStatus,
-        duration_seconds: publishesCurrentVersion
-          ? job.probe.durationSeconds || null
-          : assetLookup.data.duration_seconds,
-        updated_at: new Date().toISOString(),
-      })
-      .eq("id", job.assetId);
+    const assetUpdate = await supabase.rpc("publish_version_media_derivatives", {
+      p_asset_id: job.assetId,
+      p_version_id: job.versionId,
+      p_publication: pipelinePublication(job),
+      p_duration_seconds: job.probe.durationSeconds || 0,
+    });
     if (assetUpdate.error) {
       throw new Error("Could not publish media derivatives: " + assetUpdate.error.message);
     }

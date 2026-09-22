@@ -316,6 +316,71 @@ BEGIN
 END;
 $$;
 
+-- Merge a derivative receipt while holding the same asset row lock used by
+-- revision publication and approval decisions. A late historical job may add
+-- its own receipt, but cannot move the current pointer, duration, or review state.
+CREATE OR REPLACE FUNCTION co_production.publish_version_media_derivatives(
+  p_asset_id uuid,
+  p_version_id uuid,
+  p_publication jsonb,
+  p_duration_seconds double precision
+)
+RETURNS void
+LANGUAGE plpgsql
+SECURITY INVOKER
+SET search_path = ''
+AS $$
+DECLARE
+  v_metadata jsonb;
+  v_status text;
+  v_is_current boolean;
+  v_pipeline jsonb;
+  v_versions jsonb;
+BEGIN
+  IF p_asset_id IS NULL OR p_version_id IS NULL OR jsonb_typeof(p_publication) <> 'object'
+     OR p_duration_seconds < 0 THEN
+    RAISE EXCEPTION 'CVP_MEDIA_PUBLICATION_INPUT_INVALID' USING ERRCODE = '22023';
+  END IF;
+  SELECT COALESCE(asset.metadata, '{}'::jsonb), asset.status
+  INTO v_metadata, v_status
+  FROM co_production.assets AS asset
+  WHERE asset.id = p_asset_id FOR UPDATE;
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'CVP_MEDIA_PUBLICATION_ASSET_NOT_FOUND' USING ERRCODE = 'P0002';
+  END IF;
+  SELECT version.is_current INTO v_is_current
+  FROM co_production.versions AS version
+  WHERE version.id = p_version_id AND version.asset_id = p_asset_id;
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'CVP_MEDIA_PUBLICATION_VERSION_NOT_FOUND' USING ERRCODE = 'P0002';
+  END IF;
+
+  v_pipeline := COALESCE(v_metadata->'media_pipeline', '{}'::jsonb);
+  v_versions := COALESCE(v_pipeline->'versions', '{}'::jsonb);
+  v_versions := jsonb_set(v_versions, ARRAY[p_version_id::text], p_publication, true);
+  v_pipeline := jsonb_set(v_pipeline, '{schemaVersion}', '1'::jsonb, true);
+  v_pipeline := jsonb_set(v_pipeline, '{versions}', v_versions, true);
+  IF v_is_current THEN
+    v_pipeline := jsonb_set(v_pipeline, '{currentVersionId}', to_jsonb(p_version_id::text), true);
+  END IF;
+  v_metadata := jsonb_set(v_metadata, '{media_pipeline}', v_pipeline, true);
+
+  UPDATE co_production.assets AS asset
+  SET metadata = v_metadata,
+      status = CASE
+        WHEN NOT v_is_current THEN asset.status
+        WHEN asset.status IN ('approved', 'final', 'needs_changes') THEN asset.status
+        ELSE 'ready'
+      END,
+      duration_seconds = CASE
+        WHEN v_is_current THEN NULLIF(p_duration_seconds, 0)
+        ELSE asset.duration_seconds
+      END,
+      updated_at = clock_timestamp()
+  WHERE asset.id = p_asset_id;
+END;
+$$;
+
 REVOKE ALL ON FUNCTION co_production.create_version_approval_workflow(uuid,uuid,text,jsonb,uuid)
   FROM PUBLIC, anon, authenticated;
 GRANT EXECUTE ON FUNCTION co_production.create_version_approval_workflow(uuid,uuid,text,jsonb,uuid)
@@ -323,6 +388,10 @@ GRANT EXECUTE ON FUNCTION co_production.create_version_approval_workflow(uuid,uu
 REVOKE ALL ON FUNCTION co_production.record_version_approval_decision(uuid,uuid,uuid,uuid,text,text,uuid,text)
   FROM PUBLIC, anon, authenticated;
 GRANT EXECUTE ON FUNCTION co_production.record_version_approval_decision(uuid,uuid,uuid,uuid,text,text,uuid,text)
+  TO service_role;
+REVOKE ALL ON FUNCTION co_production.publish_version_media_derivatives(uuid,uuid,jsonb,double precision)
+  FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION co_production.publish_version_media_derivatives(uuid,uuid,jsonb,double precision)
   TO service_role;
 REVOKE ALL ON FUNCTION co_production.authorize_review_admission(uuid,text)
   FROM PUBLIC, anon, authenticated;

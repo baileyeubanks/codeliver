@@ -6,6 +6,10 @@
   min-height: 100svh;
 }
 
+.recordShell :global(.cockpit-sidebar) {
+  padding: 14px 12px 12px;
+}
+
 .recordShell[data-rail="compact"] {
   grid-template-columns: 64px minmax(0, 1fr);
 }

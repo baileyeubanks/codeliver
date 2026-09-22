@@ -10,6 +10,7 @@ import {
 } from "react";
 import { Maximize2, Minimize2, Send, Sparkles, X } from "lucide-react";
 import { useDemoWorkspace } from "@/lib/demo/workspace-store";
+import { copilotHistory, requestCopilotReply, type CopilotAnswer } from "./copilot-client";
 import {
   COPILOT_MENU_ACTIONS,
   COPILOT_PANEL_MARGIN,
@@ -28,6 +29,7 @@ interface CopilotMessage {
   role: "user" | "copilot";
   text: string;
   footnote?: string;
+  sources?: CopilotAnswer["sources"];
 }
 
 interface MenuState {
@@ -52,7 +54,7 @@ function focusableWithin(root: HTMLElement | null): HTMLElement[] {
   ).filter((el) => el.offsetParent !== null);
 }
 
-export default function CopilotPanel() {
+export default function CopilotPanel({ demoMode, projectId }: { demoMode: boolean; projectId: string | null }) {
   const workspace = useDemoWorkspace();
   const [open, setOpen] = useState(false);
   const [sizeKind, setSizeKind] = useState<CopilotSizeKind>("compact");
@@ -60,6 +62,9 @@ export default function CopilotPanel() {
   const [messages, setMessages] = useState<CopilotMessage[]>([]);
   const [draft, setDraft] = useState("");
   const [menu, setMenu] = useState<MenuState | null>(null);
+  const [pendingPrompt, setPendingPrompt] = useState("");
+  const [error, setError] = useState("");
+  const requestRef = useRef<AbortController | null>(null);
 
   const panelRef = useRef<HTMLDivElement | null>(null);
   const inputRef = useRef<HTMLInputElement | null>(null);
@@ -95,19 +100,54 @@ export default function CopilotPanel() {
   }, [workspace]);
 
   const ask = useCallback(
-    (prompt: string) => {
+    async (prompt: string) => {
       const trimmed = prompt.trim();
-      if (!trimmed) return;
-      const reply = buildCopilotReply(trimmed, buildContext());
-      setMessages((prev) => [
-        ...prev,
-        { id: nextMessageId++, role: "user", text: trimmed },
-        { id: nextMessageId++, role: "copilot", text: reply.text, footnote: reply.footnote },
-      ]);
+      if (!trimmed || requestRef.current || (!demoMode && !projectId)) return;
+      setError("");
+      if (demoMode) {
+        const reply = buildCopilotReply(trimmed, buildContext());
+        setMessages((prev) => [...prev,
+          { id: nextMessageId++, role: "user", text: trimmed },
+          { id: nextMessageId++, role: "copilot", text: reply.text, footnote: reply.footnote },
+        ]);
+        setDraft("");
+        return;
+      }
+      const controller = new AbortController();
+      requestRef.current = controller;
+      const timeout = window.setTimeout(() => controller.abort(), 45_000);
+      setPendingPrompt(trimmed);
       setDraft("");
+      try {
+        const reply = await requestCopilotReply(projectId!, trimmed, copilotHistory(messages), controller.signal);
+        if (requestRef.current !== controller) return;
+        setMessages((prev) => [...prev,
+          { id: nextMessageId++, role: "user", text: trimmed },
+          { id: nextMessageId++, role: "copilot", text: reply.answer,
+            footnote: `${reply.model} · Read only`, sources: reply.sources },
+        ]);
+      } catch (failure) {
+        if (requestRef.current !== controller) return;
+        setDraft(trimmed);
+        setError(controller.signal.aborted ? "Copilot took too long. Your question is saved; try again."
+          : failure instanceof Error && failure.name !== "TypeError" ? failure.message
+          : "Could not reach Copilot. Your question is saved; try again.");
+      } finally {
+        window.clearTimeout(timeout);
+        if (requestRef.current === controller) {
+          requestRef.current = null;
+          setPendingPrompt("");
+        }
+      }
     },
-    [buildContext],
+    [buildContext, demoMode, projectId, messages],
   );
+
+  useEffect(() => () => {
+    const controller = requestRef.current;
+    requestRef.current = null;
+    controller?.abort();
+  }, []);
 
   const openPanel = useCallback(() => {
     setPosition((prev) => prev ?? defaultPanelPosition(size, currentViewport()));
@@ -128,7 +168,7 @@ export default function CopilotPanel() {
   useEffect(() => {
     const el = transcriptRef.current;
     if (el) el.scrollTop = el.scrollHeight;
-  }, [messages]);
+  }, [messages, pendingPrompt, error]);
 
   /* Re-clamp when the panel size or the viewport changes. */
   useEffect(() => {
@@ -289,10 +329,11 @@ export default function CopilotPanel() {
       data-copilot-panel
       role="dialog"
       aria-modal="false"
-      aria-label="AI Copilot — local demo preview"
+      aria-label={demoMode ? "AI Copilot — local demo preview" : "AI Copilot"}
       style={{
         width: size.width,
         height: size.height,
+        maxHeight: "calc(100dvh - 32px)",
         left: position?.x ?? -9999,
         top: position?.y ?? -9999,
       }}
@@ -309,8 +350,7 @@ export default function CopilotPanel() {
       >
         <Sparkles size={14} aria-hidden="true" className="cvp-copilot__spark" />
         <strong>AI Copilot</strong>
-        <span className="cvp-copilot__status" data-copilot-status aria-hidden="true" />
-        <span className="sr-only">Local demo preview</span>
+        <span className="cvp-copilot__footnote">{demoMode ? "Demo" : "Project"}</span>
         <span className="cvp-copilot__header-spacer" />
         <button
           type="button"
@@ -331,11 +371,12 @@ export default function CopilotPanel() {
         </button>
       </header>
 
-      <div className="cvp-copilot__transcript" ref={transcriptRef} aria-live="polite">
+      <div className="cvp-copilot__transcript" ref={transcriptRef} aria-live="polite" aria-busy={Boolean(pendingPrompt)}>
         {messages.length === 0 ? (
           <p className="cvp-copilot__empty">
-            Ask about project status, approvals, feedback, or tasks. Answers are mock previews
-            built from your demo workspace — not a real AI.
+            {demoMode ? "Try a sample question. Demo answers are illustrative."
+              : projectId ? "Ask about this project or its latest feedback."
+              : "Open a project to ask Copilot about it."}
           </p>
         ) : (
           messages.map((m) =>
@@ -347,15 +388,24 @@ export default function CopilotPanel() {
               <div key={m.id} className="cvp-copilot__msg cvp-copilot__msg--bot" data-copilot-reply>
                 <p>{m.text}</p>
                 <small className="cvp-copilot__footnote">{m.footnote}</small>
+                {m.sources?.length ? <details className="cvp-copilot__footnote">
+                  <summary>Sources ({m.sources.length})</summary>
+                  <ul>{m.sources.map((source) => <li key={`${source.type}:${source.id}`}>{source.label}</li>)}</ul>
+                </details> : null}
               </div>
             ),
           )
         )}
+        {pendingPrompt ? <>
+          <div className="cvp-copilot__msg cvp-copilot__msg--user">{pendingPrompt}</div>
+          <p role="status" className="cvp-copilot__footnote">Thinking…</p>
+        </> : null}
+        {error ? <p role="alert" className="cvp-copilot__empty">{error}</p> : null}
       </div>
 
       <div className="cvp-copilot__suggestions">
-        {COPILOT_SUGGESTIONS.map((s) => (
-          <button key={s} type="button" data-copilot-suggestion onClick={() => ask(s)}>
+        {(demoMode ? COPILOT_SUGGESTIONS : ["Summarize latest feedback", "Summarize project status"]).map((s) => (
+          <button key={s} type="button" disabled={Boolean(pendingPrompt) || (!demoMode && !projectId)} data-copilot-suggestion onClick={() => ask(s)}>
             {s}
           </button>
         ))}
@@ -370,12 +420,14 @@ export default function CopilotPanel() {
       >
         <input
           ref={inputRef}
+          maxLength={4000}
+          disabled={Boolean(pendingPrompt) || (!demoMode && !projectId)}
           value={draft}
           onChange={(e) => setDraft(e.target.value)}
           placeholder="Ask anything about your project…"
           aria-label="Ask the AI Copilot"
         />
-        <button type="submit" className="cvp-copilot__send" aria-label="Send message">
+        <button type="submit" disabled={!draft.trim() || Boolean(pendingPrompt) || (!demoMode && !projectId)} className="cvp-copilot__send" aria-label="Send message">
           <Send size={13} aria-hidden="true" />
         </button>
       </form>
@@ -395,6 +447,7 @@ export default function CopilotPanel() {
               key={action.id}
               type="button"
               role="menuitem"
+              disabled={Boolean(action.prompt) && (Boolean(pendingPrompt) || (!demoMode && !projectId))}
               onClick={() => onMenuAction(action.id, action.prompt)}
             >
               {action.label}

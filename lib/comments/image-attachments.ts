@@ -123,7 +123,7 @@ export function canAccessInternalCommentAttachment({
   return (
     comment.assetId === assetId &&
     comment.versionId === versionId &&
-    comment.visibility === "internal" &&
+    (comment.visibility === "internal" || comment.visibility === "external") &&
     (!requireAuthor || comment.authorId === userId)
   );
 }
@@ -472,4 +472,46 @@ export async function listImageAttachments(
     attachments.push(signed);
   }
   return attachments;
+}
+
+export async function hydrateCommentImageAttachments<
+  T extends Record<string, unknown>,
+>({
+  client,
+  comments,
+  context,
+  allowedVisibilities,
+}: {
+  client: DataClient;
+  comments: T[];
+  context: Omit<ImageAttachmentContext, "commentId">;
+  allowedVisibilities: readonly ("internal" | "external")[];
+}): Promise<Array<T & { attachments: ImageAttachmentResponse[] }> | null> {
+  const hydrated: Array<T & { attachments: ImageAttachmentResponse[] }> = [];
+  const concurrency = 4;
+
+  for (let index = 0; index < comments.length; index += concurrency) {
+    const batch = await Promise.all(
+      comments.slice(index, index + concurrency).map(async (comment) => {
+        if (
+          typeof comment.id !== "string" ||
+          comment.asset_id !== context.assetId ||
+          comment.version_id !== context.versionId ||
+          (comment.visibility !== "internal" && comment.visibility !== "external") ||
+          !allowedVisibilities.includes(comment.visibility)
+        ) {
+          return null;
+        }
+        const attachments = await listImageAttachments(client, {
+          ...context,
+          commentId: comment.id,
+        });
+        return attachments ? { ...comment, attachments } : null;
+      }),
+    );
+    if (batch.some((comment) => comment === null)) return null;
+    hydrated.push(...(batch as Array<T & { attachments: ImageAttachmentResponse[] }>));
+  }
+
+  return hydrated;
 }

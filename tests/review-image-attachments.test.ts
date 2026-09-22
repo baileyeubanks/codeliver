@@ -5,6 +5,7 @@ import sharp from "sharp";
 import {
   canAccessExternalCommentAttachment,
   canAccessInternalCommentAttachment,
+  hydrateCommentImageAttachments,
   parseImageAttachmentForm,
   REVIEW_IMAGE_ATTACHMENT_MAX_BYTES,
   storeImageAttachment,
@@ -74,6 +75,55 @@ test("attachment reads span the granted thread while writes stay author-bound", 
     comment: internalComment,
     requireAuthor: true,
   }), false);
+
+  const operatorExternalReply = {
+    assetId: "asset-a",
+    versionId: "version-a",
+    authorId: "user-author",
+    visibility: "external",
+  };
+  assert.equal(canAccessInternalCommentAttachment({
+    userId: "user-author",
+    assetId: "asset-a",
+    versionId: "version-a",
+    comment: operatorExternalReply,
+    requireAuthor: true,
+  }), true);
+  assert.equal(canAccessInternalCommentAttachment({
+    userId: "user-reader",
+    assetId: "asset-a",
+    versionId: "version-a",
+    comment: operatorExternalReply,
+    requireAuthor: true,
+  }), false);
+});
+
+test("public hydration rejects an internal note before attachment lookup", async () => {
+  let queried = false;
+  const client = {
+    from() {
+      queried = true;
+      throw new Error("internal comments must never reach attachment lookup");
+    },
+  };
+  const result = await hydrateCommentImageAttachments({
+    client: client as never,
+    comments: [{
+      id: "internal-note",
+      asset_id: "asset-a",
+      version_id: "version-a",
+      visibility: "internal",
+    }],
+    context: {
+      ownerId: "owner-a",
+      projectId: "project-a",
+      assetId: "asset-a",
+      versionId: "version-a",
+    },
+    allowedVisibilities: ["external"],
+  });
+  assert.equal(result, null);
+  assert.equal(queried, false);
 });
 
 function request(file: File, overrides: Record<string, string> = {}) {

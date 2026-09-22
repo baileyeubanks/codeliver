@@ -20,6 +20,7 @@ import { deriveShareIntent } from "@/lib/sharing/share-intent";
 import { getSupabase } from "@/lib/supabase";
 import type { ApprovalStep, SharePermission } from "@/lib/types/codeliver";
 import { resolveAssetVersion } from "@/lib/versions";
+import { hydrateCommentImageAttachments } from "@/lib/comments/image-attachments";
 
 async function getReview(_req: Request, { params }: { params: Promise<{ token: string }> }) {
   const boundary = validateReviewReadRequest(_req);
@@ -75,7 +76,9 @@ async function getReview(_req: Request, { params }: { params: Promise<{ token: s
         })
       : null;
 
-  const [commentsResult, approvalsResult, workflowResult, editDecisionsResult] = await Promise.all([
+  const projectId = invite.assets?.projects?.id;
+  if (typeof projectId !== "string") return reviewBackendUnavailable();
+  const [commentsResult, approvalsResult, workflowResult, editDecisionsResult, projectResult] = await Promise.all([
     supabase
       .from("comments")
       .select(EXTERNAL_COMMENT_COLUMNS)
@@ -103,6 +106,11 @@ async function getReview(_req: Request, { params }: { params: Promise<{ token: s
       .eq("version_id", versionLookup.version.id)
       .or(`review_invite_id.eq.${invite.id},status.in.(accepted,applied)`)
       .order("start_seconds", { ascending: true }),
+    supabase
+      .from("projects")
+      .select("id, owner_id")
+      .eq("id", projectId)
+      .maybeSingle(),
   ]);
 
   if (commentsResult.error) {
@@ -121,7 +129,22 @@ async function getReview(_req: Request, { params }: { params: Promise<{ token: s
     return reviewBackendUnavailable();
   }
 
-  const externalComments = commentsResult.data ?? [];
+  if (projectResult.error || !projectResult.data?.owner_id) {
+    return reviewBackendUnavailable();
+  }
+
+  const externalComments = await hydrateCommentImageAttachments({
+    client: supabase,
+    comments: commentsResult.data ?? [],
+    context: {
+      ownerId: projectResult.data.owner_id,
+      projectId,
+      assetId: invite.asset_id,
+      versionId: versionLookup.version.id,
+    },
+    allowedVisibilities: ["external"],
+  });
+  if (!externalComments) return reviewBackendUnavailable();
   const annotationsByCommentId = new Map<string, ExternalAnnotation[]>();
   const commentIds = externalComments
     .map((comment) => comment.id)
@@ -253,14 +276,16 @@ async function getReview(_req: Request, { params }: { params: Promise<{ token: s
     approvals: approvalState.approvals,
     active_approval_ids: approvalState.activeApprovalIds,
     approval_access_message: approvalState.approvalAccessMessage,
-    comments: externalComments.map((comment) =>
-      projectExternalComment(
+    comments: externalComments.map((comment) => {
+      const projected = projectExternalComment(
         comment,
         typeof comment.id === "string"
           ? annotationsByCommentId.get(comment.id) ?? []
           : [],
-      )
-    ),
+      );
+      projected.attachments = comment.attachments;
+      return projected;
+    }),
     permissions: invite.permissions,
     share_intent: deriveShareIntent({
       permissions: invite.permissions as SharePermission,

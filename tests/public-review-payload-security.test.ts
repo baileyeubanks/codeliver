@@ -166,6 +166,18 @@ const supabaseStub = dataModule(`
     updated_at: "2026-07-26T00:01:00.000Z"
   };
 
+  const imageAttachment = {
+    id: "attachment-a",
+    comment_id: "comment-a",
+    file_url: "storage://comment-attachments/owner-a/project-a/asset-a/comment-a/reference-a?sha256=private",
+    file_name: "reference.png",
+    file_type: "image/png",
+    file_size: 12,
+    created_at: "2026-07-26T00:01:30.000Z",
+    storage_bucket: "comment-attachments",
+    storage_path: "owner-a/project-a/asset-a/comment-a/reference-a"
+  };
+
   const privateEditDecision = {
     id: "decision-a",
     asset_id: "asset-a",
@@ -203,6 +215,8 @@ const supabaseStub = dataModule(`
                 id: "33333333-3333-4333-8333-333333333333",
                 metadata: publishedHlsMetadata
               }
+            : this.table === "projects"
+              ? { id: "project-a", owner_id: "owner-a" }
             : null,
         error: null
       };
@@ -211,6 +225,8 @@ const supabaseStub = dataModule(`
       return Promise.resolve({
         data: this.table === "comments"
           ? [privateComment]
+          : this.table === "comment_attachments"
+            ? [imageAttachment]
           : this.table === "edit_decisions"
             ? [privateEditDecision]
             : [],
@@ -223,6 +239,15 @@ const supabaseStub = dataModule(`
     return {
       from(table) {
         return new Query(table);
+      },
+      storage: {
+        from() {
+          return {
+            async createSignedUrl(path) {
+              return { data: { signedUrl: "https://signed.example/" + path }, error: null };
+            }
+          };
+        }
       }
     };
   }
@@ -286,6 +311,14 @@ registerHooks({
     if (specifier === "@/lib/supabase") {
       return nextResolve(supabaseStub, context);
     }
+    if (specifier === "@/lib/comments/image-attachments") {
+      return nextResolve(
+        pathToFileURL(
+          resolve(repositoryRoot, "lib/comments/image-attachments.ts"),
+        ).href,
+        context,
+      );
+    }
     if (specifier === "@/lib/api/responses") {
       return nextResolve(
         pathToFileURL(resolve(repositoryRoot, "lib/api/responses.ts")).href,
@@ -348,6 +381,16 @@ test("anonymous review payload exposes only the external-safe asset projection",
     visibility: "external",
     created_at: "2026-07-26T00:01:00.000Z",
     updated_at: "2026-07-26T00:01:00.000Z",
+    attachments: [{
+      id: "attachment-a",
+      comment_id: "comment-a",
+      file_url: "https://signed.example/owner-a/project-a/asset-a/comment-a/reference-a",
+      file_name: "reference.png",
+      file_type: "image/png",
+      file_size: 12,
+      created_at: "2026-07-26T00:01:30.000Z",
+      url_expires_at: payload.comments[0].attachments?.[0]?.url_expires_at,
+    }],
   }]);
   assert.deepEqual(payload.edit_decisions, [{
     id: "decision-a",

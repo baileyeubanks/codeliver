@@ -117,18 +117,30 @@ async function POSTHandler(req: Request, { params }: { params: Promise<{ id: str
     return NextResponse.json({ error: versionLookup.error }, { status: versionLookup.status });
   }
 
+  let replyAudience: { visibility: "internal" | "external"; reviewId: string | null; reviewInviteId: string | null } = {
+    visibility: "internal", reviewId: null, reviewInviteId: null,
+  };
   if (body.parent_id) {
     const parent = await getAssetComment(body.parent_id, id);
     if (!parent.ok) {
       return NextResponse.json({ error: parent.error }, { status: parent.status });
     }
 
-    if (parent.data.visibility !== "internal") {
-      return NextResponse.json(
-        { error: "Replies must stay within the same review audience" },
-        { status: 400 },
-      );
+    if (parent.data.visibility !== "internal" && parent.data.visibility !== "external") {
+      return NextResponse.json({ error: "Replies must stay within the same review audience" }, { status: 400 });
     }
+    const identity = await getSupabase()
+      .from("comments")
+      .select("review_id, review_invite_id")
+      .eq("id", parent.data.id)
+      .eq("asset_id", id)
+      .maybeSingle();
+    if (identity.error || !identity.data) return apiError("Comment could not be loaded", "BACKEND_UNAVAILABLE", 503);
+    replyAudience = {
+      visibility: parent.data.visibility,
+      reviewId: identity.data.review_id ?? null,
+      reviewInviteId: identity.data.review_invite_id ?? null,
+    };
 
     if (parent.data.version_id !== versionLookup.version.id) {
       return NextResponse.json(
@@ -151,9 +163,9 @@ async function POSTHandler(req: Request, { params }: { params: Promise<{ id: str
       pin_x: pinX,
       pin_y: pinY,
       parent_id: body.parent_id ?? null,
-      review_id: null,
-      review_invite_id: null,
-      visibility: "internal",
+      review_id: replyAudience.reviewId,
+      review_invite_id: replyAudience.reviewInviteId,
+      visibility: replyAudience.visibility,
     })
     .select()
     .single();

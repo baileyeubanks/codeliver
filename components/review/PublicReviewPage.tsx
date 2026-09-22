@@ -47,6 +47,10 @@ import {
   bindDemoReviewApprovals,
   demoReviewPayload,
 } from "@/lib/review/demoReview";
+import {
+  bindDemoReviewComments,
+  buildDemoVersionAuthority,
+} from "@/lib/review/demo-version-authority";
 import { openReviewReport } from "@/lib/review/open-report";
 import { resolveDemoReviewerEmail } from "@/lib/review/demo-reviewer-identity";
 import {
@@ -319,7 +323,17 @@ export default function PublicReviewPage() {
           );
           const publicAssetId = workspaceAsset?.id ?? demoReviewPayload.asset.id;
           const publicProjectId = workspaceAsset?.project_id ?? "demo";
-          const publicVersionId = `demo-version-${workspaceAsset?.version_count ?? 4}`;
+          const demoVersionAuthority = buildDemoVersionAuthority({
+            assetId: publicAssetId,
+            versionCount: workspaceAsset?.version_count ?? 4,
+            fileUrl: demoMediaUrl ?? demoReviewPayload.asset.file_url ?? "",
+            thumbnailUrl:
+              workspaceAsset?.thumbnail_url ?? "/demo/ceraweek-speaker.jpg",
+            durationSeconds: workspaceAsset?.duration_seconds ?? null,
+            createdAt: workspaceAsset?.created_at ?? new Date().toISOString(),
+            seededVersions: demoReviewPayload.versions,
+          });
+          const publicVersionId = demoVersionAuthority.current.id;
           const requestedIntent =
             requestedDemoShare?.share_intent ??
             normalizeShareIntent(searchParams.get("intent")) ??
@@ -335,7 +349,7 @@ export default function PublicReviewPage() {
               ...demoReviewPayload.asset,
               id: publicAssetId,
               title: workspaceAsset?.title ?? demoReviewPayload.asset.title,
-              file_url: demoMediaUrl ?? demoReviewPayload.asset.file_url,
+              file_url: demoVersionAuthority.current.file_url,
               status: workspaceAsset?.status ?? demoReviewPayload.asset.status,
               projects: {
                 name: workspaceProject
@@ -371,11 +385,10 @@ export default function PublicReviewPage() {
               }),
               permission: requestedDemoShare?.permission ?? intentDefaults.permissions,
             }),
-            comments: demoReviewPayload.comments.map((comment) => ({
-              ...comment,
-              asset_id: publicAssetId,
-              version_id: publicVersionId,
-            })),
+            comments: bindDemoReviewComments(
+              demoReviewPayload.comments,
+              publicAssetId,
+            ),
             invite: {
               ...demoReviewPayload.invite,
               id: requestedDemoShare?.id ?? demoReviewPayload.invite.id,
@@ -428,42 +441,17 @@ export default function PublicReviewPage() {
             ...review.asset,
             status: persistedApprovalState?.asset_status ?? review.asset.status,
           };
-          const demoVersion: Version = {
-            id: publicVersionId,
-            asset_id: publicAssetId,
-            version_number: workspaceAsset?.version_count ?? 4,
-            file_url: review.asset.file_url ?? "",
-            file_size: null,
-            thumbnail_url: "/demo/ceraweek-speaker.jpg",
-            duration_seconds: workspaceAsset?.duration_seconds ?? null,
-            resolution: "1920 x 1080",
-            is_current: true,
-            notes: "Local demo review version",
-            uploaded_by: null,
-            created_at: workspaceAsset?.created_at ?? new Date().toISOString(),
-          };
+          const demoVersion = demoVersionAuthority.current;
           const rootComments = restoredComments.filter((comment) => !comment.parent_id);
           const initialSelection =
             rootComments.find((comment) => comment.status === "open")?.id ??
             rootComments[0]?.id ??
             null;
 
-          // P19: the demo payload carries the V1–V3 seed list (P19a); a
-          // payload without one falls back to the single version the loader
-          // has always built — the switcher then shows one chip.
-          const seededVersions = (demoReviewPayload as { versions?: Version[] }).versions;
-          const versionList = seededVersions?.length
-            ? sortVersions(
-                seededVersions.map((candidate) => ({
-                  ...candidate,
-                  asset_id: publicAssetId,
-                  file_url:
-                    candidate.is_current && demoMediaUrl
-                      ? demoMediaUrl
-                      : candidate.file_url,
-                })),
-              )
-            : [demoVersion];
+          // The workspace asset's version count is authoritative for the
+          // current demo version. Historical seed media stays available, but
+          // only that workspace version is marked current.
+          const versionList = demoVersionAuthority.versions;
           // ?v= is the canonical deep-link; ?version= is honored as an alias.
           const requestedVersion = resolveVersionParam(
             versionList,

@@ -1784,7 +1784,14 @@ export default function PublicReviewPage({
                 timeline={{
                   label: "Cut decisions",
                   countLabel: `${cutMarkers.length} cuts`,
-                  content: (
+                  collapsed: cutMarkers.length === 0,
+                  content: cutMarkers.length === 0 ? (
+                    <p className="px-4 pb-3 text-xs text-[var(--muted)]">
+                      {canComment
+                        ? "Press Down to propose a version-bound cut at the playhead."
+                        : "Cut decisions are read-only for this link."}
+                    </p>
+                  ) : (
                     <div className="grid gap-2">
                       <PlayerTimeline
                         comments={[]}

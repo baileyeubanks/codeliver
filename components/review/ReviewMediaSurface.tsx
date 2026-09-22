@@ -32,6 +32,7 @@ interface ReviewMediaSurfaceProps {
     label: string;
     countLabel: string;
     content: ReactNode;
+    collapsed?: boolean;
   } | null;
   fallbackAction?: ReactNode;
 }
@@ -127,13 +128,20 @@ export default function ReviewMediaSurface({
         />
 
         {timeline ? (
-          <div className="review-video-timeline border-t border-[var(--border)]">
-            <div className="flex items-center justify-between px-4 pt-3 text-xs text-[var(--muted)]">
-              <span>{timeline.label}</span>
-              <span>{timeline.countLabel}</span>
+          timeline.collapsed ? (
+            <details className="review-timeline-help">
+              <summary>{timeline.label}</summary>
+              {timeline.content}
+            </details>
+          ) : (
+            <div className="review-video-timeline border-t border-[var(--border)]">
+              <div className="flex items-center justify-between px-4 pt-3 text-xs text-[var(--muted)]">
+                <span>{timeline.label}</span>
+                <span>{timeline.countLabel}</span>
+              </div>
+              {timeline.content}
             </div>
-            {timeline.content}
-          </div>
+          )
         ) : null}
       </div>
     );

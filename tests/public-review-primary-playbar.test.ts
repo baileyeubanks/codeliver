@@ -39,6 +39,9 @@ test("public review puts exact-time comment markers on the primary seek bar", ()
 
 test("the secondary public timeline retains cut decisions without duplicating comment dots", () => {
   assert.match(publicReviewPage, /label: "Cut decisions"/);
+  assert.match(publicReviewPage, /collapsed: cutMarkers\.length === 0/);
   assert.match(publicReviewPage, /comments=\{\[\]\}/);
   assert.match(publicReviewPage, /cutMarkers=\{cutMarkers\}/);
+  assert.match(reviewMediaSurface, /timeline\.collapsed \? \(/);
+  assert.match(reviewMediaSurface, /<details className="review-timeline-help">/);
 });

@@ -593,6 +593,14 @@ export default function ProjectCockpit({
   const [liveVersionsError, setLiveVersionsError] = useState(false);
   const [liveTasks] = useState<DemoProjectTask[]>([]);
   const [liveActivity, setLiveActivity] = useState<DemoActivityItem[]>([]);
+  const [approvalSetupEmail, setApprovalSetupEmail] = useState("");
+  const [approvalSetupLabel, setApprovalSetupLabel] = useState("Client approval");
+  const [approvalSetupError, setApprovalSetupError] = useState("");
+  const [approvalSetupSubmitting, setApprovalSetupSubmitting] = useState(false);
+  const [createdApprovalStages, setCreatedApprovalStages] = useState<{
+    assetId: string;
+    stages: CockpitApprovalStage[];
+  } | null>(null);
   const [systemsReadiness, setSystemsReadiness] = useState<CockpitReadinessState>(DEFAULT_COCKPIT_READINESS);
   const handleHlsPlaybackError = useCallback(() => {
     setIsPlaying(false);
@@ -856,7 +864,7 @@ export default function ProjectCockpit({
   const projectTasks = demoMode
     ? workspace.tasks.filter((task) => task.project_id === project.id)
     : liveTasks;
-  const approvalStages: CockpitApprovalStage[] = versionScopedReview
+  const reportedApprovalStages: CockpitApprovalStage[] = versionScopedReview
     ? []
     : demoMode
       ? workspace.approvalStages.filter((stage) => stage.asset_id === activeAsset?.id)
@@ -873,6 +881,12 @@ export default function ProjectCockpit({
           : [],
         status: approval.status,
       }));
+  const currentCreatedApprovalStages = createdApprovalStages?.assetId === activeAsset?.id
+    ? createdApprovalStages
+    : null;
+  const approvalStages = currentCreatedApprovalStages
+    ? currentCreatedApprovalStages.stages
+    : reportedApprovalStages;
   const viewerName = viewer?.name || (demoMode
     ? `${workspace.settings.profile.firstName} ${workspace.settings.profile.lastName}`.trim()
     : "Content Co-op");
@@ -1871,6 +1885,67 @@ export default function ProjectCockpit({
     }
   }
 
+  async function createApprovalWorkflow() {
+    if (!activeAsset || demoMode || approvalSetupSubmitting) return;
+    const recipientEmail = approvalSetupEmail.trim();
+    const roleLabel = approvalSetupLabel.trim();
+    if (!recipientEmail || !roleLabel) {
+      setApprovalSetupError("Add an approval recipient and step label.");
+      return;
+    }
+
+    setApprovalSetupSubmitting(true);
+    setApprovalSetupError("");
+    try {
+      const response = await fetch("/api/approvals/workflow", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          asset_id: activeAsset.id,
+          mode: "sequential",
+          steps: [{
+            step_order: 1,
+            role_label: approvalSetupLabel.trim(),
+            assignee_email: approvalSetupEmail.trim(),
+          }],
+        }),
+      });
+      if (!response.ok) throw new Error("Approval setup was rejected.");
+
+      const payload = await response.json() as {
+        workflow?: {
+          steps?: Array<{
+            id: string;
+            asset_id: string;
+            role_label: string;
+            assignee_email: string | null;
+            status: string;
+          }>;
+        };
+      };
+      const steps = payload.workflow?.steps;
+      if (!steps?.length) throw new Error("Approval setup did not return a pending step.");
+
+      setCreatedApprovalStages({
+        assetId: activeAsset.id,
+        stages: steps.map((step) => ({
+          id: step.id,
+          project_id: project.id,
+          asset_id: step.asset_id,
+          name: step.role_label,
+          reviewer_names: step.assignee_email ? [step.assignee_email] : [],
+          approved_reviewer_names: step.status === "approved" && step.assignee_email ? [step.assignee_email] : [],
+          status: step.status,
+        })),
+      });
+      setShareOpen(true);
+    } catch {
+      setApprovalSetupError("Approval setup could not be saved. Try again before creating an approval link.");
+    } finally {
+      setApprovalSetupSubmitting(false);
+    }
+  }
+
   async function toggleCommentStatus(comment: DemoReviewComment) {
     if (!reviewOperationsAllowed || !activeAsset || (!demoMode && !activeLiveVersion)) return;
     if (demoMode) {
@@ -2840,8 +2915,8 @@ export default function ProjectCockpit({
                               ) : (
                             <>
                               <p className="cockpit-rail-empty">No approval workflow has been requested.</p>
-                              <button className="cockpit-rail-secondary" type="button" onClick={() => setShareOpen(true)} disabled={!canShare}>
-                                Start review
+                              <button className="cockpit-rail-secondary" type="button" onClick={() => selectSection("approvals")} disabled={!canUpload}>
+                                Set up approval
                               </button>
                             </>
                               )}
@@ -3116,7 +3191,44 @@ export default function ProjectCockpit({
                 <header><div><h2>Approval workflow</h2><p>Sequential review stages and accountable sign-off.</p></div></header>
                 <div className="cockpit-table-list">
                   {approvalStages.map((stage, index) => <article key={stage.id}><span className="cockpit-list-icon"><CheckCircle2 size={18} /></span><div><strong>Step {index + 1}: {stage.name}</strong><small>{stage.reviewer_names.length ? `${stage.approved_reviewer_names.length}/${stage.reviewer_names.length} reviewers approved` : "Unassigned"}</small></div><span className={stage.status === "approved" ? "status-active" : "status-pending"}>{stage.status.replaceAll("_", " ")}</span>{stage.status !== "approved" && demoMode ? <button type="button" onClick={() => approveDemoStage(stage.id)}>Approve</button> : stage.status === "approved" ? <Check size={17} /> : null}</article>)}
-                  {approvalStages.length === 0 ? <EmptyState title="No approval workflow" body="Create a review link with approval access to start one." /> : null}
+                  {approvalStages.length === 0 && activeAsset && !demoMode ? (
+                    <form
+                      className={styles.approvalSetup}
+                      onSubmit={(event) => {
+                        event.preventDefault();
+                        void createApprovalWorkflow();
+                      }}
+                    >
+                      <div>
+                        <strong>Set up approval</strong>
+                        <p>Assign the first required signer before creating an approval link.</p>
+                      </div>
+                      <label>
+                        <span>Approval recipient email</span>
+                        <input
+                          type="email"
+                          value={approvalSetupEmail}
+                          onChange={(event) => setApprovalSetupEmail(event.target.value)}
+                          aria-label="Approval recipient email"
+                          autoComplete="email"
+                          required
+                        />
+                      </label>
+                      <label>
+                        <span>Approval step label</span>
+                        <input
+                          value={approvalSetupLabel}
+                          onChange={(event) => setApprovalSetupLabel(event.target.value)}
+                          aria-label="Approval step label"
+                          required
+                        />
+                      </label>
+                      {approvalSetupError ? <p role="alert">{approvalSetupError}</p> : null}
+                      <button type="submit" disabled={!canUpload || approvalSetupSubmitting}>
+                        {approvalSetupSubmitting ? "Creating approval…" : "Create approval and open sharing"}
+                      </button>
+                    </form>
+                  ) : approvalStages.length === 0 ? <EmptyState title="No approval workflow" body="Create a review link with approval access to start one." /> : null}
                 </div>
               </>
             ) : null}

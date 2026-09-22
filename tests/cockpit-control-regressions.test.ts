@@ -345,6 +345,25 @@ test("production approval and version labels come from indexed records", () => {
   assert.match(cockpitSource, /Version not indexed/);
 });
 
+test("a producer can explicitly configure the first approval step before opening sharing", () => {
+  const setupHandler = cockpitSource.match(
+    /async function createApprovalWorkflow\(\) \{([\s\S]*?)\n  \}\n\n  async function toggleCommentStatus/,
+  )?.[1] ?? "";
+
+  assert.match(setupHandler, /fetch\("\/api\/approvals\/workflow", \{/);
+  assert.match(setupHandler, /method: "POST"/);
+  assert.match(setupHandler, /asset_id: activeAsset\.id/);
+  assert.match(setupHandler, /mode: "sequential"/);
+  assert.match(setupHandler, /step_order: 1/);
+  assert.match(setupHandler, /role_label: approvalSetupLabel\.trim\(\)/);
+  assert.match(setupHandler, /assignee_email: approvalSetupEmail\.trim\(\)/);
+  assert.match(setupHandler, /setShareOpen\(true\);/);
+  assert.doesNotMatch(setupHandler, /setShareLinkActive|notification|send/);
+  assert.match(cockpitSource, /aria-label="Approval recipient email"/);
+  assert.match(cockpitSource, /aria-label="Approval step label"/);
+  assert.match(cockpitSource, /Create approval and open sharing/);
+});
+
 test("media inspector never fabricates unprobed resolution or frame rate", () => {
   assert.match(cockpitSource, /function mediaResolutionLabel/);
   assert.match(cockpitSource, /function mediaFrameRateLabel/);

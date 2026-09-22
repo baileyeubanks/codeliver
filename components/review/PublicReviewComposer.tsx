@@ -49,14 +49,7 @@ export default function PublicReviewComposer({
   const [submitError, setSubmitError] = useState("");
 
   const supportsPins = assetType === "image";
-  const heading =
-    shareIntent === "internal_review"
-      ? "Internal feedback"
-      : shareIntent === "approval_needed"
-        ? "Review notes"
-        : shareIntent === "final_delivery"
-          ? "Delivery details"
-          : "Client feedback";
+  const heading = "Add a note";
   const helperText = canComment
     ? shareIntent === "internal_review"
       ? "Internal notes stay with this version."
@@ -103,10 +96,10 @@ export default function PublicReviewComposer({
   }
 
   return (
-    <div className="border-t border-[var(--border)] px-5 py-4">
+    <div className="px-5 py-4">
       <div className="flex items-start justify-between gap-3">
         <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[var(--dim)]">
+          <p className="text-sm font-semibold text-[var(--ink)]">
             {heading}
           </p>
           <p className="mt-1 text-sm text-[var(--muted)]">{helperText}</p>
@@ -130,20 +123,20 @@ export default function PublicReviewComposer({
 
       {canComment ? (
         <>
-          <label className="mt-4 block text-xs font-medium uppercase tracking-[0.12em] text-[var(--dim)]">
-            Reviewer name
+          <label className="mt-4 block text-xs font-medium text-[var(--muted)]">
+            Your name
           </label>
           <input
             value={reviewerName}
             onChange={(event) => onReviewerNameChange(event.target.value)}
             placeholder="How should this feedback be attributed?"
-            className="mt-2 w-full rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--bg)] px-3 py-2 text-sm text-[var(--ink)] outline-none transition-colors placeholder:text-[var(--dim)] focus:border-[var(--accent)]"
+            className="mt-1.5 w-full border-b border-[var(--border)] bg-transparent px-0 py-2 text-sm text-[var(--ink)] outline-none transition-colors placeholder:text-[var(--dim)] focus:border-[var(--accent)]"
           />
 
           <div className="mt-3 flex flex-wrap items-center gap-2">
             {assetType === "video" && (
-              <span className="rounded-[var(--radius-sm)] bg-[var(--surface-2)] px-2.5 py-1 text-xs text-[var(--muted)]">
-                Timestamp {formatTimeLong(timecode)}
+              <span className="font-mono text-xs text-[var(--muted)]">
+                {formatTimeLong(timecode)}
               </span>
             )}
 
@@ -180,7 +173,7 @@ export default function PublicReviewComposer({
             }}
             rows={5}
             placeholder={placeholder}
-            className="mt-3 w-full resize-none rounded-[var(--radius)] border border-[var(--border)] bg-[var(--bg)] px-3 py-3 text-sm leading-6 text-[var(--ink)] outline-none transition-colors placeholder:text-[var(--dim)] focus:border-[var(--accent)]"
+            className="mt-3 w-full resize-none border border-[var(--border)] bg-[var(--surface)] px-3 py-3 text-sm leading-6 text-[var(--ink)] outline-none transition-colors placeholder:text-[var(--dim)] focus:border-[var(--accent)]"
           />
 
           {submitError && (
@@ -205,7 +198,7 @@ export default function PublicReviewComposer({
           </div>
         </>
       ) : (
-        <div className="mt-4 rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--bg)] px-3 py-3 text-sm text-[var(--muted)]">
+        <div className="mt-4 border-l-2 border-[var(--accent)] px-3 py-1 text-sm text-[var(--muted)]">
           {shareIntent === "final_delivery"
             ? "You can review the delivery details here and download the asset if the owner enabled it."
             : "You can navigate the player, review existing comments, and download the asset if the owner enabled it."}

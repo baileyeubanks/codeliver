@@ -351,7 +351,7 @@ export default function CommentThread({
   if (isResolved && !resolvedOpen) {
     return (
       <div
-        className={`rounded-[var(--radius)] border border-[var(--green)]/20 bg-[var(--bg)]/72 px-4 py-3 opacity-75 transition-colors ${
+        className={`border-b border-[var(--green)]/20 px-1 py-3 opacity-75 transition-colors ${
           onSelect ? "cursor-pointer hover:border-[var(--accent)]/50" : ""
         }`}
         onClick={onSelect}
@@ -402,9 +402,9 @@ export default function CommentThread({
 
   return (
     <div
-      className={`rounded-[var(--radius)] border bg-[var(--bg)]/72 p-4 transition-colors ${
+      className={`border-b bg-transparent px-1 py-4 transition-colors ${
         selected
-          ? "border-[var(--accent)] shadow-[0_0_0_1px_var(--accent)]"
+          ? "border-[var(--accent)] bg-[var(--accent)]/5"
           : isResolved
             ? "border-[var(--green)]/20 opacity-75"
             : "border-[var(--border)]"

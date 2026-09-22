@@ -1,9 +1,9 @@
 .controls {
-  --surface: #fff;
-  --surface-2: #f1f5fb;
-  --ink: #142033;
-  --muted: #52627a;
-  --border: #dce4ef;
+  --surface: var(--cvp-surface, #fff);
+  --surface-2: var(--cvp-surface-2, #f1f5fb);
+  --ink: var(--cvp-text-primary, #142033);
+  --muted: var(--cvp-muted, #52627a);
+  --border: var(--cvp-border, #dce4ef);
   --accent: #0057ff;
   --control-ink: var(--cvp-text-primary, #142033);
   padding: 4px 16px 10px;
@@ -30,12 +30,8 @@
 .volumeSlider { width: 60px; accent-color: #0057ff; }
 @media (max-width: 640px) {
   .controls {
-  --surface: #fff;
-  --surface-2: #f1f5fb;
-  --ink: #142033;
-  --muted: #52627a;
-  --border: #dce4ef;
-  --accent: #0057ff; padding: 2px 10px 8px; }
+    padding: 2px 10px 8px;
+  }
   .row { gap: 2px; }
   .timecode { order: 2; width: 100%; text-align: center; padding: 2px 0; }
   .volumeSlider { display: none; }

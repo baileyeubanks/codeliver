@@ -31,7 +31,7 @@ const TOOLS: { id: AnnotationTool; label: string; icon: typeof ArrowUpRight }[] 
 ];
 
 const buttonClass =
-  "inline-flex h-8 w-8 items-center justify-center rounded-full text-white transition-colors hover:bg-white/15 disabled:opacity-40 disabled:hover:bg-transparent";
+  "inline-flex h-8 items-center justify-center gap-1 rounded-full px-2 text-xs text-white transition-colors hover:bg-white/15 disabled:opacity-40 disabled:hover:bg-transparent";
 
 /**
  * Floating draw-mode controls rendered inside the review overlay. Everything
@@ -68,6 +68,7 @@ export default function AnnotationToolbar({
           onClick={onToggleDrawMode}
         >
           <Pencil size={15} />
+          <span>Draw</span>
         </button>
 
         {drawMode ? (
@@ -85,6 +86,7 @@ export default function AnnotationToolbar({
                 onClick={() => onToolChange(id)}
               >
                 <Icon size={15} />
+                <span className="hidden sm:inline">{label}</span>
               </button>
             ))}
             <span className="h-4 w-px bg-white/25" aria-hidden="true" />
@@ -98,6 +100,7 @@ export default function AnnotationToolbar({
               onClick={onClear}
             >
               <Eraser size={15} />
+              <span className="hidden sm:inline">Clear</span>
             </button>
             <button
               type="button"
@@ -109,6 +112,7 @@ export default function AnnotationToolbar({
               onClick={onAddComment}
             >
               <MessageSquarePlus size={15} />
+              <span className="hidden sm:inline">Add note</span>
             </button>
             <button
               type="button"
@@ -119,6 +123,7 @@ export default function AnnotationToolbar({
               onClick={onToggleDrawMode}
             >
               <X size={15} />
+              <span className="hidden sm:inline">Close</span>
             </button>
           </>
         ) : null}

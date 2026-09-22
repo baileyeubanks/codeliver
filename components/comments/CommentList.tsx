@@ -70,7 +70,7 @@ export default function CommentList({
   const visible = filterThreads(threads, filter);
 
   return (
-    <div>
+    <div className="min-w-0">
       {/* Filter chips */}
       <div
         role="group"
@@ -99,11 +99,11 @@ export default function CommentList({
 
       {/* Threads */}
       {visible.length === 0 ? (
-        <p className="rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--surface)] px-3 py-4 text-center text-sm text-[var(--dim)]">
+        <p className="border-y border-[var(--border)] px-3 py-4 text-center text-sm text-[var(--dim)]">
           No {filter === "all" ? "" : `${filter} `}comments yet.
         </p>
       ) : (
-        <div className="space-y-3">
+        <div>
           {visible.map((thread, threadIndex) => (
             <CommentThread
               key={thread.comment.id}

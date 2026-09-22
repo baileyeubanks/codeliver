@@ -290,6 +290,10 @@ test("legacy record routes use the cockpit shell, shared drawer, and mobile rail
   assert.match(tabsSource, /data-rail=\{compactRail \? "compact" : "expanded"\}/);
   assert.match(tabsStyles, /\.recordShell\s*\{/);
   assert.match(tabsStyles, /\.recordShell\[data-rail="compact"\]/);
+  assert.match(
+    tabsStyles,
+    /@media \(max-width: 900px\) \{\s*\.recordShell\[data-rail="compact"\],\s*\.recordShell\[data-rail="expanded"\]\s*\{\s*grid-template-columns: minmax\(0, 1fr\);/,
+  );
 });
 
 test("tab selection follows the ?tab= search param", () => {

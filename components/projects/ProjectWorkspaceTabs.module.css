@@ -50,6 +50,12 @@
 }
 
 @media (max-width: 900px) {
+  .recordShell[data-rail="compact"],
+  .recordShell[data-rail="expanded"] {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: 64px minmax(0, 1fr);
+  }
+
   .recordHeaderFill {
     display: none;
   }

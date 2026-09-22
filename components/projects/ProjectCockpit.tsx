@@ -2492,6 +2492,7 @@ export default function ProjectCockpit({
                                 timecode_seconds: comment.time_seconds,
                                 pin_x: comment.pin_x ?? null,
                                 pin_y: comment.pin_y ?? null,
+                                attachments: (comment as typeof comment & { attachments?: CommentAttachment[] }).attachments,
                               }}
                               threadNumber={orderedRootReviewComments.findIndex((candidate) => candidate.id === comment.id) + 1}
                               replyCount={comments.filter((candidate) => candidate.parent_id === comment.id).length}

@@ -446,9 +446,10 @@ export async function storeImageAttachment({
     uploadedBy,
     storagePath,
   });
-  if (!persisted.ok && persisted.kind === "unavailable") {
-    await bucket.remove([storagePath]).catch(() => undefined);
-  }
+  // Never delete after an ambiguous metadata/signing failure. The metadata
+  // insert may have committed even when its response did not arrive, and a
+  // signing failure can occur after a confirmed insert. The private object is
+  // safe to retain and the immutable retry key can reconcile it exactly.
   return persisted;
 }
 

@@ -272,6 +272,7 @@ test("metadata failure with failed cleanup recovers the exact orphan on retry", 
   const rows: Row[] = [];
   let object: Blob | null = null;
   let failInsert = true;
+  let removeCalls = 0;
   class Query {
     private filters = new Map<string, unknown>();
     private inserted: Row | null = null;
@@ -298,7 +299,7 @@ test("metadata failure with failed cleanup recovers the exact orphan on retry", 
       },
       async download() { return object ? { data: object, error: null } : { data: null, error: { message: "missing" } }; },
       async createSignedUrl(path: string) { return { data: { signedUrl: `https://storage.test/${path}` }, error: null }; },
-      async remove() { return { data: null, error: { message: "cleanup failed" } }; },
+      async remove() { removeCalls += 1; object = null; return { data: [], error: null }; },
     }; } },
   };
   const parsed = await parseImageAttachmentForm(request(new File([png], "frame.png", { type: "image/png" })));
@@ -317,7 +318,72 @@ test("metadata failure with failed cleanup recovers the exact orphan on retry", 
     uploadedBy: null,
   };
   assert.deepEqual(await storeImageAttachment(input), { ok: false, kind: "unavailable" });
+  assert.ok(object, "ambiguous metadata failure must preserve the private object");
+  assert.equal(removeCalls, 0);
   const recovered = await storeImageAttachment(input);
   assert.equal(recovered.ok, true);
+  assert.equal(rows.length, 1);
+});
+
+test("signing failure after metadata commit preserves bytes and recovers on retry", async () => {
+  type Row = Record<string, unknown>;
+  const rows: Row[] = [];
+  let object: Blob | null = null;
+  let failSigning = true;
+  let uploads = 0;
+  let removeCalls = 0;
+  class Query {
+    private filters = new Map<string, unknown>();
+    private inserted: Row | null = null;
+    select() { return this; }
+    eq(column: string, value: unknown) { this.filters.set(column, value); return this; }
+    insert(value: Row) { this.inserted = value; return this; }
+    async maybeSingle() {
+      return { data: rows.find((row) => [...this.filters].every(([key, value]) => row[key] === value)) ?? null, error: null };
+    }
+    async single() {
+      const row = { id: "44444444-4444-4444-8444-444444444444", created_at: "2026-09-22T12:00:00.000Z", ...this.inserted };
+      rows.push(row);
+      return { data: row, error: null };
+    }
+  }
+  const client = {
+    from() { return new Query(); },
+    storage: { from() { return {
+      async upload(_path: string, bytes: Uint8Array, options: { contentType: string }) {
+        uploads += 1;
+        object = new Blob([bytes], { type: options.contentType });
+        return { data: {}, error: null };
+      },
+      async download() { return object ? { data: object, error: null } : { data: null, error: { message: "missing" } }; },
+      async createSignedUrl(path: string) {
+        if (failSigning) { failSigning = false; return { data: null, error: { message: "signing unavailable" } }; }
+        return { data: { signedUrl: `https://storage.test/${path}` }, error: null };
+      },
+      async remove() { removeCalls += 1; object = null; return { data: [], error: null }; },
+    }; } },
+  };
+  const parsed = await parseImageAttachmentForm(request(new File([png], "frame.png", { type: "image/png" })));
+  assert.equal(parsed.ok, true);
+  if (!parsed.ok) return;
+  const input = {
+    client: client as never,
+    context: {
+      ownerId: "55555555-5555-4555-8555-555555555555",
+      projectId: "66666666-6666-4666-8666-666666666666",
+      assetId: "77777777-7777-4777-8777-777777777777",
+      versionId: VERSION_ID,
+      commentId: COMMENT_ID,
+    },
+    attachment: parsed.attachment,
+    uploadedBy: null,
+  };
+  assert.deepEqual(await storeImageAttachment(input), { ok: false, kind: "unavailable" });
+  assert.ok(object);
+  assert.equal(rows.length, 1);
+  assert.equal(removeCalls, 0);
+  const recovered = await storeImageAttachment(input);
+  assert.equal(recovered.ok, true);
+  assert.equal(uploads, 1);
   assert.equal(rows.length, 1);
 });

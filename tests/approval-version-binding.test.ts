@@ -62,6 +62,7 @@ test("approval RPCs are service-role-only with an empty search path", () => {
 test("rollback preflight covers live negative and concurrency gates without durable fixture writes", () => {
   assert.match(preflight, /^BEGIN;/m);
   assert.match(preflight, /^ROLLBACK;/m);
+  assert.match(preflight, /v_version_id constant uuid := 'ee6d6762-1479-4cb7-9051-2c6ea9083359'/);
   assert.match(preflight, /identical create was not idempotent/);
   assert.match(preflight, /conflicting create succeeded/);
   assert.match(preflight, /cross-invite decision succeeded/);

@@ -8,7 +8,7 @@ SET LOCAL lock_timeout = '5s';
 DO $fixture$
 DECLARE
   v_asset_id constant uuid := '712dee3f-f8ed-4d6e-b6f0-fa8483a2de4f';
-  v_version_id constant uuid := '1ee6d6762-1479-4cb7-9051-2c6ea9083359';
+  v_version_id constant uuid := 'ee6d6762-1479-4cb7-9051-2c6ea9083359';
   v_actor_id uuid;
   v_first jsonb;
   v_repeat jsonb;

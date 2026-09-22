@@ -623,14 +623,50 @@
   background: linear-gradient(0deg, rgba(9, 15, 25, .96), rgba(9, 15, 25, .84));
   backdrop-filter: blur(12px);
 }
-.playerControls:global(.cockpit-video-controls) .playerSeek {
+.playerSeekTrack {
   order: -1;
+  position: relative;
   flex: 0 0 100%;
   width: 100%;
   height: 26px;
+}
+.playerControls:global(.cockpit-video-controls) .playerSeek {
+  position: absolute;
+  inset: 0;
+  width: 100%;
   margin: 0;
   accent-color: #4385ff;
   cursor: pointer;
+}
+.playerCommentMarker {
+  position: absolute;
+  z-index: 1;
+  top: 50%;
+  display: grid;
+  min-width: 28px;
+  min-height: 28px;
+  place-items: center;
+  transform: translate(-50%, -50%);
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: #ffffff;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+.playerCommentMarkerDot {
+  width: 8px;
+  height: 8px;
+  border: 2px solid rgba(255, 255, 255, .96);
+  border-radius: 999px;
+  background: #4385ff;
+  box-shadow: 0 0 0 2px rgba(5, 17, 37, .72);
+}
+.playerCommentMarker:hover .playerCommentMarkerDot,
+.playerCommentMarker:focus-visible .playerCommentMarkerDot,
+.playerCommentMarkerSelected .playerCommentMarkerDot {
+  background: #ffffff;
+  box-shadow: 0 0 0 3px #4385ff;
 }
 .playerControls:global(.cockpit-video-controls) > span { margin-right: auto; }
 .playerControls:global(.cockpit-video-controls) button,

@@ -98,6 +98,26 @@ test("timeline is closed by default behind a keyboard-native 44px disclosure", (
   assert.match(cockpitStyles, /\.timelineToggle\s*\{[^}]*min-height:\s*44px;/);
 });
 
+test("the primary review playbar exposes exact-time comment markers without auto-opening a callout", () => {
+  const controls = cockpitSource.slice(
+    cockpitSource.indexOf('className={`cockpit-video-controls ${styles.playerControls}`}'),
+    cockpitSource.indexOf("</div>\n                    </div>\n\n                    {!pendingPin", cockpitSource.indexOf('className={`cockpit-video-controls ${styles.playerControls}`}')),
+  );
+
+  assert.match(controls, /className=\{styles\.playerSeekTrack\}/);
+  assert.match(controls, /primaryPlaybarComments\.map\(\(comment\) => \(/);
+  assert.match(controls, /type="button"[\s\S]*?aria-label=\{`Open comment at \$\{formatClock\(comment\.time_seconds\)\}`\}/);
+  assert.match(controls, /onClick=\{\(event\) => \{\s*event\.stopPropagation\(\);\s*selectReviewComment\(comment\);\s*\}\}/);
+  assert.match(cockpitStyles, /\.playerCommentMarker\s*\{[^}]*min-width:\s*28px;[^}]*min-height:\s*28px;/);
+  assert.match(cockpitStyles, /\.playerCommentMarkerDot\s*\{/);
+
+  const submitComment = cockpitSource.match(/async function submitComment\(\) \{([\s\S]*?)\n  \}/)?.[1] ?? "";
+  assert.match(submitComment, /setSelectedCommentId\(null\);/);
+  assert.match(cockpitSource, /onPlaybackStart=\{dismissSelectedCommentForPlayback\}/);
+  const nativePlay = cockpitSource.match(/onPlay=\{\(\) => \{([\s\S]*?)\n\s*\}\}/)?.[1] ?? "";
+  assert.match(nativePlay, /dismissSelectedCommentForPlayback\(\);/);
+});
+
 test("focused review replaces the status-chip wall with one source-backed summary line", () => {
   assert.match(
     cockpitSource,

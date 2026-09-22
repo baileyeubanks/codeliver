@@ -10,6 +10,7 @@ interface VideoPlayerProps {
   src: string;
   poster?: string;
   onTimeUpdate?: (time: number) => void;
+  onPlaybackStart?: () => void;
   onPlaybackError?: () => void;
   onFrameClick?: (x: number, y: number, timeSeconds: number) => void;
   onCutMarker?: (time: number) => void;
@@ -21,6 +22,7 @@ export default function VideoPlayer({
   src,
   poster,
   onTimeUpdate,
+  onPlaybackStart,
   onPlaybackError,
   onFrameClick,
   onCutMarker,
@@ -172,7 +174,10 @@ export default function VideoPlayer({
         setBufferedEnd(video.buffered.end(video.buffered.length - 1));
       }
     };
-    const handlePlay = () => setPlaying(true);
+    const handlePlay = () => {
+      setPlaying(true);
+      onPlaybackStart?.();
+    };
     const handlePause = () => setPlaying(false);
     const handleEnded = () => setPlaying(false);
 
@@ -191,7 +196,7 @@ export default function VideoPlayer({
       video.removeEventListener("pause", handlePause);
       video.removeEventListener("ended", handleEnded);
     };
-  }, [videoRef, setCurrentTime, setDuration, setBufferedEnd, setPlaying, onTimeUpdate]);
+  }, [videoRef, setCurrentTime, setDuration, setBufferedEnd, setPlaying, onTimeUpdate, onPlaybackStart]);
 
   function handleVideoClick() {
     const video = videoRef.current;

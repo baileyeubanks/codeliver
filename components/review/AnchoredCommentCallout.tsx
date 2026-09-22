@@ -1,14 +1,17 @@
 "use client";
 
 import { ChevronLeft, ChevronRight, GripVertical, MessageSquareText, Send, X } from "lucide-react";
-import { useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent } from "react";
+import { useRef, useState, type CSSProperties } from "react";
 import { formatTimeLong } from "@/lib/stores/playerStore";
 import type { Comment } from "@/lib/types/codeliver";
+import AnchoredLeaderLine from "@/components/review/AnchoredLeaderLine";
+import { useCalloutDrag } from "@/components/review/useCalloutDrag";
 
 interface AnchoredCommentCalloutProps {
-  comment: Comment;
+  comment: Pick<Comment, "id" | "author_name" | "body" | "timecode_seconds" | "pin_x" | "pin_y">;
   threadNumber: number;
   replyCount: number;
+  replies: Array<Pick<Comment, "id" | "author_name" | "body">>;
   canReply: boolean;
   onClose: () => void;
   onPrevious: () => void;
@@ -22,40 +25,22 @@ export default function AnchoredCommentCallout({
   comment,
   threadNumber,
   replyCount,
+  replies,
   canReply,
   onClose,
   onPrevious,
   onNext,
   onReply,
 }: AnchoredCommentCalloutProps) {
-  const [offset, setOffset] = useState({ x: 0, y: 0 });
   const [reply, setReply] = useState("");
   const [sending, setSending] = useState(false);
   const [error, setError] = useState("");
   const composing = useRef(false);
-  const drag = useRef<{ x: number; y: number; originX: number; originY: number } | null>(null);
+  const anchorRef = useRef<HTMLElement>(null);
+  const cardRef = useRef<HTMLDivElement>(null);
+  const { offset, beginDragging } = useCalloutDrag(cardRef);
   const horizontal = (comment.pin_x ?? 50) > 56 ? "left" : "right";
   const vertical = (comment.pin_y ?? 50) > 56 ? "above" : "below";
-
-  function stopDragging() {
-    drag.current = null;
-    window.removeEventListener("pointermove", move);
-    window.removeEventListener("pointerup", stopDragging);
-  }
-
-  function move(event: PointerEvent) {
-    const active = drag.current;
-    if (!active) return;
-    setOffset({ x: active.originX + event.clientX - active.x, y: active.originY + event.clientY - active.y });
-  }
-
-  function beginDragging(event: ReactPointerEvent<HTMLButtonElement>) {
-    event.preventDefault();
-    event.stopPropagation();
-    drag.current = { x: event.clientX, y: event.clientY, originX: offset.x, originY: offset.y };
-    window.addEventListener("pointermove", move);
-    window.addEventListener("pointerup", stopDragging, { once: true });
-  }
 
   async function submitReply() {
     if (!reply.trim() || sending) return;
@@ -73,6 +58,7 @@ export default function AnchoredCommentCallout({
 
   return (
     <section
+      ref={anchorRef}
       className="review-anchored-comment"
       data-horizontal={horizontal}
       data-vertical={vertical}
@@ -87,8 +73,8 @@ export default function AnchoredCommentCallout({
       onClick={(event) => event.stopPropagation()}
     >
       <span className="review-anchored-comment-pin" aria-hidden="true">{threadNumber}</span>
-      <span className="review-anchored-comment-leader" aria-hidden="true" />
-      <div className="review-anchored-comment-card">
+      <AnchoredLeaderLine anchorRef={anchorRef} cardRef={cardRef} refreshKey={`${offset.x}:${offset.y}`} className="review-anchored-comment-leader" />
+      <div ref={cardRef} className="review-anchored-comment-card">
         <header>
           <button type="button" className="review-anchored-comment-drag" onPointerDown={beginDragging} aria-label="Move comment card">
             <GripVertical size={15} />
@@ -105,6 +91,7 @@ export default function AnchoredCommentCallout({
         </header>
         <p>{comment.body}</p>
         <div className="review-anchored-comment-thread"><MessageSquareText size={12} /> {replyCount} {replyCount === 1 ? "reply" : "replies"}</div>
+        {replies.length ? <ol className="review-anchored-comment-replies">{replies.map((item) => <li key={item.id}><strong>{item.author_name || "Reviewer"}</strong><span>{item.body}</span></li>)}</ol> : null}
         {canReply ? (
           <div className="review-anchored-comment-reply">
             <textarea

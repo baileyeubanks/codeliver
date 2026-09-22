@@ -2,7 +2,7 @@
 
 import { sourceCatalog } from "@/lib/demo/source-catalog";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useParams, usePathname, useSearchParams } from "next/navigation";
 import {
   ArrowLeft,
@@ -546,11 +546,9 @@ export default function PublicReviewPage({
             status: persistedApprovalState?.asset_status ?? review.asset.status,
           };
           const demoVersion = demoVersionAuthority.current;
-          const rootComments = restoredComments.filter((comment) => !comment.parent_id);
-          const initialSelection =
-            rootComments.find((comment) => comment.status === "open")?.id ??
-            rootComments[0]?.id ??
-            null;
+          // Existing notes stay hidden until the reviewer explicitly selects a
+          // timeline marker or thread. Opening a review must never replay an
+          // old point over a new frame.
 
           // A link-bound local version may never be redirected through ?v=.
           // Its URL and all persisted review state remain pinned to this cut.
@@ -601,7 +599,7 @@ export default function PublicReviewPage({
           setShareIntent(requestedIntent);
           setWorkflowMode(review.workflow_mode);
           setReviewerName(persistedApprovalState?.reviewer_name ?? review.reviewer_name ?? "");
-          setSelectedCommentId(initialSelection);
+          setSelectedCommentId(null);
           setLoading(false);
           return;
         }
@@ -610,12 +608,6 @@ export default function PublicReviewPage({
         if (cancelled) return;
 
         const review = payload as unknown as ReviewPayload;
-        const rootComments = (review.comments ?? []).filter((comment) => !comment.parent_id);
-        const initialSelection =
-          rootComments.find((comment) => comment.status === "open")?.id ??
-          rootComments[0]?.id ??
-          null;
-
         setAsset(review.asset);
         setVersion(review.version ?? null);
         // The production payload carries one version today; if it grows a
@@ -674,7 +666,7 @@ export default function PublicReviewPage({
         setWorkflowMode(review.workflow_mode);
         setDelivery(review.delivery ?? null);
         setReviewerName(review.reviewer_name ?? "");
-        setSelectedCommentId(initialSelection);
+        setSelectedCommentId(null);
       } catch (loadError) {
         if (cancelled) return;
         setError(loadError instanceof Error ? loadError.message : "Could not load this review.");
@@ -937,6 +929,10 @@ export default function PublicReviewPage({
     }
   }
 
+  const dismissSelectedCommentForPlayback = useCallback(() => {
+    setSelectedCommentId(null);
+  }, []);
+
   const orderedTimedRootComments = orderedTimedComments(rootComments);
 
   function selectAdjacentComment(direction: -1 | 1) {
@@ -1186,7 +1182,9 @@ export default function PublicReviewPage({
     setComments((current) =>
       current.some((candidate) => candidate.id === comment.id) ? current : [...current, comment],
     );
-    setSelectedCommentId(comment.id);
+    // Success closes the draft and returns a clean player. The new note is
+    // available in the timeline but does not obscure playback until selected.
+    setSelectedCommentId(null);
     setCommentPin(null);
     setPinMode(false);
     setDrawMode(false);
@@ -1444,6 +1442,7 @@ export default function PublicReviewPage({
                 comment={comment}
                 threadNumber={number}
                 replyCount={comments.filter((candidate) => candidate.parent_id === comment.id).length}
+                replies={comments.filter((candidate) => candidate.parent_id === comment.id)}
                 canReply={canComment}
                 onClose={() => setSelectedCommentId(null)}
                 onPrevious={() => selectAdjacentComment(-1)}
@@ -1761,6 +1760,7 @@ export default function PublicReviewPage({
                 annotationEnabled={canComment && asset?.file_type === "video"}
                 overlay={renderPins()}
                 onFramePin={handleFramePin}
+                onPlaybackStart={dismissSelectedCommentForPlayback}
                 onCutMarker={canComment ? handleCutMarker : undefined}
                 onImagePin={handleImagePin}
                 timeline={{

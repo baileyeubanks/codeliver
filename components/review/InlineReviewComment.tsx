@@ -1,15 +1,17 @@
 "use client";
 
-import { useEffect, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent } from "react";
+import { useEffect, useRef, useState, type CSSProperties } from "react";
 import { AlertCircle, GripVertical, LoaderCircle, PenLine, Send, X } from "lucide-react";
 import { submitReviewComment } from "@/lib/review/submit-review-comment";
 import { formatTimeLong } from "@/lib/stores/playerStore";
 import type { AnnotationData, Comment } from "@/lib/types/codeliver";
 import { rasterizeAnnotations } from "@/components/review/annotation/rasterize";
+import AnchoredLeaderLine from "@/components/review/AnchoredLeaderLine";
+import { useCalloutDrag } from "@/components/review/useCalloutDrag";
 
 interface InlineReviewCommentProps {
-  token: string;
-  demoMode: boolean;
+  token?: string;
+  demoMode?: boolean;
   assetId: string;
   assetType?: string;
   versionId: string | null;
@@ -23,12 +25,15 @@ interface InlineReviewCommentProps {
   /** Media-natural size used to rasterize the drawing preview. */
   rasterSize?: { width: number; height: number };
   onCancel: () => void;
-  onCommentCreated: (comment: Comment) => void;
+  onCommentCreated?: (comment: Comment) => void;
+  /** Internal review uses its authenticated asset route. This callback must
+   * resolve only after that route has persisted the exact version-bound note. */
+  onPersist?: (input: { body: string; timecode: number; pin: { x: number; y: number } }) => Promise<void>;
 }
 
 export default function InlineReviewComment({
   token,
-  demoMode,
+  demoMode = false,
   assetId,
   assetType = "video",
   versionId,
@@ -41,17 +46,19 @@ export default function InlineReviewComment({
   rasterSize,
   onCancel,
   onCommentCreated,
+  onPersist,
 }: InlineReviewCommentProps) {
   const reviewerNameRef = useRef<HTMLInputElement>(null);
-  const commentRef = useRef<HTMLInputElement>(null);
+  const commentRef = useRef<HTMLTextAreaElement>(null);
   const initialReviewerNamePresent = useRef(Boolean(reviewerName.trim()));
   const [collectReviewerName, setCollectReviewerName] = useState(!initialReviewerNamePresent.current);
   const [body, setBody] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
-  const [offset, setOffset] = useState({ x: 0, y: 0 });
   const composing = useRef(false);
-  const drag = useRef<{ x: number; y: number; originX: number; originY: number } | null>(null);
+  const anchorRef = useRef<HTMLDivElement>(null);
+  const cardRef = useRef<HTMLDivElement>(null);
+  const { offset, beginDragging } = useCalloutDrag(cardRef);
   const horizontalSide = pin.x > 56 ? "left" : "right";
   const verticalSide = pin.y > 56 ? "above" : "below";
 
@@ -62,26 +69,6 @@ export default function InlineReviewComment({
       reviewerNameRef.current?.focus();
     }
   }, []);
-
-  function stopDragging() {
-    drag.current = null;
-    window.removeEventListener("pointermove", move);
-    window.removeEventListener("pointerup", stopDragging);
-  }
-
-  function move(event: PointerEvent) {
-    const active = drag.current;
-    if (!active) return;
-    setOffset({ x: active.originX + event.clientX - active.x, y: active.originY + event.clientY - active.y });
-  }
-
-  function beginDragging(event: ReactPointerEvent<HTMLButtonElement>) {
-    event.preventDefault();
-    event.stopPropagation();
-    drag.current = { x: event.clientX, y: event.clientY, originX: offset.x, originY: offset.y };
-    window.addEventListener("pointermove", move);
-    window.addEventListener("pointerup", stopDragging, { once: true });
-  }
 
   async function submit() {
     if (!reviewerName.trim() || !body.trim() || submitting) return;
@@ -94,21 +81,25 @@ export default function InlineReviewComment({
       const drawing = hasDrawing
         ? rasterizeAnnotations(annotations ?? [], size.width, size.height)
         : null;
-      const comment = await submitReviewComment({
-        token,
-        demoMode,
-        assetId,
-        assetType,
-        versionId,
-        reviewInviteId,
-        reviewerName,
-        body,
-        timecode,
-        pin,
-        drawing,
-        annotations: hasDrawing ? annotations : undefined,
-      });
-      onCommentCreated(comment);
+      if (onPersist) {
+        await onPersist({ body: body.trim(), timecode, pin });
+      } else {
+        const comment = await submitReviewComment({
+          token: token ?? "",
+          demoMode,
+          assetId,
+          assetType,
+          versionId,
+          reviewInviteId,
+          reviewerName,
+          body,
+          timecode,
+          pin,
+          drawing,
+          annotations: hasDrawing ? annotations : undefined,
+        });
+        onCommentCreated?.(comment);
+      }
     } catch (submitError) {
       setError(submitError instanceof Error ? submitError.message : "Could not post your comment.");
     } finally {
@@ -118,6 +109,7 @@ export default function InlineReviewComment({
 
   return (
     <div
+      ref={anchorRef}
       className="review-inline-comment"
       data-horizontal={horizontalSide}
       data-vertical={verticalSide}
@@ -128,6 +120,8 @@ export default function InlineReviewComment({
       onClick={(event) => event.stopPropagation()}
       onMouseDown={(event) => event.stopPropagation()}
     >
+      <AnchoredLeaderLine anchorRef={anchorRef} cardRef={cardRef} refreshKey={`${offset.x}:${offset.y}`} className="review-inline-comment-leader" />
+      <div ref={cardRef} className="review-inline-comment-card">
       <header>
         <button type="button" className="review-inline-comment-drag" onPointerDown={beginDragging} aria-label="Move comment card"><GripVertical size={14} /></button>
         <div>
@@ -171,7 +165,7 @@ export default function InlineReviewComment({
       ) : null}
 
       <div className="review-inline-comment-entry">
-        <input
+        <textarea
           ref={commentRef}
           value={body}
           onChange={(event) => setBody(event.target.value)}
@@ -184,6 +178,7 @@ export default function InlineReviewComment({
           }}
           onCompositionStart={() => { composing.current = true; }}
           onCompositionEnd={() => { composing.current = false; }}
+          rows={2}
           placeholder="Add a precise note..."
           aria-label="Comment"
         />
@@ -201,6 +196,7 @@ export default function InlineReviewComment({
       {error ? (
         <p role="alert"><AlertCircle size={12} /> {error}</p>
       ) : null}
+      </div>
     </div>
   );
 }

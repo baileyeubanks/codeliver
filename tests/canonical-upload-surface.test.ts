@@ -20,12 +20,16 @@ test("the selected-project cockpit owns the canonical TUS uploader", () => {
   assert.doesNotMatch(projectsPage, />Upload media</);
   assert.match(projectsPage, /href=\{`\/projects\/\$\{encodeURIComponent\(project\.id\)\}\$\{demoSuffix\}`\}/);
 
-  assert.match(projectWorkspace, /import AssetUpload from "@\/components\/assets\/AssetUpload"/);
+  assert.match(projectWorkspace, /import AssetUpload(?:, \{ type UploadCompletion \})? from "@\/components\/assets\/AssetUpload"/);
   assert.match(projectWorkspace, /<AssetUpload\b/);
   assert.match(projectWorkspace, /projectId=\{id\}/);
   assert.match(projectWorkspace, /inputId=\{authoritativeUploadInputId\}/);
-  assert.match(projectWorkspace, /onUploadComplete=\{refreshRemoteAssets\}/);
-  assert.match(projectWorkspace, /onUpload=\{\(\) => document\.getElementById\(authoritativeUploadInputId\)\?\.click\(\)\}/);
+  assert.match(projectWorkspace, /onUploadComplete=\{handleRemoteUploadComplete\}/);
+  assert.match(projectWorkspace, /onUpload=\{openRemoteUploadPicker\}/);
+  assert.match(projectWorkspace, /onUploadRevision=\{openRemoteRevisionPicker\}/);
+  assert.match(projectWorkspace, /revisionTarget=\{revisionTarget\}/);
+  assert.match(projectWorkspace, /resolveRevisionUploadTarget\(await response\.json\(\), id, assetId\)/);
+  assert.match(projectWorkspace, /params\.set\("version", revision\.versionId\)/);
   assert.match(uploader, /endpoint:\s*"\/api\/upload\/tus"/);
 
   assert.doesNotMatch(projectsPage, /createSupabaseBrowser/);

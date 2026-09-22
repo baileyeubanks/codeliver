@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useParams, useRouter } from "next/navigation";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState, useRef } from "react";
 import { ArrowRight, LoaderCircle, SearchX } from "lucide-react";
 import { useDemoMode } from "@/lib/demo/mode";
@@ -13,13 +13,17 @@ import {
 } from "@/lib/demo/workspace-store";
 import ProjectCockpit, { type CockpitUploadStatus } from "@/components/projects/ProjectCockpit";
 import ProjectWorkspaceTabs from "@/components/projects/ProjectWorkspaceTabs";
-import AssetUpload from "@/components/assets/AssetUpload";
+import AssetUpload, { type UploadCompletion } from "@/components/assets/AssetUpload";
 import CoProductionBrand from "@/components/brand/CoProductionBrand";
 import type { MediaAsset } from "@/components/projects/MediaCard";
 import { putDemoMediaBlob } from "@/lib/demo/media-blob-store";
 import { inspectSelectedMedia } from "@/lib/demo/media-inspection";
 import { validateDemoUpload } from "@/lib/demo/upload-validation";
 import { formatFileSize } from "@/lib/utils/media";
+import {
+  resolveRevisionUploadTarget,
+  type RevisionUploadTarget,
+} from "@/lib/uploads/revision-upload";
 
 interface Project {
   id: string;
@@ -61,6 +65,7 @@ type DemoUploadTarget =
 export default function ProjectWorkspaceClient() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const demoMode = useDemoMode();
   const demoWorkspace = useDemoWorkspace();
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -73,6 +78,9 @@ export default function ProjectWorkspaceClient() {
   const [remoteError, setRemoteError] = useState("");
   const [uploading, setUploading] = useState(false);
   const [uploadStatus, setUploadStatus] = useState<CockpitUploadStatus | null>(null);
+  const [revisionTarget, setRevisionTarget] = useState<RevisionUploadTarget | null>(null);
+  const [uploadPickerRequest, setUploadPickerRequest] = useState(0);
+  const revisionRequest = useRef(0);
   const demoProject = demoWorkspace.projects.find((candidate) => candidate.id === id);
   const project: Project | null = demoMode
     ? demoProject
@@ -105,6 +113,11 @@ export default function ProjectWorkspaceClient() {
       }));
   const loading = demoMode ? false : remoteLoading;
   const authoritativeUploadInputId = `project-${id}-asset-upload`;
+
+  useEffect(() => {
+    if (demoMode || uploadPickerRequest === 0) return;
+    document.getElementById(authoritativeUploadInputId)?.click();
+  }, [authoritativeUploadInputId, demoMode, revisionTarget, uploadPickerRequest]);
 
   useEffect(() => {
     if (!id || demoMode) return;
@@ -365,6 +378,68 @@ export default function ProjectWorkspaceClient() {
     setRemoteAssets(payload.items ?? []);
   }
 
+  function queueRemoteUploadPicker(target: RevisionUploadTarget | null) {
+    setRevisionTarget(target);
+    setUploadPickerRequest((request) => request + 1);
+  }
+
+  function openRemoteUploadPicker() {
+    setUploadStatus(null);
+    queueRemoteUploadPicker(null);
+  }
+
+  async function openRemoteRevisionPicker(assetId: string) {
+    const request = ++revisionRequest.current;
+    setUploading(true);
+    setUploadStatus({
+      fileName: "Replacement version",
+      phase: "validating",
+      progress: 0,
+      completed: 0,
+      total: 1,
+      mode: "production",
+      kind: "revision",
+      message: "Confirming the selected media and its current version.",
+    });
+    try {
+      const response = await fetch(`/api/assets/${encodeURIComponent(assetId)}`, {
+        cache: "no-store",
+        signal: AbortSignal.timeout(20_000),
+      });
+      if (!response.ok) throw new Error("The selected media is unavailable for a replacement version.");
+      const target = resolveRevisionUploadTarget(await response.json(), id, assetId);
+      if (!target) throw new Error("The selected media has no current version available to replace.");
+      if (request !== revisionRequest.current) return;
+      setUploadStatus(null);
+      queueRemoteUploadPicker(target);
+    } catch (error) {
+      if (request !== revisionRequest.current) return;
+      setUploadStatus({
+        fileName: "Replacement version",
+        phase: "error",
+        progress: 0,
+        completed: 0,
+        total: 1,
+        mode: "production",
+        kind: "revision",
+        message: error instanceof Error ? error.message : "The selected media is unavailable for a replacement version.",
+      });
+    } finally {
+      if (request === revisionRequest.current) setUploading(false);
+    }
+  }
+
+  async function handleRemoteUploadComplete(completions: UploadCompletion[]) {
+    await refreshRemoteAssets();
+    const revision = completions.find((completion) => completion.revision);
+    if (!revision) return;
+    const params = new URLSearchParams(searchParams.toString());
+    params.set("asset", revision.assetId);
+    params.set("version", revision.versionId);
+    params.set("view", "review");
+    router.push(`/projects/${id}?${params.toString()}`);
+  }
+
   if (loading) {
     return (
       <div className="project-state project-state--loading" aria-busy="true">
@@ -463,16 +538,19 @@ export default function ProjectWorkspaceClient() {
         assets={cockpitAssets}
         demoMode={false}
         viewer={viewer}
-        uploading={false}
-        uploadStatus={null}
-        onUpload={() => document.getElementById(authoritativeUploadInputId)?.click()}
+        uploading={uploading}
+        uploadStatus={uploadStatus}
+        onUpload={openRemoteUploadPicker}
+        onUploadRevision={openRemoteRevisionPicker}
+        onUploadDismiss={() => setUploadStatus(null)}
       />
       <AssetUpload
         projectId={id}
         inputId={authoritativeUploadInputId}
         variant="cockpit"
-        onUploadComplete={refreshRemoteAssets}
+        onUploadComplete={handleRemoteUploadComplete}
         resumeScope={viewer.email}
+        revisionTarget={revisionTarget}
       />
     </>
   );

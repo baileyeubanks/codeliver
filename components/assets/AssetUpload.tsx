@@ -14,6 +14,14 @@ import {
 import { formatFileSize } from "@/lib/utils/media";
 import * as tus from "tus-js-client";
 import { TransferIntent, setTransferTimeout } from "@/lib/uploads/transfer-intent";
+import {
+  buildUploadFingerprintScope,
+  buildUploadTargetMetadata,
+  parseUploadCompletionReceipt,
+  shouldRetryUploadStatus,
+  type RevisionUploadTarget,
+  type UploadCompletionReceipt,
+} from "@/lib/uploads/revision-upload";
 import styles from "./AssetUpload.module.css";
 import type { Tag } from "@/lib/types/codeliver";
 
@@ -57,6 +65,7 @@ type UploadItem = {
   error?: string;
   tusUpload?: tus.Upload;
   asset?: Asset;
+  revisionTarget: RevisionUploadTarget | null;
 };
 
 const WARN_EXT = new Set(["exe", "bat", "sh", "cmd", "msi"]);
@@ -86,19 +95,23 @@ type StorageReadinessResponse = {
   error?: string;
 };
 
+export type UploadCompletion = UploadCompletionReceipt;
+
 export default function AssetUpload({
   projectId,
   resumeScope = "",
   folderId,
   inputId,
   onUploadComplete,
+  revisionTarget = null,
   variant = "dropzone",
 }: {
   projectId: string;
   resumeScope?: string;
   folderId?: string;
   inputId?: string;
-  onUploadComplete: (assets: Asset[]) => void | Promise<void>;
+  onUploadComplete: (uploads: UploadCompletion[]) => void | Promise<void>;
+  revisionTarget?: RevisionUploadTarget | null;
   variant?: "dropzone" | "cockpit";
 }) {
   const [items, setItems] = useState<UploadItem[]>([]);
@@ -170,11 +183,12 @@ export default function AssetUpload({
   useEffect(() => {
     mounted.current = true;
     const controller = new AbortController();
+    const activeUploads = uploads.current;
     void refreshStorageReadiness(controller.signal);
     return () => {
       mounted.current = false;
       controller.abort();
-      uploads.current.forEach((upload) => { void upload.abort(); });
+      activeUploads.forEach((upload) => { void upload.abort(); });
     };
   }, [refreshStorageReadiness]);
 
@@ -201,6 +215,8 @@ export default function AssetUpload({
       }
       let serverState = "receiving";
       let originalReleaseReady = false;
+      let uploadAssetHeader: string | null = null;
+      let uploadVersionHeader: string | null = null;
       const upload = new tus.Upload(item.file, {
         endpoint: "/api/upload/tus",
         chunkSize: readiness.maxChunkBytes,
@@ -208,22 +224,33 @@ export default function AssetUpload({
           const xhr = request.getUnderlyingObject();
           if (xhr instanceof XMLHttpRequest) setTransferTimeout(xhr);
         },
-        fingerprint: async (file) => JSON.stringify(["cvp-v2", projectId, resumeScope, folderId ?? "", file.name, file.size, file.type, file.lastModified]),
+        fingerprint: async (file) => JSON.stringify([
+          "cvp-v2",
+          buildUploadFingerprintScope(projectId, resumeScope, folderId, item.revisionTarget),
+          file.name,
+          file.size,
+          file.type,
+          file.lastModified,
+        ]),
         retryDelays: [0, 1000, 3000, 5000, 10000],
-        removeFingerprintOnSuccess: true,
+        // Keep this exact session recoverable until its signed catalog receipt has
+        // been parsed. A missing final receipt is an error, not a new upload.
+        removeFingerprintOnSuccess: false,
         metadata: {
           filename: item.file.name,
           filetype: item.file.type || "application/octet-stream",
           projectId,
           idempotencyKey: item.attemptId,
-          version: "1",
-          ...(folderId ? { folderId } : {}),
+          ...buildUploadTargetMetadata(item.revisionTarget),
+          ...(!item.revisionTarget && folderId ? { folderId } : {}),
         },
         onAfterResponse(request, response) {
           void request;
           serverState = response.getHeader("Upload-State") || serverState;
           originalReleaseReady =
             response.getHeader("Upload-Original-Ready") === "true";
+          uploadAssetHeader = response.getHeader("Upload-Asset") ?? uploadAssetHeader;
+          uploadVersionHeader = response.getHeader("Upload-Version") ?? uploadVersionHeader;
         },
         onProgress(bytesUploaded, bytesTotal) {
           // Wire bytes can be retried. The bar advances only on acknowledged chunks.
@@ -241,8 +268,26 @@ export default function AssetUpload({
           updateItem(item.id, { status: "processing", progress: 100,
             bytesUploaded: item.bytesTotal, bytesTotal: item.bytesTotal });
           try {
-            await onUploadComplete([]);
-            updateItem(item.id, { status: quarantined ? "quarantined" : "done" });
+            const completion = parseUploadCompletionReceipt({
+              get(name) {
+                if (name === "Upload-Asset") return uploadAssetHeader;
+                if (name === "Upload-Version") return uploadVersionHeader;
+                return null;
+              },
+            }, item.revisionTarget);
+            if (quarantined) {
+              updateItem(item.id, { status: "quarantined" });
+              return;
+            }
+            if (!completion) {
+              updateItem(item.id, {
+                status: "error",
+                error: "Upload finished without a verified catalog receipt. Retry the same upload to reconcile it.",
+              });
+              return;
+            }
+            await onUploadComplete([completion]);
+            updateItem(item.id, { status: "done" });
           } catch {
             updateItem(item.id, { status: quarantined ? "quarantined" : "done",
               error: "File saved. Reload the project to refresh your media list." });
@@ -258,16 +303,7 @@ export default function AssetUpload({
         onShouldRetry(err) {
           const status = (err as { originalResponse?: { getStatus(): number } })
             ?.originalResponse?.getStatus();
-          // Don't retry on 4xx client errors (except 409 offset conflict — tus will fix itself)
-          if (
-            status &&
-            status >= 400 &&
-            status < 500 &&
-            ![409, 423, 429].includes(status)
-          ) {
-            return false;
-          }
-          return true;
+          return shouldRetryUploadStatus(status, item.revisionTarget !== null);
         },
       });
 
@@ -300,6 +336,22 @@ export default function AssetUpload({
 
   const addFiles = useCallback(
     (files: FileList | File[]) => {
+      if (revisionTarget && files.length !== 1) {
+        const item = Array.from(files)[0];
+        if (!item) return;
+        setItems((current) => [...current, {
+          file: item,
+          id: crypto.randomUUID(),
+          attemptId: crypto.randomUUID(),
+          progress: 0,
+          bytesUploaded: 0,
+          bytesTotal: item.size,
+          status: "error",
+          error: "Choose exactly one file for a replacement version.",
+          revisionTarget,
+        }]);
+        return;
+      }
       const newItems: UploadItem[] = Array.from(files).map((file) => {
         const id = crypto.randomUUID();
         return {
@@ -310,6 +362,7 @@ export default function AssetUpload({
           bytesUploaded: 0,
           bytesTotal: file.size,
           status: "pending",
+          revisionTarget,
         };
       });
       setMinimized(false);
@@ -338,7 +391,7 @@ export default function AssetUpload({
         void refreshStorageReadiness().then(begin);
       }
     },
-    [startTusUpload, storage, refreshStorageReadiness, updateItem]
+    [startTusUpload, storage, refreshStorageReadiness, updateItem, revisionTarget]
   );
 
   const pauseUpload = useCallback(
@@ -558,7 +611,7 @@ export default function AssetUpload({
           id={inputId}
           ref={inputRef}
           type="file"
-          multiple
+          multiple={!revisionTarget}
           aria-label="Upload files"
           className="hidden"
           onChange={(e) => {

@@ -74,21 +74,26 @@ function uploadHarness() {
     readonly options: {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       fingerprint: (file: any) => Promise<string>;
-      metadata: { idempotencyKey: string };
+      metadata: Record<string, string>;
+      removeFingerprintOnSuccess: boolean;
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       onAfterResponse: (request: any, response: { getHeader(name: string): string | null }) => void;
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       onError: (error: any) => void;
       onSuccess: () => Promise<void>;
+      onShouldRetry: (error: { originalResponse?: { getStatus(): number } }) => boolean;
     };
     startCalls = 0;
     resumedFrom: { uploadUrl: string } | undefined;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    readonly file: any;
 
     constructor(
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      _file: any,
+      file: any,
       options: FakeTusUpload["options"],
     ) {
+      this.file = file;
       this.options = options;
       instances.push(this);
     }
@@ -115,10 +120,14 @@ function uploadHarness() {
       }
 
       transport.push(`HEAD ${this.resumedFrom?.uploadUrl ?? "missing"}`);
+      const receiptAvailable = this.file.name !== "missing-receipt.mov";
+      const quarantined = this.file.name === "quarantined.mov";
       this.options.onAfterResponse({}, {
         getHeader(name: string) {
-          if (name === "Upload-State") return "committed";
+          if (name === "Upload-State") return quarantined ? "receiving" : "committed";
           if (name === "Upload-Original-Ready") return "true";
+          if (name === "Upload-Asset" && receiptAvailable) return JSON.stringify({ id: "asset-1" });
+          if (name === "Upload-Version" && receiptAvailable) return JSON.stringify({ id: "version-v1", number: 1 });
           return null;
         },
       });
@@ -148,6 +157,7 @@ function uploadHarness() {
       if (name === "tus-js-client") return { Upload: FakeTusUpload };
       if (name === "@/lib/utils/media") return { formatFileSize: (bytes: number) => `${bytes} B` };
       if (name === "@/lib/uploads/transfer-intent") return load("lib/uploads/transfer-intent.ts");
+      if (name === "@/lib/uploads/revision-upload") return load("lib/uploads/revision-upload.ts");
       throw new Error(`Unexpected import ${name}`);
     }
     runInNewContext(`(function(require,module,exports){${output}\n})`, {
@@ -165,11 +175,12 @@ function uploadHarness() {
   }
 
   const AssetUpload = load("components/assets/AssetUpload.tsx").default;
-  function render(): Element {
+  function render(overrides: Record<string, unknown> = {}): Element {
     cursor = 0;
     return AssetUpload({
       projectId: "project-1",
-      onUploadComplete: async (assets: unknown[]) => { completions.push(assets); },
+      onUploadComplete: async (uploads: unknown[]) => { completions.push(uploads); },
+      ...overrides,
     });
   }
 
@@ -232,6 +243,7 @@ test("AssetUpload recovers a final PATCH 503 through persisted-url HEAD reconcil
   assert.deepEqual(failedUpload.abortCalls, [], "the failed client is quiescent instead of receiving DELETE");
   assert.equal(failedUpload.startCalls, 1, "the failed client is never restarted after its terminal error");
   assert.equal(resumedUpload.resumedFrom?.uploadUrl, app.durableUploadUrl, "retry keeps the discovered upload URL");
+  assert.equal(resumedUpload.options.removeFingerprintOnSuccess, false, "receipt verification keeps the exact session recoverable");
   assert.equal(
     await resumedUpload.options.fingerprint(file),
     await failedUpload.options.fingerprint(file),
@@ -248,5 +260,79 @@ test("AssetUpload recovers a final PATCH 503 through persisted-url HEAD reconcil
     `HEAD ${app.durableUploadUrl}`,
   ], "the recovery path sends HEAD and never DELETE");
   assert.equal(app.completions.length, 1, "the real onSuccess callback reports completion after reconciliation");
-  assert.equal(app.completions[0].length, 0, "reconciliation completes without inventing a second asset payload");
+  assert.equal(JSON.stringify(app.completions[0]), JSON.stringify([{
+    assetId: "asset-1",
+    versionId: "version-v1",
+    versionNumber: 1,
+    revision: false,
+  }]), "reconciliation reports the server-issued V1 receipt");
+});
+
+test("AssetUpload binds a replacement to the selected version and does not retry a stale conflict", async () => {
+  const app = uploadHarness();
+  const target = { assetId: "asset-1", expectedCurrentVersionId: "version-v1" };
+  const file = { name: "replacement.mov", size: 480_000_000, type: "video/quicktime", lastModified: 2 };
+  const input = elements(app.render({ revisionTarget: target })).find(
+    (element) => element.type === "input" && element.props.type === "file",
+  );
+  assert.ok(input, "the replacement uses the real file input");
+  assert.equal(input.props.multiple, false, "a replacement accepts exactly one file");
+
+  input.props.onChange({ target: { files: [file], value: "" } });
+  await flushTusCallbacks();
+
+  const replacement = app.instances[0];
+  assert.equal(replacement.options.metadata.assetId, target.assetId);
+  assert.equal(replacement.options.metadata.expectedCurrentVersionId, target.expectedCurrentVersionId);
+  assert.equal(replacement.options.metadata.version, undefined, "the browser never assigns a replacement version number");
+  assert.equal(
+    replacement.options.onShouldRetry({ originalResponse: { getStatus: () => 409 } }),
+    false,
+    "a stale compare-and-swap target stops instead of looping",
+  );
+  assert.equal(
+    replacement.options.onShouldRetry({ originalResponse: { getStatus: () => 423 } }),
+    true,
+    "a transient lock remains retryable",
+  );
+});
+
+
+test("AssetUpload never opens review from a quarantined or receiptless final response", async () => {
+  const app = uploadHarness();
+  const file = { name: "missing-receipt.mov", size: 480_000_000, type: "video/quicktime", lastModified: 3 };
+  const input = elements(app.render()).find(
+    (element) => element.type === "input" && element.props.type === "file",
+  );
+  assert.ok(input);
+  input.props.onChange({ target: { files: [file], value: "" } });
+  await flushTusCallbacks();
+  const retry = elements(app.render()).find((element) => element.props?.["aria-label"] === "Retry upload");
+  assert.ok(retry);
+  retry.props.onClick();
+  await flushTusCallbacks();
+
+  assert.equal(app.completions.length, 0, "missing final headers cannot navigate or claim a review-ready asset");
+  const reconcile = elements(app.render()).find((element) => element.props?.["aria-label"] === "Retry upload");
+  assert.ok(reconcile, "the failed receipt can retry its persisted TUS session");
+  reconcile.props.onClick();
+  await flushTusCallbacks();
+  assert.equal(app.instances[2]?.resumedFrom?.uploadUrl, app.durableUploadUrl, "receipt recovery reuses the original session");
+});
+
+
+test("AssetUpload keeps a quarantined response out of the exact-review callback even with valid headers", async () => {
+  const app = uploadHarness();
+  const file = { name: "quarantined.mov", size: 480_000_000, type: "video/quicktime", lastModified: 4 };
+  const input = elements(app.render()).find(
+    (element) => element.type === "input" && element.props.type === "file",
+  );
+  assert.ok(input);
+  input.props.onChange({ target: { files: [file], value: "" } });
+  await flushTusCallbacks();
+  const retry = elements(app.render()).find((element) => element.props?.["aria-label"] === "Retry upload");
+  assert.ok(retry);
+  retry.props.onClick();
+  await flushTusCallbacks();
+  assert.equal(app.completions.length, 0, "valid catalog headers do not bypass the release quarantine");
 });

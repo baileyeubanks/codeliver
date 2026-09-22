@@ -297,6 +297,11 @@ function uploadCatalogRpcFailure(error: unknown, revision: boolean): Error {
           ? "Committed upload is not valid for revision catalog attachment"
           : "Committed upload is not valid for V1 catalog attachment",
       );
+    case "25000":
+      return new UploadOrchestrationError(
+        "UPLOAD_STATE",
+        "Revision attachment requires READ COMMITTED transaction isolation",
+      );
     case "40001":
       return revision
         ? new UploadOrchestrationError(
@@ -316,6 +321,13 @@ function uploadCatalogRpcFailure(error: unknown, revision: boolean): Error {
             "Asset is part of a locked delivery",
           )
         : new BackendUnavailableError("Upload catalog transaction");
+    case "40P01":
+    case "55P03":
+      return new UploadOrchestrationError(
+        "UPLOAD_BUSY",
+        "Upload catalog is busy; retry",
+        true,
+      );
     default:
       return new BackendUnavailableError("Upload catalog transaction");
   }

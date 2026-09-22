@@ -17,6 +17,30 @@ CREATE INDEX versions_previous_version_idx
   ON co_production.versions(previous_version_id)
   WHERE previous_version_id IS NOT NULL;
 
+-- One short, transaction-scoped publication gate serializes the final
+-- revision attachment with every delivery membership mutation and delivery
+-- lock. It deliberately does not cover byte upload or malware scanning.
+-- This contract supports READ COMMITTED only: a VOLATILE function gets a
+-- fresh snapshot for each query it executes, while REPEATABLE READ retains a
+-- transaction snapshot after an advisory-lock wait.
+CREATE OR REPLACE FUNCTION co_production.acquire_delivery_publication_lock()
+RETURNS void
+LANGUAGE plpgsql
+VOLATILE
+SET search_path = ''
+AS $$
+BEGIN
+  IF pg_catalog.current_setting('transaction_isolation') <> 'read committed' THEN
+    RAISE EXCEPTION 'delivery publication requires READ COMMITTED transaction isolation'
+      USING ERRCODE = '25000';
+  END IF;
+
+  PERFORM pg_catalog.pg_advisory_xact_lock(
+    pg_catalog.hashtextextended('co_production.delivery-publication', 0)
+  );
+END;
+$$;
+
 CREATE OR REPLACE FUNCTION co_production.attach_committed_upload_revision(
   p_actor_id uuid,
   p_upload_id uuid,
@@ -40,6 +64,7 @@ RETURNS TABLE (
   file_url text
 )
 LANGUAGE plpgsql
+VOLATILE
 SECURITY INVOKER
 SET search_path = ''
 AS $$
@@ -53,9 +78,12 @@ DECLARE
   v_file_url text;
   v_existing record;
   v_existing_count integer;
-  v_delivery record;
   v_updated_count integer;
 BEGIN
+  -- First lock in this RPC. No delivery writer can change membership or set
+  -- locked_at until the final version attachment commits or rolls back.
+  PERFORM co_production.acquire_delivery_publication_lock();
+
   IF p_actor_id IS NULL
      OR p_upload_id IS NULL
      OR p_asset_id IS NULL
@@ -224,22 +252,20 @@ BEGIN
     RETURN;
   END IF;
 
-  -- Lock every delivery currently containing the asset. This serializes with
-  -- a concurrent delivery lock update and refuses revision after lock.
-  FOR v_delivery IN
-    SELECT delivery.id, delivery.locked_at
+  -- The publication gate above serializes this predicate with all delivery
+  -- item statements and locked_at updates. Do not take delivery row locks
+  -- here: the shared gate avoids the prior item-insert/lock predicate window.
+  IF EXISTS (
+    SELECT 1
     FROM co_production.deliverable_items AS item
     JOIN co_production.deliverables AS delivery
       ON delivery.id = item.deliverable_id
     WHERE item.asset_id = p_asset_id
-    ORDER BY delivery.id
-    FOR SHARE OF delivery
-  LOOP
-    IF v_delivery.locked_at IS NOT NULL THEN
-      RAISE EXCEPTION 'asset is part of a locked delivery'
-        USING ERRCODE = '23514';
-    END IF;
-  END LOOP;
+      AND delivery.locked_at IS NOT NULL
+  ) THEN
+    RAISE EXCEPTION 'asset is part of a locked delivery'
+      USING ERRCODE = '23514';
+  END IF;
 
   SELECT count(*)::integer
   INTO v_current_count
@@ -351,6 +377,41 @@ BEGIN
 END;
 $$;
 
+-- Statement triggers take the same gate before any row trigger or row lock.
+-- The existing row-level immutable-item trigger remains responsible for its
+-- locked_at checks; this trigger makes those checks race-free for every direct
+-- database writer as well as API routes. TRUNCATE has no row trigger and
+-- would bypass immutability, so it is explicitly rejected under the gate.
+CREATE OR REPLACE FUNCTION co_production.guard_delivery_publication_statement()
+RETURNS trigger
+LANGUAGE plpgsql
+VOLATILE
+SET search_path = ''
+AS $$
+BEGIN
+  PERFORM co_production.acquire_delivery_publication_lock();
+
+  IF TG_OP = 'TRUNCATE' THEN
+    RAISE EXCEPTION 'deliverable item truncation is forbidden'
+      USING ERRCODE = '23514';
+  END IF;
+
+  RETURN NULL;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS deliverable_items_a_publication_guard ON co_production.deliverable_items;
+CREATE TRIGGER deliverable_items_a_publication_guard
+  BEFORE INSERT OR UPDATE OR DELETE OR TRUNCATE ON co_production.deliverable_items
+  FOR EACH STATEMENT
+  EXECUTE FUNCTION co_production.guard_delivery_publication_statement();
+
+DROP TRIGGER IF EXISTS deliverables_a_publication_guard ON co_production.deliverables;
+CREATE TRIGGER deliverables_a_publication_guard
+  BEFORE UPDATE OF locked_at ON co_production.deliverables
+  FOR EACH STATEMENT
+  EXECUTE FUNCTION co_production.guard_delivery_publication_statement();
+
 REVOKE ALL ON FUNCTION co_production.attach_committed_upload_revision(
   uuid,
   uuid,
@@ -384,5 +445,10 @@ GRANT EXECUTE ON FUNCTION co_production.attach_committed_upload_revision(
   text,
   timestamptz
 ) TO service_role;
+
+REVOKE ALL ON FUNCTION co_production.acquire_delivery_publication_lock() FROM PUBLIC, anon, authenticated;
+REVOKE ALL ON FUNCTION co_production.guard_delivery_publication_statement() FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION co_production.acquire_delivery_publication_lock() TO service_role;
+GRANT EXECUTE ON FUNCTION co_production.guard_delivery_publication_statement() TO service_role;
 
 COMMIT;

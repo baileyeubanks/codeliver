@@ -222,6 +222,57 @@ test("stale expected-current SQLSTATE is an opaque retryable conflict", async ()
   );
 });
 
+test("revision attachment reports database contention as retriable busy", async () => {
+  const { ensureCatalogAsset, mapUploadError } = await import(
+    pathToFileURL(resolve(repositoryRoot, "app/api/upload/_shared.ts")).href
+  );
+  for (const code of ["40P01", "55P03"]) {
+    state.__ccoRevisionCatalogRpcCalls = [];
+    state.__ccoRevisionCatalogRpcResult = {
+      data: null,
+      error: { code, message: "private contention details" },
+    };
+    const session = committedRevision();
+    await assert.rejects(
+      () => ensureCatalogAsset(orchestratorFor(session) as never, session, userId),
+      (error) => {
+        assert.deepEqual(mapUploadError(error), {
+          status: 423,
+          code: "UPLOAD_BUSY",
+          message: "Upload catalog is busy; retry",
+          retryAfter: "2",
+        });
+        assert.doesNotMatch(String(error), /private contention/i);
+        return true;
+      },
+    );
+  }
+});
+
+test("revision attachment rejects unsupported transaction isolation clearly", async () => {
+  state.__ccoRevisionCatalogRpcCalls = [];
+  state.__ccoRevisionCatalogRpcResult = {
+    data: null,
+    error: { code: "25000", message: "private isolation details" },
+  };
+  const session = committedRevision();
+  const { ensureCatalogAsset, mapUploadError } = await import(
+    pathToFileURL(resolve(repositoryRoot, "app/api/upload/_shared.ts")).href
+  );
+  await assert.rejects(
+    () => ensureCatalogAsset(orchestratorFor(session) as never, session, userId),
+    (error) => {
+      assert.deepEqual(mapUploadError(error), {
+        status: 409,
+        code: "UPLOAD_STATE",
+        message: "Revision attachment requires READ COMMITTED transaction isolation",
+      });
+      assert.doesNotMatch(String(error), /private isolation/i);
+      return true;
+    },
+  );
+});
+
 test("revision migration atomically CASes one immutable current version without rewriting review history", () => {
   const migrationDirectory = resolve(repositoryRoot, "supabase/migrations");
   const matches = readdirSync(migrationDirectory)
@@ -239,6 +290,14 @@ test("revision migration atomically CASes one immutable current version without 
   assert.match(migration, /co_production\.upload:/);
   assert.match(migration, /co_production\.object:/);
   assert.match(migration, /co_production\.asset:/);
+  assert.match(migration, /co_production\.delivery-publication/);
+  assert.match(migration, /CREATE OR REPLACE FUNCTION co_production\.acquire_delivery_publication_lock/);
+  assert.match(migration, /current_setting\('transaction_isolation'\) <> 'read committed'/);
+  assert.match(migration, /CREATE OR REPLACE FUNCTION co_production\.guard_delivery_publication_statement/);
+  assert.match(migration, /BEFORE INSERT OR UPDATE OR DELETE OR TRUNCATE ON co_production\.deliverable_items[\s\S]*FOR EACH STATEMENT/);
+  assert.match(migration, /BEFORE UPDATE OF locked_at ON co_production\.deliverables[\s\S]*FOR EACH STATEMENT/);
+  assert.match(migration, /deliverable item truncation is forbidden/);
+  assert.doesNotMatch(migration, /FOR SHARE OF delivery/);
   assert.match(migration, /co_production\.project_members[\s\S]*role_rank\(member\.role\) >= 60/);
   assert.match(migration, /co_production\.team_members[\s\S]*role_rank\(member\.role\) >= 60/);
   assert.match(migration, /FROM co_production\.assets AS asset[\s\S]*FOR UPDATE/);
@@ -254,4 +313,26 @@ test("revision migration atomically CASes one immutable current version without 
   assert.match(migration, /REVOKE ALL ON FUNCTION co_production\.attach_committed_upload_revision[\s\S]*FROM PUBLIC, anon, authenticated/);
   assert.match(migration, /GRANT EXECUTE ON FUNCTION co_production\.attach_committed_upload_revision[\s\S]*TO service_role/);
   assert.doesNotMatch(migration, /(?:INSERT|UPDATE|DELETE)\s+(?:INTO\s+)?co_production\.(?:review_invites|comments|approval_workflows|approvals|approval_history)/i);
+});
+
+test("revision migration relies on the canonical receipt uniqueness and nonnull metadata contracts", () => {
+  const migrationDirectory = resolve(repositoryRoot, "supabase/migrations");
+  const v1Migration = readFileSync(
+    resolve(migrationDirectory, "20260726084644_atomic_upload_catalog_v1.sql"),
+    "utf8",
+  );
+  const authorityMigration = readFileSync(
+    resolve(migrationDirectory, "20260715093300_fail_closed_co_production_authority.sql"),
+    "utf8",
+  );
+  const revisionMigration = readFileSync(
+    resolve(migrationDirectory, "20260922055310_attach_committed_upload_revision.sql"),
+    "utf8",
+  );
+
+  assert.match(v1Migration, /CREATE UNIQUE INDEX versions_source_upload_unique_idx[\s\S]*source_upload_id/);
+  assert.match(v1Migration, /CREATE UNIQUE INDEX versions_storage_object_unique_idx[\s\S]*storage_provider, storage_object_key/);
+  assert.match(authorityMigration, /metadata jsonb NOT NULL DEFAULT '\{\}'::jsonb/);
+  assert.doesNotMatch(revisionMigration, /CREATE UNIQUE INDEX versions_source_upload_id_uq/);
+  assert.doesNotMatch(revisionMigration, /coalesce\(assets\.metadata/i);
 });

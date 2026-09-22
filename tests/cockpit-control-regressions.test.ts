@@ -239,6 +239,11 @@ test("production project routes render exactly one application shell", () => {
   );
 });
 
+test("the project shell owns the Whiteboard route but not arbitrary nested project routes", () => {
+  assert.match(shellSource, /\(\?:\\\/whiteboard\)\?\$/);
+  assert.doesNotMatch(shellSource, /\[\^\/\]\+\(\?:\\\/\.\*\)\?\$/);
+});
+
 test("project transitions clear stale data and cancel superseded requests", () => {
   assert.match(
     projectWorkspaceClientSource,

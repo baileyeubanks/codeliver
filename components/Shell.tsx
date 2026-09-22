@@ -115,7 +115,7 @@ export default function Shell({ children }: { children: React.ReactNode }) {
     RemoteNotification[]
   >([]);
   const [storageDegraded, setStorageDegraded] = useState(false);
-  const isProjectCockpit = /^\/projects\/(?!new$|archive$|trash$)[^/]+$/.test(
+  const isProjectCockpit = /^\/projects\/(?!new$|archive$|trash$)[^/]+(?:\/whiteboard)?$/.test(
     pathname,
   );
   const projectsFixture = normalizeProjectsFixture(

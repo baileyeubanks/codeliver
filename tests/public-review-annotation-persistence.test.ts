@@ -204,6 +204,9 @@ const supabaseStub = dataModule(`
     }
     async maybeSingle() {
       if (this.table === "approval_workflows") return { data: null, error: null };
+      if (this.table === "projects") {
+        return { data: { id: "project-a", owner_id: "owner-a" }, error: null };
+      }
       return { data: null, error: null };
     }
     result() {

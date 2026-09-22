@@ -149,7 +149,12 @@ const supabaseStub = dataModule(`
     in(column, values) { this.filters.push({ column, values }); return this; }
     or() { return this; }
     order() { return this; }
-    async maybeSingle() { return { data: null, error: null }; }
+    async maybeSingle() {
+      if (this.table === "projects") {
+        return { data: { id: "project-a", owner_id: "owner-a" }, error: null };
+      }
+      return { data: null, error: null };
+    }
     matching(rows) {
       return rows.filter((row) =>
         this.filters.every((filter) =>
@@ -232,6 +237,12 @@ registerHooks({
     if (specifier === "@/lib/review/external-comment") {
       return nextResolve(
         pathToFileURL(resolve(repositoryRoot, "lib/review/external-comment.ts")).href,
+        context,
+      );
+    }
+    if (specifier === "@/lib/comments/image-attachments") {
+      return nextResolve(
+        pathToFileURL(resolve(repositoryRoot, "lib/comments/image-attachments.ts")).href,
         context,
       );
     }

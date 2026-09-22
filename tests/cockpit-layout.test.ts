@@ -46,8 +46,10 @@ test("valid persisted fields survive normalization", () => {
   );
 });
 
-test("pre-simplification dock preferences close once without overriding current saves", () => {
-  assert.equal(normalizeCockpitLayout({ version: 1, dockOpen: true }).dockOpen, false);
+test("pre-simplification layouts close the dock once while preserving rail preference", () => {
+  const migrated = normalizeCockpitLayout({ version: 1, rail: "compact", dockOpen: true });
+  assert.equal(migrated.dockOpen, false);
+  assert.equal(migrated.rail, "compact");
   assert.equal(normalizeCockpitLayout({ ...DEFAULT_COCKPIT_LAYOUT, dockOpen: true }).dockOpen, true);
 });
 

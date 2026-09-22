@@ -222,6 +222,15 @@ fileMocks.set(resolve(repositoryRoot, "components/cockpit/CockpitNavigation.tsx"
     { "data-testid": "shared-project-rail", "data-active-record": activeRecordTab ?? "" },
     "Shared project rail",
   ),
+  CockpitProjectNavigationDrawer: () => React.createElement("div", { "data-testid": "shared-project-drawer" }),
+  CockpitMobileNavigation: () => React.createElement("div", { "data-testid": "shared-project-mobile" }),
+});
+fileMocks.set(resolve(repositoryRoot, "components/cockpit/useCockpitLayout.ts"), {
+  useCockpitLayout: () => ({ layout: { rail: "expanded" }, toggleRail: () => undefined }),
+});
+fileMocks.set(resolve(repositoryRoot, "components/brand/CoProductionBrand.tsx"), {
+  __esModule: true,
+  default: () => React.createElement("span", { "data-testid": "brand" }),
 });
 
 /* Evaluate the tabs module while the panel stubs are in place (its imports
@@ -271,10 +280,16 @@ test("legacy tab routes retain their panels while the visible project taxonomy l
   assert.ok(markup.includes("cockpit-stub"), "overview renders the existing cockpit");
 });
 
-test("the legacy-tab rail uses the same shared component and stable placement", () => {
-  assert.match(tabsSource, /className=\{styles\.legacyRail\}/);
-  assert.match(tabsSource, /<CockpitProjectNavigation/);
-  assert.match(tabsStyles, /grid-template-columns:\s*224px minmax\(0, 1fr\)/);
+test("legacy record routes use the cockpit shell, shared drawer, and mobile rail contract", () => {
+  assert.match(tabsSource, /className=\{`cockpit-shell \$\{styles\.recordShell\}`\}/);
+  assert.match(tabsSource, /<CockpitProjectNavigationDrawer/);
+  assert.match(tabsSource, /<CockpitMobileNavigation/);
+  assert.match(tabsSource, /className="cockpit-sidebar"/);
+  assert.match(tabsSource, /className=\{`cockpit-main \$\{styles\.recordMain\}`\}/);
+  assert.match(tabsSource, /useCockpitLayout\(project\.id\)/);
+  assert.match(tabsSource, /data-rail=\{compactRail \? "compact" : "expanded"\}/);
+  assert.match(tabsStyles, /\.recordShell\s*\{/);
+  assert.match(tabsStyles, /\.recordShell\[data-rail="compact"\]/);
 });
 
 test("tab selection follows the ?tab= search param", () => {

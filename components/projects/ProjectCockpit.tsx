@@ -468,7 +468,6 @@ export default function ProjectCockpit({
     const requestedSection = searchParams.get("surface");
     return isCockpitSection(requestedSection) ? requestedSection : "overview";
   });
-  const [overviewOpen, setOverviewOpen] = useState(false);
   const [lifecycleOpen, setLifecycleOpen] = useState(false);
   const [activeAssetId, setActiveAssetId] = useState(
     assets.find((asset) => asset.id === requestedAssetId)?.id
@@ -1010,7 +1009,6 @@ export default function ProjectCockpit({
 
   const changeMode = useCallback((mode: Parameters<typeof setMode>[0]) => {
     leaveReviewView();
-    setOverviewOpen(false);
     setLifecycleOpen(false);
     setMode(mode);
   }, [leaveReviewView, setMode]);
@@ -1138,13 +1136,7 @@ export default function ProjectCockpit({
     else params.set("surface", section);
     const query = params.toString();
     router.push(`/projects/${project.id}${query ? `?${query}` : ""}`);
-    if (section === "overview") {
-      setActiveSection("overview");
-      setOverviewOpen((open) => !open);
-    } else {
-      setOverviewOpen(false);
-      setActiveSection(section);
-    }
+    setActiveSection(section);
     setMobileNavOpen(false);
     setMobileDockOpen(false);
   }
@@ -1152,7 +1144,6 @@ export default function ProjectCockpit({
   function handleLifecycleOpenChange(open: boolean) {
     setLifecycleOpen(open);
     if (!open) return;
-    setOverviewOpen(false);
     setMobileNavOpen(false);
     setMobileDockOpen(false);
     setNotificationsOpen(false);
@@ -1173,7 +1164,6 @@ export default function ProjectCockpit({
   }
 
   function toggleOperatorDock() {
-    setOverviewOpen(false);
     setLifecycleOpen(false);
     if (reviewViewActive) {
       if (compactViewport) setMobileDockOpen((open) => !open);
@@ -1904,9 +1894,9 @@ export default function ProjectCockpit({
           activeSection={activeSection}
           dueTodayCount={dueTodayCount}
           projectId={project.id}
+          projectQuery={searchParams.toString()}
           demoMode={demoMode}
           compact={compactRail}
-          overviewOpen={overviewOpen}
           onSelect={selectSection}
           onCollapse={toggleRail}
         />
@@ -1916,15 +1906,14 @@ export default function ProjectCockpit({
         activeSection={activeSection}
         dueTodayCount={dueTodayCount}
         projectId={project.id}
+        projectQuery={searchParams.toString()}
         demoMode={demoMode}
-        overviewOpen={overviewOpen}
         onSelect={selectSection}
         onClose={() => setMobileNavOpen(false)}
       />
       <CockpitMobileNavigation
         activeSection={activeSection}
         dueTodayCount={dueTodayCount}
-        overviewOpen={overviewOpen}
         drawerOpen={mobileNavOpen}
         onSelect={selectSection}
         onOpenDrawer={() => setMobileNavOpen(true)}

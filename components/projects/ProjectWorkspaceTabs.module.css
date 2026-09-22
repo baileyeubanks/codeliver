@@ -2,31 +2,56 @@
   min-height: 60svh;
 }
 
-.legacyWorkspace {
-  display: grid;
-  grid-template-columns: 224px minmax(0, 1fr);
+.recordShell {
   min-height: 100svh;
-  background: #f8faff;
 }
 
-.legacyRail {
-  position: sticky;
-  top: 0;
-  height: 100svh;
-  padding: 86px 12px 12px;
-  border-right: 1px solid #e6e9ef;
-  background: #ffffff;
+.recordShell[data-rail="compact"] {
+  grid-template-columns: 64px minmax(0, 1fr);
+}
+
+.recordShell[data-rail="compact"] :global(.cockpit-sidebar) {
+  padding-inline: 8px;
+}
+
+.recordMain {
+  padding-top: 24px;
+}
+
+.skipLink {
+  position: fixed;
+  top: 8px;
+  left: 8px;
+  z-index: 520;
+  min-height: 38px;
+  display: flex;
+  align-items: center;
+  padding: 0 12px;
+  border: 2px solid var(--cockpit-accent, #156bff);
+  border-radius: 6px;
+  background: #fff;
+  color: var(--cockpit-accent, #156bff);
+  font-size: 0.72rem;
+  font-weight: 700;
+  transform: translateY(-160%);
+  transition: transform 140ms ease;
+}
+
+.skipLink:focus {
+  transform: translateY(0);
+}
+
+.brandLockup {
+  width: 180px;
+}
+
+.recordHeaderFill {
+  grid-column: 3 / 5;
 }
 
 @media (max-width: 900px) {
-  .legacyWorkspace {
-    display: block;
-  }
-
-  .legacyRail {
-    position: static;
-    height: auto;
-    padding: 8px;
+  .recordHeaderFill {
+    display: none;
   }
 }
 

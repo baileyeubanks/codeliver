@@ -4,6 +4,10 @@
   flex-direction: column;
 }
 
+:global(.cockpit-sidebar):has(.rail) {
+  z-index: 100;
+}
+
 .moreButton {
   width: 100%;
   min-height: 42px;
@@ -23,6 +27,10 @@
 .moreButton[aria-expanded="true"] {
   background: var(--cockpit-accent-soft, #edf4ff);
   color: var(--cockpit-accent, #156bff);
+}
+
+.moreGroup {
+  position: relative;
 }
 
 .secondary {
@@ -189,6 +197,25 @@
 .compact .badge,
 .compact .shortcuts {
   display: none;
+}
+
+.compact .secondary {
+  position: fixed;
+  top: 82px;
+  left: 72px;
+  z-index: 90;
+  width: 244px;
+  max-height: calc(100svh - 98px);
+  overflow-y: auto;
+  padding: 8px 0;
+  border: 1px solid var(--cockpit-border, #dfe4ec);
+  border-radius: 9px;
+  background: var(--cockpit-panel, #fff);
+  box-shadow: 0 14px 30px rgba(10, 29, 61, 0.16);
+}
+
+.compact .secondary .label {
+  display: inline;
 }
 
 .drawerOverlay {

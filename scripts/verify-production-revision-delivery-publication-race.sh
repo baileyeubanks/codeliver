@@ -48,6 +48,12 @@ upload_id="$(node -e 'console.log(crypto.randomUUID())')"
 expected_version="$((CVP_RACE_CURRENT_VERSION_NUMBER + 1))"
 object_key="race-publication/${run_id}"
 provider_version="race-${run_id}"
+holder_app="cvp-race-${run_id}-holder"
+contender_app="cvp-race-${run_id}-contender"
+if (( ${#holder_app} > 63 || ${#contender_app} > 63 )); then
+  printf 'race session application name exceeds PostgreSQL NAMEDATALEN\n' >&2
+  exit 70
+fi
 work_dir="$(mktemp -d)"
 gate_in="$work_dir/gate.in"
 gate_pid=""
@@ -73,7 +79,8 @@ psql_args=(
   -v expected_version="$expected_version" -v object_key="$object_key"
   -v provider_version="$provider_version" -v deliverable_ids="$CVP_RACE_DELIVERABLE_IDS"
   -v run_id="$run_id"
-  -v contender_app="cvp-publication-race-${run_id}-contender"
+  -v holder_app="$holder_app"
+  -v contender_app="$contender_app"
 )
 
 revision_sql() {
@@ -120,23 +127,19 @@ assert_not_passed() {
 
 start_session() {
   local label="$1" file="$2" sql="$3"
-  local app_name="cvp-publication-race-${run_id}-${label}"
+  local app_name
+  case "$label" in
+    holder) app_name="$holder_app" ;;
+    contender) app_name="$contender_app" ;;
+    *) printf 'unsupported race session label: %s\n' "$label" >&2; return 64 ;;
+  esac
   printf '%s\n' "$sql" | PGAPPNAME="$app_name" psql "${psql_args[@]}" >"$file" 2>&1 &
   SESSION_PID="$!"
 }
 
 wait_for_contender_block() {
   for _ in {1..200}; do
-    if psql "${psql_args[@]}" -tAc "
-      SELECT EXISTS (
-        SELECT 1
-        FROM pg_catalog.pg_locks AS lock
-        JOIN pg_catalog.pg_stat_activity AS activity USING (pid)
-        WHERE activity.application_name = :'contender_app'
-          AND lock.locktype = 'advisory'
-          AND lock.granted = false
-      )
-    " | grep -qx 't'; then
+    if contender_waits_on_holder | grep -qx 't'; then
       return 0
     fi
     sleep 0.025
@@ -144,6 +147,29 @@ wait_for_contender_block() {
   cat "$work_dir/contender.log" >&2 || true
   printf 'contender never waited on the publication advisory lock\n' >&2
   return 1
+}
+
+contender_waits_on_holder() {
+  # The holder owns the shared publication mutex before it waits on the
+  # controller-only release gate. Therefore a contender blocked by this holder
+  # cannot be waiting on the release gate; it is waiting on the publication
+  # mutex the guarded statement acquired first.
+  psql "${psql_args[@]}" -tA <<'SQL'
+SELECT EXISTS (
+  SELECT 1
+  FROM pg_catalog.pg_locks AS lock
+  JOIN pg_catalog.pg_stat_activity AS activity USING (pid)
+  WHERE activity.application_name = :'contender_app'
+    AND lock.locktype = 'advisory'
+    AND lock.granted = false
+    AND EXISTS (
+      SELECT 1
+      FROM pg_catalog.pg_stat_activity AS holder
+      WHERE holder.application_name = :'holder_app'
+        AND holder.pid = ANY(pg_catalog.pg_blocking_pids(activity.pid))
+    )
+);
+SQL
 }
 
 start_controller_gate() {
@@ -207,8 +233,20 @@ SQL
 }
 
 locked_delivery_count() {
-  psql "${psql_args[@]}" -tAc \
-    "SELECT count(*) FROM co_production.deliverables WHERE id::text = ANY(string_to_array(:'deliverable_ids', ',')) AND locked_at IS NOT NULL"
+  psql "${psql_args[@]}" -tA <<'SQL'
+SELECT count(*)
+FROM co_production.deliverables
+WHERE id::text = ANY(string_to_array(:'deliverable_ids', ','))
+  AND locked_at IS NOT NULL;
+SQL
+}
+
+source_upload_count() {
+  psql "${psql_args[@]}" -tA <<'SQL'
+SELECT count(*)
+FROM co_production.versions
+WHERE source_upload_id = :'upload_id'::uuid;
+SQL
 }
 
 case "$CVP_RACE_CASE" in
@@ -226,7 +264,7 @@ case "$CVP_RACE_CASE" in
     wait "$contender_pid"
     contender_pid=""
     grep -q CONTENDER_GATE_PASSED "$work_dir/contender.log"
-    psql "${psql_args[@]}" -tAc "SELECT count(*) FROM co_production.versions WHERE source_upload_id = :'upload_id'::uuid" | grep -qx '1'
+    source_upload_count | grep -qx '1'
     locked_delivery_count | grep -qx '1'
     ;;
   lock-first|multi-row)
@@ -247,7 +285,7 @@ case "$CVP_RACE_CASE" in
     contender_pid=""
     grep -q '23514' "$work_dir/contender.log"
     ! grep -q CONTENDER_GATE_PASSED "$work_dir/contender.log"
-    psql "${psql_args[@]}" -tAc "SELECT count(*) FROM co_production.versions WHERE source_upload_id = :'upload_id'::uuid" | grep -qx '0'
+    source_upload_count | grep -qx '0'
     expected_locked=1
     [[ "$CVP_RACE_CASE" == "multi-row" ]] && expected_locked=2
     locked_delivery_count | grep -qx "$expected_locked"
@@ -266,7 +304,7 @@ case "$CVP_RACE_CASE" in
     wait "$contender_pid"
     contender_pid=""
     grep -q CONTENDER_GATE_PASSED "$work_dir/contender.log"
-    psql "${psql_args[@]}" -tAc "SELECT count(*) FROM co_production.versions WHERE source_upload_id = :'upload_id'::uuid" | grep -qx '0'
+    source_upload_count | grep -qx '0'
     locked_delivery_count | grep -qx '1'
     ;;
   unsupported-isolation)

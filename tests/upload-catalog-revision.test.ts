@@ -336,3 +336,26 @@ test("revision migration relies on the canonical receipt uniqueness and nonnull 
   assert.doesNotMatch(revisionMigration, /CREATE UNIQUE INDEX versions_source_upload_id_uq/);
   assert.doesNotMatch(revisionMigration, /coalesce\(assets\.metadata/i);
 });
+
+test("publication race harness sends psql variables through stdin and proves the contender waits on its holder", () => {
+  const harness = readFileSync(
+    resolve(repositoryRoot, "scripts/verify-production-revision-delivery-publication-race.sh"),
+    "utf8",
+  );
+
+  assert.doesNotMatch(
+    harness,
+    /\bpsql\b[^\n]*\s-[A-Za-z]*c[A-Za-z]*(?:\s|$)/,
+    "psql -c bypasses psql variable substitution; variable-bearing queries must use stdin",
+  );
+  assert.match(harness, /psql "\$\{psql_args\[@\]\}" -tA <<'SQL'/);
+  assert.match(harness, /holder_app="cvp-race-\$\{run_id\}-holder"/);
+  assert.match(harness, /contender_app="cvp-race-\$\{run_id\}-contender"/);
+  assert.match(harness, /\$\{#holder_app\} > 63 \|\| \$\{#contender_app\} > 63/);
+  assert.doesNotMatch(harness, /cvp-publication-race-/);
+  assert.match(harness, /:'contender_app'/);
+  assert.match(harness, /:'holder_app'/);
+  assert.match(harness, /pg_catalog\.pg_blocking_pids\(activity\.pid\)/);
+  assert.match(harness, /WHERE source_upload_id = :'upload_id'::uuid/);
+  assert.match(harness, /string_to_array\(:'deliverable_ids', ','\)/);
+});

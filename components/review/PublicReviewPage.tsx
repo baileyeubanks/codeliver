@@ -64,13 +64,12 @@ import {
 import { openReviewReport } from "@/lib/review/open-report";
 import { resolveDemoReviewerEmail } from "@/lib/review/demo-reviewer-identity";
 import { projectPersistedDemoReviewComment } from "@/lib/review/demo-comment-projection";
+import { resolvePublicReviewIntent } from "@/lib/review/public-intent-authority";
 import {
   deriveReviewState,
 } from "@/lib/review-state";
 import {
-  deriveShareIntent,
   formatShareIntentMeta,
-  normalizeShareIntent,
   resolveShareIntentDefaults,
   type ShareIntent,
 } from "@/lib/sharing/share-intent";
@@ -445,15 +444,23 @@ export default function PublicReviewPage({
               }
             : fallbackDemoVersionAuthority;
           const publicVersionId = demoVersionAuthority.current.id;
-          const requestedIntent =
-            sourceCatalog && !requestedDemoShare ? "internal_review" :
-            requestedDemoShare?.share_intent ??
-            normalizeShareIntent(searchParams.get("intent")) ??
-            deriveShareIntent({
+          const requestedIntent = resolvePublicReviewIntent({
+            sourceCatalogPreview: Boolean(sourceCatalog),
+            tokenBoundShare: requestedDemoShare
+              ? {
+                  shareIntent: requestedDemoShare.share_intent,
+                  permissions: requestedDemoShare.permission,
+                  downloadEnabled: requestedDemoShare.allow_downloads,
+                  watermarkEnabled: requestedDemoShare.watermark_enabled ?? false,
+                }
+              : null,
+            queryIntent: searchParams.get("intent"),
+            fallback: {
               permissions: demoReviewPayload.permissions,
               downloadEnabled: demoReviewPayload.download_enabled,
               watermarkEnabled: demoReviewPayload.watermark_enabled,
-            });
+            },
+          });
           const intentDefaults = sourceCatalog && !requestedDemoShare
             ? { permissions: "comment" as const, downloadEnabled: false, watermarkEnabled: false }
             : resolveShareIntentDefaults(requestedIntent);

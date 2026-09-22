@@ -41,6 +41,7 @@ import {
   type AnnotationTool,
 } from "@/lib/review/annotation";
 import {
+  addDemoReviewComment,
   addDemoReviewCutMarker,
   recordDemoPublicReviewApproval,
   useDemoWorkspace,
@@ -852,10 +853,8 @@ export default function PublicReviewPage({
     setShareSettingsRevision((revision) => revision + 1);
   }
 
-  // P18: threaded replies. The demo workspace store has no parent_id column
-  // (same gap as P17 annotations), so demo replies ride in memory for the
-  // session — honest local preview. The remote path posts parent_id to the
-  // real comments API.
+  // Local replies commit with their parent and exact review identity before
+  // appearing saved. Remote replies use the admitted comments API.
   async function handleReplySubmit(parentId: string, body: string) {
     const replyBody = body.trim();
     if (!asset || !replyBody) return;
@@ -863,32 +862,35 @@ export default function PublicReviewPage({
       reviewerName.trim() || invite?.reviewer_name?.trim() || (sourceCatalog ? "Local reviewer" : "Client Reviewer");
 
     if (demoMode) {
-      const now = new Date().toISOString();
-      const reply: ReviewComment = {
-        id: `reply-${crypto.randomUUID()}`,
-        review_id: null,
-        review_invite_id: invite?.id ?? "invite-demo",
-        asset_id: asset.id,
-        version_id: version?.id ?? null,
-        parent_id: parentId,
-        author_name: authorName,
-        author_email: reviewerEmail,
-        author_id: null,
+      if (!canComment || !activeVersion || !invite) {
+        setReplyError("This review is not available for replies.");
+        return;
+      }
+      const persisted = addDemoReviewComment({
+        assetId: asset.id,
+        versionId: activeVersion.id,
+        reviewInviteId: invite.id,
+        parentId,
+        authorName,
+        authorEmail: reviewerEmail,
+        assetType: asset.file_type,
         body: replyBody,
-        rich_body: null,
-        timecode_seconds: null,
-        frame_number: null,
-        pin_x: null,
-        pin_y: null,
-        mentions: [],
-        status: "open",
-        visibility: "external",
-        resolved_by: null,
-        resolved_at: null,
-        created_at: now,
-        updated_at: now,
-      };
-      setComments((current) => [...current, reply]);
+        timeSeconds: 0,
+      });
+      if (!persisted) {
+        setReplyError("Could not save your reply. Check this review and browser storage, then try again.");
+        return;
+      }
+      const reply = projectPersistedDemoReviewComment(persisted, {
+        projectId: persisted.project_id,
+        assetId: asset.id,
+        versionId: activeVersion.id,
+        reviewInviteId: invite.id,
+        assetType: asset.file_type,
+      });
+      if (reply) setComments((current) =>
+        current.some((comment) => comment.id === reply.id) ? current : [...current, reply],
+      );
       setReplyError("");
       return;
     }

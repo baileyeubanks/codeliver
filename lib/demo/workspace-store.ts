@@ -183,6 +183,7 @@ export interface DemoReviewComment {
   asset_id: string;
   version_id?: string | null;
   review_invite_id?: string | null;
+  parent_id?: string | null;
   author_name: string;
   author_email?: string | null;
   body: string;
@@ -1382,6 +1383,7 @@ export function addDemoReviewComment(input: {
   assetId: string;
   versionId?: string;
   reviewInviteId?: string;
+  parentId?: string;
   authorName?: string;
   authorEmail?: string | null;
   assetType?: string;
@@ -1409,6 +1411,14 @@ export function addDemoReviewComment(input: {
   const asset = currentState.assets.find((candidate) => candidate.id === input.assetId);
   const projectId = input.projectId ?? asset?.project_id ?? "demo";
   const versionId = input.versionId ?? `demo-version-${asset?.version_count ?? 4}`;
+  if (input.parentId !== undefined) {
+    const parent = currentState.reviewComments.find((candidate) => candidate.id === input.parentId);
+    if (
+      !input.versionId || !input.reviewInviteId || !parent || parent.parent_id ||
+      parent.project_id !== projectId || parent.asset_id !== input.assetId ||
+      parent.version_id !== input.versionId || parent.review_invite_id !== input.reviewInviteId
+    ) return null;
+  }
   const profileName =
     `${currentState.settings.profile.firstName} ${currentState.settings.profile.lastName}`.trim();
   const authorName = input.authorName?.trim() || profileName || "Content Co-op";
@@ -1418,6 +1428,7 @@ export function addDemoReviewComment(input: {
     asset_id: input.assetId,
     version_id: versionId,
     review_invite_id: input.reviewInviteId ?? "invite-demo",
+    ...(input.parentId ? { parent_id: input.parentId } : {}),
     author_name: authorName,
     author_email: input.authorEmail ?? null,
     body,

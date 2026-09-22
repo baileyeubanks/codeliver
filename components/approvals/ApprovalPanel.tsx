@@ -146,7 +146,7 @@ export default function ApprovalPanel({
   return (
     <section
       aria-label="Approval"
-      className="rounded-[var(--radius)] border border-[var(--border)] bg-[var(--bg)]/72 p-4"
+      className="border-y border-[var(--border)] py-4"
       data-approval-state={assetState}
       data-testid="approval-panel"
     >
@@ -180,7 +180,7 @@ export default function ApprovalPanel({
                 key={step.id}
                 data-step-id={step.id}
                 data-chip-state={chip}
-                className={`rounded-[var(--radius-sm)] border px-3 py-2 ${
+                className={`border-b px-1 py-3 ${
                   chip === "current" ? "border-[var(--accent)]" : "border-[var(--border)]"
                 }`}
               >
@@ -227,13 +227,13 @@ export default function ApprovalPanel({
       {locked ? (
         <p
           role="status"
-          className="approval-locked-notice mt-3 flex items-center gap-2 rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-xs text-[var(--muted)]"
+          className="approval-locked-notice mt-3 flex items-center gap-2 border-l-2 border-[var(--dim)] px-3 py-1 text-xs text-[var(--muted)]"
         >
           <Lock size={12} />
           Locked — this approval is final and can no longer be changed.
         </p>
       ) : currentStep && onDecide ? (
-        <div className="approval-decision mt-4 rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--surface)] p-3">
+        <div className="approval-decision mt-4 border-l-2 border-[var(--accent)] pl-3">
           <p className="text-xs font-medium text-[var(--ink)]">
             Your decision — Step {currentStep.step_order} · {currentStep.role_label}
           </p>

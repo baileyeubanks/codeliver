@@ -15,6 +15,7 @@
 .intents button[aria-pressed="true"] { color: #0057ff; border-color: #0057ff; background: #edf3ff; }
 .intents svg { flex-shrink: 0; }
 .summary { margin: 0; font-size: 12px; line-height: 1.5; color: var(--muted); }
+.accessSummary { margin: 0; border-left: 2px solid var(--accent); padding-left: 10px; color: var(--ink); font-size: 12px; line-height: 1.5; }
 .field { position: relative; display: grid; gap: 6px; color: var(--ink); font-size: 12px; font-weight: 600; }
 .field input, .field select, .linkRow input { width: 100%; min-height: 44px; padding: 10px; border: 1px solid var(--border); border-radius: 8px; font-size: 16px; background: #fff; color: var(--ink); }
 .optional { position: absolute; right: 0; top: 0; color: var(--muted); font-size: 11px; font-weight: 400; }

@@ -482,6 +482,9 @@ function ShareModalContent({
               </button>)}
             </div>
             <p className={styles.summary}>{intentDefinition.permissionsLabel}</p>
+            <p className={styles.accessSummary} aria-live="polite">
+              {intentDefinition.label} · {selectedVersion ? `v${selectedVersion.version_number}` : versionsLoading ? "Version loading" : "No version selected"} · {reviewerEmail.trim() || "Recipient pending"}
+            </p>
             <label className={styles.field}>Version
               <select value={versionId} disabled={versionsLoading || !versions.length}
                 onChange={(event) => { setVersionId(event.target.value); invalidateLiveSendAuthority(); }}>

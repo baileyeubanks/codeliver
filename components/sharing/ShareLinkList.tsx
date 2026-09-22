@@ -222,9 +222,9 @@ export default function ShareLinkList({ assetId, refreshKey = 0 }: ShareLinkList
   }
 
   return (
-    <div className="space-y-3">
+    <div>
       {copyError ? <p role="alert">{copyError}</p> : null}
-      <h4 className="text-xs font-semibold uppercase tracking-[0.14em] text-[var(--muted)]">
+      <h4 className="pb-2 text-xs font-semibold uppercase tracking-[0.14em] text-[var(--muted)]">
         Handoffs ({orderedLinks.length})
       </h4>
 
@@ -245,7 +245,7 @@ export default function ShareLinkList({ assetId, refreshKey = 0 }: ShareLinkList
         return (
           <div
             key={link.id}
-            className={`rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface)] px-4 py-4 ${
+            className={`border-b border-[var(--border)] px-1 py-4 ${
               disabled ? "opacity-60" : ""
             }`}
           >
@@ -265,11 +265,11 @@ export default function ShareLinkList({ assetId, refreshKey = 0 }: ShareLinkList
                   >
                     {meta.label}
                   </span>
-                  <span className="rounded-full bg-[var(--surface-2)] px-3 py-1 text-[11px] text-[var(--muted)]">
+                  <span className="text-[11px] text-[var(--muted)]">
                     {capabilityLabel(link.permissions)}
                   </span>
                   {link.version ? (
-                    <span className="rounded-full bg-[var(--surface-2)] px-3 py-1 text-[11px] text-[var(--muted)]">
+                    <span className="text-[11px] text-[var(--muted)]">
                       v{link.version.version_number}
                     </span>
                   ) : (

@@ -43,3 +43,24 @@ test("refresh requests fresh URLs only for the exact comment and version", async
     assert.match(url, /version_id=version-1/);
   } finally { globalThis.fetch = originalFetch; }
 });
+
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
+
+const root = resolve(import.meta.dirname, "..");
+
+test("attachment retries retain the persisted comment and remain bounded", () => {
+  const inline = readFileSync(resolve(root, "components/review/InlineReviewComment.tsx"), "utf8");
+  const preview = readFileSync(resolve(root, "components/comments/AttachmentPreview.tsx"), "utf8");
+  assert.match(inline, /useState<\(\{ id: string \} & Partial<Comment>\) \| null>/);
+  assert.match(inline, /let comment: \(\{ id: string \} & Partial<Comment>\) \| null = persistedComment/);
+  assert.match(inline, /readOnly=\{Boolean\(persistedComment\)\}/);
+  assert.match(preview, /new Set<string>\(\)/);
+  assert.match(preview, /\.catch\(\(\) => undefined\)/);
+});
+
+test("operator normalization keeps parent and image fields from the live comment record", () => {
+  const cockpit = readFileSync(resolve(root, "components/projects/ProjectCockpit.tsx"), "utf8");
+  assert.match(cockpit, /parent_id: typeof record\.parent_id === "string" \? record\.parent_id : null/);
+  assert.match(cockpit, /record\.attachments\.filter/);
+});

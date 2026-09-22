@@ -366,15 +366,20 @@ function normalizeLiveComment(
   record: Record<string, unknown>,
   projectId: string,
   assetId: string,
-): DemoReviewComment {
+): DemoReviewComment & { attachments?: CommentAttachment[] } {
   const status = record.status === "resolved" ? "resolved" : "open";
   const pinX = typeof record.pin_x === "number" ? record.pin_x : undefined;
   const pinY = typeof record.pin_y === "number" ? record.pin_y : undefined;
+  const attachments = Array.isArray(record.attachments)
+    ? record.attachments.filter((attachment): attachment is CommentAttachment => Boolean(attachment && typeof attachment === "object" && typeof (attachment as CommentAttachment).id === "string" && typeof (attachment as CommentAttachment).file_url === "string"))
+    : undefined;
   return {
     id: recordString(record, "id", crypto.randomUUID()),
     project_id: projectId,
     asset_id: assetId,
     version_id: typeof record.version_id === "string" ? record.version_id : null,
+    parent_id: typeof record.parent_id === "string" ? record.parent_id : null,
+    ...(attachments?.length ? { attachments } : {}),
     author_name: recordString(record, "author_name", "Content Co-op"),
     author_email: typeof record.author_email === "string" ? record.author_email : null,
     body: recordString(record, "body"),

@@ -30,12 +30,12 @@ function isPdf(type: string | null | undefined): boolean {
 export default function AttachmentPreview({ attachment, onRefreshUrl }: AttachmentPreviewProps) {
   const [showFull, setShowFull] = useState(false);
   const [url, setUrl] = useState(attachment.file_url);
-  const refreshAttempted = useRef(false);
-  useEffect(() => { setUrl(attachment.file_url); refreshAttempted.current = false; }, [attachment.file_url]);
+  const refreshedAttachmentIds = useRef(new Set<string>());
+  useEffect(() => { setUrl(attachment.file_url); }, [attachment.file_url]);
   function refreshSignedUrl() {
-    if (!onRefreshUrl || refreshAttempted.current) return;
-    refreshAttempted.current = true;
-    void onRefreshUrl().then((next) => { if (next) setUrl(next); });
+    if (!onRefreshUrl || refreshedAttachmentIds.current.has(attachment.id)) return;
+    refreshedAttachmentIds.current.add(attachment.id);
+    void onRefreshUrl().then((next) => { if (next) setUrl(next); }).catch(() => undefined);
   }
 
   useEffect(() => {

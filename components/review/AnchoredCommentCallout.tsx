@@ -116,9 +116,10 @@ export default function AnchoredCommentCallout({
         {replies.length ? <ol className="review-anchored-comment-replies">{replies.map((item) => <li key={item.id}><strong>{item.author_name || "Reviewer"}</strong><span>{item.body}</span>{item.attachments?.map((attachment) => <AttachmentPreview key={attachment.id} attachment={attachment} onRefreshUrl={() => onRefreshAttachment?.(item.id, attachment.id) ?? Promise.resolve(null)} />)}</li>)}</ol> : null}
         {canReply ? (
           <div className="review-anchored-comment-reply">
-            {!attachmentEndpoint ? null : <><input ref={attachmentInput} type="file" accept={REVIEW_IMAGE_ACCEPT} hidden onChange={(event) => { const file = event.target.files?.[0] ?? null; const invalid = file ? validateReviewImage(file) : null; if (invalid) { setAttachment(null); setError(invalid); return; } setAttachment(file); attachmentKey.current = null; setError(""); }} /><button type="button" className="review-anchored-comment-image" onClick={() => attachmentInput.current?.click()} aria-label="Attach image"><ImagePlus size={13} /></button></>}
+            {!attachmentEndpoint ? null : <><input ref={attachmentInput} type="file" accept={REVIEW_IMAGE_ACCEPT} hidden onChange={(event) => { const file = event.target.files?.[0] ?? null; const invalid = file ? validateReviewImage(file) : null; if (invalid) { setAttachment(null); setError(invalid); return; } setAttachment(file); attachmentKey.current = null; setError(""); }} /><button type="button" className="review-anchored-comment-image" onClick={() => attachmentInput.current?.click()} disabled={sending || Boolean(persistedReplyId)} aria-label="Attach image"><ImagePlus size={13} /> {attachment?.name ?? ""}</button>{attachment ? <button type="button" disabled={sending} onClick={() => { if (persistedReplyId) { setAttachment(null); setPersistedReplyId(null); setReply(""); attachmentKey.current = null; } else setAttachment(null); }} aria-label="Remove attached image"><X size={13} /></button> : null}</>}
             <textarea
               value={reply}
+              readOnly={Boolean(persistedReplyId)}
               rows={2}
               onChange={(event) => setReply(event.target.value)}
               onCompositionStart={() => { composing.current = true; }}
@@ -132,11 +133,12 @@ export default function AnchoredCommentCallout({
               placeholder="Reply to this note"
               aria-label="Reply to selected comment"
             />
-            <button type="button" disabled={!reply.trim() || sending} onClick={() => void submitReply()} aria-label="Send reply">
+            <button type="button" disabled={(!reply.trim() && !persistedReplyId) || sending} onClick={() => void submitReply()} aria-label="Send reply">
               <Send size={14} />
             </button>
           </div>
         ) : null}
+        {persistedReplyId ? <p className="review-anchored-comment-error" role="status">Reply saved. Retry the image or remove it.</p> : null}
         {error ? <p className="review-anchored-comment-error" role="alert">{error}</p> : null}
       </div>
     </section>

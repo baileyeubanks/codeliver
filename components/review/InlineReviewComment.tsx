@@ -64,7 +64,7 @@ export default function InlineReviewComment({
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
   const [attachment, setAttachment] = useState<File | null>(null);
-  const [persistedCommentId, setPersistedCommentId] = useState<string | null>(null);
+  const [persistedComment, setPersistedComment] = useState<({ id: string } & Partial<Comment>) | null>(null);
   const attachmentKey = useRef<string | null>(null);
   const attachmentInput = useRef<HTMLInputElement>(null);
   const composing = useRef(false);
@@ -84,11 +84,11 @@ export default function InlineReviewComment({
 
   async function submit() {
     if (!reviewerName.trim() || submitting) return;
-    if (!persistedCommentId && !body.trim()) return;
+    if (!persistedComment && !body.trim()) return;
     setSubmitting(true);
     setError("");
     try {
-      let comment: { id: string } | null = persistedCommentId ? { id: persistedCommentId } : null;
+      let comment: ({ id: string } & Partial<Comment>) | null = persistedComment;
       if (!comment) {
         const hasDrawing = Boolean(annotations?.length);
         const size = rasterSize ?? { width: 1280, height: 720 };
@@ -101,12 +101,14 @@ export default function InlineReviewComment({
           onComplete?.();
           return;
         }
-        setPersistedCommentId(comment.id);
+        setPersistedComment(comment);
       }
       if (!attachment || !attachmentEndpoint || !versionId) throw new Error("Image attachments are unavailable for this review version.");
       attachmentKey.current ??= crypto.randomUUID();
       const saved = await uploadReviewImageAttachment({ endpoint: attachmentEndpoint, commentId: comment.id, versionId, idempotencyKey: attachmentKey.current, file: attachment });
-      onCommentCreated?.({ ...(comment as Comment), attachments: [saved] });
+      if (onCommentCreated && typeof comment.body === "string") {
+        onCommentCreated({ ...(comment as Comment), attachments: [...(comment.attachments ?? []), saved] });
+      }
       onAttachmentCreated?.(comment.id, saved);
       onComplete?.();
     } catch (submitError) {
@@ -140,7 +142,9 @@ export default function InlineReviewComment({
         </button>
       </header>
 
-      {!demoMode ? <div className="review-inline-comment-attachment"><input ref={attachmentInput} type="file" accept={REVIEW_IMAGE_ACCEPT} hidden onChange={(event) => { const file = event.target.files?.[0] ?? null; const invalid = file ? validateReviewImage(file) : null; if (invalid) { setAttachment(null); setError(invalid); return; } setAttachment(file); attachmentKey.current = null; setError(""); }} /><button type="button" onClick={() => attachmentInput.current?.click()} disabled={submitting} aria-label="Attach image"><ImagePlus size={13} /> {attachment ? attachment.name : "Attach image"}</button></div> : null}
+      {!demoMode ? <div className="review-inline-comment-attachment"><input ref={attachmentInput} type="file" accept={REVIEW_IMAGE_ACCEPT} hidden onChange={(event) => { const file = event.target.files?.[0] ?? null; const invalid = file ? validateReviewImage(file) : null; if (invalid) { setAttachment(null); setError(invalid); return; } setAttachment(file); attachmentKey.current = null; setError(""); }} /><button type="button" onClick={() => attachmentInput.current?.click()} disabled={submitting || Boolean(persistedComment)} aria-label="Attach image"><ImagePlus size={13} /> {attachment ? attachment.name : "Attach image"}</button>{attachment ? <button type="button" onClick={() => persistedComment ? onCancel() : setAttachment(null)} disabled={submitting} aria-label="Remove attached image"><X size={13} /></button> : null}</div> : null}
+
+      {persistedComment ? <p className="review-inline-comment-error" role="status">Comment saved. Retry the image or remove it to close.</p> : null}
 
       {annotations?.length ? (
         <p
@@ -177,6 +181,7 @@ export default function InlineReviewComment({
         <textarea
           ref={commentRef}
           value={body}
+          readOnly={Boolean(persistedComment)}
           onChange={(event) => setBody(event.target.value)}
           onKeyDown={(event) => {
             if (event.key === "Enter" && !event.shiftKey && !event.nativeEvent.isComposing && !composing.current) {
@@ -194,7 +199,7 @@ export default function InlineReviewComment({
         <button
           type="button"
           onClick={() => void submit()}
-          disabled={!reviewerName.trim() || !body.trim() || submitting}
+          disabled={!reviewerName.trim() || (!body.trim() && !persistedComment) || submitting}
           title="Send comment"
           aria-label="Send comment"
         >

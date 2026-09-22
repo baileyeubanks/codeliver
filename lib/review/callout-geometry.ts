@@ -25,12 +25,18 @@ export function clampCalloutDrag(
   current: CalloutPoint,
   desired: CalloutPoint,
   card: CalloutRect,
-  viewport: { width: number; height: number },
+  viewport: { width: number; height: number; left?: number; top?: number },
   inset = 8,
 ): CalloutPoint {
   const deltaX = desired.x - current.x;
   const deltaY = desired.y - current.y;
-  const constrainedX = Math.min(viewport.width - inset - card.right, Math.max(inset - card.left, deltaX));
-  const constrainedY = Math.min(viewport.height - inset - card.bottom, Math.max(inset - card.top, deltaY));
+  const left = (viewport.left ?? 0) + inset;
+  const top = (viewport.top ?? 0) + inset;
+  const constrainedX = card.right - card.left > viewport.width - 2 * inset
+    ? left - card.left
+    : Math.min(left + viewport.width - 2 * inset - card.right, Math.max(left - card.left, deltaX));
+  const constrainedY = card.bottom - card.top > viewport.height - 2 * inset
+    ? top - card.top
+    : Math.min(top + viewport.height - 2 * inset - card.bottom, Math.max(top - card.top, deltaY));
   return { x: current.x + constrainedX, y: current.y + constrainedY };
 }

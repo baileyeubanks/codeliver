@@ -3,6 +3,16 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, type PointerEvent as ReactPointerEvent, type RefObject } from "react";
 import { clampCalloutDrag } from "@/lib/review/callout-geometry";
 
+function visibleViewport() {
+  const viewport = window.visualViewport;
+  return {
+    width: viewport?.width ?? window.innerWidth,
+    height: viewport?.height ?? window.innerHeight,
+    left: viewport?.offsetLeft ?? 0,
+    top: viewport?.offsetTop ?? 0,
+  };
+}
+
 export function useCalloutDrag(cardRef: RefObject<HTMLElement | null>) {
   const [offset, setOffset] = useState({ x: 0, y: 0 });
   const offsetRef = useRef(offset);
@@ -11,22 +21,45 @@ export function useCalloutDrag(cardRef: RefObject<HTMLElement | null>) {
   useEffect(() => { offsetRef.current = offset; }, [offset]);
 
   useLayoutEffect(() => {
-    const frame = window.requestAnimationFrame(() => {
-      const card = cardRef.current?.getBoundingClientRect();
-      if (!card) return;
+    let frame = 0;
+    const constrain = () => {
+      const element = cardRef.current;
+      if (!element) return;
+      const viewport = visibleViewport();
+      element.style.setProperty("--callout-viewport-height", `${viewport.height}px`);
+      const card = element.getBoundingClientRect();
       const current = offsetRef.current;
       const constrained = clampCalloutDrag(
         current,
         current,
         card,
-        { width: window.innerWidth, height: window.innerHeight },
+        viewport,
       );
-      if (constrained.x !== current.x || constrained.y !== current.y) {
+      if (Math.abs(constrained.x - current.x) > 0.5 || Math.abs(constrained.y - current.y) > 0.5) {
         offsetRef.current = constrained;
         setOffset(constrained);
       }
-    });
-    return () => window.cancelAnimationFrame(frame);
+    };
+    const schedule = () => {
+      window.cancelAnimationFrame(frame);
+      frame = window.requestAnimationFrame(constrain);
+    };
+    schedule();
+    const observer = typeof ResizeObserver === "undefined" ? null : new ResizeObserver(schedule);
+    if (cardRef.current) {
+      observer?.observe(cardRef.current);
+      if (cardRef.current.parentElement?.parentElement) observer?.observe(cardRef.current.parentElement.parentElement);
+    }
+    window.addEventListener("resize", schedule);
+    window.visualViewport?.addEventListener("resize", schedule);
+    window.visualViewport?.addEventListener("scroll", schedule);
+    return () => {
+      observer?.disconnect();
+      window.cancelAnimationFrame(frame);
+      window.removeEventListener("resize", schedule);
+      window.visualViewport?.removeEventListener("resize", schedule);
+      window.visualViewport?.removeEventListener("scroll", schedule);
+    };
   }, [cardRef]);
 
   const stopDragging = useCallback(() => {
@@ -48,7 +81,7 @@ export function useCalloutDrag(cardRef: RefObject<HTMLElement | null>) {
     const current = offsetRef.current;
     const card = cardRef.current?.getBoundingClientRect();
     const next = card
-      ? clampCalloutDrag(current, desired, card, { width: window.innerWidth, height: window.innerHeight })
+      ? clampCalloutDrag(current, desired, card, visibleViewport())
       : desired;
     offsetRef.current = next;
     setOffset(next);

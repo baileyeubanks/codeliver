@@ -16,10 +16,8 @@ export interface CoProductionBrandProps {
 
 const DEFAULT_LABEL = "Co‑VideoPro by Content Co-op";
 
-/** Bailey's blue horizontal artwork, registered in commit 4910acf.
- * One image per surface; compact layouts crop the mark from the same clean asset.
- * See docs/COPROVIDEO_DESIGN_BIBLE.md for the current light product contract.
- */
+/** The supplied sapphire CVP mark. Layout crops only its transparent/white
+ * whitespace; it never redraws or recolors the approved artwork. */
 export function CoProductionBrand({
   variant = "horizontal",
   className,
@@ -34,10 +32,10 @@ export function CoProductionBrand({
     <span className={rootClassName} data-brand-variant={variant} role="img" aria-label={label}>
       <Image
         className={styles.mark}
-        src="/brand/cvp-long.png"
+        src="/brand/cvp-sapphire-mark.png"
         alt=""
-        width={730}
-        height={187}
+        width={1024}
+        height={1024}
         priority={priority}
         unoptimized
         draggable={false}

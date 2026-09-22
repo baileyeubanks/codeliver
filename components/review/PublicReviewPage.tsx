@@ -24,6 +24,8 @@ import InlineReviewComment from "@/components/review/InlineReviewComment";
 import AnnotationCanvas from "@/components/review/annotation/AnnotationCanvas";
 import AnnotationThumbnail from "@/components/review/annotation/AnnotationThumbnail";
 import AnnotationToolbar from "@/components/review/annotation/AnnotationToolbar";
+import AnchoredCommentCallout from "@/components/review/AnchoredCommentCallout";
+import { adjacentTimedComment, orderedTimedComments } from "@/lib/review/comment-navigation";
 import VersionCompare from "@/components/review/VersionCompare";
 import VersionSwitcher from "@/components/review/VersionSwitcher";
 import ShareLinkAccessGate from "@/components/sharing/ShareLinkAccessGate";
@@ -935,6 +937,13 @@ export default function PublicReviewPage({
     }
   }
 
+  const orderedTimedRootComments = orderedTimedComments(rootComments);
+
+  function selectAdjacentComment(direction: -1 | 1) {
+    const next = adjacentTimedComment(orderedTimedRootComments, selectedCommentId, direction);
+    if (next) handleCommentSelect(next as ReviewComment);
+  }
+
   // P19b: switching versions swaps the media, scopes the player back to a
   // clean state, and mirrors the pick into ?v= so the URL stays shareable.
   function handleVersionSelect(next: Version) {
@@ -971,16 +980,16 @@ export default function PublicReviewPage({
 
   // Local replies commit with their parent and exact review identity before
   // appearing saved. Remote replies use the admitted comments API.
-  async function handleReplySubmit(parentId: string, body: string) {
+  async function handleReplySubmit(parentId: string, body: string): Promise<boolean> {
     const replyBody = body.trim();
-    if (!asset || !replyBody) return;
+    if (!asset || !replyBody) return false;
     const authorName =
       reviewerName.trim() || invite?.reviewer_name?.trim() || (sourceCatalog ? "Local reviewer" : "Client Reviewer");
 
     if (demoMode) {
       if (!canComment || !localReviewBinding) {
         setReplyError("This review is not available for replies.");
-        return;
+        return false;
       }
       const persisted = addDemoReviewComment({
         projectId: localReviewBinding.projectId,
@@ -996,7 +1005,7 @@ export default function PublicReviewPage({
       });
       if (!persisted) {
         setReplyError("Could not save your reply. Check this review and browser storage, then try again.");
-        return;
+        return false;
       }
       const reply = projectPersistedDemoReviewComment(persisted, {
         ...localReviewBinding,
@@ -1005,7 +1014,7 @@ export default function PublicReviewPage({
         current.some((comment) => comment.id === reply.id) ? current : [...current, reply],
       );
       setReplyError("");
-      return;
+      return Boolean(reply);
     }
 
     try {
@@ -1029,18 +1038,19 @@ export default function PublicReviewPage({
         throw new Error(payload?.error || "Could not post your reply.");
       }
       const reply = (payload?.comment ?? payload) as ReviewComment | null;
-      if (reply?.id) {
-        setComments((current) =>
-          current.some((comment) => comment.id === reply.id) ? current : [...current, reply],
-        );
-      }
+      if (!reply?.id) throw new Error("Reply saved, but the response was invalid.");
+      setComments((current) =>
+        current.some((comment) => comment.id === reply.id) ? current : [...current, reply],
+      );
       setReplyError("");
+      return true;
     } catch (replySubmitError) {
       setReplyError(
         replySubmitError instanceof Error
           ? replySubmitError.message
           : "Could not post your reply.",
       );
+      return false;
     }
   }
 
@@ -1399,13 +1409,11 @@ export default function PublicReviewPage({
   const drawableSurface = canComment && (asset?.file_type === "video" || asset?.file_type === "image");
 
   function renderPins() {
-    const pins = rootComments.filter((comment) => {
-      if (comment.pin_x == null || comment.pin_y == null) return false;
-      if (asset?.file_type === "image") return true;
-      if (comment.id === selectedCommentId) return true;
-      if (comment.timecode_seconds == null) return true;
-      return Math.abs(currentTime - comment.timecode_seconds) <= 2;
-    });
+    // Pins are intentionally not replayed by passing time. A timeline or rail
+    // selection is the explicit act that reveals one exact historical point.
+    const pins = rootComments.filter((comment) =>
+      comment.id === selectedCommentId && comment.pin_x != null && comment.pin_y != null,
+    );
 
     return (
       <div className="relative h-full w-full">
@@ -1428,32 +1436,25 @@ export default function PublicReviewPage({
           </div>
         ) : null}
 
-        {pins.map((comment) => {
+          {pins.map((comment) => {
           const number = threadNumberById.get(comment.id) ?? 0;
-          const selected = comment.id === selectedCommentId;
-          const resolved = comment.status === "resolved";
-
-          return (
-            <button
-              key={comment.id}
-              type="button"
-              onClick={(event) => {
-                event.stopPropagation();
-                handleCommentSelect(comment);
-              }}
-              className={`pointer-events-auto absolute -translate-x-1/2 -translate-y-full rounded-full border-2 px-2 py-1 text-[11px] font-bold shadow-lg transition-transform hover:scale-105 ${
-                selected
-                  ? "border-white bg-[var(--accent)] text-white"
-                  : resolved
-                    ? "border-white/70 bg-[var(--green)] text-white"
-                    : "border-white/80 bg-[var(--orange)] text-white"
-              }`}
-              style={{ left: `${comment.pin_x}%`, top: `${comment.pin_y}%` }}
-              aria-label={`Jump to comment ${number}`}
-            >
-              {number}
-            </button>
-          );
+            return (
+              <AnchoredCommentCallout
+                key={comment.id}
+                comment={comment}
+                threadNumber={number}
+                replyCount={comments.filter((candidate) => candidate.parent_id === comment.id).length}
+                canReply={canComment}
+                onClose={() => setSelectedCommentId(null)}
+                onPrevious={() => selectAdjacentComment(-1)}
+                onNext={() => selectAdjacentComment(1)}
+                onReply={async (body) => {
+                  if (!(await handleReplySubmit(comment.id, body))) {
+                    throw new Error("Could not save your reply.");
+                  }
+                }}
+              />
+            );
         })}
 
         {commentPin ? (

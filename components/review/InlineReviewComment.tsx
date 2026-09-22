@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
-import { AlertCircle, LoaderCircle, PenLine, Send, X } from "lucide-react";
+import { useEffect, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent } from "react";
+import { AlertCircle, GripVertical, LoaderCircle, PenLine, Send, X } from "lucide-react";
 import { submitReviewComment } from "@/lib/review/submit-review-comment";
 import { formatTimeLong } from "@/lib/stores/playerStore";
 import type { AnnotationData, Comment } from "@/lib/types/codeliver";
@@ -49,6 +49,9 @@ export default function InlineReviewComment({
   const [body, setBody] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
+  const [offset, setOffset] = useState({ x: 0, y: 0 });
+  const composing = useRef(false);
+  const drag = useRef<{ x: number; y: number; originX: number; originY: number } | null>(null);
   const horizontalSide = pin.x > 56 ? "left" : "right";
   const verticalSide = pin.y > 56 ? "above" : "below";
 
@@ -59,6 +62,26 @@ export default function InlineReviewComment({
       reviewerNameRef.current?.focus();
     }
   }, []);
+
+  function stopDragging() {
+    drag.current = null;
+    window.removeEventListener("pointermove", move);
+    window.removeEventListener("pointerup", stopDragging);
+  }
+
+  function move(event: PointerEvent) {
+    const active = drag.current;
+    if (!active) return;
+    setOffset({ x: active.originX + event.clientX - active.x, y: active.originY + event.clientY - active.y });
+  }
+
+  function beginDragging(event: ReactPointerEvent<HTMLButtonElement>) {
+    event.preventDefault();
+    event.stopPropagation();
+    drag.current = { x: event.clientX, y: event.clientY, originX: offset.x, originY: offset.y };
+    window.addEventListener("pointermove", move);
+    window.addEventListener("pointerup", stopDragging, { once: true });
+  }
 
   async function submit() {
     if (!reviewerName.trim() || !body.trim() || submitting) return;
@@ -98,7 +121,7 @@ export default function InlineReviewComment({
       className="review-inline-comment"
       data-horizontal={horizontalSide}
       data-vertical={verticalSide}
-      style={{ left: `${pin.x}%`, top: `${pin.y}%` }}
+      style={{ left: `${pin.x}%`, top: `${pin.y}%`, "--callout-drag-x": `${offset.x}px`, "--callout-drag-y": `${offset.y}px` } as CSSProperties}
       role="dialog"
       aria-label={`Add a comment at ${formatTimeLong(timecode)}`}
       aria-busy={submitting}
@@ -106,6 +129,7 @@ export default function InlineReviewComment({
       onMouseDown={(event) => event.stopPropagation()}
     >
       <header>
+        <button type="button" className="review-inline-comment-drag" onPointerDown={beginDragging} aria-label="Move comment card"><GripVertical size={14} /></button>
         <div>
           <strong>{reviewerName.trim() || "Reviewer"}</strong>
           <span>{formatTimeLong(timecode)}</span>
@@ -152,12 +176,14 @@ export default function InlineReviewComment({
           value={body}
           onChange={(event) => setBody(event.target.value)}
           onKeyDown={(event) => {
-            if (event.key === "Enter" && !event.shiftKey) {
+            if (event.key === "Enter" && !event.shiftKey && !event.nativeEvent.isComposing && !composing.current) {
               event.preventDefault();
               void submit();
             }
             if (event.key === "Escape") onCancel();
           }}
+          onCompositionStart={() => { composing.current = true; }}
+          onCompositionEnd={() => { composing.current = false; }}
           placeholder="Add a precise note..."
           aria-label="Comment"
         />

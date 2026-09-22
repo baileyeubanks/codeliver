@@ -1,5 +1,6 @@
-.brand { display:inline-flex; align-items:center; flex:0 0 auto; width:var(--co-production-brand-width,180px); max-width:100%; overflow:hidden; contain:layout paint; }
-.mark { display:block; width:100%; max-width:100%; height:auto; object-fit:contain; pointer-events:none; user-select:none; flex:none; }
-.compactMark { width:44px; height:34px; }
-.compactMark .mark { width:110px; max-width:none; }
-.stacked { width:var(--co-production-brand-width,220px); }
+.brand { display:inline-flex; align-items:center; justify-content:center; flex:0 0 auto; width:var(--co-production-brand-width,126px); height:48px; max-width:100%; overflow:hidden; contain:layout paint; }
+.mark { display:block; width:100%; max-width:none; height:auto; transform:scale(1.62); pointer-events:none; user-select:none; flex:none; }
+.compactMark { width:42px; height:34px; }
+.compactMark .mark { width:78px; max-width:none; transform:scale(1.72); }
+.stacked { width:var(--co-production-brand-width,150px); height:84px; }
+.stacked .mark { transform:scale(1.42); }

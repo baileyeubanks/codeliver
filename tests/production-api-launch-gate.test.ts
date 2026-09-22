@@ -271,6 +271,35 @@ test("production API launch gate fails closed before public, auth, and demo bypa
       assert.equal(runtimeState.__ccoLaunchGateGetUserCalls, 1);
     });
 
+    await t.test("Copilot reaches only the exact admin API surface", async () => {
+      runtimeState.__ccoLaunchGateGetUserCalls = 0;
+      runtimeState.__ccoLaunchGateUser = {
+        app_metadata: { content_coop_role: "staff" },
+      };
+
+      const adminCopilot = await proxy(
+        request(ADMIN_HOST, "/api/ai/copilot", { method: "POST" }),
+      );
+      assert.equal(adminCopilot.status, 200);
+      assert.equal(adminCopilot.headers.get("x-middleware-next"), "1");
+      assert.equal(runtimeState.__ccoLaunchGateGetUserCalls, 1);
+
+      runtimeState.__ccoLaunchGateUser = {
+        app_metadata: { content_coop_role: "client" },
+      };
+      await assertSurfaceGated(
+        await proxy(request(CLIENT_HOST, "/api/ai/copilot", { method: "POST" })),
+        "client Copilot API",
+      );
+      assert.equal(runtimeState.__ccoLaunchGateGetUserCalls, 1);
+
+      await assertLaunchGated(
+        await proxy(request(ADMIN_HOST, "/api/ai/copilot/extra", { method: "POST" })),
+        "non-canonical Copilot alias",
+      );
+      assert.equal(runtimeState.__ccoLaunchGateGetUserCalls, 1);
+    });
+
     await t.test("managed version reads require staff authentication and exact route", async () => {
       runtimeState.__ccoLaunchGateUser = { app_metadata: { content_coop_role: "staff" } };
       for (const method of ["GET", "HEAD"]) {

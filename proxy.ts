@@ -64,6 +64,7 @@ const CLIENT_API_ROUTE_PATTERNS = [
 const ADMIN_API_ROUTE_PATTERNS = [
   ...CLIENT_API_ROUTE_PATTERNS,
   /^\/api\/activity$/,
+  /^\/api\/ai\/copilot$/,
   /^\/api\/ai\/summarize$/,
   /^\/api\/analytics\/(?:project|export(?:\/pdf)?)$/,
   /^\/api\/approvals\/(?:notify|workflow)$/,

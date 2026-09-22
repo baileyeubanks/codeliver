@@ -140,6 +140,8 @@ export interface Version {
   thumbnail_url: string | null;
   duration_seconds: number | null;
   resolution: string | null;
+  /** Measured fps from the exact published media pipeline version. */
+  frame_rate?: number | null;
   is_current: boolean;
   notes: string | null;
   uploaded_by: string | null;

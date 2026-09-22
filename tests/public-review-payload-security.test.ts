@@ -103,6 +103,7 @@ const supabaseStub = dataModule(`
           pipelineVersion: "co-deliver-media-pipeline/v1",
           status: "published",
           versionId: "44444444-4444-4444-8444-444444444444",
+          probe: { frameRate: 24000 / 1001 },
           artifacts: {
             hls: {
               playlist: {
@@ -351,6 +352,7 @@ test("anonymous review payload exposes only the external-safe asset projection",
     file_url:
       "/api/review/media/11111111-1111-4111-8111-111111111111/hls/playlist.m3u8",
     status: "in_review",
+    frame_rate: 24000 / 1001,
     projects: { id: "project-a", name: "Launch" },
   });
   assert.deepEqual(payload.version, {

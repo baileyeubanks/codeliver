@@ -1,5 +1,8 @@
 import { getExternalApprovalState } from "@/lib/review-invites";
-import { selectPublishedHlsPublication } from "@/lib/media-pipeline/hls-delivery";
+import {
+  selectPublishedHlsPublication,
+  selectPublishedProbeFrameRate,
+} from "@/lib/media-pipeline/hls-delivery";
 import { authorizeAdmittedReviewInvite } from "@/lib/review/admission-authority";
 import {
   EXTERNAL_COMMENT_COLUMNS,
@@ -69,6 +72,15 @@ async function getReview(_req: Request, { params }: { params: Promise<{ token: s
   const hlsPublication =
     hlsAssetResult.data?.id === authority.claims.assetId
       ? selectPublishedHlsPublication({
+          assetId: authority.claims.assetId,
+          assetMetadata: hlsAssetResult.data.metadata,
+          versionId: authority.claims.versionId,
+          versionAssetId: authority.claims.assetId,
+        })
+      : null;
+  const frameRate =
+    hlsAssetResult.data?.id === authority.claims.assetId
+      ? selectPublishedProbeFrameRate({
           assetId: authority.claims.assetId,
           assetMetadata: hlsAssetResult.data.metadata,
           versionId: authority.claims.versionId,
@@ -247,6 +259,7 @@ async function getReview(_req: Request, { params }: { params: Promise<{ token: s
           file_type: invite.assets.file_type,
           file_url: mediaUrl,
           status: invite.assets.status,
+          frame_rate: frameRate,
           projects: invite.assets.projects,
         }
       : null,

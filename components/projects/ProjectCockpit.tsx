@@ -125,6 +125,8 @@ import {
   visibleExactInternalReviewRecords,
 } from "@/lib/review/internal-version-operations";
 import { formatSmpteTimecode } from "@/components/player/timecode";
+import { resolveReviewFrameRate } from "@/lib/review/frame-review";
+import { usePlayerStore } from "@/lib/stores/playerStore";
 import VideoPlayer from "@/components/player/VideoPlayer";
 import InlineReviewComment from "@/components/review/InlineReviewComment";
 import AnchoredCommentCallout from "@/components/review/AnchoredCommentCallout";
@@ -424,6 +426,9 @@ function normalizeLiveReviewVersion(record: Record<string, unknown>): LiveReview
     thumbnail_url: typeof record.thumbnail_url === "string" ? record.thumbnail_url : null,
     duration_seconds: typeof record.duration_seconds === "number" ? record.duration_seconds : null,
     resolution: typeof record.resolution === "string" ? record.resolution : null,
+    frame_rate: typeof record.frame_rate === "number" && Number.isFinite(record.frame_rate)
+      ? record.frame_rate
+      : null,
     is_current: record.is_current === true,
     notes: typeof record.notes === "string" ? record.notes : null,
     uploaded_by: typeof record.uploaded_by === "string" ? record.uploaded_by : null,
@@ -514,6 +519,7 @@ export default function ProjectCockpit({
   const router = useRouter();
   const searchParams = useSearchParams();
   const workspace = useDemoWorkspace();
+  const setPlayerFrameRate = usePlayerStore((state) => state.setFrameRate);
   const online = useOnlineStatus();
   const compactViewport = useMediaQuery("(max-width: 900px)");
   const narrowViewport = useMediaQuery("(max-width: 1180px)");
@@ -799,6 +805,13 @@ export default function ProjectCockpit({
           : activeAsset?.thumbnail_url ?? (sourceCatalog ? null : "/demo/ceraweek-speaker.jpg")
     : activeLiveVersion?.thumbnail_url ?? activeAsset?.thumbnail_url ?? null;
   const hlsMediaActive = activeMediaUrl?.split(/[?#]/, 1)[0].toLowerCase().endsWith(".m3u8") ?? false;
+  const activeFrameRate = demoMode
+    ? sourceCatalog?.assets.find((source) => source.id === activeAsset?.id)?.frame_rate
+    : activeLiveVersion?.frame_rate;
+  const formatActiveTimecode = (seconds: number) => formatClock(seconds, activeFrameRate ?? undefined);
+  useEffect(() => {
+    setPlayerFrameRate(resolveReviewFrameRate(activeFrameRate));
+  }, [activeFrameRate, setPlayerFrameRate]);
   useEffect(() => {
     if (!hlsMediaActive) return;
     const video = videoRef.current;
@@ -1812,7 +1825,7 @@ export default function ProjectCockpit({
         timeSeconds: currentTime,
       });
       setToast(saved
-        ? `Cut decision marked at ${formatClock(currentTime)}`
+        ? `Cut decision marked at ${formatActiveTimecode(currentTime)}`
         : "This cut marker could not be bound to the current media version.");
       return;
     }
@@ -1828,7 +1841,7 @@ export default function ProjectCockpit({
         source: "keyboard",
         start_seconds: currentTime,
         end_seconds: null,
-        label: `Cut at ${formatClock(currentTime)}`,
+        label: `Cut at ${formatActiveTimecode(currentTime)}`,
         confidence: null,
         client_request_id: crypto.randomUUID(),
         status: "proposed",
@@ -1851,7 +1864,7 @@ export default function ProjectCockpit({
         created_at: decision.created_at,
       },
     ]);
-    setToast(`Cut proposal saved at ${formatClock(currentTime)}`);
+    setToast(`Cut proposal saved at ${formatActiveTimecode(currentTime)}`);
   }
 
   function handleReviewShortcutEvent(
@@ -2641,7 +2654,7 @@ export default function ProjectCockpit({
                           }}
                         />
                       )}
-                      <time>{formatClock(currentTime)}</time>
+                      <time>{formatActiveTimecode(currentTime)}</time>
                       {playbackError ? (
                         <p role="alert">
                           {playbackError} <button type="button" onClick={retryPlaybackSource}>Retry playback</button>
@@ -2742,13 +2755,13 @@ export default function ProjectCockpit({
                         <button type="button" onClick={() => selectAdjacentReviewComment(1)} disabled={orderedRootReviewComments.length === 0} aria-label="Next comment" title="Next comment">
                           <ChevronRight size={18} />
                         </button>
-                        <span data-transport-time>{formatClock(currentTime)} / {formatClock(previewDuration)}</span>
+                        <span data-transport-time>{formatActiveTimecode(currentTime)} / {formatActiveTimecode(previewDuration)}</span>
                         <div className={styles.playerSeekTrack}>
                           <input
                             type="range"
                             min={0}
                             max={previewDuration}
-                            step={0.01}
+                            step={1 / resolveReviewFrameRate(activeFrameRate)}
                             value={Math.min(currentTime, previewDuration)}
                             onChange={(event) => seekTo(Number(event.target.value))}
                             className={styles.playerSeek}
@@ -2760,7 +2773,7 @@ export default function ProjectCockpit({
                               type="button"
                               className={`${styles.playerCommentMarker} ${selectedCommentId === comment.id ? styles.playerCommentMarkerSelected : ""}`}
                               style={{ left: `${(comment.time_seconds / previewDuration) * 100}%` }}
-                              aria-label={`Open comment at ${formatClock(comment.time_seconds)}`}
+                              aria-label={`Open comment at ${formatActiveTimecode(comment.time_seconds)}`}
                               aria-pressed={selectedCommentId === comment.id}
                               onClick={(event) => {
                                 event.stopPropagation();
@@ -2847,7 +2860,7 @@ export default function ProjectCockpit({
                         />
                       </div>
                       <button className="cockpit-timecode" type="button" onClick={() => seekTo(currentTime)}>
-                        {formatClock(currentTime)}
+                        {formatActiveTimecode(currentTime)}
                       </button>
                       <button className="cockpit-add-comment" type="button" onClick={() => void submitComment()} disabled={!commentBody.trim() || commentSubmitting}>
                         {commentSubmitting ? "Saving" : "Add comment"}

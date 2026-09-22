@@ -106,7 +106,7 @@ test("the primary review playbar exposes exact-time comment markers without auto
 
   assert.match(controls, /className=\{styles\.playerSeekTrack\}/);
   assert.match(controls, /primaryPlaybarComments\.map\(\(comment\) => \(/);
-  assert.match(controls, /type="button"[\s\S]*?aria-label=\{`Open comment at \$\{formatClock\(comment\.time_seconds\)\}`\}/);
+  assert.match(controls, /type="button"[\s\S]*?aria-label=\{`Open comment at \$\{formatActiveTimecode\(comment\.time_seconds\)\}`\}/);
   assert.match(controls, /onClick=\{\(event\) => \{\s*event\.stopPropagation\(\);\s*selectReviewComment\(comment\);\s*\}\}/);
   assert.match(cockpitStyles, /\.playerCommentMarker\s*\{[^}]*min-width:\s*28px;[^}]*min-height:\s*28px;/);
   assert.match(cockpitStyles, /\.playerCommentMarkerDot\s*\{/);

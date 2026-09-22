@@ -1344,6 +1344,7 @@ export default function PublicReviewPage({
         referrerPolicy: "no-referrer",
         body: JSON.stringify({
           id: approvalId,
+          version_id: version?.id,
           status: decision,
           decision_note: note,
           reviewer_name: actorName,

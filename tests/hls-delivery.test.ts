@@ -6,6 +6,7 @@ import test from "node:test";
 import {
   readAndRewritePublishedHlsPlaylist,
   selectPublishedHlsPublication,
+  selectPublishedProbeFrameRate,
 } from "../lib/media-pipeline/hls-delivery.ts";
 
 const assetId = "11111111-1111-4111-8111-111111111111";
@@ -69,6 +70,7 @@ function metadata(playlist = validPlaylist) {
           pipelineVersion: "co-deliver-media-pipeline/v1",
           status: "published",
           versionId,
+          probe: { frameRate: 24000 / 1001 },
           artifacts: {
             hls: {
               playlist: artifact(
@@ -113,6 +115,27 @@ function select(value: unknown = metadata()) {
     versionAssetId: assetId,
   });
 }
+
+test("published probe frame rate is exact-version scoped and requires a valid publication", () => {
+  assert.equal(
+    selectPublishedProbeFrameRate({
+      assetId,
+      assetMetadata: metadata(),
+      versionId,
+      versionAssetId: assetId,
+    }),
+    24000 / 1001,
+  );
+  assert.equal(
+    selectPublishedProbeFrameRate({
+      assetId,
+      assetMetadata: metadata(),
+      versionId: "33333333-3333-4333-8333-333333333333",
+      versionAssetId: assetId,
+    }),
+    null,
+  );
+});
 
 function playlistReader(playlist: string, overrides: { size?: number; sha256?: string } = {}) {
   const calls: Array<{

@@ -6134,6 +6134,13 @@ body {
   outline-offset: 2px;
 }
 
+/* Project video controls occupy the lower edge on desktop. */
+@media (min-width: 901px) {
+  body:has(.cockpit-shell) .cvp-copilot-pill {
+    bottom: 96px;
+  }
+}
+
 @media (max-width: 480px) {
   .cvp-copilot { max-width: calc(100vw - 32px); }
 }

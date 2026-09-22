@@ -13,12 +13,14 @@ import { useDemoWorkspace } from "@/lib/demo/workspace-store";
 import { copilotHistory, requestCopilotReply, type CopilotAnswer } from "./copilot-client";
 import {
   COPILOT_MENU_ACTIONS,
+  COPILOT_MOBILE_NAV_INSET,
   COPILOT_PANEL_MARGIN,
   COPILOT_SIZES,
   COPILOT_SUGGESTIONS,
   buildCopilotReply,
   clampPanelPosition,
   defaultPanelPosition,
+  insetCopilotViewport,
   type CopilotContext,
   type CopilotPoint,
   type CopilotSizeKind,
@@ -41,7 +43,10 @@ const MENU_ESTIMATE = { width: 240, height: 176 };
 let nextMessageId = 1;
 
 function currentViewport() {
-  return { width: window.innerWidth, height: window.innerHeight };
+  const viewport = { width: window.innerWidth, height: window.innerHeight };
+  return window.matchMedia("(max-width: 900px)").matches
+    ? insetCopilotViewport(viewport, COPILOT_MOBILE_NAV_INSET)
+    : viewport;
 }
 
 /** Focusable elements inside the panel (+ open menu) for the focus trap. */
@@ -129,9 +134,9 @@ export default function CopilotPanel({ demoMode, projectId }: { demoMode: boolea
       } catch (failure) {
         if (requestRef.current !== controller) return;
         setDraft(trimmed);
-        setError(controller.signal.aborted ? "Copilot took too long. Your question is saved; try again."
+        setError(controller.signal.aborted ? "Copilot took too long. Your question remains in the composer; try again."
           : failure instanceof Error && failure.name !== "TypeError" ? failure.message
-          : "Could not reach Copilot. Your question is saved; try again.");
+          : "Could not reach Copilot. Your question remains in the composer; try again.");
       } finally {
         window.clearTimeout(timeout);
         if (requestRef.current === controller) {

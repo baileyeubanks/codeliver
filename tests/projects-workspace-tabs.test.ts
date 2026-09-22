@@ -248,6 +248,10 @@ function tabsProps(): Record<string, unknown> {
 
 const tabsPath = resolve(repositoryRoot, "components/projects/ProjectWorkspaceTabs.tsx");
 const tabsSource = readFileSync(tabsPath, "utf8");
+const tabsStyles = readFileSync(
+  resolve(repositoryRoot, "components/projects/ProjectWorkspaceTabs.module.css"),
+  "utf8",
+);
 
 test("tab bar exposes tablist semantics with all eight tabs plus the whiteboard link", () => {
   fixtureWorkspace = baseWorkspace();
@@ -262,6 +266,24 @@ test("tab bar exposes tablist semantics with all eight tabs plus the whiteboard 
   assert.match(markup, /role="tabpanel"[^>]*id="project-tabpanel-overview"[^>]*aria-labelledby="project-tab-overview"/);
   assert.ok(markup.includes('href="/projects/ica/whiteboard?demo=1"'), "whiteboard links to the existing route");
   assert.ok(markup.includes("cockpit-stub"), "overview renders the existing cockpit");
+});
+
+test("whiteboard stays directly beside Overview instead of overflowing past every tab", () => {
+  fixtureWorkspace = baseWorkspace();
+  currentSearch = "";
+  const markup = render(tabsPath, tabsProps());
+  const overviewIndex = markup.indexOf('id="project-tab-overview"');
+  const whiteboardIndex = markup.indexOf('href="/projects/ica/whiteboard?demo=1"');
+  const briefIndex = markup.indexOf('id="project-tab-brief"');
+
+  assert.ok(overviewIndex >= 0, "Overview tab is missing");
+  assert.ok(whiteboardIndex > overviewIndex, "Whiteboard should follow Overview");
+  assert.ok(briefIndex > whiteboardIndex, "Brief should follow Whiteboard");
+  assert.doesNotMatch(
+    tabsStyles,
+    /\.tabLink\s*\{[^}]*margin-left:\s*auto;/,
+    "auto margin pushes Whiteboard out of the initial phone viewport",
+  );
 });
 
 test("tab selection follows the ?tab= search param", () => {

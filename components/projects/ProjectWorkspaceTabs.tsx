@@ -93,6 +93,27 @@ export default function ProjectWorkspaceTabs(props: ProjectWorkspaceTabsProps) {
     tabRefs.current[nextIndex]?.focus();
   }
 
+  function renderWorkspaceTab(tab: (typeof WORKSPACE_TABS)[number], index: number) {
+    return (
+      <button
+        key={tab.id}
+        ref={(element) => {
+          tabRefs.current[index] = element;
+        }}
+        type="button"
+        role="tab"
+        id={`project-tab-${tab.id}`}
+        aria-selected={activeTab === tab.id}
+        aria-controls={`project-tabpanel-${tab.id}`}
+        tabIndex={activeTab === tab.id ? 0 : -1}
+        className={activeTab === tab.id ? styles.tabActive : styles.tab}
+        onClick={() => selectTab(tab.id)}
+      >
+        {tab.label}
+      </button>
+    );
+  }
+
   return (
     <div>
       <div
@@ -101,24 +122,7 @@ export default function ProjectWorkspaceTabs(props: ProjectWorkspaceTabsProps) {
         aria-label={`${project.name} project workspace`}
         onKeyDown={onTabListKeyDown}
       >
-        {WORKSPACE_TABS.map((tab, index) => (
-          <button
-            key={tab.id}
-            ref={(element) => {
-              tabRefs.current[index] = element;
-            }}
-            type="button"
-            role="tab"
-            id={`project-tab-${tab.id}`}
-            aria-selected={activeTab === tab.id}
-            aria-controls={`project-tabpanel-${tab.id}`}
-            tabIndex={activeTab === tab.id ? 0 : -1}
-            className={activeTab === tab.id ? styles.tabActive : styles.tab}
-            onClick={() => selectTab(tab.id)}
-          >
-            {tab.label}
-          </button>
-        ))}
+        {renderWorkspaceTab(WORKSPACE_TABS[0], 0)}
         <Link
           className={styles.tabLink}
           href={`/projects/${encodeURIComponent(id)}/whiteboard?demo=1`}
@@ -126,6 +130,7 @@ export default function ProjectWorkspaceTabs(props: ProjectWorkspaceTabsProps) {
           <Presentation size={15} aria-hidden="true" />
           Whiteboard
         </Link>
+        {WORKSPACE_TABS.slice(1).map((tab, index) => renderWorkspaceTab(tab, index + 1))}
       </div>
 
       <div

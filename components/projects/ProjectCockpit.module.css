@@ -108,6 +108,124 @@
   grid-template-columns: minmax(0, 1fr) !important;
 }
 
+.reviewCenterColumn {
+  width: 100%;
+  max-width: 1000px;
+  margin: 0 auto;
+}
+
+.reviewSummary {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin: 0 0 8px;
+}
+
+.reviewSummaryLine {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  overflow: hidden;
+  color: var(--cockpit-muted, #707b91);
+  font-size: 11px;
+  line-height: 1.35;
+  white-space: nowrap;
+}
+
+.reviewSummaryLine > svg {
+  flex: none;
+  color: var(--cockpit-accent, #156bff);
+}
+
+.reviewSummaryLine strong {
+  flex: none;
+  color: var(--cockpit-copy, #3f4962);
+  font-weight: 650;
+}
+
+.reviewSummaryLine > span:last-of-type {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.reviewSummaryLine a {
+  min-height: 28px;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--orange, #b05a24);
+  font-weight: 650;
+  text-decoration: none;
+}
+
+.reviewDetailsToggle,
+.timelineToggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  border: 1px solid var(--cockpit-border, #d9e2ef);
+  border-radius: 8px;
+  background: var(--cockpit-panel, #fff);
+  color: var(--cockpit-accent, #156bff);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.reviewDetailsToggle {
+  min-height: 44px;
+  flex: none;
+  padding: 0 14px;
+}
+
+.reviewDetailsToggle[aria-expanded="true"] {
+  border-color: var(--cockpit-accent, #156bff);
+  background: var(--cockpit-accent-soft, #edf4ff);
+}
+
+.timelineDisclosure {
+  margin-top: 10px;
+}
+
+.timelineToggle {
+  min-height: 44px;
+  width: 100%;
+  justify-content: flex-start;
+  padding: 0 13px;
+  color: var(--cockpit-copy, #3f4962);
+}
+
+.timelineToggle small {
+  margin-left: auto;
+  color: var(--cockpit-muted, #707b91);
+  font-size: 10px;
+  font-weight: 550;
+}
+
+.timelineToggle > svg:last-child {
+  transition: transform 140ms ease;
+}
+
+.timelineToggle[aria-expanded="true"] > svg:last-child {
+  transform: rotate(180deg);
+}
+
+.timelineDisclosure :global(.cockpit-timeline) {
+  margin-top: 8px;
+}
+
+.reviewArchive {
+  margin-top: 10px;
+}
+
+.reviewArchive > :global(.cockpit-panel) {
+  margin-bottom: 0 !important;
+}
+
 .operatorDock {
   min-width: 0;
   display: block;
@@ -305,7 +423,7 @@
   .shell[data-rail="compact"] :global(.cockpit-header),
   .shell[data-rail="expanded"] :global(.cockpit-header) {
     grid-row: 1;
-    grid-template-columns: 56px minmax(0, 1fr) auto;
+    grid-template-columns: minmax(0, 1fr) auto;
   }
 
   /* The stage chip is a fourth grid item in a three-track phone header.
@@ -315,15 +433,8 @@
   }
 
   .shell :global(.cockpit-brand) {
-    width: 56px;
-    height: 64px;
-    display: flex;
-    justify-content: center;
-    padding: 8px;
+    display: none;
   }
-
-  .shell .brandLockup { width:44px; height:34px; }
-  .shell .brandLockup img { width:110px; max-width:none; }
 
   .toolbarSlot {
     grid-column: 1;
@@ -365,6 +476,17 @@
 }
 
 @media (max-width: 640px) {
+  .reviewSummary {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 6px;
+  }
+
+  .reviewDetailsToggle {
+    width: 100%;
+    justify-content: center;
+  }
+
   .shell[data-mode="edit"] :global(.cockpit-welcome),
   .shell[data-mode="focus"] :global(.cockpit-welcome) {
     display: none;

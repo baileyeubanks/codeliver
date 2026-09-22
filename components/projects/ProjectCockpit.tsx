@@ -480,6 +480,8 @@ export default function ProjectCockpit({
   const [expandedCommentIds, setExpandedCommentIds] = useState<ReadonlySet<string>>(new Set());
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [mobileDockOpen, setMobileDockOpen] = useState(false);
+  const [reviewDetailsOpen, setReviewDetailsOpen] = useState(false);
+  const [timelineOpen, setTimelineOpen] = useState(false);
   const [commandOpen, setCommandOpen] = useState(false);
   const [shareOpen, setShareOpen] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
@@ -516,6 +518,12 @@ export default function ProjectCockpit({
     setActiveSection(isCockpitSection(requestedSection) ? requestedSection : "overview");
     setReviewViewActive(searchParams.get("view") === "review");
   }, [searchParams]);
+
+  useEffect(() => {
+    setReviewDetailsOpen(false);
+    setTimelineOpen(false);
+    setMobileDockOpen(false);
+  }, [activeAssetId, project.id, reviewViewActive]);
 
   // The stage follows the URL's asset param: deep links and the upload
   // flow's "Review new version" both navigate, and the stage must hot-swap
@@ -611,7 +619,9 @@ export default function ProjectCockpit({
   const effectiveDockTab = reviewViewActive ? "review" : layout.dockTab;
   const dockVisible = compactViewport
     ? mobileDockOpen
-    : reviewViewActive || layout.dockOpen;
+    : reviewViewActive
+      ? reviewDetailsOpen
+      : layout.dockOpen;
   const canUpload = roleCan(workspaceRole, "media:write");
   const canShare = roleCan(workspaceRole, "reviews:comment");
 
@@ -1019,6 +1029,7 @@ export default function ProjectCockpit({
       if (event.key === "]") {
         event.preventDefault();
         if (compactViewport) setMobileDockOpen((open) => !open);
+        else if (reviewViewActive) setReviewDetailsOpen((open) => !open);
         else toggleDock();
         return;
       }
@@ -1029,6 +1040,7 @@ export default function ProjectCockpit({
       if (event.key !== "Escape") return;
       if (mobileNavOpen) setMobileNavOpen(false);
       else if (mobileDockOpen) setMobileDockOpen(false);
+      else if (reviewViewActive && reviewDetailsOpen) setReviewDetailsOpen(false);
     }
 
     window.addEventListener("keydown", handleKeyDown);
@@ -1037,6 +1049,8 @@ export default function ProjectCockpit({
     compactViewport,
     mobileDockOpen,
     mobileNavOpen,
+    reviewDetailsOpen,
+    reviewViewActive,
     changeMode,
     toggleDock,
     toggleRail,
@@ -1114,6 +1128,11 @@ export default function ProjectCockpit({
   function toggleOperatorDock() {
     setOverviewOpen(false);
     setLifecycleOpen(false);
+    if (reviewViewActive) {
+      if (compactViewport) setMobileDockOpen((open) => !open);
+      else setReviewDetailsOpen((open) => !open);
+      return;
+    }
     if (activeSection !== "overview") {
       leaveReviewView();
       setActiveSection("overview");
@@ -1122,7 +1141,6 @@ export default function ProjectCockpit({
       return;
     }
     if (compactViewport) setMobileDockOpen((open) => !open);
-    else if (reviewViewActive && !layout.dockOpen) leaveReviewView();
     else {
       leaveReviewView();
       toggleDock();
@@ -1130,8 +1148,12 @@ export default function ProjectCockpit({
   }
 
   function closeOperatorDock() {
+    if (reviewViewActive) {
+      setMobileDockOpen(false);
+      setReviewDetailsOpen(false);
+      return;
+    }
     if (compactViewport) setMobileDockOpen(false);
-    else if (reviewViewActive && !layout.dockOpen) leaveReviewView();
     else {
       leaveReviewView();
       toggleDock();
@@ -1139,7 +1161,13 @@ export default function ProjectCockpit({
   }
 
   function selectDockTab(tab: Parameters<typeof setDockTab>[0]) {
+    if (reviewViewActive && tab === "review") {
+      if (compactViewport) setMobileDockOpen(true);
+      else setReviewDetailsOpen(true);
+      return;
+    }
     leaveReviewView();
+    setReviewDetailsOpen(false);
     setDockTab(tab);
     if (compactViewport) setMobileDockOpen(true);
   }
@@ -1169,10 +1197,11 @@ export default function ProjectCockpit({
     setLifecycleOpen(false);
     setActiveSection("overview");
     setReviewViewActive(true);
+    setReviewDetailsOpen(false);
+    setTimelineOpen(false);
     setMode("review");
     setDockTab("review");
-    if (compactViewport) setMobileDockOpen(false);
-    else if (!layout.dockOpen) toggleDock();
+    setMobileDockOpen(false);
     const params = new URLSearchParams();
     if (demoMode) params.set("demo", "1");
     params.set("asset", activeAsset.id);
@@ -1859,9 +1888,9 @@ export default function ProjectCockpit({
       <main id="cockpit-workspace-content" className="cockpit-main" tabIndex={-1}>
         {activeSection === "overview" ? (
           <>
-            {demoMode ? <ProjectSourceArchive projectId={project.id} /> : null}
+            {demoMode && !reviewViewActive ? <ProjectSourceArchive projectId={project.id} /> : null}
             <div className={`cockpit-overview-grid ${dockVisible ? "" : styles.overviewWithoutDock}`}>
-              <div className="cockpit-center-column">
+              <div className={`cockpit-center-column ${reviewViewActive ? styles.reviewCenterColumn : ""}`}>
                 <div className="cockpit-section-heading">
                   <h2>{activeAsset ? "Latest review" : "Review workspace"}</h2>
                   {activeAsset ? (
@@ -1886,20 +1915,47 @@ export default function ProjectCockpit({
                 </div>
 
                 {activeAsset ? (
-                  <div className="cockpit-review-strip" aria-label="Review readiness">
-                    {reviewReadinessItems.map(({ id, value, detail, icon: Icon, tone }) => (
-                      <article key={id} data-tone={tone} title={detail}>
-                        <Icon size={13} aria-hidden="true" />
-                        <strong>{value}</strong>
-                      </article>
-                    ))}
-                    {systemsReadiness.tone === "attention" ? (
-                      <Link className="cockpit-system-posture-link" href={systemsHref} data-tone="attention" title={systemsReadiness.detail}>
-                        <ServerCog size={13} aria-hidden="true" />
-                        <strong>{systemsReadiness.label}</strong>
-                      </Link>
-                    ) : null}
-                  </div>
+                  reviewViewActive ? (
+                    <div className={styles.reviewSummary} aria-label="Review summary">
+                      <p className={styles.reviewSummaryLine}>
+                        <Circle size={12} aria-hidden="true" />
+                        <strong>{formatAssetStatus(activeAsset.status)}</strong>
+                        <span aria-hidden="true">·</span>
+                        <span>{openCommentCount} open {openCommentCount === 1 ? "comment" : "comments"}</span>
+                        {systemsReadiness.tone === "attention" ? (
+                          <Link href={systemsHref} title={systemsReadiness.detail}>
+                            <ServerCog size={12} aria-hidden="true" />
+                            {systemsReadiness.label}
+                          </Link>
+                        ) : null}
+                      </p>
+                      <button
+                        className={styles.reviewDetailsToggle}
+                        type="button"
+                        onClick={toggleOperatorDock}
+                        aria-expanded={dockVisible}
+                        aria-controls={`cockpit-review-details-${project.id}`}
+                      >
+                        <MessageSquareText size={15} aria-hidden="true" />
+                        Comments & review details
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="cockpit-review-strip" aria-label="Review readiness">
+                      {reviewReadinessItems.map(({ id, value, detail, icon: Icon, tone }) => (
+                        <article key={id} data-tone={tone} title={detail}>
+                          <Icon size={13} aria-hidden="true" />
+                          <strong>{value}</strong>
+                        </article>
+                      ))}
+                      {systemsReadiness.tone === "attention" ? (
+                        <Link className="cockpit-system-posture-link" href={systemsHref} data-tone="attention" title={systemsReadiness.detail}>
+                          <ServerCog size={13} aria-hidden="true" />
+                          <strong>{systemsReadiness.label}</strong>
+                        </Link>
+                      ) : null}
+                    </div>
+                  )
                 ) : null}
 
                 {activeAsset ? (
@@ -2112,39 +2168,63 @@ export default function ProjectCockpit({
                 )}
 
                 {activeAsset ? (
-                  <CockpitReviewTimeline
-                    durationSeconds={previewDuration}
-                    currentTimeSeconds={currentTime}
-                    sourceMedia={[{
-                      id: activeAsset.id,
-                      label: activeAsset.title,
-                      startSeconds: 0,
-                      endSeconds: previewDuration,
-                    }]}
-                    showAnalysisLanes
-                    audioLaneLabel={demoMode ? "Demo waveform queued" : "Waveform pending"}
-                    titleLaneLabel={demoMode ? "Demo title pass queued" : "Title pass pending"}
-                    comments={comments.map((comment) => ({
-                      id: comment.id,
-                      timeSeconds: comment.time_seconds,
-                      label: comment.body,
-                      status: comment.status,
-                    }))}
-                    cutDecisions={cutMarkers.map((marker) => ({
-                      id: marker.id,
-                      timeSeconds: marker.time_seconds,
-                      status: "proposed" as const,
-                    }))}
-                    onSeek={seekTo}
-                    onMarkerActivate={(marker) => seekTo(marker.timeSeconds)}
-                  />
+                  <div className={styles.timelineDisclosure}>
+                    <button
+                      className={styles.timelineToggle}
+                      type="button"
+                      onClick={() => setTimelineOpen((open) => !open)}
+                      aria-expanded={timelineOpen}
+                      aria-controls={`cockpit-review-timeline-${project.id}`}
+                    >
+                      <History size={16} aria-hidden="true" />
+                      <span>Timeline</span>
+                      <small>{comments.length} {comments.length === 1 ? "comment" : "comments"}</small>
+                      <ChevronDown size={16} aria-hidden="true" />
+                    </button>
+                    {timelineOpen ? (
+                      <div id={`cockpit-review-timeline-${project.id}`}>
+                        <CockpitReviewTimeline
+                          durationSeconds={previewDuration}
+                          currentTimeSeconds={currentTime}
+                          sourceMedia={[{
+                            id: activeAsset.id,
+                            label: activeAsset.title,
+                            startSeconds: 0,
+                            endSeconds: previewDuration,
+                          }]}
+                          showAnalysisLanes
+                          audioLaneLabel={demoMode ? "Demo waveform queued" : "Waveform pending"}
+                          titleLaneLabel={demoMode ? "Demo title pass queued" : "Title pass pending"}
+                          comments={comments.map((comment) => ({
+                            id: comment.id,
+                            timeSeconds: comment.time_seconds,
+                            label: comment.body,
+                            status: comment.status,
+                          }))}
+                          cutDecisions={cutMarkers.map((marker) => ({
+                            id: marker.id,
+                            timeSeconds: marker.time_seconds,
+                            status: "proposed" as const,
+                          }))}
+                          onSeek={seekTo}
+                          onMarkerActivate={(marker) => seekTo(marker.timeSeconds)}
+                        />
+                      </div>
+                    ) : null}
+                  </div>
+                ) : null}
+
+                {demoMode && reviewViewActive ? (
+                  <div className={styles.reviewArchive}>
+                    <ProjectSourceArchive projectId={project.id} />
+                  </div>
                 ) : null}
 
                 {pipelineStages.length > 0 ? (
                   <PipelineStrip stages={pipelineStages} onOpen={(surface) => selectSection(surface)} />
                 ) : null}
 
-                {activeAsset ? (
+                {activeAsset && !reviewViewActive ? (
                   <div className="cockpit-mobile-review-strip" aria-label="Mobile review tools">
                     <button
                       type="button"
@@ -2166,7 +2246,10 @@ export default function ProjectCockpit({
               </div>
 
               {dockVisible ? (
-                <aside className={`cockpit-detail-rail ${styles.operatorDock}`}>
+                <aside
+                  id={`cockpit-review-details-${project.id}`}
+                  className={`cockpit-detail-rail ${styles.operatorDock}`}
+                >
                   <CockpitDock
                     idPrefix={project.id}
                     open={dockVisible}

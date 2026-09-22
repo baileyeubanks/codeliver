@@ -241,6 +241,29 @@ test("production project routes render exactly one application shell", () => {
   );
 });
 
+test("a capability-qualified live project can expose its replacement-version control", () => {
+  // Demo imports need a measured local base before they can be revised. Live
+  // projects verify their exact current version in the preflight invoked by
+  // the control, so they must not inherit that demo-only eligibility gate.
+  assert.match(
+    cockpitSource,
+    /const revisionableActiveAsset = Boolean\(\s*activeAsset &&\s*\(\s*!demoMode \|\|/,
+  );
+});
+
+test("the live revision control fails closed until readiness advertises its CAS contract", () => {
+  assert.match(
+    projectWorkspaceClientSource,
+    /const \[revisionUploadsAvailable, setRevisionUploadsAvailable\] = useState\(false\)/,
+  );
+  assert.match(projectWorkspaceClientSource, /fetch\("\/api\/storage\/readiness"/);
+  assert.match(
+    projectWorkspaceClientSource,
+    /setRevisionUploadsAvailable\(readinessPayload\.features\?\.revisionUploads === true\)/,
+  );
+  assert.match(projectWorkspaceClientSource, /revisionUploadsAvailable=\{revisionUploadsAvailable\}/);
+});
+
 test("the project shell owns only root and Whiteboard project routes", () => {
   const routePatternSource = shellSource.match(
     /export const PROJECT_WORKSPACE_SURFACE_PATH = (\/\^[^;]+\$\/);/,

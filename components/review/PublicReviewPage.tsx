@@ -8,6 +8,7 @@ import {
   Download,
   GitCompare,
   MapPin,
+  Printer,
   Settings2,
   X,
 } from "lucide-react";
@@ -46,6 +47,7 @@ import {
   bindDemoReviewApprovals,
   demoReviewPayload,
 } from "@/lib/review/demoReview";
+import { openReviewReport } from "@/lib/review/open-report";
 import { resolveDemoReviewerEmail } from "@/lib/review/demo-reviewer-identity";
 import {
   deriveReviewState,
@@ -213,6 +215,7 @@ export default function PublicReviewPage() {
   const [compareMode, setCompareMode] = useState(false);
   const [railTab, setRailTab] = useState<"comments" | "summary">("comments");
   const [replyError, setReplyError] = useState("");
+  const [reportError, setReportError] = useState("");
   const [shareSettingsOpen, setShareSettingsOpen] = useState(false);
   const [shareSettingsRevision, setShareSettingsRevision] = useState(0);
   const [currentVersionOnly, setCurrentVersionOnly] = useState(false);
@@ -1405,6 +1408,28 @@ export default function PublicReviewPage() {
                 Download
               </a>
             ) : null}
+            {asset && activeVersion ? (
+              <button
+                type="button"
+                className="client-review-download"
+                onClick={() => {
+                  const opened = openReviewReport({
+                    assetId: asset.id,
+                    assetTitle: asset.title,
+                    projectName: asset.projects?.name ?? "Review",
+                    versionId: activeVersion.id,
+                    versionNumber: activeVersion.version_number,
+                    approvalLabel: reviewState.label,
+                    comments,
+                  });
+                  setReportError(opened ? "" : "Allow pop-ups for this site, then open the review report again.");
+                }}
+              >
+                <Printer size={13} />
+                Review report
+              </button>
+            ) : null}
+            {reportError ? <p role="alert" className="text-xs text-[var(--muted)]">{reportError}</p> : null}
             {demoMode ? (
               <button
                 type="button"

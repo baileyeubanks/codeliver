@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
-import { useEffect, useState, useRef } from "react";
+import { useCallback, useEffect, useState, useRef } from "react";
 import { flushSync } from "react-dom";
 import { ArrowRight, LoaderCircle, SearchX } from "lucide-react";
 import { useDemoMode } from "@/lib/demo/mode";
@@ -16,6 +16,7 @@ import ProjectCockpit, { type CockpitUploadStatus } from "@/components/projects/
 import {
   resolveRevisionUploadTarget,
   shouldApplyRevisionUploadTarget,
+  supersedeRevisionUploadRequest,
   type RevisionUploadTarget,
 } from "@/lib/uploads/revision-upload";
 import ProjectWorkspaceTabs from "@/components/projects/ProjectWorkspaceTabs";
@@ -116,6 +117,19 @@ export default function ProjectWorkspaceClient() {
       }));
   const loading = demoMode ? false : remoteLoading;
   const authoritativeUploadInputId = `project-${id}-asset-upload`;
+
+  const invalidateRemoteRevisionUpload = useCallback(() => {
+    const supersession = supersedeRevisionUploadRequest(revisionRequest.current);
+    revisionRequest.current = supersession.request;
+    setRevisionTarget(null);
+    setUploading(supersession.uploading);
+    setUploadStatus(null);
+  }, []);
+
+  useEffect(() => {
+    if (demoMode) return;
+    invalidateRemoteRevisionUpload();
+  }, [demoMode, id, invalidateRemoteRevisionUpload]);
 
   useEffect(() => {
     if (!id || demoMode) return;
@@ -377,12 +391,10 @@ export default function ProjectWorkspaceClient() {
   }
 
   function openRemoteUploadPicker() {
-    revisionRequest.current += 1;
     // The native input must observe a cleared revision target in this same user
     // gesture, so a regular upload cannot inherit an older replacement target.
     flushSync(() => {
-      setUploadStatus(null);
-      setRevisionTarget(null);
+      invalidateRemoteRevisionUpload();
     });
     document.getElementById(authoritativeUploadInputId)?.click();
   }
@@ -461,9 +473,7 @@ export default function ProjectWorkspaceClient() {
   }
 
   function dismissRemoteUploadStatus() {
-    revisionRequest.current += 1;
-    setRevisionTarget(null);
-    setUploadStatus(null);
+    invalidateRemoteRevisionUpload();
   }
 
   async function handleRemoteUploadComplete(completions: UploadCompletion[]) {

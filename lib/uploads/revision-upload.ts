@@ -35,6 +35,13 @@ export function shouldApplyRevisionUploadTarget({
   return request === latestRequest && requestedProjectId === activeProjectId;
 }
 
+export function supersedeRevisionUploadRequest(currentRequest: number): {
+  request: number;
+  uploading: false;
+} {
+  return { request: currentRequest + 1, uploading: false };
+}
+
 function nonEmptyString(value: unknown): value is string {
   return typeof value === "string" && value.trim().length > 0;
 }

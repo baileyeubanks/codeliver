@@ -7,6 +7,7 @@ import {
   mayOpenRevisionUploader,
   parseUploadCompletionReceipt,
   shouldApplyRevisionUploadTarget,
+  supersedeRevisionUploadRequest,
   shouldRetryUploadStatus,
   resolveRevisionUploadTarget,
   type RevisionUploadTarget,
@@ -133,4 +134,15 @@ test("a verified revision target cannot resurrect after a project or request cha
     requestedProjectId: "project-a",
     activeProjectId: "project-b",
   }), false, "a route change cannot target the new project input");
+});
+
+test("an ordinary upload or project transition supersedes revision validation and clears busy state", () => {
+  const supersession = supersedeRevisionUploadRequest(4);
+  assert.deepEqual(supersession, { request: 5, uploading: false });
+  assert.equal(shouldApplyRevisionUploadTarget({
+    request: 4,
+    latestRequest: supersession.request,
+    requestedProjectId: "project-a",
+    activeProjectId: "project-a",
+  }), false, "the stale validation cannot restore the busy state in its finally block");
 });

@@ -50,8 +50,8 @@ interface TemplateSeed {
   links: Array<[string, string]>;
 }
 
-const TEMPLATE_CARD_WIDTH = 208;
-const TEMPLATE_CARD_HEIGHT = 112;
+export const TEMPLATE_CARD_WIDTH = 208;
+export const TEMPLATE_CARD_HEIGHT = 112;
 const TEMPLATE_CELL_X = 256;
 const TEMPLATE_CELL_Y = 176;
 

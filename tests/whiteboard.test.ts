@@ -11,6 +11,7 @@ import {
   screenToWorld,
   snapPointToGrid,
   snapToGrid,
+  visibleWorldAnchor,
   worldToScreen,
   zoomViewportAt,
   type WhiteboardViewport,
@@ -98,6 +99,25 @@ test("snapToGrid snaps to the nearest grid multiple", () => {
 
 test("snapPointToGrid snaps both axes independently", () => {
   assert.deepEqual(snapPointToGrid({ x: 9, y: 31 }), { x: 16, y: 32 });
+});
+
+test("visibleWorldAnchor keeps a new card inside the open canvas area", () => {
+  const viewport: WhiteboardViewport = { originX: 600, originY: -24, zoom: 1 };
+  const anchor = visibleWorldAnchor(
+    viewport,
+    { x: 280, y: 288 },
+    { width: 962, height: 700 },
+    { width: 208, height: 112 },
+    24,
+  );
+  const screen = worldToScreen(viewport, anchor);
+
+  assert.ok(screen.x >= 24);
+  assert.ok(screen.y >= 24);
+  assert.ok(screen.x + 208 * viewport.zoom <= 962 - 24);
+  assert.ok(screen.y + 112 * viewport.zoom <= 700 - 24);
+  assert.equal(anchor.x % 16, 0);
+  assert.equal(anchor.y % 16, 0);
 });
 
 /* ------------------------------ hand-drawn tilt ----------------------------- */

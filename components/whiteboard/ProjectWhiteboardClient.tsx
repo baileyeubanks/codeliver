@@ -31,12 +31,12 @@ import {
   rotationForId,
   screenToWorld,
   snapToGrid,
+  visibleWorldAnchor,
   zoomViewportAt,
   type WhiteboardViewport,
 } from "@/lib/whiteboard/geometry";
 import {
   PHASE_CARD_HEIGHT,
-  PHASE_FLOW_ORIGIN_X,
   PHASE_FLOW_ORIGIN_Y,
   WHITEBOARD_PHASES,
   buildPhaseFlow,
@@ -54,6 +54,8 @@ import {
 } from "@/lib/whiteboard/connectors";
 import {
   WHITEBOARD_TEMPLATES,
+  TEMPLATE_CARD_HEIGHT,
+  TEMPLATE_CARD_WIDTH,
   type WhiteboardTemplateId,
 } from "@/lib/whiteboard/templates";
 import styles from "./WhiteboardCanvas.module.css";
@@ -66,11 +68,9 @@ const EMPTY_BOARD: DemoWhiteboardBoard = {
   updated_at: "",
 };
 
-/** Template cards land one grid row below the phase-flow lane. */
-const TEMPLATE_ANCHOR = {
-  x: PHASE_FLOW_ORIGIN_X,
-  y: PHASE_FLOW_ORIGIN_Y + PHASE_CARD_HEIGHT + 64,
-};
+/** Preferred screen row for templates; x is resolved beside the fixed toolbar. */
+const TEMPLATE_SCREEN_Y = PHASE_FLOW_ORIGIN_Y + PHASE_CARD_HEIGHT + 64;
+const TEMPLATE_SCREEN_GUTTER = 24;
 
 const ZOOM_STEP = 1.2;
 
@@ -138,6 +138,8 @@ export default function ProjectWhiteboardClient() {
   } | null>(null);
 
   const canvasRef = useRef<HTMLDivElement>(null);
+  const toolbarRef = useRef<HTMLDivElement>(null);
+  const dragRef = useRef<DragState | null>(null);
   const panRef = useRef<{ pointerId: number; lastX: number; lastY: number } | null>(null);
 
   /* Wheel zoom needs a non-passive listener to preventDefault page scroll. */
@@ -185,7 +187,7 @@ export default function ProjectWhiteboardClient() {
       if ((event.target as HTMLElement).closest("button, textarea")) return;
       event.stopPropagation();
       (event.currentTarget as HTMLElement).setPointerCapture(event.pointerId);
-      setDrag({
+      const nextDrag = {
         nodeId: node.id,
         pointerStartX: event.clientX,
         pointerStartY: event.clientY,
@@ -194,40 +196,43 @@ export default function ProjectWhiteboardClient() {
         liveX: node.x,
         liveY: node.y,
         moved: false,
-      });
+      };
+      dragRef.current = nextDrag;
+      setDrag(nextDrag);
     },
     [],
   );
 
   const handleNodePointerMove = useCallback(
     (event: React.PointerEvent<HTMLElement>) => {
-      setDrag((current) => {
-        if (!current) return current;
-        const dx = (event.clientX - current.pointerStartX) / viewport.zoom;
-        const dy = (event.clientY - current.pointerStartY) / viewport.zoom;
-        return {
-          ...current,
-          liveX: snapToGrid(current.nodeStartX + dx),
-          liveY: snapToGrid(current.nodeStartY + dy),
-          moved: current.moved || Math.abs(dx) + Math.abs(dy) > 2,
-        };
-      });
+      const current = dragRef.current;
+      if (!current) return;
+      const dx = (event.clientX - current.pointerStartX) / viewport.zoom;
+      const dy = (event.clientY - current.pointerStartY) / viewport.zoom;
+      const nextDrag = {
+        ...current,
+        liveX: snapToGrid(current.nodeStartX + dx),
+        liveY: snapToGrid(current.nodeStartY + dy),
+        moved: current.moved || Math.abs(dx) + Math.abs(dy) > 2,
+      };
+      dragRef.current = nextDrag;
+      setDrag(nextDrag);
     },
     [viewport.zoom],
   );
 
   const handleNodePointerUp = useCallback(() => {
-    setDrag((current) => {
-      if (current && current.moved) {
-        moveWhiteboardNode({
-          projectId: id,
-          nodeId: current.nodeId,
-          x: current.liveX,
-          y: current.liveY,
-        });
-      }
-      return null;
-    });
+    const current = dragRef.current;
+    dragRef.current = null;
+    setDrag(null);
+    if (current && current.moved) {
+      moveWhiteboardNode({
+        projectId: id,
+        nodeId: current.nodeId,
+        x: current.liveX,
+        y: current.liveY,
+      });
+    }
   }, [id]);
 
   const nodePosition = useCallback(
@@ -265,14 +270,31 @@ export default function ProjectWhiteboardClient() {
 
   const applyTemplateById = useCallback(
     (templateId: WhiteboardTemplateId) => {
+      const canvasRect = canvasRef.current?.getBoundingClientRect();
+      const toolbarRect = toolbarRef.current?.getBoundingClientRect();
+      const toolbarRight =
+        canvasRect && toolbarRect ? toolbarRect.right - canvasRect.left : 0;
+      const anchor = visibleWorldAnchor(
+        viewport,
+        {
+          x: toolbarRight + TEMPLATE_SCREEN_GUTTER,
+          y: TEMPLATE_SCREEN_Y,
+        },
+        {
+          width: canvasRect?.width ?? 800,
+          height: canvasRect?.height ?? 500,
+        },
+        { width: TEMPLATE_CARD_WIDTH, height: TEMPLATE_CARD_HEIGHT },
+        TEMPLATE_SCREEN_GUTTER,
+      );
       setUndoSnapshot({
         nodes: board.nodes,
         edges: board.edges,
         templateId: board.template_id,
       });
-      applyDemoWhiteboardTemplate({ projectId: id, templateId, anchor: TEMPLATE_ANCHOR });
+      applyDemoWhiteboardTemplate({ projectId: id, templateId, anchor });
     },
-    [board, id],
+    [board, id, viewport],
   );
 
   const undoTemplate = useCallback(() => {
@@ -374,7 +396,7 @@ export default function ProjectWhiteboardClient() {
         onPointerUp={endPan}
         onPointerCancel={endPan}
       >
-        <div className={styles.toolbar} data-wb-ui>
+        <div ref={toolbarRef} className={styles.toolbar} data-wb-ui>
           <span className={styles.toolbarLabel}>Whiteboard</span>
           <button
             type="button"

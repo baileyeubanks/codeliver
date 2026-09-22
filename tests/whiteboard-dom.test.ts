@@ -251,6 +251,23 @@ test("canvas region documents pan, zoom, and keyboard navigation", () => {
   assert.ok(markup.includes("Saved to this browser (local demo persistence)"));
 });
 
+test("drag completion publishes the move after leaving the React state updater", () => {
+  const source = readFileSync(componentPath, "utf8");
+  const start = source.indexOf("const handleNodePointerUp");
+  const end = source.indexOf("const nodePosition", start);
+  const handler = source.slice(start, end);
+
+  assert.ok(start >= 0 && end > start, "drag completion handler is present");
+  assert.doesNotMatch(
+    handler,
+    /setDrag\(\(current\) =>/,
+    "workspace publication must not run inside a React state updater",
+  );
+  assert.ok(
+    handler.indexOf("setDrag(null)") < handler.indexOf("moveWhiteboardNode("),
+  );
+});
+
 test("empty board shows the template CTA empty state", () => {
   const markup = renderBoard([]);
 

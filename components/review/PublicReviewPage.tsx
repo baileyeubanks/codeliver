@@ -1362,7 +1362,7 @@ export default function PublicReviewPage({
                 {asset?.title ?? "Review"}
               </h1>
               <span className="client-review-status-badge">
-                {isSourcePreview ? "Source file" : reviewState.label}
+                {delivery?.locked ? "Locked final delivery" : isSourcePreview ? "Source file" : reviewState.label}
               </span>
             </div>
           </div>

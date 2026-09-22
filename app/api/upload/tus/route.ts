@@ -73,6 +73,32 @@ export async function POST(request: NextRequest) {
         responseHeaders,
       );
     }
+    const orchestrator = createDefaultUploadOrchestrator();
+    const recoveredRevision = assetId && expectedCurrentVersionId
+      ? await orchestrator.recoverAttachedRevisionSession({
+          tenantId: user.id,
+          projectId,
+          idempotencyKey,
+          filename,
+          mimeType,
+          size: uploadLength,
+          assetId,
+          expectedCurrentVersionId,
+          expectedSha256: metadata.sha256,
+        })
+      : null;
+    if (recoveredRevision) {
+      return new NextResponse(null, {
+        status: 201,
+        headers: headers({
+          Location: `/api/upload/tus/${recoveredRevision.id}`,
+          "Upload-Offset": String(recoveredRevision.offset),
+          "Upload-State": recoveredRevision.state,
+          "X-Upload-Resumed": "true",
+        }),
+      });
+    }
+
     const revisionTarget = assetId && expectedCurrentVersionId
       ? await requireOwnedRevisionUploadTarget(
           user.id,
@@ -94,7 +120,6 @@ export async function POST(request: NextRequest) {
       await requireOwnedUploadTarget(user.id, projectId, metadata.folderId);
     }
 
-    const orchestrator = createDefaultUploadOrchestrator();
     const result = await orchestrator.createSession({
       tenantId: user.id,
       projectId,

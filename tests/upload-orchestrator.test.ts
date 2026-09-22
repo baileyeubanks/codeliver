@@ -165,6 +165,87 @@ test("revision idempotency stays bound to its asset and expected current version
   }
 });
 
+test("only an exact clean attached revision is recoverable before current-version preflight", async () => {
+  const root = mkdtempSync(join(tmpdir(), "codeliver-revision-attached-retry-"));
+  const orchestrator = createOrchestrator(root);
+  const assetId = "44444444-4444-4444-8444-444444444444";
+  const expectedCurrentVersionId = "55555555-5555-4555-8555-555555555555";
+  const input = createInput({
+    version: 4,
+    assetId,
+    expectedCurrentVersionId,
+  });
+  const recoveryInput = {
+    tenantId: input.tenantId,
+    projectId: input.projectId,
+    idempotencyKey: input.idempotencyKey,
+    filename: input.filename,
+    mimeType: input.mimeType,
+    size: input.size,
+    assetId,
+    expectedCurrentVersionId,
+    expectedSha256: input.expectedSha256,
+  };
+  try {
+    const created = await orchestrator.createSession(input);
+    assert.equal(
+      await orchestrator.recoverAttachedRevisionSession(recoveryInput),
+      null,
+      "an in-flight upload must still use the live authority preflight",
+    );
+
+    await orchestrator.appendPart({
+      uploadId: created.session.id,
+      tenantId: input.tenantId,
+      offset: 0,
+      chunks: chunks("payload"),
+    });
+    await orchestrator.attachAsset(
+      created.session.id,
+      input.tenantId,
+      assetId,
+      "66666666-6666-4666-8666-666666666666",
+    );
+
+    const recovered = await orchestrator.recoverAttachedRevisionSession(recoveryInput);
+    assert.equal(recovered?.id, created.session.id);
+    assert.equal(recovered?.catalog.state, "attached");
+    assert.equal(recovered?.versionId, "66666666-6666-4666-8666-666666666666");
+
+    await assert.rejects(
+      () => orchestrator.recoverAttachedRevisionSession({
+        ...recoveryInput,
+        assetId: "77777777-7777-4777-8777-777777777777",
+      }),
+      /different upload metadata/,
+    );
+    await assert.rejects(
+      () => orchestrator.recoverAttachedRevisionSession({
+        ...recoveryInput,
+        expectedCurrentVersionId: "88888888-8888-4888-8888-888888888888",
+      }),
+      /different upload metadata/,
+    );
+    await assert.rejects(
+      () => orchestrator.recoverAttachedRevisionSession({
+        ...recoveryInput,
+        filename: "different.mov",
+      }),
+      /different upload metadata/,
+    );
+    assert.equal(
+      await orchestrator.recoverAttachedRevisionSession({
+        ...recoveryInput,
+        tenantId: "tenant-b",
+      }),
+      null,
+      "a different tenant must not discover the original idempotency record",
+    );
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
 test("V1 idempotency still resumes after catalog attachment adds result identities", async () => {
   const root = mkdtempSync(join(tmpdir(), "codeliver-v1-attached-idempotency-"));
   const orchestrator = createOrchestrator(root);

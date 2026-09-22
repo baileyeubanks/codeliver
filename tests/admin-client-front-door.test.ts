@@ -275,6 +275,7 @@ test("the branded auth, cockpit, and public review shells retain mobile and desk
   const authStyles = source("components/auth/AuthShell.module.css");
   const shellStyles = source("components/Shell.module.css");
   const cockpitStyles = source("components/projects/ProjectCockpit.module.css");
+  const globalStyles = source("app/globals.css");
   const publicReviewStyles = source("components/review/PublicReviewWorkspace.module.css");
   const authFormCap = authStyles.match(
     /\.formColumn\s*\{[\s\S]*?width:\s*min\(100%,\s*(\d+)px\)/,
@@ -291,7 +292,7 @@ test("the branded auth, cockpit, and public review shells retain mobile and desk
 
   assert.match(shellStyles, /@media \(max-width:\s*760px\)[\s\S]*?env\(safe-area-inset-bottom\)/);
   assert.match(cockpitStyles, /@media \(max-width:\s*900px\)[\s\S]*?grid-template-columns:\s*minmax\(0, 1fr\)/);
-  assert.match(cockpitStyles, /@media \(max-width:\s*900px\)[\s\S]*?\.shell :global\(\.cockpit-sidebar\)\s*\{\s*display:\s*none/);
+  assert.match(globalStyles, /@media \(max-width:\s*900px\)[\s\S]*?\.cockpit-sidebar\s*\{\s*display:\s*none/);
   assert.match(publicReviewStyles, /@media \(min-width:\s*981px\)[\s\S]*?grid-template-columns:\s*minmax\(0, 1fr\) minmax\(360px, 390px\)/);
   assert.match(publicReviewStyles, /@media \(min-width:\s*1440px\)[\s\S]*?grid-template-columns:\s*minmax\(0, 1fr\) 410px/);
 });

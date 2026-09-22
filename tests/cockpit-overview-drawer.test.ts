@@ -14,15 +14,16 @@ const drawerSource = readFileSync(
   "utf8",
 );
 
-test("project summary is disclosed from Overview instead of occupying the review canvas", () => {
-  assert.match(cockpitSource, /<CockpitOverviewDrawer/);
-  assert.match(cockpitSource, /setOverviewOpen\(\(open\) => !open\)/);
+test("the review canvas uses persistent project navigation and contextual tools without a second overview layer", () => {
+  assert.doesNotMatch(cockpitSource, /<CockpitOverviewDrawer/);
   assert.doesNotMatch(cockpitSource, /<section className="cockpit-metrics"/);
-  assert.match(cockpitSource, /value: demoMode \? dueTodayCount : "—"/);
-  assert.match(cockpitSource, /unit: demoMode \? "Tasks" : "Not indexed"/);
+  assert.match(cockpitSource, /<CockpitProjectNavigation[\s\S]*?activeSection=\{activeSection\}/);
+  assert.match(cockpitSource, /<CockpitToolbar[\s\S]*?dockOpen=\{dockVisible\}/);
+  assert.match(cockpitSource, /onToggleDock=\{toggleOperatorDock\}/);
+  assert.match(cockpitSource, /<ProjectSourceArchive projectId=\{project.id\}/);
 });
 
-test("Overview drawer retains the reference hierarchy and keyboard-safe dialog controls", () => {
+test("the retained Overview drawer component keeps keyboard-safe dialog controls", () => {
   assert.match(drawerSource, /id="cockpit-project-overview"/);
   assert.match(drawerSource, /role="dialog"/);
   assert.match(drawerSource, /aria-labelledby="cockpit-overview-title"/);

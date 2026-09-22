@@ -58,13 +58,6 @@ function reportProgress(
 
 const PROGRESS_CHUNK_BYTES = 512 * 1024;
 
-function nextPaint(): Promise<void> {
-  return new Promise((resolve) => {
-    if (typeof requestAnimationFrame === "function") requestAnimationFrame(() => resolve());
-    else setTimeout(resolve, 16);
-  });
-}
-
 function streamWithProgress(
   blob: Blob,
   phase: DemoMediaBlobProgressPhase,
@@ -81,15 +74,13 @@ function streamWithProgress(
         return;
       }
 
-      // Bounded chunks make the byte count genuinely incremental; yielding a
-      // frame between chunks lets the UI paint each real byte count instead
-      // of collapsing the whole local write into a 0→100 jump.
+      // Keep reads bounded and progress byte-derived. Storage must not wait
+      // for paint: hidden tabs can stop receiving animation frames entirely.
       const end = Math.min(bytesStored + PROGRESS_CHUNK_BYTES, blob.size);
       const chunk = await blob.slice(bytesStored, end).arrayBuffer();
       bytesStored += chunk.byteLength;
       reportProgress(options, bytesStored, blob.size, phase);
       controller.enqueue(new Uint8Array(chunk));
-      await nextPaint();
     },
   });
 }

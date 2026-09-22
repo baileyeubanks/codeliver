@@ -528,7 +528,9 @@ export default function ProjectCockpit({
   // The stage follows the URL's asset param: deep links and the upload
   // flow's "Review new version" both navigate, and the stage must hot-swap
   // to the asset they name rather than keep playing the previous one.
-  const appliedUrlAssetRef = useRef(requestedAssetId);
+  // A browser-local upload may arrive after the initial server snapshot.
+  // Mark the URL applied only after that asset exists in the hydrated list.
+  const appliedUrlAssetRef = useRef<string | null>(null);
   useEffect(() => {
     if (!requestedAssetId || appliedUrlAssetRef.current === requestedAssetId) return;
     if (!assets.some((asset) => asset.id === requestedAssetId)) return;

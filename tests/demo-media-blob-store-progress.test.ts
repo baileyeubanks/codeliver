@@ -118,3 +118,35 @@ test("IndexedDB fallback does not duplicate large uploads in JavaScript memory",
   assert.doesNotMatch(blobStoreSource, /copyBlobWithProgress/);
   assert.doesNotMatch(blobStoreSource, /const chunks: BlobPart\[\]/);
 });
+
+test("local upload completes even when a background tab receives no animation frames", async () => {
+  const oldCaches = Object.getOwnPropertyDescriptor(globalThis,"caches");
+  const oldFrames = Object.getOwnPropertyDescriptor(globalThis,"requestAnimationFrame");
+  const cache = new InMemoryCache();
+  const pendingFrames: FrameRequestCallback[] = [];
+  Object.defineProperty(globalThis,"caches",{configurable:true,value:{open:async()=>cache}});
+  Object.defineProperty(globalThis,"requestAnimationFrame",{configurable:true,value:(callback:FrameRequestCallback)=>{pendingFrames.push(callback);return pendingFrames.length;}});
+  const store = await import("../lib/demo/media-blob-store.ts?progress-test=background");
+  const bytes = new Uint8Array(1200 * 1024).fill(37);
+  const upload = store.putDemoMediaBlob("background-source",createChunkedFile(bytes));
+  let timeout: ReturnType<typeof setTimeout> | undefined;
+  try {
+    const result = await Promise.race([
+      upload.then(()=>"stored"),
+      new Promise<string>(resolve=>{timeout=setTimeout(()=>resolve("waiting for paint"),1000);}),
+    ]);
+    assert.equal(result,"stored","storage must not await a browser animation frame");
+    const reloaded = await import("../lib/demo/media-blob-store.ts?progress-test=background-reload");
+    const blob = await reloaded.getDemoMediaBlob("background-source");
+    assert.ok(blob);
+    assert.deepEqual(new Uint8Array(await blob.arrayBuffer()),bytes);
+  } finally {
+    if (timeout) clearTimeout(timeout);
+    if (oldFrames) Object.defineProperty(globalThis,"requestAnimationFrame",oldFrames);
+    else Reflect.deleteProperty(globalThis,"requestAnimationFrame");
+    for (const callback of pendingFrames) callback(0);
+    await upload;
+    if (oldCaches) Object.defineProperty(globalThis,"caches",oldCaches);
+    else Reflect.deleteProperty(globalThis,"caches");
+  }
+});

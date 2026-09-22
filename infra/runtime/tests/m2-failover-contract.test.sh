@@ -23,7 +23,7 @@ PROFILE_VALUES="$(
   ' _ "$COMMON"
 )"
 
-EXPECTED_VALUES='m2-failover|/Users/baileyeubanks/.local/share/codeliver-failover|/Users/baileyeubanks/.config/codeliver-failover/runtime.env|baileyeubanks|/Volumes/CC_NAS|/Volumes/CC_NAS/cvp-runtime/co-videopro|co-videopro.com|co-videopro.com|com.contentcoop.codeliver-failover'
+EXPECTED_VALUES='m2-failover|/Users/baileyeubanks/.local/share/codeliver-failover|/Users/baileyeubanks/.config/codeliver-failover/runtime.env|baileyeubanks|/Volumes/CC_NAS|/Volumes/CC_NAS/cvp-runtime/co-videopro|co-videopro.com|client.contentco-op.com|com.contentcoop.codeliver-failover'
 [[ "$PROFILE_VALUES" == "$EXPECTED_VALUES" ]] || \
   fail_test "M2 failover constants are wrong or environment-overridable: $PROFILE_VALUES"
 
@@ -36,8 +36,8 @@ ENV_TEMPLATE="$RUNTIME_DIR/runtime.m2-failover.env.example"
 for expected in \
   'ADMIN_SITE_URL=https://co-videopro.com' \
   'NEXT_PUBLIC_ADMIN_SITE_URL=https://co-videopro.com' \
-  'CLIENT_SITE_URL=https://co-videopro.com' \
-  'NEXT_PUBLIC_CLIENT_SITE_URL=https://co-videopro.com' \
+  'CLIENT_SITE_URL=https://client.contentco-op.com' \
+  'NEXT_PUBLIC_CLIENT_SITE_URL=https://client.contentco-op.com' \
   'NAS_MEDIA_ROOT=/Volumes/CC_NAS/cvp-runtime/co-videopro' \
   'CODELIVER_CLAMSCAN_PATH=/opt/homebrew/bin/clamscan' \
   'FFMPEG_PATH=/opt/homebrew/bin/ffmpeg' \
@@ -51,12 +51,16 @@ fi
 
 APP_PLIST="$RUNTIME_DIR/launchd/com.contentcoop.codeliver-failover.plist"
 TUNNEL_PLIST="$RUNTIME_DIR/launchd/com.contentcoop.codeliver-failover-cloudflared.plist"
+WORKER_PLIST="$RUNTIME_DIR/launchd/com.contentcoop.codeliver-failover-worker.plist"
 TUNNEL_CONFIG="$RUNTIME_DIR/cloudflare/m2-failover.yml.tmpl"
-for artifact in "$APP_PLIST" "$TUNNEL_PLIST" "$TUNNEL_CONFIG"; do
+WORKER_RUNNER="$RUNTIME_DIR/run-media-worker.sh"
+WORKER_LOOP="$RUNTIME_DIR/lib/media-worker-loop.mjs"
+for artifact in "$APP_PLIST" "$TUNNEL_PLIST" "$WORKER_PLIST" "$TUNNEL_CONFIG" "$WORKER_RUNNER" "$WORKER_LOOP"; do
   [[ -f "$artifact" ]] || fail_test "missing deployment artifact: $artifact"
 done
 /usr/bin/plutil -lint "$APP_PLIST" >/dev/null || fail_test "application plist is invalid"
 /usr/bin/plutil -lint "$TUNNEL_PLIST" >/dev/null || fail_test "tunnel plist is invalid"
+/usr/bin/plutil -lint "$WORKER_PLIST" >/dev/null || fail_test "worker plist is invalid"
 
 /usr/bin/grep -Fq '<key>CODELIVER_RUNTIME_PROFILE</key>' "$APP_PLIST" || \
   fail_test "application plist does not set the runtime profile"
@@ -69,6 +73,7 @@ for expected in \
   'tunnel: 5930eff7-9474-4427-826a-83e129c804e0' \
   'credentials-file: /Users/baileyeubanks/.config/codeliver-failover/cloudflared-credentials.json' \
   'hostname: co-videopro.com' \
+  'hostname: client.contentco-op.com' \
   'service: http://127.0.0.1:4103' \
   'httpHostHeader: co-videopro.com' \
   'service: http_status:404'
@@ -78,5 +83,14 @@ done
 if /usr/bin/grep -Eqi '(token:|token-file:|credentials-contents:|-----BEGIN|eyJ[A-Za-z0-9_-]{20,})' "$TUNNEL_CONFIG" "$APP_PLIST" "$TUNNEL_PLIST"; then
   fail_test "deployment artifacts contain inline credential material"
 fi
+
+/usr/bin/grep -Fq '<string>/Users/baileyeubanks/.local/share/codeliver-failover/control/run-media-worker.sh</string>' "$WORKER_PLIST" || \
+  fail_test "worker plist does not call the supervised worker runner"
+/usr/bin/grep -Fq 'CODELIVER_MEDIA_PIPELINE_WORKER_TOKEN' "$WORKER_RUNNER" || \
+  fail_test "worker runner does not require the private token"
+/usr/bin/grep -Fq 'recoverAndRunNext' "$WORKER_LOOP" || \
+  fail_test "worker loop does not identify its recover-and-run-next contract"
+/usr/bin/grep -Fq 'x-codeliver-media-worker-token' "$WORKER_LOOP" || \
+  fail_test "worker loop does not authenticate to the private endpoint"
 
 printf 'PASS: M2 CVP failover profile and deployment artifacts satisfy the fixed contract.\n'

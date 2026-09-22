@@ -17,4 +17,8 @@ ingress:
     service: http://127.0.0.1:4103
     originRequest:
       httpHostHeader: co-videopro.com
+  - hostname: client.contentco-op.com
+    service: http://127.0.0.1:4103
+    originRequest:
+      httpHostHeader: client.contentco-op.com
   - service: http_status:404

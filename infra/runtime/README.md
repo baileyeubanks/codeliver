@@ -146,8 +146,8 @@ that does not depend on M4 or `BLAZE-STORE-2`:
 - private environment: `/Users/baileyeubanks/.config/codeliver-failover/runtime.env`
 - storage mount: `/Volumes/CC_NAS`
 - new managed-media root: `/Volumes/CC_NAS/cvp-runtime/co-videopro`
-- origin: `127.0.0.1:4103`, with the single-host compatibility URL
-  `https://co-videopro.com`
+- origin: `127.0.0.1:4103`, with `https://co-videopro.com` for staff/admin
+  and `https://client.contentco-op.com` for provisioned clients
 - application service: `com.contentcoop.codeliver-failover`
 - tunnel service: `com.contentcoop.codeliver-failover-cloudflared`
 
@@ -156,11 +156,13 @@ received by the failover origin; it does not recover or claim custody of media
 from the unavailable M4 RAID. Existing client/project media remains unavailable
 until copied from a verified source with receipt identity preserved.
 
-The failover uses the existing `cco-videopro` Cloudflare Tunnel so the current
-DNS route does not need to change. A connector on M2 is an independent active
-origin, not automatic dual-origin health failover: the M4 connector must remain
-out of service while its local origin is unhealthy, otherwise Cloudflare can
-still select it and return 502.
+The failover uses the existing `cco-videopro` Cloudflare Tunnel. The apex route
+already targets that tunnel. `client.contentco-op.com` must be added to the same
+tunnel only after confirming it is still unoccupied; `admin.contentco-op.com`
+belongs to the separate CCO commercial app and must not be changed. A connector
+on M2 is an independent active origin, not automatic dual-origin health
+failover: the M4 connector must remain out of service while its local origin is
+unhealthy, otherwise Cloudflare can still select it and return 502.
 
 Before activation, install the private environment and tunnel credential files
 at mode `0600`/`0400`, install the two checked-in launch agents, and place the

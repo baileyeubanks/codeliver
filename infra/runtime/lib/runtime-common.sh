@@ -65,7 +65,7 @@ DEFAULT_CANARY_PORT="${CODELIVER_CANARY_PORT:-4413}"
 BIND_HOST="127.0.0.1"
 if [[ "$RUNTIME_PROFILE" == "m2-failover" && "$RUNTIME_TEST_MODE" == "0" ]]; then
   ADMIN_HOST="co-videopro.com"
-  CLIENT_HOST="co-videopro.com"
+  CLIENT_HOST="client.contentco-op.com"
   LAUNCHD_LABEL="com.contentcoop.codeliver-failover"
 else
   ADMIN_HOST="admin.contentco-op.com"
@@ -243,7 +243,7 @@ load_runtime_env() {
   require_optional_32_byte_key_list \
     CO_PRODUCTION_REVIEW_ADMISSION_VERIFICATION_KEYS
   [[ "${CO_PRODUCTION_REVIEW_ADMISSION_TRUSTED_IP_HEADER:-}" == "cf-connecting-ip" ]] || \
-    fail "CO_PRODUCTION_REVIEW_ADMISSION_TRUSTED_IP_HEADER must be cf-connecting-ip on M4"
+    fail "CO_PRODUCTION_REVIEW_ADMISSION_TRUSTED_IP_HEADER must be cf-connecting-ip behind Cloudflare"
 
   [[ "${CODELIVER_STORAGE_PROVIDER:-}" == "ccnas" ]] || fail "CODELIVER_STORAGE_PROVIDER must be ccnas"
   [[ "${CODELIVER_STORAGE_WRITE_ENABLED:-}" == "1" ]] || fail "CODELIVER_STORAGE_WRITE_ENABLED must be 1"

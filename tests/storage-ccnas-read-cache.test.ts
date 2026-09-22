@@ -18,6 +18,7 @@ import test from "node:test";
 import {
   CcnasReadCache,
   ccnasContentVersionId,
+  sameOpenedCcnasFile,
 } from "../lib/storage/ccnas-read-cache.ts";
 
 const TEST_CACHE_MAX_BYTES = 1024n * 1024n;
@@ -100,6 +101,42 @@ test("CCNAS cache rejects NAS tamper before a cold fill", async () => {
         sha256: value.sha256,
       }),
       /checksum|size/i,
+    );
+    assert.equal(existsSync(join(value.cacheRoot, value.objectKey)), false);
+  } finally {
+    rmSync(value.sourceRoot, { recursive: true, force: true });
+    rmSync(value.cacheRoot, { recursive: true, force: true });
+  }
+});
+
+test("CCNAS metadata drift is tolerated only while authoritative bytes still match", async () => {
+  assert.equal(
+    sameOpenedCcnasFile(
+      { dev: 1n, ino: 2n, size: 3n },
+      { dev: 1n, ino: 2n, size: 3n },
+    ),
+    true,
+  );
+  assert.equal(
+    sameOpenedCcnasFile(
+      { dev: 1n, ino: 2n, size: 3n },
+      { dev: 1n, ino: 2n, size: 4n },
+    ),
+    false,
+  );
+
+  const value = fixture();
+  const cache = new CcnasReadCache(value.cacheRoot, 0n, TEST_CACHE_MAX_BYTES);
+  try {
+    writeFileSync(value.sourcePath, Buffer.alloc(value.payload.length, 0x78));
+    await assert.rejects(
+      () => cache.ensure({
+        objectKey: value.objectKey,
+        sourcePath: value.sourcePath,
+        size: value.payload.length,
+        sha256: value.sha256,
+      }),
+      /checksum/i,
     );
     assert.equal(existsSync(join(value.cacheRoot, value.objectKey)), false);
   } finally {

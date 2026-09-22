@@ -79,6 +79,20 @@ function identitiesMatch(manifest: CacheManifest["identity"], status: BigIntStat
   return JSON.stringify(manifest) === JSON.stringify(manifestIdentity(status));
 }
 
+export function sameOpenedCcnasFile(
+  before: Pick<BigIntStats, "dev" | "ino" | "size">,
+  after: Pick<BigIntStats, "dev" | "ino" | "size">,
+): boolean {
+  // SMB may settle mode and timestamps after a durable write. Those fields are
+  // not content authority for CCNAS: the caller still verifies the complete
+  // file against the receipt-bound size and SHA-256 before cache publication.
+  return (
+    before.dev === after.dev &&
+    before.ino === after.ino &&
+    before.size === after.size
+  );
+}
+
 export function ccnasContentVersionId(input: { objectKey: string; size: number; sha256: string }): string {
   const objectKey = assertSafeObjectKey(input.objectKey);
   assertSafeSize(input.size);
@@ -241,7 +255,10 @@ export class CcnasReadCache {
     };
   }
 
-  private async hashFile(file: Awaited<ReturnType<typeof open>>): Promise<{ size: number; sha256: string; status: BigIntStats }> {
+  private async hashFile(
+    file: Awaited<ReturnType<typeof open>>,
+    options: { allowCcnasMetadataDrift?: boolean } = {},
+  ): Promise<{ size: number; sha256: string; status: BigIntStats }> {
     const before = await file.stat({ bigint: true });
     if (!before.isFile() || before.size > BigInt(Number.MAX_SAFE_INTEGER)) {
       throw new StorageError("STORAGE_PATH_INVALID", "CCNAS cache source is not a safe file");
@@ -257,7 +274,10 @@ export class CcnasReadCache {
       position += bytesRead;
     }
     const after = await file.stat({ bigint: true });
-    if (before.dev !== after.dev || before.ino !== after.ino || before.size !== after.size || before.mtimeNs !== after.mtimeNs || before.ctimeNs !== after.ctimeNs) {
+    const stableIdentity = options.allowCcnasMetadataDrift
+      ? sameOpenedCcnasFile(before, after)
+      : before.dev === after.dev && before.ino === after.ino && before.size === after.size && before.mtimeNs === after.mtimeNs && before.ctimeNs === after.ctimeNs;
+    if (!stableIdentity) {
       throw new StorageError("STORAGE_CHECKSUM", "CCNAS cache source identity changed while hashing");
     }
     return { size, sha256: hash.digest("hex"), status: after };
@@ -413,7 +433,9 @@ export class CcnasReadCache {
         normalized.sourcePath,
         constants.O_RDONLY | constants.O_NOFOLLOW,
       );
-      const sourceInspection = await this.hashFile(source);
+      const sourceInspection = await this.hashFile(source, {
+        allowCcnasMetadataDrift: true,
+      });
       if (sourceInspection.size !== normalized.size || sourceInspection.sha256 !== normalized.sha256) {
         throw new StorageError("STORAGE_CHECKSUM", "CCNAS source checksum or size does not match its receipt");
       }

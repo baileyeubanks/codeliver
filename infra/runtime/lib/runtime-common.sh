@@ -3,8 +3,13 @@
 # Shared, M4-specific runtime contract. Production paths cannot be overridden.
 
 RUNTIME_TEST_MODE="${CODELIVER_RUNTIME_TEST_MODE:-0}"
+RUNTIME_PROFILE="${CODELIVER_RUNTIME_PROFILE:-m4}"
 [[ "$RUNTIME_TEST_MODE" == "0" || "$RUNTIME_TEST_MODE" == "1" ]] || {
   printf 'codeliver-runtime: CODELIVER_RUNTIME_TEST_MODE must be 0 or 1\n' >&2
+  exit 1
+}
+[[ "$RUNTIME_PROFILE" == "m4" || "$RUNTIME_PROFILE" == "m2-failover" ]] || {
+  printf 'codeliver-runtime: CODELIVER_RUNTIME_PROFILE must be m4 or m2-failover\n' >&2
   exit 1
 }
 
@@ -17,13 +22,26 @@ if [[ "$RUNTIME_TEST_MODE" == "1" ]]; then
   STORAGE_MOUNT="${CODELIVER_EXPECTED_STORAGE_MOUNT:-$APP_ROOT/storage}"
   STORAGE_ROOT="${CODELIVER_EXPECTED_STORAGE_ROOT:-$STORAGE_MOUNT/media-vault/co-deliver}"
 else
-  APP_ROOT="/Users/_mxappservice/Projects/platform/codeliver"
-  ENV_FILE="/Users/_mxappservice/.config/blaze-secrets/codeliver/runtime.env"
-  NODE_BIN="/Users/_mxappservice/.nvm/versions/node/v24.14.1/bin/node"
-  NPM_CLI_JS="/Users/_mxappservice/.nvm/versions/node/v24.14.1/lib/node_modules/npm/bin/npm-cli.js"
-  EXPECTED_RUNTIME_USER="_mxappservice"
-  STORAGE_MOUNT="/Volumes/BLAZE-STORE-2"
-  STORAGE_ROOT="/Volumes/BLAZE-STORE-2/media-vault/co-deliver"
+  case "$RUNTIME_PROFILE" in
+    m4)
+      APP_ROOT="/Users/_mxappservice/Projects/platform/codeliver"
+      ENV_FILE="/Users/_mxappservice/.config/blaze-secrets/codeliver/runtime.env"
+      NODE_BIN="/Users/_mxappservice/.nvm/versions/node/v24.14.1/bin/node"
+      NPM_CLI_JS="/Users/_mxappservice/.nvm/versions/node/v24.14.1/lib/node_modules/npm/bin/npm-cli.js"
+      EXPECTED_RUNTIME_USER="_mxappservice"
+      STORAGE_MOUNT="/Volumes/BLAZE-STORE-2"
+      STORAGE_ROOT="/Volumes/BLAZE-STORE-2/media-vault/co-deliver"
+      ;;
+    m2-failover)
+      APP_ROOT="/Users/baileyeubanks/.local/share/codeliver-failover"
+      ENV_FILE="/Users/baileyeubanks/.config/codeliver-failover/runtime.env"
+      NODE_BIN="/Users/baileyeubanks/.nvm/versions/node/v22.23.1/bin/node"
+      NPM_CLI_JS="/Users/baileyeubanks/.nvm/versions/node/v22.23.1/lib/node_modules/npm/bin/npm-cli.js"
+      EXPECTED_RUNTIME_USER="baileyeubanks"
+      STORAGE_MOUNT="/Volumes/CC_NAS"
+      STORAGE_ROOT="/Volumes/CC_NAS/cvp-runtime/co-videopro"
+      ;;
+  esac
 fi
 
 RELEASES_ROOT="$APP_ROOT/releases"
@@ -37,15 +55,25 @@ CANARY_LOG_ROOT="$APP_ROOT/canary-logs"
 LOCKS_ROOT="$APP_ROOT/locks"
 PROMOTION_LOCK="$LOCKS_ROOT/promotion.lock"
 
-EXPECTED_NODE_VERSION="v24.14.1"
+if [[ "$RUNTIME_PROFILE" == "m2-failover" && "$RUNTIME_TEST_MODE" == "0" ]]; then
+  EXPECTED_NODE_VERSION="v22.23.1"
+else
+  EXPECTED_NODE_VERSION="v24.14.1"
+fi
 PRODUCTION_PORT="4103"
 DEFAULT_CANARY_PORT="${CODELIVER_CANARY_PORT:-4413}"
 BIND_HOST="127.0.0.1"
-ADMIN_HOST="admin.contentco-op.com"
-CLIENT_HOST="client.contentco-op.com"
-LAUNCHD_LABEL="com.contentcoop.codeliver-runtime"
+if [[ "$RUNTIME_PROFILE" == "m2-failover" && "$RUNTIME_TEST_MODE" == "0" ]]; then
+  ADMIN_HOST="co-videopro.com"
+  CLIENT_HOST="co-videopro.com"
+  LAUNCHD_LABEL="com.contentcoop.codeliver-failover"
+else
+  ADMIN_HOST="admin.contentco-op.com"
+  CLIENT_HOST="client.contentco-op.com"
+  LAUNCHD_LABEL="com.contentcoop.codeliver-runtime"
+fi
 
-readonly RUNTIME_TEST_MODE APP_ROOT ENV_FILE NODE_BIN NPM_CLI_JS EXPECTED_RUNTIME_USER
+readonly RUNTIME_TEST_MODE RUNTIME_PROFILE APP_ROOT ENV_FILE NODE_BIN NPM_CLI_JS EXPECTED_RUNTIME_USER
 readonly STORAGE_MOUNT STORAGE_ROOT RELEASES_ROOT STAGING_ROOT STATE_ROOT CONTROL_ROOT
 readonly CURRENT_LINK PREVIOUS_LINK RECEIPTS_ROOT CANARY_LOG_ROOT LOCKS_ROOT PROMOTION_LOCK
 readonly EXPECTED_NODE_VERSION PRODUCTION_PORT DEFAULT_CANARY_PORT BIND_HOST ADMIN_HOST CLIENT_HOST
@@ -158,6 +186,29 @@ load_runtime_env() {
   # The file is a private, owner-controlled shell assignment file.
   source "$ENV_FILE"
   set +a
+
+  # The failover profile reuses the private production secrets but pins every
+  # host- and machine-specific value to the independent M2 + CCNAS origin.
+  if [[ "$RUNTIME_PROFILE" == "m2-failover" && "$RUNTIME_TEST_MODE" == "0" ]]; then
+    NODE_ENV=production
+    PORT="$PRODUCTION_PORT"
+    CODELIVER_BIND_HOST="$BIND_HOST"
+    ADMIN_SITE_URL="https://$ADMIN_HOST"
+    NEXT_PUBLIC_ADMIN_SITE_URL="https://$ADMIN_HOST"
+    CLIENT_SITE_URL="https://$CLIENT_HOST"
+    NEXT_PUBLIC_CLIENT_SITE_URL="https://$CLIENT_HOST"
+    CODELIVER_STORAGE_PROVIDER=ccnas
+    CODELIVER_STORAGE_WRITE_ENABLED=1
+    CODELIVER_HEALTH_REMOTE_PROBES=1
+    NAS_MEDIA_ROOT="$STORAGE_ROOT"
+    CODELIVER_CLAMSCAN_PATH=/opt/homebrew/bin/clamscan
+    FFMPEG_PATH=/opt/homebrew/bin/ffmpeg
+    FFPROBE_PATH=/opt/homebrew/bin/ffprobe
+    export NODE_ENV PORT CODELIVER_BIND_HOST ADMIN_SITE_URL NEXT_PUBLIC_ADMIN_SITE_URL
+    export CLIENT_SITE_URL NEXT_PUBLIC_CLIENT_SITE_URL CODELIVER_STORAGE_PROVIDER
+    export CODELIVER_STORAGE_WRITE_ENABLED CODELIVER_HEALTH_REMOTE_PROBES NAS_MEDIA_ROOT
+    export CODELIVER_CLAMSCAN_PATH FFMPEG_PATH FFPROBE_PATH
+  fi
 
   [[ "${NODE_ENV:-}" == "production" ]] || fail "NODE_ENV must be production"
   [[ "${PORT:-}" == "$PRODUCTION_PORT" ]] || fail "PORT must be $PRODUCTION_PORT in the runtime env"

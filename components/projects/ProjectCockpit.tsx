@@ -162,6 +162,20 @@ interface ProjectCockpitProps {
 
 type CockpitApprovalStage = Omit<DemoApprovalStage, "status"> & { status: string };
 type LiveReviewVersion = Version;
+type LiveApprovalWorkflow = {
+  id: string;
+  asset_id: string;
+  version_id: string;
+  steps: Array<{
+    id: string;
+    asset_id: string;
+    version_id: string;
+    step_order: number;
+    role_label: string | null;
+    assignee_email: string | null;
+    status: string;
+  }>;
+};
 
 export interface CockpitUploadStatus {
   assetId?: string;
@@ -582,6 +596,7 @@ export default function ProjectCockpit({
   });
   const liveAssetRequestRef = useRef(0);
   const liveVersionRequestRef = useRef(0);
+  const liveApprovalWorkflowRequestRef = useRef(0);
   const [toast, setToast] = useState("");
   const [commentSubmitting, setCommentSubmitting] = useState(false);
   const [nativeDuration, setNativeDuration] = useState(0);
@@ -594,6 +609,9 @@ export default function ProjectCockpit({
   const [liveVersionAssetId, setLiveVersionAssetId] = useState<string | null>(null);
   const [liveVersionsLoading, setLiveVersionsLoading] = useState(false);
   const [liveVersionsError, setLiveVersionsError] = useState(false);
+  const [liveApprovalWorkflow, setLiveApprovalWorkflow] = useState<LiveApprovalWorkflow | null>(null);
+  const [liveApprovalWorkflowKey, setLiveApprovalWorkflowKey] = useState<string | null>(null);
+  const [liveApprovalWorkflowStatus, setLiveApprovalWorkflowStatus] = useState<"idle" | "loading" | "ready" | "error">("idle");
   const [liveTasks] = useState<DemoProjectTask[]>([]);
   const [liveActivity, setLiveActivity] = useState<DemoActivityItem[]>([]);
   const [approvalSetupEmail, setApprovalSetupEmail] = useState("");
@@ -875,11 +893,14 @@ export default function ProjectCockpit({
   const projectTasks = demoMode
     ? workspace.tasks.filter((task) => task.project_id === project.id)
     : liveTasks;
+  const approvalWorkflowReady = demoMode || versionScopedReview || (
+    activeLiveReviewKey === liveApprovalWorkflowKey && liveApprovalWorkflowStatus === "ready"
+  );
   const reportedApprovalStages: CockpitApprovalStage[] = versionScopedReview
     ? []
     : demoMode
       ? workspace.approvalStages.filter((stage) => stage.asset_id === activeAsset?.id)
-      : [...(activeAsset?.approval_records ?? [])]
+      : [...(liveApprovalWorkflow?.steps ?? [])]
       .sort((left, right) => (left.step_order ?? 0) - (right.step_order ?? 0))
       .map((approval) => ({
         id: approval.id,
@@ -1206,6 +1227,41 @@ export default function ProjectCockpit({
     setLiveAssetDataKey(`${assetId}:${versionId}`);
   }, [activeAsset, activeLiveReviewKey, activeLiveVersion, demoMode, project.id]);
 
+  const loadLiveApprovalWorkflow = useCallback(async (assetId: string, versionId: string) => {
+    const key = `${assetId}:${versionId}`;
+    const requestId = liveApprovalWorkflowRequestRef.current + 1;
+    liveApprovalWorkflowRequestRef.current = requestId;
+    setLiveApprovalWorkflowKey(key);
+    setLiveApprovalWorkflowStatus("loading");
+
+    try {
+      const response = await fetch(
+        `/api/approvals/workflow?asset_id=${encodeURIComponent(assetId)}&version_id=${encodeURIComponent(versionId)}`,
+        { cache: "no-store" },
+      );
+      if (!response.ok) throw new Error("Approval workflow is unavailable.");
+      const payload = await response.json() as { workflow?: LiveApprovalWorkflow | null };
+      if (
+        requestId !== liveApprovalWorkflowRequestRef.current
+        || activeReviewTargetRef.current.assetId !== assetId
+        || activeReviewTargetRef.current.versionId !== versionId
+      ) return null;
+      setLiveApprovalWorkflow(payload.workflow ?? null);
+      setLiveApprovalWorkflowStatus("ready");
+      return payload.workflow ?? null;
+    } catch (error) {
+      if (
+        requestId === liveApprovalWorkflowRequestRef.current
+        && activeReviewTargetRef.current.assetId === assetId
+        && activeReviewTargetRef.current.versionId === versionId
+      ) {
+        setLiveApprovalWorkflow(null);
+        setLiveApprovalWorkflowStatus("error");
+      }
+      throw error;
+    }
+  }, []);
+
   useEffect(() => {
     if (demoMode) return;
     let cancelled = false;
@@ -1237,6 +1293,17 @@ export default function ProjectCockpit({
     if (demoMode) return;
     void loadLiveAssetData().catch(() => undefined);
   }, [demoMode, loadLiveAssetData]);
+
+  useEffect(() => {
+    if (demoMode || !activeAsset || !activeLiveVersion || versionScopedReview) {
+      liveApprovalWorkflowRequestRef.current += 1;
+      setLiveApprovalWorkflow(null);
+      setLiveApprovalWorkflowKey(null);
+      setLiveApprovalWorkflowStatus("idle");
+      return;
+    }
+    void loadLiveApprovalWorkflow(activeAsset.id, activeLiveVersion.id).catch(() => undefined);
+  }, [activeAsset, activeLiveVersion, demoMode, loadLiveApprovalWorkflow, versionScopedReview]);
 
   const leaveReviewView = useCallback(() => {
     if (!reviewViewActive) return;
@@ -1899,8 +1966,8 @@ export default function ProjectCockpit({
       setApprovalSetupError("Add an approval recipient and step label.");
       return;
     }
-    if (!activeLiveVersion) {
-      setApprovalSetupError("Open the current review version before setting up approval.");
+    if (!activeLiveVersion || versionScopedReview) {
+      setApprovalSetupError("Approval setup is available only on the current review version.");
       return;
     }
 
@@ -1916,6 +1983,7 @@ export default function ProjectCockpit({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           asset_id: activeAsset.id,
+          version_id: activeLiveVersion.id,
           mode: "sequential",
           steps: [{
             step_order: 1,
@@ -1948,21 +2016,8 @@ export default function ProjectCockpit({
     }
 
     try {
-      const workflowResponse = await fetch(
-        `/api/approvals/workflow?asset_id=${encodeURIComponent(target.assetId)}`,
-        { cache: "no-store" },
-      );
-      if (!workflowResponse.ok) throw new Error("Approval workflow is unavailable.");
-      const workflowPayload = await workflowResponse.json() as {
-        workflow?: {
-          steps?: Array<{
-            assignee_email?: string | null;
-            role_label?: string | null;
-            status?: string | null;
-          }>;
-        } | null;
-      };
-      const matchingPendingStep = workflowPayload.workflow?.steps?.some((step) => (
+      const workflow = await loadLiveApprovalWorkflow(target.assetId, target.versionId);
+      const matchingPendingStep = workflow?.steps.some((step) => (
         step.status === "pending"
         && step.role_label === roleLabel
         && step.assignee_email?.trim().toLowerCase() === normalizedRecipientEmail
@@ -3234,7 +3289,7 @@ export default function ProjectCockpit({
                 <header><div><h2>Approval workflow</h2><p>Sequential review stages and accountable sign-off.</p></div></header>
                 <div className="cockpit-table-list">
                   {approvalStages.map((stage, index) => <article key={stage.id}><span className="cockpit-list-icon"><CheckCircle2 size={18} /></span><div><strong>Step {index + 1}: {stage.name}</strong><small>{stage.reviewer_names.length ? `${stage.approved_reviewer_names.length}/${stage.reviewer_names.length} reviewers approved` : "Unassigned"}</small></div><span className={stage.status === "approved" ? "status-active" : "status-pending"}>{stage.status.replaceAll("_", " ")}</span>{stage.status !== "approved" && demoMode ? <button type="button" onClick={() => approveDemoStage(stage.id)}>Approve</button> : stage.status === "approved" ? <Check size={17} /> : null}</article>)}
-                  {approvalStages.length === 0 && activeAsset && !demoMode ? (
+                  {approvalStages.length === 0 && activeAsset && !demoMode && !versionScopedReview && approvalWorkflowReady ? (
                     <form
                       className={styles.approvalSetup}
                       onSubmit={(event) => {
@@ -3271,7 +3326,7 @@ export default function ProjectCockpit({
                         {approvalSetupSubmitting ? "Creating approval…" : "Create approval and open sharing"}
                       </button>
                     </form>
-                  ) : approvalStages.length === 0 ? <EmptyState title="No approval workflow" body="Create a review link with approval access to start one." /> : null}
+                  ) : approvalStages.length === 0 && versionScopedReview ? <EmptyState title="Historical approval record" body="Approval rounds belong to their original version. Open the current version to start a new round." /> : approvalStages.length === 0 && !approvalWorkflowReady ? <EmptyState title="Loading approval workflow" body="Checking the current version before offering a new approval round." /> : approvalStages.length === 0 ? <EmptyState title="Approval workflow unavailable" body="Reload this project before setting up approval." /> : null}
                 </div>
               </>
             ) : null}

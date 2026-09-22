@@ -73,6 +73,8 @@ const baseInput = {
   demoMode: false,
   assetId: "asset-client-limit",
   assetType: "video",
+  versionId: "client-version-is-not-authority",
+  reviewInviteId: "client-invite-is-not-authority",
   reviewerName: "Reviewer",
   body: "Precise drawing note",
   timecode: 4.2,
@@ -105,6 +107,8 @@ test("comment transport bounds a long freehand path before serializing it", asyn
   assert.ok(annotations[0].points.length <= 512);
   assert.deepEqual(annotations[0].points.slice(0, 2), points.slice(0, 2));
   assert.deepEqual(annotations[0].points.slice(-2), points.slice(-2));
+  assert.equal(requestBody?.versionId, undefined);
+  assert.equal(requestBody?.reviewInviteId, undefined);
 
   const returned = comment.annotations?.[0]?.data;
   assert.ok(returned?.kind === "freehand");

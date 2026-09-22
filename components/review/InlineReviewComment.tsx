@@ -12,6 +12,8 @@ interface InlineReviewCommentProps {
   demoMode: boolean;
   assetId: string;
   assetType?: string;
+  versionId: string | null;
+  reviewInviteId: string | null;
   reviewerName: string;
   onReviewerNameChange: (value: string) => void;
   timecode: number;
@@ -29,6 +31,8 @@ export default function InlineReviewComment({
   demoMode,
   assetId,
   assetType = "video",
+  versionId,
+  reviewInviteId,
   reviewerName,
   onReviewerNameChange,
   timecode,
@@ -72,6 +76,8 @@ export default function InlineReviewComment({
         demoMode,
         assetId,
         assetType,
+        versionId,
+        reviewInviteId,
         reviewerName,
         body,
         timecode,

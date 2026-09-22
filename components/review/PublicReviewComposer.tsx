@@ -12,6 +12,8 @@ interface PublicReviewComposerProps {
   demoMode?: boolean;
   assetId: string;
   assetType: string;
+  versionId: string | null;
+  reviewInviteId: string | null;
   shareIntent: ShareIntent;
   canComment: boolean;
   reviewerName: string;
@@ -29,6 +31,8 @@ export default function PublicReviewComposer({
   demoMode = false,
   assetId,
   assetType,
+  versionId,
+  reviewInviteId,
   shareIntent,
   canComment,
   reviewerName,
@@ -81,6 +85,8 @@ export default function PublicReviewComposer({
         demoMode,
         assetId,
         assetType,
+        versionId,
+        reviewInviteId,
         reviewerName,
         body,
         timecode,

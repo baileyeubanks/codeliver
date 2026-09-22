@@ -55,6 +55,7 @@ import {
 } from "@/lib/review/demo-version-authority";
 import { openReviewReport } from "@/lib/review/open-report";
 import { resolveDemoReviewerEmail } from "@/lib/review/demo-reviewer-identity";
+import { projectPersistedDemoReviewComment } from "@/lib/review/demo-comment-projection";
 import {
   deriveReviewState,
   formatAssetStatusLabel,
@@ -204,10 +205,9 @@ export default function PublicReviewPage({
   const [activeApprovalIds, setActiveApprovalIds] = useState<string[]>([]);
   const [approvalAccessMessage, setApprovalAccessMessage] = useState("");
   const [storedComments, setComments] = useState<ReviewComment[]>([]);
-  // P17: the demo workspace store has no annotation column, so drawings ride
-  // on the in-memory comment after submit. The demo loader rebuilds comments
-  // from persisted state whenever the store changes; this map re-applies each
-  // drawing to its comment for the rest of the session (local preview).
+  // Normalized vectors survive workspace reloads. Raster previews remain
+  // session-only; this map keeps them attached when store hydration rebuilds
+  // the durable comment objects.
   const [drawingsByCommentId, setDrawingsByCommentId] = useState<
     Record<string, Pick<ReviewComment, "annotations" | "attachments">>
   >({});
@@ -427,37 +427,16 @@ export default function PublicReviewPage({
               state.review_invite_id === review.invite.id,
           );
           const persistedComments: ReviewComment[] = demoWorkspace.reviewComments
-            .filter(
-              (comment) =>
-                comment.project_id === publicProjectId &&
-                comment.asset_id === publicAssetId &&
-                comment.version_id === publicVersionId,
+            .map((comment) =>
+              projectPersistedDemoReviewComment(comment, {
+                projectId: publicProjectId,
+                assetId: publicAssetId,
+                versionId: publicVersionId,
+                reviewInviteId: review.invite.id,
+                assetType: review.asset.file_type,
+              }),
             )
-            .map((comment) => ({
-              id: comment.id,
-              review_id: null,
-              review_invite_id: comment.review_invite_id ?? review.invite.id,
-              asset_id: comment.asset_id,
-              version_id: comment.version_id ?? publicVersionId,
-              parent_id: null,
-              author_name: comment.author_name,
-              author_email: comment.author_email ?? null,
-              author_id: null,
-              body: comment.body,
-              rich_body: null,
-              timecode_seconds:
-                review.asset.file_type === "video" ? comment.time_seconds : null,
-              frame_number: null,
-              pin_x: comment.pin_x ?? null,
-              pin_y: comment.pin_y ?? null,
-              mentions: [],
-              status: comment.status,
-              visibility: "external",
-              resolved_by: null,
-              resolved_at: null,
-              created_at: comment.created_at,
-              updated_at: comment.created_at,
-            }));
+            .filter((comment): comment is ReviewComment => comment !== null);
           const restoredComments = [...review.comments, ...persistedComments];
           const restoredApprovals = persistedApprovalState?.approvals ?? review.approvals;
           const restoredAsset = {
@@ -1326,6 +1305,8 @@ export default function PublicReviewPage({
             demoMode={demoMode}
             assetId={asset.id}
             assetType={asset.file_type}
+            versionId={activeVersion?.id ?? null}
+            reviewInviteId={invite?.id ?? null}
             reviewerName={reviewerName}
             onReviewerNameChange={setReviewerName}
             timecode={commentPin.timeSeconds ?? currentTime}
@@ -1776,6 +1757,8 @@ export default function PublicReviewPage({
             demoMode={demoMode}
             assetId={asset.id}
             assetType={asset.file_type}
+            versionId={activeVersion?.id ?? null}
+            reviewInviteId={invite?.id ?? null}
             shareIntent={shareIntent}
             canComment={canComment}
             reviewerName={reviewerName}

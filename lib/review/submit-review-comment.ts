@@ -10,6 +10,10 @@ interface SubmitReviewCommentInput {
   demoMode: boolean;
   assetId: string;
   assetType: string;
+  /** Resolved cut identity. Used only by browser-local demo persistence. */
+  versionId: string | null;
+  /** Resolved share identity. Used only by browser-local demo persistence. */
+  reviewInviteId: string | null;
   reviewerName: string;
   body: string;
   timecode: number;
@@ -21,11 +25,10 @@ interface SubmitReviewCommentInput {
 }
 
 /**
- * Local preview semantics: demo comments persist through the workspace store,
- * which has no annotation column, so the drawing rides on the returned
- * comment object (annotations + a WebP attachment) for this session. Real
- * review requests persist the normalized vector annotations. The WebP raster
- * remains a local preview and is never accepted as an arbitrary upload URL.
+ * Local preview semantics: demo comments persist normalized vectors through
+ * the workspace store while the WebP raster stays session-only. Real review
+ * requests persist normalized vectors through the API. The WebP raster is
+ * never accepted as an arbitrary upload URL.
  */
 function withDrawing(
   comment: Comment,
@@ -72,6 +75,8 @@ export async function submitReviewComment({
   demoMode,
   assetId,
   assetType,
+  versionId,
+  reviewInviteId,
   reviewerName,
   body,
   timecode,
@@ -98,14 +103,21 @@ export async function submitReviewComment({
       : undefined;
 
   if (demoMode) {
+    if (!versionId?.trim() || !reviewInviteId?.trim()) {
+      throw new Error("Could not resolve this demo review version.");
+    }
+
     const persistedComment = addDemoReviewComment({
       assetId,
+      versionId,
+      reviewInviteId,
       authorName,
       assetType,
       body: commentBody,
       timeSeconds: timecode,
       pinX: pin?.x,
       pinY: pin?.y,
+      annotations: transportAnnotations,
     });
 
     if (!persistedComment) {

@@ -21,6 +21,7 @@ import type {
   ApprovalStep,
   WorkflowMode,
 } from "@/lib/types/codeliver";
+import { parseExternalAnnotations } from "@/lib/review/annotation-persistence";
 import {
   PROJECT_STAGES,
   type Brief,
@@ -186,8 +187,10 @@ export interface DemoReviewComment {
   time_seconds: number;
   pin_x?: number;
   pin_y?: number;
-  /** P17: annotation stroke attached to the note; null/absent = pin-only comment. */
+  /** Legacy single-stroke records remain readable after the array migration. */
   drawing?: AnnotationData | null;
+  /** Normalized, bounded vector strokes. Raster previews stay session-only. */
+  annotations?: AnnotationData[];
   status: "open" | "resolved";
   created_at: string;
 }
@@ -1357,14 +1360,20 @@ export function addDemoReviewComment(input: {
   timeSeconds: number;
   pinX?: number;
   pinY?: number;
-  /** P17: annotation stroke to persist alongside the note. */
+  /** Legacy single-stroke input retained for existing internal callers. */
   drawing?: AnnotationData | null;
+  /** Normalized vector strokes to persist alongside the note. */
+  annotations?: readonly AnnotationData[];
 }) {
   const body = input.body.trim();
   if (!body) return null;
   const hasPinX = Number.isFinite(input.pinX);
   const hasPinY = Number.isFinite(input.pinY);
   if (hasPinX !== hasPinY) return null;
+  const parsedAnnotations = parseExternalAnnotations(
+    input.annotations ?? (input.drawing ? [input.drawing] : []),
+  );
+  if (!parsedAnnotations.ok) return null;
 
   ensureHydrated();
   const createdAt = new Date().toISOString();
@@ -1387,7 +1396,9 @@ export function addDemoReviewComment(input: {
       !input.assetType || input.assetType === "video" ? Math.max(0, input.timeSeconds) : 0,
     pin_x: hasPinX ? input.pinX : undefined,
     pin_y: hasPinY ? input.pinY : undefined,
-    drawing: input.drawing ?? null,
+    ...(parsedAnnotations.annotations.length > 0
+      ? { annotations: parsedAnnotations.annotations }
+      : {}),
     status: "open",
     created_at: createdAt,
   };

@@ -26,6 +26,36 @@ export type CockpitNavigationIcon =
   | "tasks"
   | "versions";
 
+/**
+ * The project cockpit is a route-backed workspace. Keep the parser and URL
+ * writer together so a direct URL, browser history, and a rail selection all
+ * resolve the same surface without canonicalizing during hydration.
+ */
+export function cockpitSectionFromSearchParams(searchParams: URLSearchParams): CockpitSection {
+  const requested = searchParams.get("surface");
+  return isCockpitSection(requested) ? requested : "overview";
+}
+
+export function projectCockpitSurfaceHref(
+  projectId: string,
+  search: string | URLSearchParams,
+  section: CockpitSection,
+) {
+  const params = new URLSearchParams(search);
+  // Record tabs and the focused review mode render different workspace
+  // contracts. Selecting a cockpit surface deliberately clears only those.
+  params.delete("tab");
+  params.delete("view");
+  if (section === "overview") params.delete("surface");
+  else params.set("surface", section);
+  const query = params.toString();
+  return `/projects/${encodeURIComponent(projectId)}${query ? `?${query}` : ""}`;
+}
+
+function isCockpitSection(value: string | null): value is CockpitSection {
+  return COCKPIT_NAVIGATION.some((item) => item.id === value);
+}
+
 export interface CockpitNavigationItem {
   id: CockpitSection;
   label: string;

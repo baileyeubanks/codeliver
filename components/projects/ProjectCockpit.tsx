@@ -68,7 +68,12 @@ import {
 } from "@/components/cockpit/CockpitNavigation";
 import CockpitToolbar from "@/components/cockpit/CockpitToolbar";
 import VersionCompareDock from "@/components/cockpit/VersionCompareDock";
-import { COCKPIT_NAVIGATION, type CockpitSection } from "@/components/cockpit/cockpit-navigation";
+import {
+  cockpitSectionFromSearchParams,
+  COCKPIT_NAVIGATION,
+  projectCockpitSurfaceHref,
+  type CockpitSection,
+} from "@/components/cockpit/cockpit-navigation";
 import { useCockpitLayout } from "@/components/cockpit/useCockpitLayout";
 import type { MediaAsset } from "@/components/projects/MediaCard";
 import {
@@ -166,10 +171,6 @@ const DEFAULT_COCKPIT_READINESS: CockpitReadinessState = {
   detail: "System probe running",
   tone: "checking",
 };
-
-function isCockpitSection(value: string | null): value is CockpitSection {
-  return COCKPIT_NAVIGATION.some((item) => item.id === value);
-}
 
 const formatClock = formatSmpteTimecode;
 
@@ -464,10 +465,7 @@ export default function ProjectCockpit({
   const requestedAssetId = searchParams.get("asset");
   const reviewViewRequested = searchParams.get("view") === "review";
   const [reviewViewActive, setReviewViewActive] = useState(reviewViewRequested);
-  const [activeSection, setActiveSection] = useState<CockpitSection>(() => {
-    const requestedSection = searchParams.get("surface");
-    return isCockpitSection(requestedSection) ? requestedSection : "overview";
-  });
+  const [activeSection, setActiveSection] = useState<CockpitSection>(() => cockpitSectionFromSearchParams(searchParams));
   const [lifecycleOpen, setLifecycleOpen] = useState(false);
   const [activeAssetId, setActiveAssetId] = useState(
     assets.find((asset) => asset.id === requestedAssetId)?.id
@@ -537,8 +535,7 @@ export default function ProjectCockpit({
   const [systemsReadiness, setSystemsReadiness] = useState<CockpitReadinessState>(DEFAULT_COCKPIT_READINESS);
 
   useEffect(() => {
-    const requestedSection = searchParams.get("surface");
-    setActiveSection(isCockpitSection(requestedSection) ? requestedSection : "overview");
+    setActiveSection(cockpitSectionFromSearchParams(searchParams));
     setReviewViewActive(searchParams.get("view") === "review");
   }, [searchParams]);
 
@@ -1130,12 +1127,10 @@ export default function ProjectCockpit({
   function selectSection(section: CockpitSection) {
     if (reviewViewActive) setReviewViewActive(false);
     setLifecycleOpen(false);
-    const params = new URLSearchParams(searchParams.toString());
-    params.delete("view");
-    if (section === "overview") params.delete("surface");
-    else params.set("surface", section);
-    const query = params.toString();
-    router.push(`/projects/${project.id}${query ? `?${query}` : ""}`);
+    const href = projectCockpitSurfaceHref(project.id, searchParams, section);
+    const currentQuery = searchParams.toString();
+    const currentHref = `/projects/${encodeURIComponent(project.id)}${currentQuery ? `?${currentQuery}` : ""}`;
+    if (href !== currentHref) router.push(href);
     setActiveSection(section);
     setMobileNavOpen(false);
     setMobileDockOpen(false);
@@ -1154,7 +1149,8 @@ export default function ProjectCockpit({
   function handleLifecycleNavigate(destination: CoProduceLifecycleDestination) {
     const target = new URL(destination.href, window.location.origin);
     const surface = target.searchParams.get("surface");
-    if (isCockpitSection(surface)) selectSection(surface);
+    const section = COCKPIT_NAVIGATION.find((item) => item.id === surface)?.id;
+    if (section) selectSection(section);
   }
 
   function toggleProjectRail() {
@@ -1172,7 +1168,7 @@ export default function ProjectCockpit({
     }
     if (activeSection !== "overview") {
       leaveReviewView();
-      setActiveSection("overview");
+      selectSection("overview");
       if (compactViewport) setMobileDockOpen(true);
       else if (!layout.dockOpen) toggleDock();
       return;
@@ -2453,7 +2449,11 @@ export default function ProjectCockpit({
                           <div className="cockpit-ai-review">
                             <article>
                               <strong>Transcript</strong>
-                              <span>{demoMode ? "Demo transcript not processed" : "Waiting for transcript job"}</span>
+                              <span>{sourceBackedActive
+                                ? "Transcript has not been processed for this imported source"
+                                : demoMode
+                                  ? "No transcript is available in this local preview"
+                                  : "Waiting for transcript job"}</span>
                             </article>
                             <article>
                               <strong>AI cleanup</strong>

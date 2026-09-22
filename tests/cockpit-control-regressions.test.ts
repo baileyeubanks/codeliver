@@ -59,7 +59,7 @@ test("a focused review deep link releases control when the operator changes mode
 test("cockpit surfaces follow the URL and preserve browser back navigation", () => {
   assert.match(
     cockpitSource,
-    /useEffect\(\(\) => \{[\s\S]*?searchParams\.get\("surface"\)[\s\S]*?setActiveSection\([\s\S]*?setReviewViewActive\(searchParams\.get\("view"\) === "review"\)[\s\S]*?\}, \[searchParams\]\)/,
+    /useEffect\(\(\) => \{[\s\S]*?setActiveSection\(cockpitSectionFromSearchParams\(searchParams\)\)[\s\S]*?setReviewViewActive\(searchParams\.get\("view"\) === "review"\)[\s\S]*?\}, \[searchParams\]\)/,
   );
 
   const selectSectionBody = cockpitSource.match(
@@ -67,11 +67,12 @@ test("cockpit surfaces follow the URL and preserve browser back navigation", () 
   )?.[1];
 
   assert.ok(selectSectionBody, "surface navigation handler is missing");
-  assert.match(selectSectionBody, /params\.delete\("view"\)/);
-  assert.match(selectSectionBody, /params\.delete\("surface"\)/);
-  assert.match(selectSectionBody, /params\.set\("surface", section\)/);
+  assert.match(selectSectionBody, /projectCockpitSurfaceHref\(project\.id, searchParams, section\)/);
+  assert.match(selectSectionBody, /if \(href !== currentHref\) router\.push\(href\)/);
   assert.match(selectSectionBody, /router\.push\(/);
   assert.doesNotMatch(selectSectionBody, /router\.replace\(/);
+  assert.doesNotMatch(cockpitSource, /Demo transcript not processed/);
+  assert.match(cockpitSource, /Transcript has not been processed for this imported source/);
 });
 
 test("the cockpit uses the truthful shared review timeline", () => {
@@ -221,7 +222,7 @@ test("opening the operator dock from another section renders the actual overview
 
   assert.ok(toggleDockBody, "operator-dock handler is missing");
   assert.match(toggleDockBody, /activeSection !== "overview"/);
-  assert.match(toggleDockBody, /setActiveSection\("overview"\)/);
+  assert.match(toggleDockBody, /selectSection\("overview"\)/);
   assert.match(
     toggleDockBody,
     /if \(compactViewport\) setMobileDockOpen\(true\)/,

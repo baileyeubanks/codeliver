@@ -41,12 +41,6 @@ const REQUESTED_VERSION_UNAVAILABLE_ERROR: ReviewRouteError = {
   retryable: false,
 };
 
-const LIVE_VERSION_UNAVAILABLE_ERROR: ReviewRouteError = {
-  title: "Versioned internal review unavailable",
-  message: "This workspace cannot open the requested historical version yet. No substitute media was opened.",
-  retryable: false,
-};
-
 export function buildCanonicalInternalReviewHref(
   projectId: string,
   assetId: string,
@@ -76,6 +70,26 @@ export function readAuthoritativeAssetIdentity(
   }
 
   return { assetId: record.id, projectId: record.project_id };
+}
+
+export function readAuthoritativeVersionIdentity(
+  payload: unknown,
+  requestedAssetId: string,
+  requestedVersionId: string,
+) {
+  if (!payload || typeof payload !== "object" || Array.isArray(payload)) return null;
+  const items = (payload as Record<string, unknown>).items;
+  if (!Array.isArray(items)) return null;
+  const matches = items.filter((item): item is Record<string, unknown> =>
+    Boolean(item)
+    && typeof item === "object"
+    && !Array.isArray(item)
+    && item.id === requestedVersionId
+    && item.asset_id === requestedAssetId,
+  );
+  return matches.length === 1
+    ? { assetId: requestedAssetId, versionId: requestedVersionId }
+    : null;
 }
 
 function firstRouteParam(value: string | string[] | undefined) {
@@ -116,6 +130,7 @@ export default function InternalAssetReviewPage() {
   const isDemo = searchParams.get("demo") === "1";
   const requestedVersionId = searchParams.get("version");
   const hasRequestedVersion = requestedVersionId !== null;
+  const requestedVersionIsMalformed = hasRequestedVersion && !requestedVersionId.trim();
   // The workspace is restored after the initial client render. Do not turn a
   // route into a missing-media error while that restore is still settling.
   const [demoRouteReady, setDemoRouteReady] = useState(false);
@@ -142,8 +157,8 @@ export default function InternalAssetReviewPage() {
       ? DEMO_ASSET_NOT_FOUND_ERROR
       : isDemo && demoRouteReady && hasRequestedVersion && !requestedDemoVersion
         ? REQUESTED_VERSION_UNAVAILABLE_ERROR
-        : !isDemo && hasRequestedVersion
-          ? LIVE_VERSION_UNAVAILABLE_ERROR
+      : !isDemo && requestedVersionIsMalformed
+          ? REQUESTED_VERSION_UNAVAILABLE_ERROR
       : null;
   const loadError = immediateError
     ?? (loadFailure?.requestKey === requestKey ? loadFailure.error : null);
@@ -202,9 +217,39 @@ export default function InternalAssetReviewPage() {
           return;
         }
 
-        router.replace(
-          buildCanonicalInternalReviewHref(identity.projectId, identity.assetId),
-        );
+        if (hasRequestedVersion) {
+          const versionResponse = await fetch(
+            `/api/assets/${encodeURIComponent(identity.assetId)}/versions`,
+            { cache: "no-store", signal: controller.signal },
+          );
+          if (!current) return;
+          if (!versionResponse.ok) {
+            setLoadFailure({ requestKey, error: responseError(versionResponse.status) });
+            return;
+          }
+          const versionsPayload: unknown = await versionResponse.json();
+          if (!current) return;
+          const versionIdentity = readAuthoritativeVersionIdentity(
+            versionsPayload,
+            identity.assetId,
+            requestedVersionId,
+          );
+          if (!versionIdentity) {
+            setLoadFailure({ requestKey, error: REQUESTED_VERSION_UNAVAILABLE_ERROR });
+            return;
+          }
+          router.replace(
+            buildCanonicalInternalReviewHref(
+              identity.projectId,
+              versionIdentity.assetId,
+              false,
+              versionIdentity.versionId,
+            ),
+          );
+          return;
+        }
+
+        router.replace(buildCanonicalInternalReviewHref(identity.projectId, identity.assetId));
       } catch {
         if (!current || controller.signal.aborted) return;
         setLoadFailure({
@@ -223,7 +268,7 @@ export default function InternalAssetReviewPage() {
       current = false;
       controller.abort();
     };
-  }, [assetId, demoAsset, demoRouteReady, immediateError, isDemo, projectId, requestKey, retryAttempt, router, requestedVersionId, requestedDemoVersion]);
+  }, [assetId, demoAsset, demoRouteReady, hasRequestedVersion, immediateError, isDemo, projectId, requestKey, retryAttempt, router, requestedVersionId, requestedDemoVersion]);
 
   const projectsHref = isDemo ? "/projects?demo=1" : "/projects";
   const projectHref = projectId

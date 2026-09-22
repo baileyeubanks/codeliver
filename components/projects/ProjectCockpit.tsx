@@ -117,14 +117,16 @@ import {
 } from "@/lib/demo/media-version-authority";
 import {
   canOperateExactInternalReviewVersion,
+  resolveExactLiveInternalReviewVersion,
   reviewCommentDraftKey,
+  shouldApplyLiveInternalReviewResponse,
   visibleExactInternalReviewRecords,
 } from "@/lib/review/internal-version-operations";
 import { formatSmpteTimecode } from "@/components/player/timecode";
 import VideoPlayer from "@/components/player/VideoPlayer";
 import { normalizeReviewSeekStep, normalizeReviewShortcutKey, shouldIgnoreReviewShortcut } from "@/lib/review/player-policy";
 import { buildSurfaceUrl, getReviewSiteUrl } from "@/lib/surface-origins";
-import type { EditDecision } from "@/lib/types/codeliver";
+import type { EditDecision, Version } from "@/lib/types/codeliver";
 import styles from "./ProjectCockpit.module.css";
 
 interface ProjectCockpitProps {
@@ -146,6 +148,7 @@ interface ProjectCockpitProps {
 }
 
 type CockpitApprovalStage = Omit<DemoApprovalStage, "status"> & { status: string };
+type LiveReviewVersion = Version;
 
 export interface CockpitUploadStatus {
   assetId?: string;
@@ -372,6 +375,30 @@ function normalizeLiveComment(
   };
 }
 
+function normalizeLiveReviewVersion(record: Record<string, unknown>): LiveReviewVersion | null {
+  if (
+    typeof record.id !== "string" || !record.id.trim()
+    || typeof record.asset_id !== "string" || !record.asset_id.trim()
+    || typeof record.version_number !== "number" || !Number.isFinite(record.version_number)
+    || typeof record.file_url !== "string" || !record.file_url.trim()
+  ) return null;
+
+  return {
+    id: record.id,
+    asset_id: record.asset_id,
+    version_number: record.version_number,
+    file_url: record.file_url,
+    file_size: typeof record.file_size === "number" ? record.file_size : null,
+    thumbnail_url: typeof record.thumbnail_url === "string" ? record.thumbnail_url : null,
+    duration_seconds: typeof record.duration_seconds === "number" ? record.duration_seconds : null,
+    resolution: typeof record.resolution === "string" ? record.resolution : null,
+    is_current: record.is_current === true,
+    notes: typeof record.notes === "string" ? record.notes : null,
+    uploaded_by: typeof record.uploaded_by === "string" ? record.uploaded_by : null,
+    created_at: typeof record.created_at === "string" ? record.created_at : new Date(0).toISOString(),
+  };
+}
+
 function normalizeLiveActivity(record: Record<string, unknown>): DemoActivityItem {
   const details = record.details && typeof record.details === "object" && !Array.isArray(record.details)
     ? Object.fromEntries(
@@ -532,12 +559,17 @@ export default function ProjectCockpit({
     offset: 10,
   });
   const liveAssetRequestRef = useRef(0);
+  const liveVersionRequestRef = useRef(0);
   const [toast, setToast] = useState("");
   const [commentSubmitting, setCommentSubmitting] = useState(false);
   const [nativeDuration, setNativeDuration] = useState(0);
   const [liveComments, setLiveComments] = useState<DemoReviewComment[]>([]);
   const [liveCutMarkers, setLiveCutMarkers] = useState<DemoReviewCutMarker[]>([]);
-  const [liveAssetDataId, setLiveAssetDataId] = useState<string | null>(null);
+  const [liveAssetDataKey, setLiveAssetDataKey] = useState<string | null>(null);
+  const [liveVersions, setLiveVersions] = useState<LiveReviewVersion[]>([]);
+  const [liveVersionAssetId, setLiveVersionAssetId] = useState<string | null>(null);
+  const [liveVersionsLoading, setLiveVersionsLoading] = useState(false);
+  const [liveVersionsError, setLiveVersionsError] = useState(false);
   const [liveTasks] = useState<DemoProjectTask[]>([]);
   const [liveActivity, setLiveActivity] = useState<DemoActivityItem[]>([]);
   const [systemsReadiness, setSystemsReadiness] = useState<CockpitReadinessState>(DEFAULT_COCKPIT_READINESS);
@@ -592,7 +624,8 @@ export default function ProjectCockpit({
   }, []);
 
   const [liveShareLinks, setLiveShareLinks] = useState<DemoShareLink[]>([]);
-  const activeAsset = assets.find((asset) => asset.id === activeAssetId) ?? assets[0];
+  const activeAsset = assets.find((asset) => asset.id === activeAssetId)
+    ?? (requestedAssetId === null ? assets[0] : undefined);
   const localUploadActive = isLocalUploadAsset(activeAsset);
   const sourceBackedActive = Boolean(
     activeAsset && sourceCatalog?.assets.some((source) => source.id === activeAsset.id),
@@ -607,8 +640,27 @@ export default function ProjectCockpit({
       : currentDemoMediaVersion(workspace.mediaVersions, activeAsset.id)
     : null;
   const activeDemoVersionId = activeDemoVersion?.id ?? null;
+  const liveVersionResolution = !demoMode && activeAsset
+    ? resolveExactLiveInternalReviewVersion({
+      requestedAssetId,
+      activeAssetId: activeAsset.id,
+      requestedVersionId,
+      versions: liveVersionAssetId === activeAsset.id ? liveVersions : [],
+    })
+    : null;
+  const activeLiveVersion = liveVersionResolution?.status === "resolved"
+    ? liveVersionResolution.version
+    : null;
+  const activeLiveReviewKey = activeAsset && activeLiveVersion
+    ? `${activeAsset.id}:${activeLiveVersion.id}`
+    : null;
+  const activeLiveMediaUrl = activeLiveVersion
+    ? activeLiveVersion.file_url.startsWith("/api/assets/")
+      ? activeLiveVersion.file_url
+      : `/api/media/versions/${encodeURIComponent(activeLiveVersion.id)}`
+    : null;
   const activeCommentDraftKey = activeAsset
-    ? reviewCommentDraftKey(activeAsset.id, demoMode ? activeDemoVersionId : null)
+    ? reviewCommentDraftKey(activeAsset.id, demoMode ? activeDemoVersionId : activeLiveVersion?.id ?? null)
     : null;
   const commentBody = activeCommentDraftKey ? commentDrafts[activeCommentDraftKey] ?? "" : "";
   function setCommentBody(value: string) {
@@ -621,15 +673,23 @@ export default function ProjectCockpit({
     activeDemoVersionId,
     requestedAssetId,
     activeAssetId: activeAsset?.id ?? null,
+    liveResolvedVersionId: demoMode ? undefined : activeLiveVersion?.id ?? null,
+    liveResolvedAssetId: demoMode ? undefined : activeLiveVersion?.asset_id ?? null,
   });
-  // Live project data has no version-scoped fetch contract yet. A direct
-  // historical URL must not silently substitute the current asset.
-  const requestedLiveVersionUnavailable = Boolean(!demoMode && requestedVersionId !== null);
   const requestedReviewVersionUnavailable = !reviewOperationsAllowed;
   const historicalDemoVersion = Boolean(
     demoMode && activeDemoVersion && !activeDemoVersion.is_current,
   );
-  const versionScopedReview = historicalDemoVersion || requestedReviewVersionUnavailable;
+  const historicalLiveVersion = Boolean(!demoMode && activeLiveVersion && !activeLiveVersion.is_current);
+  const versionScopedReview = historicalDemoVersion || historicalLiveVersion || requestedReviewVersionUnavailable;
+  const historicalReviewLabel = historicalDemoVersion
+    ? `Historical V${activeDemoVersion?.version_number}`
+    : historicalLiveVersion
+      ? `Historical V${activeLiveVersion?.version_number}`
+      : null;
+  const activeReviewVersionLabel = demoMode
+    ? activeDemoVersion?.source_label ?? (activeDemoVersion ? `V${activeDemoVersion.version_number}` : null)
+    : activeLiveVersion ? `V${activeLiveVersion.version_number}${activeLiveVersion.is_current ? " · Current" : ""}` : null;
   // The header's project Share remains intentionally project-scoped. Every
   // asset-context action below must stop here unless it can prove this cut.
   const contextualShareAllowed = Boolean(activeAsset && !versionScopedReview);
@@ -659,7 +719,7 @@ export default function ProjectCockpit({
         ? null
         : activeAsset?.file_url ?? (sourceCatalog ? null : "/demo/ica-ceo-preview.mp4")
     )
-    : activeAsset?.file_url ?? null;
+    : activeLiveMediaUrl;
   const activePosterUrl = requestedReviewVersionUnavailable
     ? null
     : demoMode
@@ -670,7 +730,7 @@ export default function ProjectCockpit({
         : activeDemoVersion
           ? null
           : activeAsset?.thumbnail_url ?? (sourceCatalog ? null : "/demo/ceraweek-speaker.jpg")
-    : activeAsset?.thumbnail_url ?? null;
+    : activeLiveVersion?.thumbnail_url ?? activeAsset?.thumbnail_url ?? null;
   const hlsMediaActive = activeMediaUrl?.split(/[?#]/, 1)[0].toLowerCase().endsWith(".m3u8") ?? false;
   useEffect(() => {
     if (!hlsMediaActive) return;
@@ -705,7 +765,7 @@ export default function ProjectCockpit({
       video.removeEventListener("ended", handleEnded);
     };
   }, [activeMediaUrl, hlsMediaActive, isMuted, volume]);
-  const duration = Math.max(1, nativeDuration || activeAsset?.duration_seconds || (demoMode ? 5 : 1));
+  const duration = Math.max(1, nativeDuration || (demoMode ? activeAsset?.duration_seconds : activeLiveVersion?.duration_seconds) || (demoMode ? 5 : 1));
   const previewDuration = demoMode && !sourceCatalog && !localUploadActive
     ? activeAsset?.id === "denie-mcdonald-v4"
       ? 5
@@ -735,7 +795,7 @@ export default function ProjectCockpit({
         )
         : [],
     )
-    : requestedLiveVersionUnavailable ? [] : liveAssetDataId === activeAsset?.id ? liveComments : [];
+    : activeLiveReviewKey && liveAssetDataKey === activeLiveReviewKey ? liveComments : [];
   const cutMarkers = demoMode
     ? visibleExactInternalReviewRecords(
       reviewOperationsAllowed,
@@ -747,7 +807,7 @@ export default function ProjectCockpit({
         )
         : [],
     )
-    : requestedLiveVersionUnavailable ? [] : liveAssetDataId === activeAsset?.id ? liveCutMarkers : [];
+    : activeLiveReviewKey && liveAssetDataKey === activeLiveReviewKey ? liveCutMarkers : [];
   const visibleComments = comments.filter((comment) => comment.status === commentStatus);
   const projectTasks = demoMode
     ? workspace.tasks.filter((task) => task.project_id === project.id)
@@ -786,7 +846,9 @@ export default function ProjectCockpit({
       ? workspace.shareLinks.filter((link) =>
         link.asset_ids.some((assetId) => assets.some((asset) => asset.id === assetId)),
         )
-      : liveAssetDataId === activeAsset?.id ? liveShareLinks : [];
+      : activeLiveReviewKey && liveAssetDataKey === activeLiveReviewKey
+        ? liveShareLinks.filter((link) => link.version_id === activeLiveVersion?.id)
+        : [];
   const demoVersionHistory = demoMode
     ? assets.map((asset) => ({
         asset,
@@ -813,7 +875,7 @@ export default function ProjectCockpit({
     {
       id: "status",
       label: "Status",
-      value: requestedReviewVersionUnavailable ? "Version unavailable" : historicalDemoVersion ? `Historical V${activeDemoVersion?.version_number}` : formatAssetStatus(activeAsset.status),
+      value: requestedReviewVersionUnavailable ? "Version unavailable" : historicalReviewLabel ?? formatAssetStatus(activeAsset.status),
       detail: versionScopedReview ? "Version-specific review" : versionLabel(activeAsset, demoMode),
       icon: Circle,
       tone: !versionScopedReview && (activeAsset.status === "approved" || activeAsset.status === "final") ? "approved" : "active",
@@ -837,7 +899,7 @@ export default function ProjectCockpit({
     {
       id: "transcript",
       label: "Transcript",
-      value: demoMode ? "Not processed" : liveAssetDataId === activeAsset.id ? "Queued" : "Loading",
+      value: demoMode ? "Not processed" : liveAssetDataKey === activeLiveReviewKey ? "Queued" : "Loading",
       detail: "Cleanup suggestions unavailable",
       icon: Info,
       tone: "neutral",
@@ -964,10 +1026,63 @@ export default function ProjectCockpit({
     return assets.filter((asset) => asset.title.toLowerCase().includes(query)).slice(0, 5);
   }, [assets, searchQuery]);
 
-  const loadLiveAssetData = useCallback(async () => {
+  const loadLiveVersions = useCallback(async () => {
     if (demoMode || !activeAsset) {
+      liveVersionRequestRef.current += 1;
+      setLiveVersions([]);
+      setLiveVersionAssetId(null);
+      setLiveVersionsLoading(false);
+      setLiveVersionsError(false);
+      return;
+    }
+
+    const assetId = activeAsset.id;
+    const requestId = liveVersionRequestRef.current + 1;
+    liveVersionRequestRef.current = requestId;
+    setLiveVersionsLoading(true);
+    setLiveVersionsError(false);
+    setLiveVersions([]);
+    setLiveVersionAssetId(null);
+    try {
+      const response = await fetch(`/api/assets/${encodeURIComponent(assetId)}/versions`, { cache: "no-store" });
+      const payload = response.ok ? await response.json() : { items: [] };
+      if (!shouldApplyLiveInternalReviewResponse({
+        requestId,
+        latestRequestId: liveVersionRequestRef.current,
+        requestedAssetId: assetId,
+        activeAssetId: activeAsset.id,
+      })) return;
+      const items = Array.isArray(payload.items) ? payload.items : [];
+      setLiveVersions(items.flatMap((item: Record<string, unknown>) => {
+        const version = normalizeLiveReviewVersion(item);
+        return version ? [version] : [];
+      }));
+      setLiveVersionAssetId(assetId);
+      setLiveVersionsError(!response.ok);
+    } catch {
+      if (!shouldApplyLiveInternalReviewResponse({
+        requestId,
+        latestRequestId: liveVersionRequestRef.current,
+        requestedAssetId: assetId,
+        activeAssetId: activeAsset.id,
+      })) return;
+      setLiveVersions([]);
+      setLiveVersionAssetId(assetId);
+      setLiveVersionsError(true);
+    } finally {
+      if (shouldApplyLiveInternalReviewResponse({
+        requestId,
+        latestRequestId: liveVersionRequestRef.current,
+        requestedAssetId: assetId,
+        activeAssetId: activeAsset.id,
+      })) setLiveVersionsLoading(false);
+    }
+  }, [activeAsset, demoMode]);
+
+  const loadLiveAssetData = useCallback(async () => {
+    if (demoMode || !activeAsset || !activeLiveVersion || !activeLiveReviewKey) {
       liveAssetRequestRef.current += 1;
-      setLiveAssetDataId(null);
+      setLiveAssetDataKey(null);
       setLiveComments([]);
       setLiveCutMarkers([]);
       setLiveShareLinks([]);
@@ -975,16 +1090,17 @@ export default function ProjectCockpit({
     }
 
     const assetId = activeAsset.id;
+    const versionId = activeLiveVersion.id;
     const requestId = liveAssetRequestRef.current + 1;
     liveAssetRequestRef.current = requestId;
-    setLiveAssetDataId(null);
+    setLiveAssetDataKey(null);
     setLiveComments([]);
     setLiveCutMarkers([]);
     setLiveShareLinks([]);
 
     const [commentsResponse, decisionsResponse, linksResponse] = await Promise.all([
-      fetch(`/api/assets/${assetId}/comments`, { cache: "no-store" }),
-      fetch(`/api/assets/${assetId}/edit-decisions`, { cache: "no-store" }),
+      fetch(`/api/assets/${assetId}/comments?version_id=${encodeURIComponent(versionId)}`, { cache: "no-store" }),
+      fetch(`/api/assets/${assetId}/edit-decisions?version_id=${encodeURIComponent(versionId)}`, { cache: "no-store" }),
       fetch(`/api/assets/${assetId}/share`, { cache: "no-store" }),
     ]);
     const [commentsPayload, decisionsPayload, linksPayload] = await Promise.all([
@@ -992,13 +1108,11 @@ export default function ProjectCockpit({
       decisionsResponse.ok ? decisionsResponse.json() : Promise.resolve({ items: [] }),
       linksResponse.ok ? linksResponse.json() : Promise.resolve({ items: [] }),
     ]);
-    if (liveAssetRequestRef.current !== requestId) return;
+    if (liveAssetRequestRef.current !== requestId || activeLiveReviewKey !== `${assetId}:${versionId}`) return;
 
     const commentItems = Array.isArray(commentsPayload.items) ? commentsPayload.items : [];
     setLiveComments(
-      commentItems.map((item: Record<string, unknown>) =>
-        normalizeLiveComment(item, project.id, assetId),
-      ),
+      commentItems.map((item: Record<string, unknown>) => normalizeLiveComment(item, project.id, assetId)),
     );
 
     const decisionItems = Array.isArray(decisionsPayload.items)
@@ -1025,8 +1139,8 @@ export default function ProjectCockpit({
         return link ? [link] : [];
       }),
     );
-    setLiveAssetDataId(assetId);
-  }, [activeAsset, demoMode, project.id]);
+    setLiveAssetDataKey(`${assetId}:${versionId}`);
+  }, [activeAsset, activeLiveReviewKey, activeLiveVersion, demoMode, project.id]);
 
   useEffect(() => {
     if (demoMode) return;
@@ -1049,6 +1163,11 @@ export default function ProjectCockpit({
       cancelled = true;
     };
   }, [demoMode, project.id]);
+
+  useEffect(() => {
+    if (demoMode) return;
+    void loadLiveVersions().catch(() => undefined);
+  }, [demoMode, loadLiveVersions]);
 
   useEffect(() => {
     if (demoMode) return;
@@ -1267,10 +1386,14 @@ export default function ProjectCockpit({
 
   function selectAsset(asset: MediaAsset) {
     liveAssetRequestRef.current += 1;
-    setLiveAssetDataId(null);
+    liveVersionRequestRef.current += 1;
+    setLiveAssetDataKey(null);
     setLiveComments([]);
     setLiveCutMarkers([]);
     setLiveShareLinks([]);
+    setLiveVersions([]);
+    setLiveVersionAssetId(null);
+    setLiveVersionsError(false);
     setActiveAssetId(asset.id);
     setCurrentTime(0);
     setNativeDuration(0);
@@ -1313,6 +1436,29 @@ export default function ProjectCockpit({
     if (typeof videoRef.current?.load === "function") videoRef.current.load();
   }
 
+  function selectLiveReviewVersion(versionId: string) {
+    if (demoMode || !activeAsset) return;
+    const version = liveVersions.find(
+      (candidate) => candidate.id === versionId && candidate.asset_id === activeAsset.id,
+    );
+    if (!version) {
+      setToast("Requested media version unavailable.");
+      return;
+    }
+    const params = new URLSearchParams(searchParams.toString());
+    params.set("asset", activeAsset.id);
+    params.set("version", version.id);
+    router.replace(`/projects/${project.id}?${params.toString()}`);
+    setCurrentTime(0);
+    setNativeDuration(0);
+    setIsPlaying(false);
+    setHasEnded(false);
+    setPendingPin(null);
+    setResumeAfterComment(false);
+    if (typeof videoRef.current?.pause === "function") videoRef.current.pause();
+    if (typeof videoRef.current?.load === "function") videoRef.current.load();
+  }
+
   function openReviewCockpit() {
     if (!activeAsset) return;
     setLifecycleOpen(false);
@@ -1327,6 +1473,7 @@ export default function ProjectCockpit({
     if (demoMode) params.set("demo", "1");
     params.set("asset", activeAsset.id);
     if (demoMode && activeDemoVersionId) params.set("version", activeDemoVersionId);
+    if (!demoMode && activeLiveVersion) params.set("version", activeLiveVersion.id);
     params.set("view", "review");
     router.replace(`/projects/${project.id}?${params.toString()}`);
     window.requestAnimationFrame(() => {
@@ -1429,7 +1576,7 @@ export default function ProjectCockpit({
   }
 
   async function addCutDecision() {
-    if (!reviewOperationsAllowed || !activeAsset) return;
+    if (!reviewOperationsAllowed || !activeAsset || (!demoMode && !activeLiveVersion)) return;
     if (demoMode) {
       if (!activeDemoVersionId) {
         setToast("Requested media version unavailable.");
@@ -1446,11 +1593,14 @@ export default function ProjectCockpit({
         : "This cut marker could not be bound to the current media version.");
       return;
     }
+    const liveVersionId = activeLiveVersion?.id;
+    if (!liveVersionId) return;
 
     const response = await fetch(`/api/assets/${activeAsset.id}/edit-decisions`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
+        version_id: liveVersionId,
         decision_type: "cut",
         source: "keyboard",
         start_seconds: currentTime,
@@ -1535,7 +1685,7 @@ export default function ProjectCockpit({
   }
 
   async function submitComment() {
-    if (!reviewOperationsAllowed || !activeAsset || !commentBody.trim() || commentSubmitting) return;
+    if (!reviewOperationsAllowed || !activeAsset || (!demoMode && !activeLiveVersion) || !commentBody.trim() || commentSubmitting) return;
     if (demoMode && !activeDemoVersionId) {
       setToast("Requested media version unavailable.");
       return;
@@ -1554,12 +1704,15 @@ export default function ProjectCockpit({
         pinY: pendingPin?.y,
       });
     } else {
+      const liveVersionId = activeLiveVersion?.id;
+      if (!liveVersionId) return;
       setCommentSubmitting(true);
       try {
         const response = await fetch(`/api/assets/${activeAsset.id}/comments`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
+            version_id: liveVersionId,
             body: submittedBody,
             author_name: viewerName,
             author_email: viewerEmail || undefined,
@@ -1607,16 +1760,18 @@ export default function ProjectCockpit({
   }
 
   async function toggleCommentStatus(comment: DemoReviewComment) {
-    if (!reviewOperationsAllowed || !activeAsset) return;
+    if (!reviewOperationsAllowed || !activeAsset || (!demoMode && !activeLiveVersion)) return;
     if (demoMode) {
       toggleDemoReviewCommentResolved(comment.id);
       return;
     }
+    const liveVersionId = activeLiveVersion?.id;
+    if (!liveVersionId) return;
     const status = comment.status === "open" ? "resolved" : "open";
     const response = await fetch(`/api/assets/${activeAsset.id}/comments`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ id: comment.id, status }),
+      body: JSON.stringify({ id: comment.id, status, version_id: liveVersionId }),
     });
     if (!response.ok) {
       setToast("The comment status could not be updated.");
@@ -2032,12 +2187,12 @@ export default function ProjectCockpit({
                   <h2>{
                     !activeAsset ? "Review workspace"
                       : requestedReviewVersionUnavailable ? "Review unavailable"
-                        : historicalDemoVersion ? `Review V${activeDemoVersion?.version_number}`
+                        : historicalReviewLabel ? `Review ${historicalReviewLabel.replace("Historical ", "")}`
                           : "Latest review"
                   }</h2>
                   {activeAsset ? (
                     <>
-                      <span>{requestedReviewVersionUnavailable ? "Requested cut" : activeDemoVersion?.source_label ?? (activeDemoVersion ? `V${activeDemoVersion.version_number}` : versionLabel(activeAsset, demoMode))}</span>
+                      <span>{requestedReviewVersionUnavailable ? "Requested cut" : activeReviewVersionLabel ?? versionLabel(activeAsset, demoMode)}</span>
                       <select
                         value={activeAsset.id}
                         onChange={(event) => {
@@ -2060,6 +2215,22 @@ export default function ProjectCockpit({
                             </option>
                           ))}
                         </select>
+                      ) : !demoMode && liveVersionAssetId === activeAsset.id && liveVersions.length > 0 && activeLiveVersion ? (
+                        <select
+                          value={activeLiveVersion.id}
+                          onChange={(event) => selectLiveReviewVersion(event.target.value)}
+                          aria-label="Review media version"
+                        >
+                          {liveVersions.map((version) => (
+                            <option key={version.id} value={version.id}>
+                              V{version.version_number}{version.is_current ? " · Current" : " · Historical"}
+                            </option>
+                          ))}
+                        </select>
+                      ) : !demoMode && liveVersionsLoading ? (
+                        <span>Loading version…</span>
+                      ) : !demoMode && liveVersionsError ? (
+                        <span>Version history unavailable</span>
                       ) : null}
                     </>
                   ) : (
@@ -2074,7 +2245,7 @@ export default function ProjectCockpit({
                     <div className={styles.reviewSummary} aria-label="Review summary">
                       <p className={styles.reviewSummaryLine}>
                         <Circle size={12} aria-hidden="true" />
-                        <strong>{requestedReviewVersionUnavailable ? "Version unavailable" : historicalDemoVersion ? `Historical V${activeDemoVersion?.version_number}` : formatAssetStatus(activeAsset.status)}</strong>
+                        <strong>{requestedReviewVersionUnavailable ? "Version unavailable" : historicalReviewLabel ?? formatAssetStatus(activeAsset.status)}</strong>
                         <span aria-hidden="true">·</span>
                         <span>{openCommentCount} open {openCommentCount === 1 ? "comment" : "comments"}</span>
                         {systemsReadiness.tone === "attention" ? (
@@ -2437,7 +2608,7 @@ export default function ProjectCockpit({
                           <h2>{versionScopedReview ? "Review context" : "Review status"}</h2>
                           {versionScopedReview ? (
                             <>
-                              <p className="cockpit-review-status"><i /> {requestedReviewVersionUnavailable ? "Version unavailable" : `Historical V${activeDemoVersion?.version_number}`}</p>
+                              <p className="cockpit-review-status"><i /> {requestedReviewVersionUnavailable ? "Version unavailable" : historicalReviewLabel}</p>
                               <p className="cockpit-rail-empty">
                                 This cut keeps its own notes and markers. Current approval and share state are not applied here; new share links use the latest cut.
                               </p>
@@ -2819,7 +2990,14 @@ export default function ProjectCockpit({
                         ) : <span aria-label="Pinned historical version">Pinned</span>}
                       </article>
                     ));
-                  }) : assets.map((asset) => <article key={asset.id}><span className="cockpit-list-icon"><History size={18} /></span><div><strong>{asset.title}</strong><small>Updated {timeAgo(asset.created_at)} · {asset.comment_count ?? 0} comments</small></div><span className="status-version">{asset.version_count ?? "Not indexed"}</span><button type="button" onClick={() => { selectAsset(asset); selectSection("overview"); }}>Review</button></article>)}
+                  }) : activeAsset && liveVersionAssetId === activeAsset.id ? liveVersions.map((version) => (
+                    <article key={version.id}>
+                      <span className="cockpit-list-icon"><History size={18} /></span>
+                      <div><strong>{activeAsset.title}</strong><small>V{version.version_number}{version.is_current ? " · Current" : " · Historical cut"} · Updated {timeAgo(version.created_at)}</small></div>
+                      <span className="status-version">V{version.version_number}</span>
+                      <button type="button" onClick={() => { selectLiveReviewVersion(version.id); selectSection("overview"); }}>Review</button>
+                    </article>
+                  )) : liveVersionsLoading ? <EmptyState title="Loading versions" body="Checking the media versions you can review." /> : <EmptyState title="Version history unavailable" body="This media did not return a reviewable version." />}
                   {assets.length === 0 ? <EmptyState title="No versions" body="The first uploaded file will create version 1." /> : null}
                 </div>
               </>

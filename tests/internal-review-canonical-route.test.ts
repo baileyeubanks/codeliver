@@ -27,6 +27,11 @@ interface InternalReviewModule {
     payload: unknown,
     requestedAssetId: string,
   ) => { assetId: string; projectId: string } | null;
+  readAuthoritativeVersionIdentity: (
+    payload: unknown,
+    requestedAssetId: string,
+    requestedVersionId: string,
+  ) => { assetId: string; versionId: string } | null;
 }
 
 function loadInternalReviewModule(): InternalReviewModule {
@@ -88,7 +93,7 @@ test("legacy internal asset URLs resolve to the canonical cockpit review state",
   );
 });
 
-test("a legacy redirect preserves an exact demo version and refuses a live version fallback", () => {
+test("a legacy redirect preserves an exact demo version and validates a live version before canonicalizing", () => {
   assert.match(componentSource, /const requestedVersionId = searchParams\.get\("version"\)/);
   assert.match(componentSource, /const hasRequestedVersion = requestedVersionId !== null/);
   assert.match(componentSource, /workspace\.assets\.find/);
@@ -96,7 +101,9 @@ test("a legacy redirect preserves an exact demo version and refuses a live versi
   assert.match(componentSource, /resolvePinnedDemoMediaVersion\(workspace\.mediaVersions, assetId, requestedVersionId\)/);
   assert.match(componentSource, /requestedDemoVersion\?\.id \?\? null/);
   assert.match(componentSource, /hasRequestedVersion && !requestedDemoVersion/);
-  assert.match(componentSource, /LIVE_VERSION_UNAVAILABLE_ERROR/);
+  assert.match(componentSource, /requestedVersionIsMalformed/);
+  assert.match(componentSource, /\/api\/assets\/\$\{encodeURIComponent\(identity\.assetId\)\}\/versions/);
+  assert.match(componentSource, /readAuthoritativeVersionIdentity\(/);
   assert.match(componentSource, /if \(!projectId \|\| !assetId \|\| immediateError \|\| \(isDemo && !demoRouteReady\)\) return;/);
   assert.match(componentSource, /No substitute media was opened\./);
 });
@@ -124,6 +131,32 @@ test("only an API record with authoritative asset and project identifiers can re
     null,
   );
   assert.equal(internalReview.readAuthoritativeAssetIdentity(null, "asset-a"), null);
+});
+
+test("a live legacy route preserves only one server-returned version for its asset", () => {
+  const resolved = internalReview.readAuthoritativeVersionIdentity(
+      { items: [{ id: "version-v1", asset_id: "asset-a" }] },
+      "asset-a",
+      "version-v1",
+  );
+  assert.equal(resolved?.assetId, "asset-a");
+  assert.equal(resolved?.versionId, "version-v1");
+  assert.equal(
+    internalReview.readAuthoritativeVersionIdentity(
+      { items: [{ id: "version-v1", asset_id: "asset-b" }] },
+      "asset-a",
+      "version-v1",
+    ),
+    null,
+  );
+  assert.equal(
+    internalReview.readAuthoritativeVersionIdentity(
+      { items: [{ id: "version-v1", asset_id: "asset-a" }, { id: "version-v1", asset_id: "asset-a" }] },
+      "asset-a",
+      "version-v1",
+    ),
+    null,
+  );
 });
 
 test("the internal route validates before replacing into the bright project cockpit", () => {

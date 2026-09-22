@@ -14,7 +14,9 @@ test("the cockpit selects a requested demo version without falling back to curre
   assert.match(cockpit, /const requestedVersionId = searchParams\.get\("version"\)/);
   assert.match(cockpit, /resolvePinnedDemoMediaVersion\(workspace\.mediaVersions, activeAsset\.id, requestedVersionId\)/);
   assert.match(cockpit, /requestedVersionId\s*\?\s*requestedDemoVersion\s*:\s*currentDemoMediaVersion/);
-  assert.match(cockpit, /requestedLiveVersionUnavailable/);
+  assert.match(cockpit, /resolveExactLiveInternalReviewVersion\(\{/);
+  assert.match(cockpit, /fetch\(`\/api\/assets\/\$\{encodeURIComponent\(assetId\)\}\/versions`/);
+  assert.match(cockpit, /shouldApplyLiveInternalReviewResponse\(\{/);
   assert.match(cockpit, /requestedReviewVersionUnavailable/);
   assert.match(cockpit, /canOperateExactInternalReviewVersion\(\{/);
   assert.match(cockpit, /No newer cut was opened\./);
@@ -32,7 +34,9 @@ test("the source-preview version selector changes only the exact cockpit route",
   assert.match(cockpit, /comment\.version_id === activeDemoVersionId/);
   assert.match(cockpit, /marker\.version_id === activeDemoVersionId/);
   assert.match(cockpit, /activeAsset && activeDemoVersionId/);
-  assert.match(cockpit, /historicalDemoVersion \? `Review V\$\{activeDemoVersion\?\.version_number\}`/);
+  assert.match(cockpit, /const historicalLiveVersion = Boolean\(!demoMode && activeLiveVersion && !activeLiveVersion\.is_current\)/);
+  assert.match(cockpit, /function selectLiveReviewVersion\(versionId: string\)/);
+  assert.match(cockpit, /version_id: liveVersionId/);
   assert.match(cockpit, /Asset-level decisions are not applied to a historical cut\./);
 });
 
@@ -75,6 +79,6 @@ test("historical review details do not inherit current approval or contextual sh
 
 test("the active composer reads its draft from the exact asset and version", () => {
   assert.match(cockpit, /const \[commentDrafts, setCommentDrafts\] = useState<Record<string, string>>\(\{\}\)/);
-  assert.match(cockpit, /reviewCommentDraftKey\(activeAsset\.id, demoMode \? activeDemoVersionId : null\)/);
+  assert.match(cockpit, /reviewCommentDraftKey\(activeAsset\.id, demoMode \? activeDemoVersionId : activeLiveVersion\?\.id \?\? null\)/);
   assert.match(cockpit, /commentDrafts\[activeCommentDraftKey\] \?\? ""/);
 });

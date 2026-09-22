@@ -3,9 +3,16 @@ import test from "node:test";
 
 import {
   canOperateExactInternalReviewVersion,
+  resolveExactLiveInternalReviewVersion,
   runWhenInternalReviewVersionIsAvailable,
+  shouldApplyLiveInternalReviewResponse,
   visibleExactInternalReviewRecords,
 } from "../lib/review/internal-version-operations.ts";
+
+const liveVersions = [
+  { id: "live-v2", asset_id: "asset-a", version_number: 2, is_current: true },
+  { id: "live-v1", asset_id: "asset-a", version_number: 1, is_current: false },
+];
 
 test("an unsupported live historical URL cannot invoke a review mutation", async () => {
   const available = canOperateExactInternalReviewVersion({
@@ -81,4 +88,91 @@ test("invalid version scope cannot display notes or markers from the current cut
   assert.deepEqual(visibleExactInternalReviewRecords(false, currentMarkers), []);
   assert.equal(visibleExactInternalReviewRecords(true, currentNotes), currentNotes);
   assert.equal(visibleExactInternalReviewRecords(true, currentMarkers), currentMarkers);
+});
+
+test("live review resolves only one exact requested version for its active asset", () => {
+  assert.deepEqual(
+    resolveExactLiveInternalReviewVersion({
+      requestedAssetId: "asset-a",
+      activeAssetId: "asset-a",
+      requestedVersionId: "live-v1",
+      versions: liveVersions,
+    }),
+    { status: "resolved", version: liveVersions[1] },
+  );
+  assert.equal(
+    resolveExactLiveInternalReviewVersion({
+      requestedAssetId: "asset-b",
+      activeAssetId: "asset-a",
+      requestedVersionId: "live-v1",
+      versions: liveVersions,
+    }).status,
+    "unavailable",
+  );
+  assert.equal(
+    resolveExactLiveInternalReviewVersion({
+      requestedAssetId: "asset-a",
+      activeAssetId: "asset-a",
+      requestedVersionId: "missing",
+      versions: liveVersions,
+    }).status,
+    "unavailable",
+  );
+});
+
+test("live review selects the unique current version when no historical cut was requested", () => {
+  assert.deepEqual(
+    resolveExactLiveInternalReviewVersion({
+      requestedAssetId: "asset-a",
+      activeAssetId: "asset-a",
+      requestedVersionId: null,
+      versions: liveVersions,
+    }),
+    { status: "resolved", version: liveVersions[0] },
+  );
+});
+
+test("a duplicated live version identity is unavailable even when one row is current", () => {
+  assert.equal(
+    resolveExactLiveInternalReviewVersion({
+      requestedAssetId: "asset-a",
+      activeAssetId: "asset-a",
+      requestedVersionId: null,
+      versions: [
+        { id: "live-v2", asset_id: "asset-a", version_number: 2, is_current: true },
+        { id: "live-v2", asset_id: "asset-a", version_number: 1, is_current: false },
+      ],
+    }).status,
+    "unavailable",
+  );
+});
+
+test("a stale live version response cannot replace the selected asset state", () => {
+  assert.equal(
+    shouldApplyLiveInternalReviewResponse({
+      requestId: 3,
+      latestRequestId: 3,
+      requestedAssetId: "asset-a",
+      activeAssetId: "asset-a",
+    }),
+    true,
+  );
+  assert.equal(
+    shouldApplyLiveInternalReviewResponse({
+      requestId: 2,
+      latestRequestId: 3,
+      requestedAssetId: "asset-a",
+      activeAssetId: "asset-a",
+    }),
+    false,
+  );
+  assert.equal(
+    shouldApplyLiveInternalReviewResponse({
+      requestId: 3,
+      latestRequestId: 3,
+      requestedAssetId: "asset-a",
+      activeAssetId: "asset-b",
+    }),
+    false,
+  );
 });

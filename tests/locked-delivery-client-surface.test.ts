@@ -218,6 +218,9 @@ registerHooks({
     }
     if (specifier === "@/lib/versions") return nextResolve(versionsStub, context);
     if (specifier === "@/lib/sharing/share-intent") return nextResolve(sharingStub, context);
+    if (specifier === "@/lib/review/annotation-persistence") {
+      return nextResolve(pathToFileURL(resolve(repositoryRoot, "lib/review/annotation-persistence.ts")).href, context);
+    }
     if (specifier === "@/lib/review/external-comment") {
       return nextResolve(
         pathToFileURL(resolve(repositoryRoot, "lib/review/external-comment.ts")).href,

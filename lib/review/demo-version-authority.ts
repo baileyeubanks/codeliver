@@ -12,6 +12,30 @@ interface DemoVersionAuthorityInput {
   sourceMetadata?: { fileSize: number; resolution: string };
 }
 
+interface DemoCurrentVersionIdentityInput {
+  assetId: string;
+  versionCount: number;
+  sourceBacked: boolean;
+  fallbackVersionNumber?: number;
+}
+
+export function resolveDemoCurrentVersionIdentity({
+  assetId,
+  versionCount,
+  sourceBacked,
+  fallbackVersionNumber = 1,
+}: DemoCurrentVersionIdentityInput): { id: string; versionNumber: number } {
+  const versionNumber =
+    Number.isSafeInteger(versionCount) && versionCount > 0
+      ? versionCount
+      : fallbackVersionNumber;
+
+  return {
+    id: sourceBacked ? `source-version-${assetId}` : `demo-version-${versionNumber}`,
+    versionNumber,
+  };
+}
+
 export function buildDemoVersionAuthority({
   assetId,
   versionCount,
@@ -23,11 +47,12 @@ export function buildDemoVersionAuthority({
   sourceMetadata,
 }: DemoVersionAuthorityInput): { current: Version; versions: Version[] } {
   const fallbackNumber = currentVersion(seededVersions)?.version_number ?? 1;
-  const currentNumber =
-    Number.isSafeInteger(versionCount) && versionCount > 0
-      ? versionCount
-      : fallbackNumber;
-  const currentId = sourceMetadata ? `source-version-${assetId}` : `demo-version-${currentNumber}`;
+  const { id: currentId, versionNumber: currentNumber } = resolveDemoCurrentVersionIdentity({
+    assetId,
+    versionCount,
+    sourceBacked: Boolean(sourceMetadata),
+    fallbackVersionNumber: fallbackNumber,
+  });
   const matchingSeed = seededVersions.find(
     (candidate) => candidate.version_number === currentNumber,
   );

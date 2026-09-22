@@ -129,6 +129,8 @@ import {
   type RequestStatus,
 } from "@/lib/requests/lifecycle.ts";
 import { shapeWorkOrder, type WorkOrderDeliverable } from "@/lib/requests/work-order.ts";
+import { createDemoApprovalRound } from "@/lib/review/demo-approval-round.ts";
+import { resolveDemoCurrentVersionIdentity } from "@/lib/review/demo-version-authority.ts";
 
 import { sourceCatalog, sourceWorkspace, serializeSourceWorkspace, unwrapSourceWorkspace } from "./source-catalog.ts";
 
@@ -1225,6 +1227,7 @@ export function restoreDemoArchivedAsset(assetId: string) {
 }
 
 export function createDemoShareLinks(input: CreateDemoShareInput) {
+  ensureHydrated();
   const assetIds = Array.from(new Set(input.assetIds)).filter(Boolean);
   if (assetIds.length === 0) return [];
 
@@ -1232,7 +1235,7 @@ export function createDemoShareLinks(input: CreateDemoShareInput) {
   const batchId = createId("share-batch");
   const defaults = resolveShareIntentDefaults(input.shareIntent);
   const intent = getShareIntentDefinition(input.shareIntent);
-  const reviewerEmail = input.reviewerEmail.trim() || null;
+  const reviewerEmail = input.reviewerEmail.trim().toLowerCase() || null;
   const reviewerName = input.reviewerName.trim() || null;
   const notificationChannels = Array.from(new Set(input.notificationChannels));
   const links: DemoShareLink[] = assetIds.map((assetId) => {
@@ -1306,10 +1309,36 @@ export function createDemoShareLinks(input: CreateDemoShareInput) {
       updated_at: createdAt,
       created_by: "user-bailey",
     }));
+    const approvalRounds: DemoPublicReviewState[] =
+      input.shareIntent === "approval_needed"
+        ? links.flatMap((link) => {
+            const asset = state.assets.find((candidate) => candidate.id === link.asset_ids[0]);
+            if (!asset) return [];
+            const version = resolveDemoCurrentVersionIdentity({
+              assetId: asset.id,
+              versionCount: asset.version_count ?? 1,
+              sourceBacked: Boolean(
+                sourceCatalog?.assets.some((candidate) => candidate.id === asset.id),
+              ),
+            });
+            const round = createDemoApprovalRound({
+              projectId: asset.project_id,
+              assetId: asset.id,
+              versionId: version.id,
+              reviewInviteId: link.id,
+              reviewerName,
+              reviewerEmail,
+              initialAssetStatus: asset.status,
+              createdAt,
+            });
+            return round ? [round] : [];
+          })
+        : [];
 
     return {
       ...state,
       shareLinks: [...links, ...state.shareLinks],
+      publicReviewStates: [...approvalRounds, ...state.publicReviewStates],
       notificationOutbox: [...outboxItems, ...state.notificationOutbox],
       activity: [
         {
@@ -1478,6 +1507,16 @@ function sameDemoPublicReviewScope(
 
 export function recordDemoPublicReviewApproval(input: RecordDemoPublicReviewApprovalInput) {
   ensureHydrated();
+  const inviteState = currentState.publicReviewStates.find(
+    (state) => state.review_invite_id === input.reviewInviteId,
+  );
+  if (inviteState && !sameDemoPublicReviewScope(inviteState, input)) {
+    return {
+      ok: false as const,
+      statusCode: 403,
+      error: "This review link is not assigned to this media version.",
+    };
+  }
   const existing = currentState.publicReviewStates.find((state) =>
     sameDemoPublicReviewScope(state, input),
   );

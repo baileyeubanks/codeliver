@@ -400,6 +400,8 @@ test("files panel groups honestly: real downloads only, request states otherwise
   assert.ok(markup.includes('href="/demo/ica-ceo-preview.mp4"'), "real file downloads");
   assert.ok(markup.includes("Available on request"), "request-only rows are honest");
   assert.ok(markup.includes("No scripts on file yet."), "empty groups say so");
+  assert.ok(markup.includes("categories without file records"), "empty categories stay on demand");
+  assert.ok(markup.includes("Available file records ("), "real files remain the primary list");
 });
 
 test("comms panel renders the decision log and per-asset conversations", () => {
@@ -411,6 +413,21 @@ test("comms panel renders the decision log and per-asset conversations", () => {
   assert.ok(markup.includes("Denie McDonald_v4"), "thread grouped by asset");
   assert.ok(markup.includes("Please shorten this section."));
   assert.ok(markup.includes("Resolved"), "comment status chips render");
+});
+
+test("comms and calendar state when no project records are indexed", () => {
+  const workspace = baseWorkspace();
+  workspace.decisions = [];
+  workspace.reviewComments = [];
+  fixtureWorkspace = workspace;
+
+  const comms = render(resolve(repositoryRoot, "components/projects/ProjectCommsPanel.tsx"), { projectId: "ica" });
+  assert.ok(comms.includes("No record-backed communications"));
+  assert.ok(comms.includes("No decisions or review conversations are indexed for this project."));
+
+  fixtureWorkspace = baseWorkspace();
+  const calendar = render(resolve(repositoryRoot, "components/projects/ProjectCalendarPanel.tsx"), { projectId: "ica" });
+  assert.ok(calendar.includes("No dated project records in"));
 });
 
 test("calendar panel places real seed dates and marks today", () => {

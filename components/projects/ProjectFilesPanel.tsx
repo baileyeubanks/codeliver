@@ -26,6 +26,9 @@ export default function ProjectFilesPanel({ projectId }: { projectId: string }) 
       }),
     [workspace.briefs, workspace.assets, workspace.releases, workspace.deliverables, projectId],
   );
+  const populatedGroups = groups.filter((group) => group.rows.length > 0);
+  const emptyGroups = groups.filter((group) => group.rows.length === 0);
+  const availableFileCount = populatedGroups.reduce((total, group) => total + group.rows.length, 0);
 
   return (
     <div className={styles.panelInner}>
@@ -38,33 +41,52 @@ export default function ProjectFilesPanel({ projectId }: { projectId: string }) 
         </div>
       </div>
 
-      {groups.map((group) => (
+      {populatedGroups.length > 0 ? (
+        <h3 className={styles.sectionHeading}>Available file records ({availableFileCount})</h3>
+      ) : (
+        <div className={styles.emptyRecordNotice} role="status">
+          <h3>No project files are indexed</h3>
+          <p>This project has no file records available in this workspace.</p>
+        </div>
+      )}
+
+      {populatedGroups.map((group) => (
         <section key={group.id} className={styles.fileGroup} aria-label={group.label}>
-          <h3 className={styles.sectionHeading}>{group.label}</h3>
-          {group.rows.length === 0 ? (
-            <p className={styles.muted}>{group.emptyLabel}</p>
-          ) : (
-            <ul className={styles.fileRows}>
-              {group.rows.map((row) => (
-                <li key={row.id} className={styles.fileRow}>
-                  <div>
-                    <p className={styles.fileName}>{row.name}</p>
-                    <p className={styles.fileDetail}>{row.detail}</p>
-                  </div>
-                  {row.availability === "download" && row.href ? (
-                    <a className={styles.downloadLink} href={row.href} download>
-                      <Download size={15} aria-hidden="true" />
-                      Download
-                    </a>
-                  ) : (
-                    <span className={styles.onRequest}>Available on request</span>
-                  )}
-                </li>
-              ))}
-            </ul>
-          )}
+          <h4 className={styles.fileGroupLabel}>{group.label}</h4>
+          <ul className={styles.fileRows}>
+            {group.rows.map((row) => (
+              <li key={row.id} className={styles.fileRow}>
+                <div>
+                  <p className={styles.fileName}>{row.name}</p>
+                  <p className={styles.fileDetail}>{row.detail}</p>
+                </div>
+                {row.availability === "download" && row.href ? (
+                  <a className={styles.downloadLink} href={row.href} download>
+                    <Download size={15} aria-hidden="true" />
+                    Download
+                  </a>
+                ) : (
+                  <span className={styles.onRequest}>Available on request</span>
+                )}
+              </li>
+            ))}
+          </ul>
         </section>
       ))}
+
+      {emptyGroups.length > 0 ? (
+        <details className={styles.emptyFileGroups}>
+          <summary>{emptyGroups.length} categories without file records</summary>
+          <ul>
+            {emptyGroups.map((group) => (
+              <li key={group.id}>
+                <strong>{group.label}</strong>
+                <span>{group.emptyLabel}</span>
+              </li>
+            ))}
+          </ul>
+        </details>
+      ) : null}
     </div>
   );
 }

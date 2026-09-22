@@ -525,6 +525,15 @@
   margin-bottom: 20px;
 }
 
+.fileGroupLabel {
+  margin: 0 0 8px;
+  font-size: 0.82rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: #43506b;
+}
+
 .fileRows {
   margin: 0;
   padding: 0;
@@ -585,7 +594,62 @@
   white-space: nowrap;
 }
 
+.emptyFileGroups {
+  margin-top: 18px;
+  border-top: 1px solid #e6e9ef;
+  color: #43506b;
+}
+
+.emptyFileGroups summary {
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+  font-size: 0.84rem;
+  font-weight: 600;
+}
+
+.emptyFileGroups ul {
+  display: grid;
+  gap: 8px;
+  margin: 0 0 12px;
+  padding: 0;
+  list-style: none;
+}
+
+.emptyFileGroups li {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  font-size: 0.8rem;
+}
+
+.emptyFileGroups li span {
+  color: #6b768e;
+}
+
 /* ------------------------------- Comms ------------------------------------ */
+
+.emptyRecordNotice {
+  max-width: 540px;
+  border: 1px dashed #c9d1de;
+  border-radius: 12px;
+  background: #ffffff;
+  padding: 18px 20px;
+  color: #43506b;
+}
+
+.emptyRecordNotice h3 {
+  margin: 0 0 5px;
+  font-size: 0.95rem;
+  color: #0a1d3d;
+}
+
+.emptyRecordNotice p {
+  margin: 0;
+  font-size: 0.84rem;
+  line-height: 1.5;
+}
 
 .decisionItem {
   border: 1px solid #e6e9ef;
@@ -819,4 +883,10 @@
   gap: 6px;
   font-size: 0.76rem;
   color: #43506b;
+}
+
+.calendarEmpty {
+  margin: 14px 0 0;
+  color: #6b768e;
+  font-size: 0.84rem;
 }

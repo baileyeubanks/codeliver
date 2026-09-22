@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
+import { createHash } from "node:crypto";
 import { dirname, resolve } from "node:path";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
@@ -10,16 +11,16 @@ function source(path: string): string {
   return readFileSync(resolve(repositoryRoot, path), "utf8");
 }
 
-const BRAND_COLORS = ["#E8442E", "#1E40AF", "#16A34A", "#F59E0B"];
+function sha256(path: string): string {
+  return createHash("sha256").update(readFileSync(resolve(repositoryRoot, path))).digest("hex");
+}
 
-test("the inline CVP monogram paints all four brand colors", () => {
-  const monogram = source("components/navigation/CvpMonogram.tsx");
-  for (const color of BRAND_COLORS) {
-    assert.ok(monogram.includes(color), `monogram is missing ${color}`);
-  }
+test("the retired colorful CVP monogram is absent from product source", () => {
+  assert.equal(existsSync(resolve(repositoryRoot, "components/navigation/CvpMonogram.tsx")), false);
+  assert.equal(existsSync(resolve(repositoryRoot, "app/icon.svg")), false);
 });
 
-test("the workspace shell owns the brand without duplicating it in the rail", () => {
+test("the workspace shell owns the supplied brand without duplicating it in the rail", () => {
   const rail = source("components/navigation/WorkspaceRail.tsx");
   const shell = source("components/Shell.tsx");
   assert.match(shell, /<CoProductionBrand\b/);
@@ -27,12 +28,20 @@ test("the workspace shell owns the brand without duplicating it in the rail", ()
   assert.doesNotMatch(rail, /<CvpMonogram\b|<CoProductionBrand\b|styles\.brandHeader/);
 });
 
-test("the auth shell brand hero shows the monogram and the CVP tagline", () => {
+test("the auth shell brand hero uses the supplied compact CVP mark", () => {
   const authShell = source("components/auth/AuthShell.tsx");
-  assert.match(authShell, /<CvpMonogram\b/);
+  assert.match(authShell, /<CoProductionBrand variant="compact-mark"/);
+  assert.doesNotMatch(authShell, /<CvpMonogram\b/);
   assert.match(authShell, /Brief/);
   assert.match(authShell, /shoot/);
   assert.match(authShell, /delivery/);
+});
+
+test("the application icon is the exact supplied sapphire artwork", () => {
+  const icon = resolve(repositoryRoot, "app/icon.png");
+  assert.ok(existsSync(icon));
+  assert.equal(readFileSync(icon).subarray(0, 8).toString("hex"), "89504e470d0a1a0a");
+  assert.equal(sha256("app/icon.png"), sha256("public/brand/cvp-sapphire-mark.png"));
 });
 
 test("welcome keeps a branded public entry without fixture media", () => {
@@ -41,14 +50,4 @@ test("welcome keeps a branded public entry without fixture media", () => {
   assert.doesNotMatch(welcome, /ica-ceo-preview\.mp4|ica-review-filmstrip\.jpg/);
   assert.match(welcome, /Request access/);
   assert.doesNotMatch(welcome, /demo=1/);
-});
-
-test("the app icon is the CVP monogram, not a generic play button", () => {
-  const icon = source("app/icon.svg");
-  assert.match(icon, /^<svg\b/);
-  assert.match(icon, /viewBox="0 0 64 64"/);
-  for (const color of BRAND_COLORS) {
-    assert.ok(icon.includes(color), `app icon is missing ${color}`);
-  }
-  assert.doesNotMatch(icon, /#6d5dfc/i);
 });

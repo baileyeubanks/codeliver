@@ -312,21 +312,20 @@ test("the down-arrow shortcut creates a reviewable cut proposal, not an accepted
   assert.match(cockpitSource, /Cut proposal saved/);
 });
 
-test("frame-pin coordinates are measured against the full video frame", () => {
+test("frame-pin coordinates use loaded fitted-media bounds and reject letterbox clicks", () => {
   const handlerBody = cockpitSource.match(
-    /function handleReviewFrameClick\(event: ReactMouseEvent<HTMLDivElement>\) \{([\s\S]*?)\n  \}\n\n  async function addCutDecision/,
+    /function handleReviewFrameClick\(event: ReactMouseEvent<HTMLDivElement>\) \{([\s\S]*?)\n  \}\n\n  function selectReviewComment/,
   )?.[1];
 
   assert.ok(handlerBody, "review frame click handler is missing");
-  assert.match(
-    handlerBody,
-    /videoFrameRef\.current\?\.getBoundingClientRect\(\)/,
-  );
+  assert.match(handlerBody, /video\.readyState < HTMLMediaElement\.HAVE_METADATA/);
+  assert.match(handlerBody, /video\.videoWidth <= 0 \|\| video\.videoHeight <= 0/);
+  assert.match(handlerBody, /projectPointIntoMedia\(/);
   assert.match(handlerBody, /event\.currentTarget\.getBoundingClientRect\(\)/);
-  assert.match(handlerBody, /Math\.max\(0, Math\.min\(100,/);
+  assert.match(handlerBody, /if \(!point\) return;/);
   assert.match(
     handlerBody,
-    /setPendingPin\(\{ x, y, timeSeconds: currentTime \}\)/,
+    /setPendingPin\(\{ x: point\.x, y: point\.y, timeSeconds: videoRef\.current\?\.currentTime \?\? currentTime \}\)/,
   );
 });
 

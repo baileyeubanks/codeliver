@@ -175,7 +175,7 @@ export default function ApprovalPanel({
                 key={step.id}
                 data-step-id={step.id}
                 data-chip-state={chip}
-                className={`flex items-center justify-between gap-3 rounded-[var(--radius-sm)] border px-3 py-2 ${
+                className={`flex flex-wrap items-center justify-between gap-3 rounded-[var(--radius-sm)] border px-3 py-2 ${
                   chip === "current" ? "border-[var(--accent)]" : "border-[var(--border)]"
                 }`}
               >
@@ -186,7 +186,7 @@ export default function ApprovalPanel({
                     {step.role_label}
                   </span>
                 </div>
-                <div className="flex shrink-0 items-center gap-2">
+                <div className="flex min-w-0 flex-wrap items-center gap-2">
                   {step.decided_at && (
                     <span className="text-xs text-[var(--dim)]">
                       {new Date(step.decided_at).toLocaleString()}

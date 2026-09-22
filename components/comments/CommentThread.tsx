@@ -96,8 +96,8 @@ function CommentCard({
 
       <div className="min-w-0 flex-1">
         {/* Header */}
-        <div className="flex items-center gap-2">
-          <span className="text-sm font-medium text-[var(--ink)]">
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="break-words text-sm font-medium text-[var(--ink)]">
             {comment.author_name || "Anonymous"}
           </span>
           {comment.timecode_seconds != null && (
@@ -129,7 +129,7 @@ function CommentCard({
 
           {/* Hover actions: edit / delete */}
           {(canEdit || canDelete) && !editing && !confirmingDelete && (
-            <span className="ml-auto flex items-center gap-1 opacity-0 transition-opacity focus-within:opacity-100 group-hover/card:opacity-100">
+            <span className="ml-auto flex items-center gap-1 opacity-100 transition-opacity focus-within:opacity-100 group-hover/card:opacity-100 sm:opacity-0">
               {canEdit && (
                 <button
                   type="button"

@@ -60,3 +60,19 @@ test("poster input verification rejects traversal and symlink escapes before ffm
     assert.throws(()=>verifiedSourcePath(root,{id:"drift",path:safe,bytes:9}), /identity changed/);
   } finally { rmSync(base,{recursive:true,force:true}); }
 });
+
+
+test("ambiguous imported revisions never silently reinstate the source as current", async () => {
+  const { serializeSourceWorkspace } = await import("../lib/demo/source-catalog.ts");
+  const { createInitialDemoWorkspace, restoreDemoWorkspace } = await import("../lib/demo/workspace-store.ts");
+  const source = createInitialDemoWorkspace();
+  const base = source.mediaVersions[0];
+  source.mediaVersions = [
+    { ...base, is_current: false },
+    { ...base, id: "uploaded-v2", version_number: 2, media_blob_id: "uploaded-v2", source_url: null, source_label: null, is_current: false },
+  ];
+  const restored = restoreDemoWorkspace(serializeSourceWorkspace(source, catalog));
+  assert.equal(restored.mediaVersions.some((version) => version.is_current), false);
+  assert.equal(restored.mediaVersions.some((version) => version.id === base.id), true, "known historical source remains reviewable by its exact pin");
+  assert.equal(restored.mediaVersions.some((version) => version.id === "uploaded-v2"), true, "known uploaded history is preserved without choosing it as current");
+});

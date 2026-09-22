@@ -138,7 +138,7 @@ import {
   type DemoMediaVersion,
 } from "./media-version-authority.ts";
 
-import { sourceCatalog, sourceWorkspace, serializeSourceWorkspace, unwrapSourceWorkspace } from "./source-catalog.ts";
+import { sourceCatalog, sourceMediaUrl, sourceWorkspace, serializeSourceWorkspace, unwrapSourceWorkspace } from "./source-catalog.ts";
 
 export const DEMO_WORKSPACE_STORAGE_KEY = sourceCatalog ? "co-videopro.schneider-source.v1" : "co-videopro.workspace.v2";
 export const LEGACY_DEMO_WORKSPACE_STORAGE_KEYS = sourceCatalog ? [] : ["co-deliver.demo-workspace.v1"];
@@ -832,15 +832,15 @@ function importedSourceBaseMediaVersion(asset: MediaAsset): DemoMediaVersion | n
     asset_id: asset.id,
     version_number: 1,
     media_blob_id: null,
-    source_url: asset.file_url ?? null,
+    source_url: sourceMediaUrl(source.id),
     thumbnail_blob_id: null,
     file_name: null,
-    file_type: asset.file_type,
+    file_type: "video",
     file_size: source.bytes,
     duration_seconds: source.duration_seconds,
     resolution: `${source.width} × ${source.height}`,
     source_label: "Imported file",
-    created_at: asset.created_at,
+    created_at: source.created_at,
     is_current: true,
   };
 }
@@ -1051,10 +1051,17 @@ function normalizeRestoredDemoMediaVersions(raw: unknown, assets: MediaAsset[]) 
           ...records.map((record) => ({ ...record, is_current: record.id === uploadedCurrent[0].id })),
         );
       } else {
-        // The catalog-backed source is independently verifiable. When later
-        // browser cuts disagree about current authority, preserve only that
-        // measured base and force links to ambiguous cuts to fail closed.
-        normalized.push({ ...sourceBase, is_current: true });
+        const hasUploadedHistory = rawRecords.some((value) => {
+          if (!value || typeof value !== "object") return false;
+          const record = value as Record<string, unknown>;
+          return record.asset_id === assetId && record.version_number !== 1;
+        });
+        // A known source remains a valid historical pin, but cannot silently
+        // become current when uploaded cuts lose or disagree on that authority.
+        normalized.push(...records.map((record) => ({
+          ...record,
+          is_current: !hasUploadedHistory && record.id === sourceBase.id,
+        })));
       }
       continue;
     }
@@ -1217,12 +1224,42 @@ function mergeSeededRecords<T extends { id: string }>(saved: T[] | undefined, se
   return [...saved, ...seeded.filter((record) => !savedIds.has(record.id))];
 }
 
+/** Preserve the exact legacy local V1 identity across the first version-record upgrade.
+ * Only the previously single-cut local upload shape proves this alias. Unknown
+ * versions, multi-cut assets, and imported source history are never reassigned.
+ */
+function preserveLegacyLocalReviewIdentity(parsed: StoredWorkspaceShape): StoredWorkspaceShape {
+  const explicit = new Set((parsed.mediaVersions ?? []).map((version) => version.asset_id));
+  const aliases = new Map((parsed.assets ?? [])
+    .filter((asset) => isBrowserLocalDemoAsset(asset) && (asset.version_count ?? 1) === 1 && !explicit.has(asset.id))
+    .map((asset) => [asset.id, { projectId: asset.project_id, versionId: `local-version-${asset.id}` }]));
+  if (aliases.size === 0) return parsed;
+  function bind<T extends { asset_id: string; project_id: string; version_id?: string | null }>(record: T): T {
+    const alias = aliases.get(record.asset_id);
+    return alias && record.project_id === alias.projectId && record.version_id === "demo-version-1"
+      ? { ...record, version_id: alias.versionId }
+      : record;
+  }
+  return {
+    ...parsed,
+    reviewComments: parsed.reviewComments?.map(bind),
+    reviewCutMarkers: parsed.reviewCutMarkers?.map(bind),
+    revisionRequests: parsed.revisionRequests?.map(bind),
+    publicReviewStates: parsed.publicReviewStates?.map(bind),
+    shareLinks: parsed.shareLinks?.map((link) => {
+      const alias = link.asset_ids?.length === 1 ? aliases.get(link.asset_ids[0]) : null;
+      return alias && link.version_id === "demo-version-1" ? { ...link, version_id: alias.versionId } : link;
+    }),
+  };
+}
+
 export function restoreDemoWorkspace(raw: string | null): DemoWorkspaceState {
   if (!raw) return createInitialDemoWorkspace();
 
   try {
-    const parsed: unknown = unwrapSourceWorkspace(JSON.parse(raw), sourceCatalog);
-    if (!isStoredWorkspace(parsed)) return createInitialDemoWorkspace();
+    const unwrapped: unknown = unwrapSourceWorkspace(JSON.parse(raw), sourceCatalog);
+    if (!isStoredWorkspace(unwrapped)) return createInitialDemoWorkspace();
+    const parsed = preserveLegacyLocalReviewIdentity(unwrapped);
     const fallback = createInitialDemoWorkspace();
     const savedSettings = parsed.settings;
     const legacy = parsed.schemaVersion === 1 ? migrateLegacyWorkspace(parsed, fallback) : null;
@@ -1666,7 +1703,7 @@ export function addDemoLocalMediaAsset(input: {
     asset,
     version: versionResult.version,
   };
-  updateState((state) => {
+  const committed = commitPersistedState((state) => {
     if (state.assets.some((candidate) => candidate.id === asset.id)) {
       outcome = { ok: false, error: "This browser-local deliverable already exists." };
       return state;
@@ -1693,7 +1730,7 @@ export function addDemoLocalMediaAsset(input: {
       ],
     };
   });
-  return outcome;
+  return committed ? outcome : { ok: false, error: "Could not save this media version. Check browser storage and try again." };
 }
 
 function bindLegacyShareLinksBeforeAppend(
@@ -1777,7 +1814,7 @@ export function appendDemoMediaVersion(input: {
     error: "This media is not available for a local revision.",
   };
 
-  updateState((state) => {
+  const committed = commitPersistedState((state) => {
     const asset = state.assets.find((candidate) => candidate.id === input.assetId);
     if (!asset || !isVersionedDemoAsset(asset)) {
       outcome = { ok: false, error: "Choose a browser-local deliverable or Imported file for a new version." };
@@ -1851,7 +1888,7 @@ export function appendDemoMediaVersion(input: {
       ],
     };
   });
-  return outcome;
+  return committed ? outcome : { ok: false, error: "Could not save this media version. Check browser storage and try again." };
 }
 
 export function moveDemoAssetToTrash(assetId: string) {

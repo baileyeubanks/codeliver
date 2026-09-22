@@ -30,12 +30,16 @@ registerHooks({
 });
 
 const values = new Map<string, string>();
+let rejectStorageWrites = false;
 Object.defineProperty(globalThis, "window", {
   configurable: true,
   value: {
     localStorage: {
       getItem(key: string) { return values.get(key) ?? null; },
-      setItem(key: string, value: string) { values.set(key, value); },
+      setItem(key: string, value: string) {
+        if (rejectStorageWrites) throw new Error("quota unavailable");
+        values.set(key, value);
+      },
       removeItem(key: string) { values.delete(key); },
     },
     addEventListener() {},
@@ -89,6 +93,7 @@ function shareInput(assetIds: string[], intent: "approval_needed" | "client_revi
 
 beforeEach(async () => {
   values.clear();
+  rejectStorageWrites = false;
   (await store()).resetDemoWorkspace();
 });
 
@@ -315,4 +320,51 @@ test("conflicting stored current flags fail closed instead of advancing a local 
     },
     { active: false, binding: "reissue_required" },
   );
+});
+
+
+test("upgrade preserves explicit legacy local V1 comments and approval rounds with the old link", async () => {
+  const api = await store();
+  api.addDemoAssets([localAsset()]);
+  const saved = api.getDemoWorkspaceSnapshot();
+  const assetId = localAsset().id;
+  const inviteId = "legacy-exact-v1-invite";
+  saved.mediaVersions = [];
+  saved.reviewComments.push({
+    id: "legacy-explicit-note", project_id: "schneider-epc", asset_id: assetId,
+    version_id: "demo-version-1", review_invite_id: inviteId,
+    author_name: "Local QA", author_email: null, body: "Keep my already saved note.",
+    time_seconds: 88, status: "open", created_at: "2026-09-22T00:00:00.000Z",
+  });
+  saved.shareLinks.push({
+    id: inviteId, token: "legacy-v1-token", asset_ids: [assetId],
+    is_active: true, share_intent: "approval_needed",
+  } as typeof saved.shareLinks[number]);
+  saved.publicReviewStates.push({
+    project_id: "schneider-epc", asset_id: assetId, version_id: "demo-version-1",
+    review_invite_id: inviteId, reviewer_name: "Local QA", reviewer_email: "qa@example.invalid",
+    workflow_mode: "sequential", approvals: [], asset_status: "changes_requested",
+    active_approval_ids: [], approval_access_message: "Changes requested.", locked_asset_ids: [],
+    updated_at: "2026-09-22T00:00:00.000Z",
+  });
+  const restored = api.restoreDemoWorkspace(JSON.stringify(saved));
+  const link = restored.shareLinks.find((item) => item.id === inviteId)!;
+  const note = restored.reviewComments.find((item) => item.id === "legacy-explicit-note")!;
+  const round = restored.publicReviewStates.find((item) => item.review_invite_id === inviteId)!;
+  assert.equal(link.version_binding_status, "bound");
+  assert.equal(note.version_id, link.version_id, "the old link must still show its saved V1 note");
+  assert.equal(round.version_id, link.version_id, "the old link must still show its saved decision");
+});
+
+
+test("a revision cannot report success or change current authority when metadata storage fails", async () => {
+  const api = await store();
+  assert.equal(api.addDemoLocalMediaAsset({ asset: localAsset(), versionId: "quota-v1", mediaBlobId: "quota-v1", fileName: "v1.mp4", fileSize: 100 }).ok, true);
+  const before = JSON.stringify(api.getDemoWorkspaceSnapshot());
+  rejectStorageWrites = true;
+  try {
+    const result = api.appendDemoMediaVersion({ projectId: "schneider-epc", assetId: localAsset().id, versionId: "quota-v2", mediaBlobId: "quota-v2", fileName: "v2.mp4", fileType: "video", fileSize: 200 });
+    assert.equal(result.ok, false);
+    assert.equal(JSON.stringify(api.getDemoWorkspaceSnapshot()), before);
+  } finally { rejectStorageWrites = false; }
 });

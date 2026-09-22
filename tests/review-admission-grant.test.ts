@@ -50,6 +50,26 @@ test("a review admission grant is exact-token-bound and round trips without expo
   );
 });
 
+test("a recipient-bound grant carries only the normalized recipient hash", () => {
+  const recipientHash = createHash("sha256")
+    .update("reviewer@example.test", "utf8")
+    .digest("hex");
+  const grant = issueReviewAdmissionGrant(
+    { token, ...claims, recipientHash },
+    signingKey,
+  );
+
+  assert.deepEqual(
+    verifyReviewAdmissionGrant(grant, {
+      token,
+      now: now + 30,
+      keyValue: signingKey,
+    }),
+    { ...claims, recipientHash },
+  );
+  assert.equal(grant.includes("reviewer@example.test"), false);
+});
+
 test("tampered, expired, future-issued, overlong, and wrong-key grants fail closed", () => {
   const grant = issueReviewAdmissionGrant(
     { token, ...claims },

@@ -58,6 +58,10 @@ interface RailSection {
 export interface ReviewWorkspaceProps {
   loading: boolean;
   error: string;
+  errorAction?: {
+    href: string;
+    label: string;
+  };
   brand?: {
     displayName: string;
     playerLabel: string;
@@ -95,6 +99,7 @@ function ReviewStats({
 export default function PublicReviewWorkspace({
   loading,
   error,
+  errorAction,
   brand,
   header,
   stage,
@@ -136,6 +141,7 @@ export default function PublicReviewWorkspace({
           <div>
             <strong>Review unavailable</strong>
             <p>{error}</p>
+            {errorAction ? <a href={errorAction.href}>{errorAction.label}</a> : null}
           </div>
         </div>
       </div>

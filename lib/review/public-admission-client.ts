@@ -1,3 +1,5 @@
+import { resolveReviewAuthReturn } from "../auth/review-return.ts";
+
 export const REVIEW_ADMISSION_RENEWAL_INTERVAL_MS = 10 * 60 * 1_000;
 const admissionFlights = new Map<
   string,
@@ -19,15 +21,39 @@ async function readPayload(response: Response): Promise<Record<string, unknown> 
   }
 }
 
+export class PublicReviewAdmissionError extends Error {
+  readonly code: string | null;
+
+  constructor(message: string, code: string | null) {
+    super(message);
+    this.name = "PublicReviewAdmissionError";
+    this.code = code;
+  }
+}
+
 function reviewRequestError(
   payload: Record<string, unknown> | null,
   fallback: string,
 ): Error {
-  return new Error(
+  const message =
     typeof payload?.error === "string" && payload.error.trim()
       ? payload.error
-      : fallback,
-  );
+      : fallback;
+  const code =
+    typeof payload?.code === "string" && payload.code.trim()
+      ? payload.code
+      : null;
+  return code
+    ? new PublicReviewAdmissionError(message, code)
+    : new Error(message);
+}
+
+/** Builds a constrained auth return for a recipient-bound public review. */
+export function recipientReviewLoginHref(token: string): string | null {
+  const next = resolveReviewAuthReturn(`/review/${token}`);
+  return next
+    ? `/login?${new URLSearchParams({ next }).toString()}`
+    : null;
 }
 
 function reviewPath(token: string, suffix = ""): string {

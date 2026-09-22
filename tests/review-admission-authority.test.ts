@@ -21,6 +21,12 @@ type AuthorityState = typeof globalThis & {
     args: Record<string, unknown>;
   }>;
   __cvpReviewAuthorityResults: Record<string, RpcResult>;
+  __cvpReviewAuthorityAuthCalls: number;
+  __cvpReviewAuthorityAuthUser: {
+    email?: string | null;
+    email_confirmed_at?: string | null;
+  } | null;
+  __cvpReviewAuthorityAuthThrows: boolean;
 };
 const state = globalThis as AuthorityState;
 
@@ -43,6 +49,15 @@ const dataAuthorityStub = `data:text/javascript,${encodeURIComponent(`
     return "co_production";
   }
 `)}`;
+const authStub = `data:text/javascript,${encodeURIComponent(`
+  export async function requireAuth() {
+    globalThis.__cvpReviewAuthorityAuthCalls += 1;
+    if (globalThis.__cvpReviewAuthorityAuthThrows) {
+      throw new Error("auth unavailable");
+    }
+    return globalThis.__cvpReviewAuthorityAuthUser;
+  }
+`)}`;
 
 registerHooks({
   resolve(specifier, context, nextResolve) {
@@ -52,6 +67,7 @@ registerHooks({
     if (specifier === "@/lib/data-authority") {
       return nextResolve(dataAuthorityStub, context);
     }
+    if (specifier === "@/lib/auth") return nextResolve(authStub, context);
     if (specifier.startsWith("@/")) {
       return nextResolve(
         pathToFileURL(resolve(repositoryRoot, `${specifier.slice(2)}.ts`)).href,
@@ -81,6 +97,7 @@ function admissionRow(overrides: Record<string, unknown> = {}) {
     admission_expires_at: new Date((now + 8 * 60 * 60) * 1_000).toISOString(),
     view_count: 1,
     max_views: 1,
+    recipient_required: false,
     retry_after_seconds: null,
     ...overrides,
   };
@@ -94,7 +111,7 @@ function authorityRow(overrides: Record<string, unknown> = {}) {
     version_id: ids.versionId,
     admission_expires_at: new Date((now + 8 * 60 * 60) * 1_000).toISOString(),
     reviewer_name: "External reviewer",
-    reviewer_email: "reviewer@example.test",
+    reviewer_email: null,
     permissions: "approve",
     invite_expires_at: null,
     watermark_enabled: false,
@@ -111,10 +128,11 @@ function authorityRow(overrides: Record<string, unknown> = {}) {
   };
 }
 
-function grantCookie() {
+function grantCookie(recipientHash?: string) {
   const grant = issueReviewAdmissionGrant({
     token,
     ...ids,
+    ...(recipientHash ? { recipientHash } : {}),
     issuedAt: now,
     expiresAt: now + 15 * 60,
     admissionExpiresAt: now + 8 * 60 * 60,
@@ -135,6 +153,7 @@ test("atomic admission passes only hashed token, server admission id, and keyed 
     token,
     admissionId: ids.admissionId,
     networkBucket: "a".repeat(64),
+    recipientHash: null,
   });
 
   assert.equal(result.ok, true);
@@ -148,6 +167,7 @@ test("atomic admission passes only hashed token, server admission id, and keyed 
         createHash("sha256").update(token, "utf8").digest("hex"),
       p_admission_id: ids.admissionId,
       p_network_bucket: "a".repeat(64),
+      p_recipient_hash: null,
     },
   }]);
   assert.equal(
@@ -178,6 +198,7 @@ test("admission rate exhaustion and authority failure fail closed", async () => 
       token,
       admissionId: ids.admissionId,
       networkBucket: "b".repeat(64),
+      recipientHash: null,
     }),
     {
       ok: false,
@@ -198,6 +219,7 @@ test("admission rate exhaustion and authority failure fail closed", async () => 
       token,
       admissionId: ids.admissionId,
       networkBucket: "b".repeat(64),
+      recipientHash: null,
     }),
     {
       ok: false,
@@ -225,6 +247,7 @@ test("admission rejects a count above max while preserving equality for the admi
       token,
       admissionId: ids.admissionId,
       networkBucket: "b".repeat(64),
+      recipientHash: null,
     }),
     {
       ok: false,
@@ -236,6 +259,9 @@ test("admission rejects a count above max while preserving equality for the admi
 
 test("payload and reviewer actions reuse the admitted max-view session and compare every signed identity", async () => {
   state.__cvpReviewAuthorityCalls = [];
+  state.__cvpReviewAuthorityAuthCalls = 0;
+  state.__cvpReviewAuthorityAuthUser = null;
+  state.__cvpReviewAuthorityAuthThrows = false;
   state.__cvpReviewAuthorityResults = {
     authorize_review_admission: {
       data: [authorityRow()],
@@ -259,6 +285,7 @@ test("payload and reviewer actions reuse the admitted max-view session and compa
   assert.equal(result.invite.version_id, ids.versionId);
   assert.equal(result.invite.assets?.projects?.name, "Launch");
   assert.equal(result.invite.password_hash, null);
+  assert.equal(state.__cvpReviewAuthorityAuthCalls, 0);
 
   state.__cvpReviewAuthorityResults = {
     authorize_review_admission: {
@@ -274,6 +301,69 @@ test("payload and reviewer actions reuse the admitted max-view session and compa
       code: "REVIEW_ADMISSION_INVALID",
     },
   );
+});
+
+test("recipient-bound payload requires the matching confirmed identity after admission", async () => {
+  const recipientHash = createHash("sha256")
+    .update("reviewer@example.test", "utf8")
+    .digest("hex");
+  const request = new Request(
+    `https://client.contentco-op.com/api/review/${token}`,
+    { headers: { Cookie: grantCookie(recipientHash) } },
+  );
+  state.__cvpReviewAuthorityCalls = [];
+  state.__cvpReviewAuthorityAuthCalls = 0;
+  state.__cvpReviewAuthorityAuthThrows = false;
+  state.__cvpReviewAuthorityAuthUser = {
+    email: "Reviewer@Example.test",
+    email_confirmed_at: "2026-09-22T00:00:00.000Z",
+  };
+  state.__cvpReviewAuthorityResults = {
+    authorize_review_admission: {
+      data: [authorityRow({ reviewer_email: " reviewer@example.test " })],
+      error: null,
+    },
+  };
+  const { authorizeAdmittedReviewInvite } = await import(
+    pathToFileURL(resolve(repositoryRoot, "lib/review/admission-authority.ts"))
+      .href,
+  );
+
+  assert.equal(
+    (await authorizeAdmittedReviewInvite(request, token)).ok,
+    true,
+  );
+  assert.equal(state.__cvpReviewAuthorityAuthCalls, 1);
+
+  state.__cvpReviewAuthorityAuthCalls = 0;
+  state.__cvpReviewAuthorityAuthUser = {
+    email: "forwarded@example.test",
+    email_confirmed_at: "2026-09-22T00:00:00.000Z",
+  };
+  assert.deepEqual(
+    await authorizeAdmittedReviewInvite(request, token),
+    {
+      ok: false,
+      status: 403,
+      code: "REVIEW_RECIPIENT_AUTH_REQUIRED",
+    },
+  );
+  assert.equal(state.__cvpReviewAuthorityAuthCalls, 1);
+
+  state.__cvpReviewAuthorityAuthCalls = 0;
+  const legacyRequest = new Request(
+    `https://client.contentco-op.com/api/review/${token}`,
+    { headers: { Cookie: grantCookie() } },
+  );
+  assert.deepEqual(
+    await authorizeAdmittedReviewInvite(legacyRequest, token),
+    {
+      ok: false,
+      status: 403,
+      code: "REVIEW_RECIPIENT_AUTH_REQUIRED",
+    },
+  );
+  assert.equal(state.__cvpReviewAuthorityAuthCalls, 0);
 });
 
 test("review action throttles are exact-admission-bound and fail closed", async () => {
@@ -427,6 +517,7 @@ test("token-free media authority recovers the signed token hash and rejects rece
     asset_id: ids.assetId,
     version_id: ids.versionId,
     admission_expires_at: new Date((now + 8 * 60 * 60) * 1_000).toISOString(),
+    reviewer_email: null,
     download_enabled: false,
     watermark_enabled: false,
     file_size: 10,
@@ -500,6 +591,7 @@ test("token-free media rejects an expired grant until admission renews it", asyn
     admission_expires_at: new Date(
       admissionExpiresAt * 1_000,
     ).toISOString(),
+    reviewer_email: null,
     download_enabled: false,
     watermark_enabled: false,
     file_size: 10,
@@ -537,4 +629,68 @@ test("token-free media rejects an expired grant until admission renews it", asyn
     code: "REVIEW_MEDIA_NOT_FOUND",
   });
   assert.deepEqual(state.__cvpReviewAuthorityCalls, []);
+});
+
+test("recipient-bound media refuses a forwarded admission cookie", async () => {
+  const recipientHash = createHash("sha256")
+    .update("reviewer@example.test", "utf8")
+    .digest("hex");
+  const mediaRow = {
+    admission_id: ids.admissionId,
+    invite_id: ids.inviteId,
+    asset_id: ids.assetId,
+    version_id: ids.versionId,
+    admission_expires_at: new Date((now + 8 * 60 * 60) * 1_000).toISOString(),
+    reviewer_email: "reviewer@example.test",
+    download_enabled: false,
+    watermark_enabled: false,
+    file_size: 10,
+    source_upload_id: "77777777-7777-4777-8777-777777777777",
+    storage_provider: "local",
+    storage_object_key: "tenants/a/objects/b/v1/master.mov",
+    storage_sha256: "c".repeat(64),
+    storage_provider_version_id: `fs-v1:${"d".repeat(64)}`,
+    storage_committed_at: new Date(now * 1_000).toISOString(),
+    original_filename: "master.mov",
+    mime_type: "video/quicktime",
+  };
+  state.__cvpReviewAuthorityCalls = [];
+  state.__cvpReviewAuthorityAuthCalls = 0;
+  state.__cvpReviewAuthorityAuthThrows = false;
+  state.__cvpReviewAuthorityAuthUser = {
+    email: "forwarded@example.test",
+    email_confirmed_at: "2026-09-22T00:00:00.000Z",
+  };
+  state.__cvpReviewAuthorityResults = {
+    authorize_review_media: { data: [mediaRow], error: null },
+  };
+  const { authorizeReviewMedia } = await import(
+    pathToFileURL(resolve(repositoryRoot, "lib/review/admission-authority.ts"))
+      .href,
+  );
+  const request = new Request(
+    `https://client.contentco-op.com/api/review/media/${ids.admissionId}`,
+    { headers: { Cookie: grantCookie(recipientHash) } },
+  );
+
+  assert.deepEqual(
+    await authorizeReviewMedia(request, ids.admissionId),
+    {
+      ok: false,
+      status: 403,
+      code: "REVIEW_RECIPIENT_AUTH_REQUIRED",
+    },
+  );
+  assert.equal(state.__cvpReviewAuthorityAuthCalls, 1);
+
+  state.__cvpReviewAuthorityAuthCalls = 0;
+  state.__cvpReviewAuthorityAuthUser = {
+    email: "reviewer@example.test",
+    email_confirmed_at: "2026-09-22T00:00:00.000Z",
+  };
+  assert.equal(
+    (await authorizeReviewMedia(request, ids.admissionId)).ok,
+    true,
+  );
+  assert.equal(state.__cvpReviewAuthorityAuthCalls, 1);
 });

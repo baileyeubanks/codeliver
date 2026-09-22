@@ -2,6 +2,7 @@ import {
   CO_PRODUCTION_DATA_SCHEMA,
   getSupabaseDataSchema,
 } from "@/lib/data-authority";
+import { requireAuth } from "@/lib/auth";
 import { isOpaqueRouteToken } from "@/lib/dynamic-route-authority";
 import type { ReviewInviteRecord } from "@/lib/review-invites";
 import {
@@ -14,6 +15,11 @@ import {
   verifyReviewAdmissionMediaGrant,
   type ReviewAdmissionClaims,
 } from "@/lib/review/admission-grant";
+import {
+  hashReviewRecipientEmail,
+  reviewRecipientHashForConfirmedUser,
+  reviewRecipientHashMatches,
+} from "@/lib/review/recipient-identity";
 import { hashOpaqueToken } from "@/lib/security/opaque-token";
 import { getSupabase } from "@/lib/supabase";
 
@@ -44,6 +50,7 @@ export interface ReviewAdmission {
   expiresAt: number;
   viewCount: number;
   maxViews: number | null;
+  recipientRequired: boolean;
 }
 
 export interface AuthorizedReviewMedia {
@@ -52,6 +59,7 @@ export interface AuthorizedReviewMedia {
   asset_id: string;
   version_id: string;
   admission_expires_at: string;
+  reviewer_email: string | null;
   download_enabled: boolean;
   watermark_enabled: false;
   file_size: number;
@@ -116,6 +124,46 @@ function unavailable(code: string): AdmissionFailure {
   return { ok: false, status: 503, code };
 }
 
+async function authorizeRecipientBinding(
+  reviewerEmail: string | null,
+  claims: ReviewAdmissionClaims,
+): Promise<AdmissionFailure | null> {
+  const inviteRecipientHash = hashReviewRecipientEmail(reviewerEmail);
+  if (!inviteRecipientHash) return null;
+
+  // A legacy bearer grant cannot be upgraded into a recipient-bound session.
+  if (
+    !claims.recipientHash ||
+    !reviewRecipientHashMatches(inviteRecipientHash, claims.recipientHash)
+  ) {
+    return {
+      ok: false,
+      status: 403,
+      code: "REVIEW_RECIPIENT_AUTH_REQUIRED",
+    };
+  }
+
+  try {
+    const currentRecipientHash = reviewRecipientHashForConfirmedUser(
+      await requireAuth(),
+    );
+    if (
+      !currentRecipientHash ||
+      !reviewRecipientHashMatches(claims.recipientHash, currentRecipientHash)
+    ) {
+      return {
+        ok: false,
+        status: 403,
+        code: "REVIEW_RECIPIENT_AUTH_REQUIRED",
+      };
+    }
+  } catch {
+    return unavailable("REVIEW_RECIPIENT_AUTH_UNAVAILABLE");
+  }
+
+  return null;
+}
+
 function refreshedAdmissionCookie(
   claims: ReviewAdmissionClaims,
   binding: { token: string } | { tokenHash: string },
@@ -133,6 +181,7 @@ function refreshedAdmissionCookie(
       inviteId: claims.inviteId,
       assetId: claims.assetId,
       versionId: claims.versionId,
+      recipientHash: claims.recipientHash,
       issuedAt: now,
       expiresAt,
       admissionExpiresAt: claims.admissionExpiresAt,
@@ -159,10 +208,12 @@ export async function admitReviewInvite({
   token,
   admissionId,
   networkBucket,
+  recipientHash,
 }: {
   token: string;
   admissionId: string;
   networkBucket: string;
+  recipientHash: string | null;
 }): Promise<
   | { ok: true; admission: ReviewAdmission }
   | AdmissionFailure
@@ -171,7 +222,8 @@ export async function admitReviewInvite({
     getSupabaseDataSchema() !== CO_PRODUCTION_DATA_SCHEMA ||
     !isOpaqueRouteToken(token) ||
     !UUID_PATTERN.test(admissionId) ||
-    !SHA256_PATTERN.test(networkBucket)
+    !SHA256_PATTERN.test(networkBucket) ||
+    (recipientHash !== null && !SHA256_PATTERN.test(recipientHash))
   ) {
     return { ok: false, status: 404, code: "REVIEW_ADMISSION_INVALID" };
   }
@@ -180,6 +232,7 @@ export async function admitReviewInvite({
     p_token_hash: hashOpaqueToken(token),
     p_admission_id: admissionId,
     p_network_bucket: networkBucket,
+    p_recipient_hash: recipientHash,
   });
   if (result.error) return unavailable("REVIEW_ADMISSION_UNAVAILABLE");
 
@@ -201,6 +254,13 @@ export async function admitReviewInvite({
       code: "REVIEW_PASSWORD_REQUIRED",
     };
   }
+  if (status === "recipient_required") {
+    return {
+      ok: false,
+      status: 403,
+      code: "REVIEW_RECIPIENT_AUTH_REQUIRED",
+    };
+  }
   if (status === "view_limit") {
     return {
       ok: false,
@@ -218,6 +278,7 @@ export async function admitReviewInvite({
   const expiresAt = timestampSeconds(row.admission_expires_at);
   const viewCount = integer(row.view_count);
   const maxViews = nullableInteger(row.max_views);
+  const recipientRequired = row.recipient_required;
   if (
     row.admission_id !== admissionId ||
     !UUID_PATTERN.test(String(row.invite_id ?? "")) ||
@@ -227,6 +288,7 @@ export async function admitReviewInvite({
     expiresAt <= Math.floor(Date.now() / 1_000) ||
     viewCount === null ||
     viewCount < 0 ||
+    typeof recipientRequired !== "boolean" ||
     maxViews === undefined ||
     (maxViews !== null &&
       (maxViews <= 0 || viewCount > maxViews))
@@ -244,6 +306,7 @@ export async function admitReviewInvite({
       expiresAt,
       viewCount,
       maxViews,
+      recipientRequired,
     },
   };
 }
@@ -354,6 +417,11 @@ export async function authorizeAdmittedReviewInvite(
   }
   const invite = normalizeAdmittedInvite(row);
   if (!invite) return unavailable("REVIEW_ADMISSION_UNAVAILABLE");
+  const recipientBinding = await authorizeRecipientBinding(
+    invite.reviewer_email,
+    admission.claims,
+  );
+  if (recipientBinding) return recipientBinding;
   const setCookie = refreshedAdmissionCookie(admission.claims, { token });
   if (!setCookie) return unavailable("REVIEW_ADMISSION_UNAVAILABLE");
   return { ok: true, invite, claims: admission.claims, setCookie };
@@ -439,6 +507,7 @@ function normalizeMediaRecord(
     !UUID_PATTERN.test(String(row.source_upload_id ?? "")) ||
     timestampSeconds(row.admission_expires_at) === null ||
     timestampSeconds(row.storage_committed_at) === null ||
+    (row.reviewer_email !== null && typeof row.reviewer_email !== "string") ||
     typeof row.download_enabled !== "boolean" ||
     row.watermark_enabled !== false ||
     fileSize === null ||
@@ -470,6 +539,7 @@ function normalizeMediaRecord(
     asset_id: row.asset_id as string,
     version_id: row.version_id as string,
     admission_expires_at: row.admission_expires_at as string,
+    reviewer_email: row.reviewer_email as string | null,
     download_enabled: row.download_enabled,
     watermark_enabled: false,
     file_size: fileSize,
@@ -530,6 +600,11 @@ export async function authorizeReviewMedia(
   }
   const media = normalizeMediaRecord(row);
   if (!media) return unavailable("REVIEW_MEDIA_UNAVAILABLE");
+  const recipientBinding = await authorizeRecipientBinding(
+    media.reviewer_email,
+    verified.claims,
+  );
+  if (recipientBinding) return recipientBinding;
   const setCookie = refreshedAdmissionCookie(verified.claims, {
     tokenHash: verified.tokenHash,
   });

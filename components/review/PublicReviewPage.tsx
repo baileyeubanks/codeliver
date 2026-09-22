@@ -70,6 +70,8 @@ import { usePlayerStore } from "@/lib/stores/playerStore";
 import { resolveReviewFrameRate } from "@/lib/review/frame-review";
 import {
   loadAdmittedPublicReview,
+  PublicReviewAdmissionError,
+  recipientReviewLoginHref,
   renewPublicReviewAdmission,
   REVIEW_ADMISSION_RENEWAL_INTERVAL_MS,
 } from "@/lib/review/public-admission-client";
@@ -242,6 +244,7 @@ export default function PublicReviewPage() {
   const [cutMarkerError, setCutMarkerError] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [admissionRecoveryHref, setAdmissionRecoveryHref] = useState<string | null>(null);
   const [approvalSubmitting, setApprovalSubmitting] = useState(false);
   const [approvalError, setApprovalError] = useState("");
   const demoMode = token === "demo" || searchParams.get("demo") === "1";
@@ -590,6 +593,13 @@ export default function PublicReviewPage() {
       } catch (loadError) {
         if (cancelled) return;
         setError(loadError instanceof Error ? loadError.message : "Could not load this review.");
+        setAdmissionRecoveryHref(
+          !demoMode &&
+            loadError instanceof PublicReviewAdmissionError &&
+            loadError.code === "REVIEW_RECIPIENT_AUTH_REQUIRED"
+            ? recipientReviewLoginHref(token)
+            : null,
+        );
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -1354,6 +1364,11 @@ export default function PublicReviewPage() {
     <ReviewWorkspace
       loading={loading}
       error={workspaceError}
+      errorAction={
+        admissionRecoveryHref
+          ? { href: admissionRecoveryHref, label: "Sign in with the invited email" }
+          : undefined
+      }
       brand={demoMode ? demoWorkspace.settings.brand : undefined}
       header={
         <>

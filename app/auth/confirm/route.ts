@@ -7,6 +7,7 @@ import {
   roleCanAccessSurface,
   surfaceForRole,
 } from "@/lib/auth/host-surface";
+import { resolveReviewAuthReturn } from "@/lib/auth/review-return";
 import { resolveProvisionedRole } from "@/lib/auth/provisioning";
 import { createSupabaseAuth } from "@/lib/supabase-auth";
 
@@ -36,9 +37,9 @@ export async function GET(request: Request) {
   const requestUrl = new URL(request.url);
   const tokenHash = requestUrl.searchParams.get("token_hash");
   const requestedType = requestUrl.searchParams.get("type");
-  const safeTarget = buildProtectedReturnPath(
-    requestUrl.searchParams.get("next") ?? "/projects",
-  );
+  const requestedTarget = requestUrl.searchParams.get("next") ?? "/projects";
+  const reviewTarget = resolveReviewAuthReturn(requestedTarget);
+  const safeTarget = reviewTarget ?? buildProtectedReturnPath(requestedTarget);
 
   if (
     !tokenHash ||
@@ -65,6 +66,12 @@ export async function GET(request: Request) {
 
     if (requestedType === "recovery") {
       return noStoreRedirect(new URL("/reset-password", requestUrl.origin));
+    }
+
+    // A confirmed review recipient has no workspace role to provision. The
+    // review admission endpoint still authorizes the requested email.
+    if (reviewTarget && resolveHostSurface(requestUrl.host)) {
+      return noStoreRedirect(new URL(reviewTarget, requestUrl.origin));
     }
 
     const role = resolveProvisionedRole(identity.data.user);

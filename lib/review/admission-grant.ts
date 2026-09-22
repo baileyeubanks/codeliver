@@ -10,6 +10,7 @@ const FORMAT_VERSION = "v1";
 const UUID_PATTERN =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const KEY_ID_PATTERN = /^[0-9a-f]{32}$/;
+const SHA256_PATTERN = /^[0-9a-f]{64}$/;
 const COOKIE_PREFIX = "__Host-cvp_review_admission_";
 const MAX_GRANT_BYTES = 2_048;
 const MAX_COOKIE_HEADER_BYTES = 16 * 1_024;
@@ -23,6 +24,7 @@ export interface ReviewAdmissionClaims {
   inviteId: string;
   assetId: string;
   versionId: string;
+  recipientHash?: string;
   issuedAt: number;
   expiresAt: number;
   admissionExpiresAt: number;
@@ -47,6 +49,10 @@ interface KeyMaterial {
   id: string;
   key: Buffer;
 }
+
+type ReviewAdmissionPayload =
+  | [string, string, string, string, string, number, number, number]
+  | [string, string, string, string, string, number, number, number, string];
 
 function decodeKey(value: string, variable: string): Buffer {
   const normalized = value.trim();
@@ -170,6 +176,12 @@ function assertClaims(claims: ReviewAdmissionClaims): void {
   ) {
     throw new Error("Review admission lifetime is invalid");
   }
+  if (
+    claims.recipientHash !== undefined &&
+    !SHA256_PATTERN.test(claims.recipientHash)
+  ) {
+    throw new Error("Review admission recipient binding is invalid");
+  }
 }
 
 function payloadValue({
@@ -178,25 +190,18 @@ function payloadValue({
   inviteId,
   assetId,
   versionId,
+  recipientHash,
   issuedAt,
   expiresAt,
   admissionExpiresAt,
-}: ReviewAdmissionGrantInput): [
-  string,
-  string,
-  string,
-  string,
-  string,
-  number,
-  number,
-  number,
-] {
+}: ReviewAdmissionGrantInput): ReviewAdmissionPayload {
   return payloadValueFromTokenHash({
     tokenHash: hashToken(token),
     admissionId,
     inviteId,
     assetId,
     versionId,
+    recipientHash,
     issuedAt,
     expiresAt,
     admissionExpiresAt,
@@ -209,23 +214,15 @@ function payloadValueFromTokenHash({
   inviteId,
   assetId,
   versionId,
+  recipientHash,
   issuedAt,
   expiresAt,
   admissionExpiresAt,
-}: ReviewAdmissionGrantHashInput): [
-  string,
-  string,
-  string,
-  string,
-  string,
-  number,
-  number,
-  number,
-] {
+}: ReviewAdmissionGrantHashInput): ReviewAdmissionPayload {
   if (!/^[0-9a-f]{64}$/.test(tokenHash)) {
     throw new Error("Review token hash is invalid");
   }
-  return [
+  const base: [string, string, string, string, string, number, number, number] = [
     admissionId,
     inviteId,
     assetId,
@@ -235,6 +232,7 @@ function payloadValueFromTokenHash({
     expiresAt,
     admissionExpiresAt,
   ];
+  return recipientHash === undefined ? base : [...base, recipientHash];
 }
 
 function signature(message: string, key: Buffer): Buffer {
@@ -333,7 +331,12 @@ export function verifyReviewAdmissionGrant(
     const decoded = JSON.parse(
       Buffer.from(encodedPayload, "base64url").toString("utf8"),
     ) as unknown;
-    if (!Array.isArray(decoded) || decoded.length !== 8) return null;
+    if (
+      !Array.isArray(decoded) ||
+      (decoded.length !== 8 && decoded.length !== 9)
+    ) {
+      return null;
+    }
     const [
       admissionId,
       inviteId,
@@ -343,6 +346,7 @@ export function verifyReviewAdmissionGrant(
       issuedAt,
       expiresAt,
       admissionExpiresAt,
+      recipientHash,
     ] = decoded;
     if (
       typeof admissionId !== "string" ||
@@ -352,7 +356,10 @@ export function verifyReviewAdmissionGrant(
       typeof storedTokenHash !== "string" ||
       typeof issuedAt !== "number" ||
       typeof expiresAt !== "number" ||
-      typeof admissionExpiresAt !== "number"
+      typeof admissionExpiresAt !== "number" ||
+      (recipientHash !== undefined &&
+        (typeof recipientHash !== "string" ||
+          !SHA256_PATTERN.test(recipientHash)))
     ) {
       return null;
     }
@@ -364,6 +371,7 @@ export function verifyReviewAdmissionGrant(
       issuedAt,
       expiresAt,
       admissionExpiresAt,
+      ...(typeof recipientHash === "string" ? { recipientHash } : {}),
     };
     assertClaims(claims);
     if (

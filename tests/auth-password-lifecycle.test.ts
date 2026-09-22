@@ -184,6 +184,29 @@ test("confirmation resend stays generic and preserves only a safe return path", 
   });
 });
 
+test("confirmation resend preserves an exact recipient review return", async () => {
+  const { POST } = await route("app/api/auth/resend/route.ts");
+  const reviewTarget = `/review/${"a".repeat(32)}`;
+  const response = await POST(new Request("https://client.contentco-op.com/api/auth/resend", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      email: "Person@Example.com",
+      next: reviewTarget,
+    }),
+  }));
+
+  assert.equal(response.status, 202);
+  assert.deepEqual(state.__ccoLifecycleResendRequest, {
+    type: "signup",
+    email: "person@example.com",
+    options: {
+      emailRedirectTo:
+        `https://client.contentco-op.com/auth/callback?flow=signup&next=%2Freview%2F${"a".repeat(32)}`,
+    },
+  });
+});
+
 test("token-hash confirmations create a verified session and route each lifecycle state", async () => {
   const { GET } = await route("app/auth/confirm/route.ts");
 
@@ -199,6 +222,15 @@ test("token-hash confirmations create a verified session and route each lifecycl
     token_hash: "hash",
     type: "signup",
   });
+
+  const reviewTarget = `/review/${"b".repeat(32)}`;
+  const recipient = await GET(new Request(
+    `https://co-videopro.com/auth/confirm?token_hash=recipient-hash&type=signup&next=${encodeURIComponent(reviewTarget)}`,
+  ));
+  assert.equal(
+    recipient.headers.get("location"),
+    `https://co-videopro.com${reviewTarget}`,
+  );
 
   const recovery = await GET(new Request(
     "https://co-videopro.com/auth/confirm?token_hash=recovery-hash&type=recovery",

@@ -90,10 +90,12 @@ test("legacy internal asset URLs resolve to the canonical cockpit review state",
 
 test("a legacy redirect preserves an exact demo version and refuses a live version fallback", () => {
   assert.match(componentSource, /const requestedVersionId = searchParams\.get\("version"\)/);
+  assert.match(componentSource, /const hasRequestedVersion = requestedVersionId !== null/);
   assert.match(componentSource, /workspace\.assets\.find/);
   assert.doesNotMatch(componentSource, /demoAssets/);
   assert.match(componentSource, /resolvePinnedDemoMediaVersion\(workspace\.mediaVersions, assetId, requestedVersionId\)/);
   assert.match(componentSource, /requestedDemoVersion\?\.id \?\? null/);
+  assert.match(componentSource, /hasRequestedVersion && !requestedDemoVersion/);
   assert.match(componentSource, /LIVE_VERSION_UNAVAILABLE_ERROR/);
   assert.match(componentSource, /if \(!projectId \|\| !assetId \|\| immediateError \|\| \(isDemo && !demoRouteReady\)\) return;/);
   assert.match(componentSource, /No substitute media was opened\./);

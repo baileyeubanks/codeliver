@@ -34,3 +34,40 @@ test("only a resolved demo version re-enables exact-cut operations", () => {
     activeDemoVersionId: null,
   }), false);
 });
+
+test("an absent version permits ordinary review while an explicit empty version does not", () => {
+  assert.equal(canOperateExactInternalReviewVersion({
+    demoMode: false,
+    requestedVersionId: null,
+    activeDemoVersionId: null,
+  }), true);
+  assert.equal(canOperateExactInternalReviewVersion({
+    demoMode: true,
+    requestedVersionId: "",
+    activeDemoVersionId: "current-v2",
+  }), false);
+});
+
+test("a versioned URL must match its resolved version and asset exactly", () => {
+  assert.equal(canOperateExactInternalReviewVersion({
+    demoMode: true,
+    requestedVersionId: "historical-v1",
+    activeDemoVersionId: "current-v2",
+    requestedAssetId: "asset-a",
+    activeAssetId: "asset-a",
+  }), false);
+  assert.equal(canOperateExactInternalReviewVersion({
+    demoMode: true,
+    requestedVersionId: "historical-v1",
+    activeDemoVersionId: "historical-v1",
+    requestedAssetId: "missing-asset",
+    activeAssetId: "asset-a",
+  }), false);
+  assert.equal(canOperateExactInternalReviewVersion({
+    demoMode: true,
+    requestedVersionId: "historical-v1",
+    activeDemoVersionId: "historical-v1",
+    requestedAssetId: "asset-a",
+    activeAssetId: "asset-a",
+  }), true);
+});

@@ -115,6 +115,7 @@ export default function InternalAssetReviewPage() {
   const assetId = firstRouteParam(params?.assetId);
   const isDemo = searchParams.get("demo") === "1";
   const requestedVersionId = searchParams.get("version");
+  const hasRequestedVersion = requestedVersionId !== null;
   // The workspace is restored after the initial client render. Do not turn a
   // route into a missing-media error while that restore is still settling.
   const [demoRouteReady, setDemoRouteReady] = useState(false);
@@ -128,10 +129,10 @@ export default function InternalAssetReviewPage() {
         (candidate) => candidate.id === assetId && candidate.project_id === projectId,
       )
     : undefined;
-  const requestedDemoVersion = isDemo && requestedVersionId
+  const requestedDemoVersion = isDemo && hasRequestedVersion
     ? resolvePinnedDemoMediaVersion(workspace.mediaVersions, assetId, requestedVersionId)
     : null;
-  const requestKey = `${isDemo ? "demo" : "live"}:${projectId}:${assetId}:${requestedVersionId ?? "current"}`;
+  const requestKey = `${isDemo ? "demo" : "live"}:${projectId}:${assetId}:${hasRequestedVersion ? requestedVersionId || "empty" : "current"}`;
   const [loadFailure, setLoadFailure] = useState<ReviewRouteFailure | null>(null);
   const [retryAttempt, setRetryAttempt] = useState(0);
   const errorHeadingRef = useRef<HTMLHeadingElement>(null);
@@ -139,9 +140,9 @@ export default function InternalAssetReviewPage() {
     ? INCOMPLETE_ROUTE_ERROR
     : isDemo && demoRouteReady && !demoAsset
       ? DEMO_ASSET_NOT_FOUND_ERROR
-      : isDemo && demoRouteReady && requestedVersionId && !requestedDemoVersion
+      : isDemo && demoRouteReady && hasRequestedVersion && !requestedDemoVersion
         ? REQUESTED_VERSION_UNAVAILABLE_ERROR
-        : !isDemo && requestedVersionId
+        : !isDemo && hasRequestedVersion
           ? LIVE_VERSION_UNAVAILABLE_ERROR
       : null;
   const loadError = immediateError

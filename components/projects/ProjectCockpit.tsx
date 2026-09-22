@@ -618,10 +618,12 @@ export default function ProjectCockpit({
     demoMode,
     requestedVersionId,
     activeDemoVersionId,
+    requestedAssetId,
+    activeAssetId: activeAsset?.id ?? null,
   });
   // Live project data has no version-scoped fetch contract yet. A direct
   // historical URL must not silently substitute the current asset.
-  const requestedLiveVersionUnavailable = Boolean(!demoMode && requestedVersionId);
+  const requestedLiveVersionUnavailable = Boolean(!demoMode && requestedVersionId !== null);
   const requestedReviewVersionUnavailable = !reviewOperationsAllowed;
   const historicalDemoVersion = Boolean(
     demoMode && activeDemoVersion && !activeDemoVersion.is_current,

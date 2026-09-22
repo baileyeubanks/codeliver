@@ -19,6 +19,8 @@ test("the cockpit selects a requested demo version without falling back to curre
   assert.match(cockpit, /canOperateExactInternalReviewVersion\(\{/);
   assert.match(cockpit, /No newer cut was opened\./);
   assert.match(cockpit, /No substitute media was opened\./);
+  assert.match(cockpit, /requestedAssetId,/);
+  assert.match(cockpit, /activeAssetId: activeAsset\?\.id \?\? null,/);
 });
 
 test("the source-preview version selector changes only the exact cockpit route", () => {

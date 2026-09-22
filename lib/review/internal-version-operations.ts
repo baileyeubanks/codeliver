@@ -7,9 +7,20 @@ export function canOperateExactInternalReviewVersion(input: {
   demoMode: boolean;
   requestedVersionId: string | null;
   activeDemoVersionId: string | null;
+  requestedAssetId?: string | null;
+  activeAssetId?: string | null;
 }) {
-  if (!input.requestedVersionId) return true;
-  return input.demoMode && Boolean(input.activeDemoVersionId);
+  // `null` means that the URL did not request a version. An empty string is
+  // an explicit, malformed `?version=` and must never become the current cut.
+  if (input.requestedVersionId === null) return true;
+  if (!input.requestedVersionId.trim()) return false;
+  if (!input.demoMode || input.activeDemoVersionId !== input.requestedVersionId) return false;
+
+  // A direct versioned URL must also resolve the asset it named. Otherwise an
+  // unknown `asset` query could fall through to the first asset in the cockpit.
+  return input.requestedAssetId === undefined
+    || input.requestedAssetId === null
+    || input.requestedAssetId === input.activeAssetId;
 }
 
 /** Keeps an unavailable route from invoking a network mutation at all. */

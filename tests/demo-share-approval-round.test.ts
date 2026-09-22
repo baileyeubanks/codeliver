@@ -172,6 +172,59 @@ test("client and internal review shares do not create approval rounds", async ()
   assert.deepEqual(workspace.getDemoWorkspaceSnapshot().publicReviewStates, []);
 });
 
+test("an imported Schneider-style base stays pinned while an explicit uploaded revision becomes V2", async () => {
+  const workspace = await store();
+  const assetId = "automation-days-aayush-v2";
+  const before = workspace.getDemoWorkspaceSnapshot();
+  const sourceBase = before.mediaVersions.find((version) => version.asset_id === assetId);
+  assert.deepEqual(
+    sourceBase && {
+      id: sourceBase.id,
+      version: sourceBase.version_number,
+      sourceUrl: sourceBase.source_url,
+      sourceLabel: sourceBase.source_label,
+      fileSize: sourceBase.file_size,
+      current: sourceBase.is_current,
+    },
+    {
+      id: "source-version-automation-days-aayush-v2",
+      version: 1,
+      sourceUrl: "/api/demo/source-media/automation-days-aayush-v2?demo=1",
+      sourceLabel: "Imported file",
+      fileSize: 235_134_905,
+      current: true,
+    },
+  );
+
+  const [oldLink] = workspace.createDemoShareLinks(shareInput("client_review"));
+  assert.equal(oldLink.version_id, sourceBase?.id);
+  const appended = workspace.appendDemoMediaVersion({
+    projectId: "automation-days",
+    assetId,
+    versionId: "local-version-automation-days-aayush-v2-v2",
+    mediaBlobId: "local-version-automation-days-aayush-v2-v2",
+    fileName: "Aayush-revised-cut.mp4",
+    fileType: "video",
+    fileSize: 245_000_000,
+    durationSeconds: 124.5,
+  });
+  assert.equal(appended.ok, true);
+
+  const after = workspace.getDemoWorkspaceSnapshot();
+  assert.deepEqual(
+    after.mediaVersions
+      .filter((version) => version.asset_id === assetId)
+      .map((version) => [version.id, version.version_number, version.source_label, version.is_current]),
+    [
+      ["source-version-automation-days-aayush-v2", 1, "Imported file", false],
+      ["local-version-automation-days-aayush-v2-v2", 2, null, true],
+    ],
+  );
+  assert.equal(after.shareLinks.find((link) => link.id === oldLink.id)?.version_id, oldLink.version_id);
+  const [newLink] = workspace.createDemoShareLinks(shareInput("client_review"));
+  assert.equal(newLink.version_id, "local-version-automation-days-aayush-v2-v2");
+});
+
 test("the created round rejects another version and persists its exact decision and invite through reload", async () => {
   const workspace = await store();
   const [link] = workspace.createDemoShareLinks(shareInput("approval_needed"));

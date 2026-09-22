@@ -107,6 +107,11 @@ import {
   SequencesSection,
 } from "@/components/projects/ProjectRecordSections";
 import { useDemoMediaObjectUrl } from "@/lib/demo/media-blob-store";
+import {
+  currentDemoMediaVersion,
+  isRevisionableDemoMedia,
+  sortDemoMediaVersions,
+} from "@/lib/demo/media-version-authority";
 import { formatSmpteTimecode } from "@/components/player/timecode";
 import VideoPlayer from "@/components/player/VideoPlayer";
 import { normalizeReviewSeekStep, normalizeReviewShortcutKey, shouldIgnoreReviewShortcut } from "@/lib/review/player-policy";
@@ -127,6 +132,8 @@ interface ProjectCockpitProps {
   uploading: boolean;
   uploadStatus: CockpitUploadStatus | null;
   onUpload: () => void;
+  /** Opens the local file picker with this exact asset as the replacement target. */
+  onUploadRevision?: (assetId: string) => void;
   onUploadDismiss?: () => void;
 }
 
@@ -134,6 +141,9 @@ type CockpitApprovalStage = Omit<DemoApprovalStage, "status"> & { status: string
 
 export interface CockpitUploadStatus {
   assetId?: string;
+  versionId?: string;
+  versionNumber?: number;
+  kind?: "new_asset" | "revision";
   fileName: string;
   progress: number;
   phase: "validating" | "transferring" | "proxy" | "indexing" | "complete" | "error";
@@ -276,7 +286,17 @@ function ProjectAssetThumbnail({
   showFallback?: boolean;
 }) {
   const storedThumbnailUrl = useDemoMediaObjectUrl(asset.demo_thumbnail_id ?? null);
-  const source = asset.thumbnail_url
+  const replacementOfImportedSource = Boolean(
+    sourceCatalog?.assets.some((source) => source.id === asset.id) &&
+      (asset.version_count ?? 1) > 1,
+  );
+  // A browser-created thumbnail belongs to the exact current local cut. Do
+  // not briefly substitute an imported source poster while that blob loads.
+  const source = asset.demo_thumbnail_id
+    ? storedThumbnailUrl
+    : replacementOfImportedSource
+      ? null
+    : asset.thumbnail_url
     ?? storedThumbnailUrl
     ?? (demoMode && !sourceCatalog && !isLocalUploadAsset(asset) ? "/demo/ceraweek-speaker.jpg" : null);
 
@@ -400,6 +420,12 @@ function normalizeLiveShareLink(
     expires_at: typeof record.expires_at === "string" ? record.expires_at : null,
     max_views: typeof record.max_views === "number" ? record.max_views : null,
     notification_status: "links_only",
+    version_id: typeof record.version_id === "string" && record.version_id.trim()
+      ? record.version_id
+      : null,
+    version_binding_status: typeof record.version_id === "string" && record.version_id.trim()
+      ? "bound"
+      : "reissue_required",
     is_active: record.authority_status === "active",
     public_url: buildSurfaceUrl(reviewOrigin, `/review/${encodeURIComponent(token)}`),
   };
@@ -415,6 +441,7 @@ export default function ProjectCockpit({
   uploading,
   uploadStatus,
   onUpload,
+  onUploadRevision,
   onUploadDismiss,
 }: ProjectCockpitProps) {
   const router = useRouter();
@@ -565,15 +592,46 @@ export default function ProjectCockpit({
 
   const [liveShareLinks, setLiveShareLinks] = useState<DemoShareLink[]>([]);
   const activeAsset = assets.find((asset) => asset.id === activeAssetId) ?? assets[0];
-  const demoMediaUrl = useDemoMediaObjectUrl(activeAsset?.id ?? null);
-  const demoPosterUrl = useDemoMediaObjectUrl(activeAsset?.demo_thumbnail_id ?? null);
   const localUploadActive = isLocalUploadAsset(activeAsset);
+  const sourceBackedActive = Boolean(
+    activeAsset && sourceCatalog?.assets.some((source) => source.id === activeAsset.id),
+  );
+  const versionedDemoActive = localUploadActive || sourceBackedActive;
+  const activeDemoVersion = demoMode && activeAsset
+    ? currentDemoMediaVersion(workspace.mediaVersions, activeAsset.id)
+    : null;
+  const activeDemoVersionId = activeDemoVersion?.id ?? null;
+  const revisionableActiveAsset = Boolean(
+    demoMode &&
+      activeAsset &&
+      isRevisionableDemoMedia(
+        workspace.mediaVersions,
+        activeAsset.id,
+        Boolean(sourceCatalog?.assets.some((source) => source.id === activeAsset.id)),
+      ),
+  );
+  const demoMediaUrl = useDemoMediaObjectUrl(
+    activeDemoVersion?.media_blob_id ?? (versionedDemoActive ? null : activeAsset?.id ?? null),
+  );
+  const demoPosterUrl = useDemoMediaObjectUrl(
+    activeDemoVersion?.thumbnail_blob_id ?? activeAsset?.demo_thumbnail_id ?? null,
+  );
   const activeMediaUrl = demoMode
-    ? demoMediaUrl ?? activeAsset?.file_url ?? (localUploadActive || sourceCatalog ? null : "/demo/ica-ceo-preview.mp4")
+    ? demoMediaUrl ?? activeDemoVersion?.source_url ?? (
+      versionedDemoActive
+        ? null
+        : activeAsset?.file_url ?? (sourceCatalog ? null : "/demo/ica-ceo-preview.mp4")
+    )
     : activeAsset?.file_url ?? null;
-  const activePosterUrl = activeAsset?.thumbnail_url
-    ?? demoPosterUrl
-    ?? (demoMode && !localUploadActive && !sourceCatalog ? "/demo/ceraweek-speaker.jpg" : null);
+  const activePosterUrl = demoMode
+    ? activeDemoVersion?.thumbnail_blob_id
+      ? demoPosterUrl
+      : activeDemoVersion?.source_label === "Imported file"
+        ? activeAsset?.thumbnail_url ?? null
+        : activeDemoVersion
+          ? null
+          : activeAsset?.thumbnail_url ?? (sourceCatalog ? null : "/demo/ceraweek-speaker.jpg")
+    : activeAsset?.thumbnail_url ?? null;
   const hlsMediaActive = activeMediaUrl?.split(/[?#]/, 1)[0].toLowerCase().endsWith(".m3u8") ?? false;
   useEffect(() => {
     if (!hlsMediaActive) return;
@@ -628,10 +686,18 @@ export default function ProjectCockpit({
   const canShare = roleCan(workspaceRole, "reviews:comment");
 
   const comments = demoMode
-    ? workspace.reviewComments.filter((comment) => comment.asset_id === activeAsset?.id)
+    ? workspace.reviewComments.filter(
+      (comment) =>
+        comment.asset_id === activeAsset?.id &&
+        (!activeDemoVersionId || comment.version_id === activeDemoVersionId),
+    )
     : liveAssetDataId === activeAsset?.id ? liveComments : [];
   const cutMarkers = demoMode
-    ? workspace.reviewCutMarkers.filter((marker) => marker.asset_id === activeAsset?.id)
+    ? workspace.reviewCutMarkers.filter(
+      (marker) =>
+        marker.asset_id === activeAsset?.id &&
+        (!activeDemoVersionId || marker.version_id === activeDemoVersionId),
+    )
     : liveAssetDataId === activeAsset?.id ? liveCutMarkers : [];
   const visibleComments = comments.filter((comment) => comment.status === commentStatus);
   const projectTasks = demoMode
@@ -668,6 +734,14 @@ export default function ProjectCockpit({
         link.asset_ids.some((assetId) => assets.some((asset) => asset.id === assetId)),
       )
     : liveAssetDataId === activeAsset?.id ? liveShareLinks : [];
+  const demoVersionHistory = demoMode
+    ? assets.map((asset) => ({
+        asset,
+        versions: sortDemoMediaVersions(
+          workspace.mediaVersions.filter((version) => version.asset_id === asset.id),
+        ),
+      }))
+    : [];
   const inReviewCount = assets.filter((asset) =>
     ["in_review", "needs_changes"].includes(asset.status),
   ).length;
@@ -911,6 +985,7 @@ export default function ProjectCockpit({
           id: decision.id,
           project_id: project.id,
           asset_id: assetId,
+          version_id: decision.version_id,
           time_seconds: decision.start_seconds,
           created_at: decision.created_at,
         })),
@@ -1302,12 +1377,15 @@ export default function ProjectCockpit({
   async function addCutDecision() {
     if (!activeAsset) return;
     if (demoMode) {
-      addDemoReviewCutMarker({
+      const saved = addDemoReviewCutMarker({
         projectId: project.id,
         assetId: activeAsset.id,
+        versionId: activeDemoVersionId,
         timeSeconds: currentTime,
       });
-      setToast(`Cut decision marked at ${formatClock(currentTime)}`);
+      setToast(saved
+        ? `Cut decision marked at ${formatClock(currentTime)}`
+        : "This cut marker could not be bound to the current media version.");
       return;
     }
 
@@ -1337,6 +1415,7 @@ export default function ProjectCockpit({
         id: decision.id,
         project_id: project.id,
         asset_id: activeAsset.id,
+        version_id: decision.version_id,
         time_seconds: decision.start_seconds,
         created_at: decision.created_at,
       },
@@ -1405,6 +1484,7 @@ export default function ProjectCockpit({
       addDemoReviewComment({
         projectId: project.id,
         assetId: activeAsset.id,
+        versionId: activeDemoVersionId ?? undefined,
         body: submittedBody,
         timeSeconds: submittedTime,
         pinX: pendingPin?.x,
@@ -2601,9 +2681,48 @@ export default function ProjectCockpit({
 
             {activeSection === "versions" ? (
               <>
-                <header><div><h2>Version history</h2><p>All current project deliverables and revision depth.</p></div></header>
+                <header>
+                  <div>
+                    <h2>Version history</h2>
+                    <p>{demoMode ? "Known imported bases and browser-local cuts. Existing links stay pinned to their cut." : "All current project deliverables and revision depth."}</p>
+                  </div>
+                  {demoMode && activeAsset && revisionableActiveAsset && onUploadRevision ? (
+                    <button type="button" onClick={() => onUploadRevision(activeAsset.id)} disabled={uploading || !canUpload}>
+                      <Upload size={16} /> Upload new version
+                    </button>
+                  ) : null}
+                </header>
                 <div className="cockpit-table-list">
-                  {assets.map((asset) => <article key={asset.id}><span className="cockpit-list-icon"><History size={18} /></span><div><strong>{asset.title}</strong><small>Updated {timeAgo(asset.created_at)} · {asset.comment_count ?? 0} comments</small></div><span className="status-version">{asset.version_count ?? (demoMode ? 1 : "Not indexed")}</span><button type="button" onClick={() => { selectAsset(asset); selectSection("overview"); }}>Review</button></article>)}
+                  {demoMode ? demoVersionHistory.flatMap(({ asset, versions }) => {
+                    if (versions.length === 0) {
+                      return [
+                        <article key={asset.id}>
+                          <span className="cockpit-list-icon"><History size={18} /></span>
+                          <div><strong>{asset.title}</strong><small>No browser-local revision history is established for this media.</small></div>
+                          <span className="status-version">Unversioned</span>
+                          <button type="button" onClick={() => { selectAsset(asset); selectSection("overview"); }}>Review current</button>
+                        </article>,
+                      ];
+                    }
+                    return versions.map((knownVersion) => (
+                      <article key={knownVersion.id}>
+                        <span className="cockpit-list-icon"><History size={18} /></span>
+                        <div>
+                          <strong>{asset.title}</strong>
+                          <small>
+                            {knownVersion.source_label === "Imported file"
+                              ? "Imported file · measured source base"
+                              : `V${knownVersion.version_number} · ${knownVersion.file_name ?? "Browser-local cut"}`}
+                            {knownVersion.is_current ? " · Current" : " · Pinned review history remains on this cut"}
+                          </small>
+                        </div>
+                        <span className="status-version">{knownVersion.source_label === "Imported file" ? "Imported file" : `V${knownVersion.version_number}`}</span>
+                        {knownVersion.is_current ? (
+                          <button type="button" onClick={() => { selectAsset(asset); selectSection("overview"); }}>Review current</button>
+                        ) : <span aria-label="Pinned historical version">Pinned</span>}
+                      </article>
+                    ));
+                  }) : assets.map((asset) => <article key={asset.id}><span className="cockpit-list-icon"><History size={18} /></span><div><strong>{asset.title}</strong><small>Updated {timeAgo(asset.created_at)} · {asset.comment_count ?? 0} comments</small></div><span className="status-version">{asset.version_count ?? "Not indexed"}</span><button type="button" onClick={() => { selectAsset(asset); selectSection("overview"); }}>Review</button></article>)}
                   {assets.length === 0 ? <EmptyState title="No versions" body="The first uploaded file will create version 1." /> : null}
                 </div>
               </>
@@ -2717,7 +2836,9 @@ export default function ProjectCockpit({
               {uploadStatus.mode === "demo" ? (
                 <small>
                       {uploadStatus.phase === "complete"
-                        ? "A new version is now available in Project Browser and Version history."
+                        ? uploadStatus.kind === "revision"
+                          ? `V${uploadStatus.versionNumber ?? "?"} is ready. Existing links, comments, and approvals remain pinned to their earlier cut.`
+                          : "A new browser-local deliverable is ready in Project Browser and Version history."
                         : uploadStatus.phase === "error"
                           ? uploadStatus.completed > 0
                             ? `${uploadStatus.completed} file${uploadStatus.completed === 1 ? " was" : "s were"} stored before this upload stopped. Retry the remaining media from Upload.`
@@ -2727,7 +2848,11 @@ export default function ProjectCockpit({
               ) : null}
               {uploadTerminal && onUploadDismiss ? (
                 <button type="button" onClick={onUploadDismiss}>
-                  {uploadStatus.phase === "complete" ? "Review new version" : "Close upload status"}
+                  {uploadStatus.phase === "complete"
+                    ? uploadStatus.kind === "revision"
+                      ? `Review V${uploadStatus.versionNumber ?? "?"}`
+                      : "Review uploaded media"
+                    : "Close upload status"}
                 </button>
               ) : null}
             </footer>

@@ -52,6 +52,7 @@ export interface ProjectWorkspaceTabsProps {
   uploading: boolean;
   uploadStatus: CockpitUploadStatus | null;
   onUpload: () => void;
+  onUploadRevision?: (assetId: string) => void;
   onUploadDismiss?: () => void;
 }
 
@@ -148,6 +149,7 @@ export default function ProjectWorkspaceTabs(props: ProjectWorkspaceTabsProps) {
             uploading={props.uploading}
             uploadStatus={props.uploadStatus}
             onUpload={props.onUpload}
+            onUploadRevision={props.onUploadRevision}
             onUploadDismiss={props.onUploadDismiss}
           />
         )}

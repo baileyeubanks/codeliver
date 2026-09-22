@@ -324,13 +324,13 @@ test("demo upload terminal states stay readable and dismissible", () => {
   assert.match(cockpitSource, /className="cockpit-upload-close"/);
   assert.match(
     cockpitSource,
-    /A new version is now available in Project Browser and Version history/,
+    /Existing links, comments, and approvals remain pinned to their earlier cut/,
   );
   assert.match(
     cockpitSource,
     /No version was added\. Retry from Upload when the issue is fixed/,
   );
-  assert.match(cockpitSource, /Review new version/);
+  assert.match(cockpitSource, /Review V\$\{uploadStatus\.versionNumber/);
   assert.match(projectWorkspaceClientSource, /let keepTerminalStatus = false/);
   assert.match(projectWorkspaceClientSource, /keepTerminalStatus = true/);
   assert.match(

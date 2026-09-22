@@ -49,6 +49,11 @@ import {
   useDemoWorkspace,
 } from "@/lib/demo/workspace-store";
 import {
+  currentDemoMediaVersion,
+  resolvePinnedDemoMediaVersion,
+  toDemoReviewVersion,
+} from "@/lib/demo/media-version-authority";
+import {
   bindDemoReviewApprovals,
   demoReviewPayload,
 } from "@/lib/review/demoReview";
@@ -262,11 +267,44 @@ export default function PublicReviewPage({
   const requestedDemoShare = requestedDemoShareToken
     ? demoWorkspace.shareLinks.find((link) => link.token === requestedDemoShareToken)
     : null;
-  const isSourcePreview = Boolean(demoMode && sourceCatalog && !requestedDemoShare);
+  // A token-bound demo link owns its asset identity. Query parameters remain
+  // useful for an unshared local preview, but may never move a reviewer from
+  // the asset/version captured by their link.
   const requestedDemoAssetId = demoMode
-    ? searchParams.get("asset") ?? requestedDemoShare?.asset_ids[0] ?? sourceCatalog?.assets[0]?.id ?? null
+    ? requestedDemoShare?.asset_ids[0] ?? searchParams.get("asset") ?? sourceCatalog?.assets[0]?.id ?? null
     : null;
-  const demoMediaUrl = useDemoMediaObjectUrl(requestedDemoAssetId);
+  const requestedDemoLocalVersions = requestedDemoAssetId
+    ? demoWorkspace.mediaVersions.filter((candidate) => candidate.asset_id === requestedDemoAssetId)
+    : [];
+  const requestedDemoRequiresExactVersion = Boolean(
+    requestedDemoAssetId && (
+      requestedDemoAssetId.startsWith("local-upload-") ||
+      sourceCatalog?.assets.some((candidate) => candidate.id === requestedDemoAssetId)
+    ),
+  );
+  const pinnedDemoLocalVersion = requestedDemoShare?.version_id && requestedDemoAssetId
+    ? resolvePinnedDemoMediaVersion(
+      demoWorkspace.mediaVersions,
+      requestedDemoAssetId,
+      requestedDemoShare.version_id,
+    )
+    : null;
+  const selectedDemoLocalVersion = requestedDemoShare
+    ? pinnedDemoLocalVersion
+    : currentDemoMediaVersion(demoWorkspace.mediaVersions, requestedDemoAssetId ?? "");
+  const isSourcePreview = Boolean(
+    demoMode &&
+      sourceCatalog &&
+      !requestedDemoShare &&
+      selectedDemoLocalVersion?.source_label === "Imported file",
+  );
+  // A known local asset with a missing pin gets no blob fallback. This is the
+  // fail-closed path that prevents an old link from following a newer cut.
+  const demoMediaBlobId = selectedDemoLocalVersion?.media_blob_id
+    ?? (requestedDemoRequiresExactVersion ? null : requestedDemoAssetId);
+  const demoThumbnailBlobId = selectedDemoLocalVersion?.thumbnail_blob_id ?? null;
+  const demoMediaUrl = useDemoMediaObjectUrl(demoMediaBlobId);
+  const demoThumbnailUrl = useDemoMediaObjectUrl(demoThumbnailBlobId);
 
   // P19b/P22: the demo review surface resolves against the browser-local
   // share-link store (the same one ShareSettingsDialog writes). The plain
@@ -316,10 +354,14 @@ export default function PublicReviewPage({
     if (!demoMode || !asset?.id) return;
     setCutMarkers(
       demoWorkspace.reviewCutMarkers
-        .filter((marker) => marker.asset_id === asset.id)
+        .filter(
+          (marker) =>
+            marker.asset_id === asset.id &&
+            marker.version_id === (activeVersionId ?? version?.id),
+        )
         .map((marker) => ({ id: marker.id, time: marker.time_seconds, status: "accepted" })),
     );
-  }, [asset?.id, demoMode, demoWorkspace.reviewCutMarkers]);
+  }, [activeVersionId, asset?.id, demoMode, demoWorkspace.reviewCutMarkers, version?.id]);
 
   useEffect(() => {
     let cancelled = false;
@@ -333,17 +375,33 @@ export default function PublicReviewPage({
           if (requestedDemoShare && !requestedDemoShare.is_active) {
             throw new Error("This review link has been revoked.");
           }
+          if (requestedDemoShare && requestedDemoShare.version_binding_status !== "bound") {
+            throw new Error("This review link needs to be re-shared for one exact media version.");
+          }
 
           const workspaceAsset = demoWorkspace.assets.find(
             (candidate) => candidate.id === requestedDemoAssetId,
           );
+          if (requestedDemoShare && !workspaceAsset) {
+            throw new Error("This review link is not bound to an available media asset.");
+          }
+          if (requestedDemoRequiresExactVersion && !selectedDemoLocalVersion) {
+            throw new Error("This media does not have one established local review version.");
+          }
           const workspaceProject = demoWorkspace.projects.find(
             (candidate) => candidate.id === workspaceAsset?.project_id,
           );
           const publicAssetId = workspaceAsset?.id ?? demoReviewPayload.asset.id;
           const sourceRecord = sourceCatalog?.assets.find((record) => record.id === publicAssetId);
           const publicProjectId = workspaceAsset?.project_id ?? "demo";
-          const demoVersionAuthority = buildDemoVersionAuthority({
+          if (
+            requestedDemoShare?.version_id &&
+            requestedDemoLocalVersions.length > 0 &&
+            !selectedDemoLocalVersion
+          ) {
+            throw new Error("This review link is pinned to a media version that is no longer available locally.");
+          }
+          const fallbackDemoVersionAuthority = buildDemoVersionAuthority({
             assetId: publicAssetId,
             versionCount: workspaceAsset?.version_count ?? 4,
             fileUrl: demoMediaUrl ?? workspaceAsset?.file_url ?? demoReviewPayload.asset.file_url ?? "",
@@ -354,6 +412,38 @@ export default function PublicReviewPage({
             seededVersions: sourceCatalog ? [] : demoReviewPayload.versions,
             sourceMetadata: sourceRecord ? { fileSize: sourceRecord.bytes, resolution: `${sourceRecord.width} × ${sourceRecord.height}` } : undefined,
           });
+          if (
+            requestedDemoShare?.version_id &&
+            !selectedDemoLocalVersion &&
+            fallbackDemoVersionAuthority.current.id !== requestedDemoShare.version_id
+          ) {
+            throw new Error("This review link is pinned to a media version that is no longer available.");
+          }
+          const demoVersionAuthority = selectedDemoLocalVersion
+            ? {
+                current: toDemoReviewVersion(
+                  selectedDemoLocalVersion,
+                  demoMediaUrl ?? selectedDemoLocalVersion.source_url ?? "",
+                  demoThumbnailUrl ?? (
+                    selectedDemoLocalVersion.source_label === "Imported file"
+                      ? workspaceAsset?.thumbnail_url ?? null
+                      : null
+                  ),
+                ),
+                // Direct local preview shows the current cut; a shared local
+                // review shows only its immutable pin. Both avoid pretending
+                // the browser can compare a different blob without authority.
+                versions: [toDemoReviewVersion(
+                  selectedDemoLocalVersion,
+                  demoMediaUrl ?? selectedDemoLocalVersion.source_url ?? "",
+                  demoThumbnailUrl ?? (
+                    selectedDemoLocalVersion.source_label === "Imported file"
+                      ? workspaceAsset?.thumbnail_url ?? null
+                      : null
+                  ),
+                )],
+              }
+            : fallbackDemoVersionAuthority;
           const publicVersionId = demoVersionAuthority.current.id;
           const requestedIntent =
             sourceCatalog && !requestedDemoShare ? "internal_review" :
@@ -373,12 +463,13 @@ export default function PublicReviewPage({
               ...demoReviewPayload.asset,
               id: publicAssetId,
               title: workspaceAsset?.title ?? demoReviewPayload.asset.title,
+              file_type: selectedDemoLocalVersion?.file_type ?? workspaceAsset?.file_type ?? demoReviewPayload.asset.file_type,
               frame_rate: sourceCatalog?.assets.find((asset) => asset.id === publicAssetId)?.frame_rate ?? demoReviewPayload.asset.frame_rate,
               file_url: demoVersionAuthority.current.file_url,
               status: workspaceAsset?.status ?? demoReviewPayload.asset.status,
               projects: {
                 name: workspaceProject
-                  ? `${workspaceProject.name} / ${sourceCatalog ? "Source preview" : "Client Review"}`
+                  ? `${workspaceProject.name} / ${isSourcePreview ? "Source preview" : "Client Review"}`
                   : demoReviewPayload.asset.projects?.name ?? "Client Review",
               },
             },
@@ -452,22 +543,23 @@ export default function PublicReviewPage({
             rootComments[0]?.id ??
             null;
 
-          // The workspace asset's version count is authoritative for the
-          // current demo version. Historical seed media stays available, but
-          // only that workspace version is marked current.
+          // A link-bound local version may never be redirected through ?v=.
+          // Its URL and all persisted review state remain pinned to this cut.
           const versionList = demoVersionAuthority.versions;
           // ?v= is the canonical deep-link; ?version= is honored as an alias.
           const requestedVersion = resolveVersionParam(
             versionList,
             searchParams.get("v") ?? searchParams.get("version"),
           );
-          const initialVersion = requestedVersion ?? currentVersion(versionList) ?? demoVersion;
+          const initialVersion = requestedDemoShare?.version_id || selectedDemoLocalVersion
+            ? demoVersion
+            : requestedVersion ?? currentVersion(versionList) ?? demoVersion;
 
           // Local shares arrive with the persisted workspace after hydration.
           // A successful resolution must replace any initial missing-link error.
           setError("");
           setAsset(restoredAsset);
-          setVersion(demoVersion);
+          setVersion(initialVersion);
           setVersions(versionList);
           setActiveVersionId(initialVersion.id);
           setReviewerEmail(review.reviewer_email ?? null);
@@ -596,8 +688,10 @@ export default function PublicReviewPage({
     };
   }, [
     demoMediaUrl,
+    demoThumbnailUrl,
     demoMode,
     demoWorkspace.assets,
+    demoWorkspace.mediaVersions,
     demoWorkspace.projects,
     demoWorkspace.publicReviewStates,
     demoWorkspace.reviewComments,
@@ -671,7 +765,9 @@ export default function PublicReviewPage({
   // P19b derived version state. linkVersions applies the share record's
   // current_version_only scope; the switcher and compare both consume it.
   const orderedVersions = sortVersions(versions);
-  const linkVersions = currentVersionOnly
+  const linkVersions = requestedDemoShare?.version_id
+    ? orderedVersions
+    : currentVersionOnly
     ? orderedVersions.filter((candidate) => candidate.is_current)
     : orderedVersions;
   const activeVersion =
@@ -1097,11 +1193,15 @@ export default function PublicReviewPage({
 
     if (demoMode && asset) {
       const workspaceAsset = demoWorkspace.assets.find((candidate) => candidate.id === asset.id);
-      addDemoReviewCutMarker({
+      const saved = addDemoReviewCutMarker({
         projectId: workspaceAsset?.project_id ?? "demo",
         assetId: asset.id,
+        versionId: activeVersion?.id ?? version?.id ?? null,
         timeSeconds: normalizedTime,
       });
+      if (!saved) {
+        setCutMarkerError("This cut marker could not be bound to the version being reviewed.");
+      }
       return;
     }
 
@@ -1637,7 +1737,11 @@ export default function PublicReviewPage({
               <ReviewMediaSurface
                 assetType={asset?.file_type ?? "other"}
                 assetTitle={asset?.title ?? "Review"}
-                assetUrl={activeVersion?.file_url || asset?.file_url || null}
+                assetUrl={
+                  demoMode && activeVersion
+                    ? activeVersion.file_url || null
+                    : activeVersion?.file_url ?? asset?.file_url ?? null
+                }
                 poster={
                   activeVersion?.thumbnail_url ??
                   (demoMode && !sourceCatalog ? "/demo/ceraweek-speaker.jpg" : undefined)

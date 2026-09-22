@@ -927,12 +927,21 @@ export function ReviewConsolidationSection({ projectId, demoMode, onNotice }: Se
   if (!demoMode) return null;
 
   const projectAssets = workspace.assets.filter((asset) => asset.project_id === projectId);
-  const openCommentsByAsset = new Map<string, typeof workspace.reviewComments>();
+  const openCommentsByVersion = new Map<
+    string,
+    { assetId: string; versionId: string | null; comments: typeof workspace.reviewComments }
+  >();
   for (const comment of workspace.reviewComments) {
     if (comment.project_id !== projectId || comment.status !== "open") continue;
-    const list = openCommentsByAsset.get(comment.asset_id) ?? [];
-    list.push(comment);
-    openCommentsByAsset.set(comment.asset_id, list);
+    const versionId = comment.version_id ?? null;
+    const key = `${comment.asset_id}\u0000${versionId ?? "asset-level"}`;
+    const group = openCommentsByVersion.get(key) ?? {
+      assetId: comment.asset_id,
+      versionId,
+      comments: [],
+    };
+    group.comments.push(comment);
+    openCommentsByVersion.set(key, group);
   }
   const requests = workspace.revisionRequests
     .filter((request) => request.project_id === projectId)
@@ -978,19 +987,20 @@ export function ReviewConsolidationSection({ projectId, demoMode, onNotice }: Se
         {requests.length === 0 ? <p className="cockpit-rail-empty">No revision rounds yet.</p> : null}
       </div>
 
-      {[...openCommentsByAsset.entries()].map(([assetId, comments]) => {
+      {[...openCommentsByVersion.values()].map(({ assetId, versionId, comments }) => {
         const asset = projectAssets.find((candidate) => candidate.id === assetId);
         return (
-          <div key={assetId} className="cockpit-record-form" style={{ marginTop: 10 }}>
+          <div key={`${assetId}-${versionId ?? "asset-level"}`} className="cockpit-record-form" style={{ marginTop: 10 }}>
             <div className="cockpit-record-form-grid" style={{ gridTemplateColumns: "minmax(0,1fr) auto" }}>
               <p style={{ margin: 0, fontSize: 11, color: "var(--cockpit-copy)" }}>
-                <strong>{asset?.title ?? assetId}</strong> — {comments.length} open comment{comments.length === 1 ? "" : "s"} scattered across the review. Consolidate them into one actionable round instead of email threads.
+                <strong>{asset?.title ?? assetId}</strong>{versionId ? " · one exact cut" : ""} — {comments.length} open comment{comments.length === 1 ? "" : "s"} scattered across the review. Consolidate them into one actionable round instead of email threads.
               </p>
               <div className="cockpit-record-form-actions">
                 <button type="button" onClick={() => {
                   const result = addRevisionRequest({
                     projectId,
                     assetId,
+                    versionId,
                     summary: comments.map((comment) => comment.body).join(" · ").slice(0, 220),
                     commentIds: comments.map((comment) => comment.id),
                   });

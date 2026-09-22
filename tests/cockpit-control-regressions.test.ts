@@ -278,10 +278,10 @@ test("production asset detail is committed only to its matching selected asset",
   assert.match(cockpitSource, /const liveAssetRequestRef = useRef\(0\)/);
   assert.match(
     cockpitSource,
-    /liveAssetDataId === activeAsset\?\.id \? liveComments : \[\]/,
+    /activeLiveReviewKey && liveAssetDataKey === activeLiveReviewKey \? liveComments : \[\]/,
   );
   assert.match(cockpitSource, /liveAssetRequestRef\.current !== requestId/);
-  assert.match(cockpitSource, /setLiveAssetDataId\(assetId\)/);
+  assert.match(cockpitSource, /setLiveAssetDataKey\(`\$\{assetId\}:\$\{versionId\}`\)/);
 });
 
 test("the down-arrow shortcut creates a reviewable cut proposal, not an accepted edit", () => {

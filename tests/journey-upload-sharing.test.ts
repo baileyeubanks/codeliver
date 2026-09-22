@@ -125,7 +125,9 @@ test("the active production upload never publishes a raw storage URL before rele
   );
   assert.match(uploader, /serverState !== "committed" \|\| !originalReleaseReady/);
   assert.doesNotMatch(uploader, /if \(!quarantined\) onUploadComplete\(\[\]\)/);
-  assert.match(uploader, /onUploadComplete\(\[\]\)/);
+  assert.doesNotMatch(uploader, /onUploadComplete\(\[\]\)/);
+  assert.match(uploader, /parseUploadCompletionReceipt/);
+  assert.match(uploader, /onUploadComplete\(\[completion\]\)/);
 });
 
 test("the resumable upload surface exposes readiness, progress, pause, retry, quarantine, and error states", () => {

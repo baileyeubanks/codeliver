@@ -10,15 +10,14 @@ function source(path: string): string {
   return readFileSync(resolve(repositoryRoot, path), "utf8");
 }
 
-test("projects page opens as a project-first production workspace", () => {
+test("projects page keeps a single project index instead of duplicating review and media queues", () => {
   const projectsPage = source("app/(dashboard)/projects/page.tsx");
 
   assert.match(projectsPage, /<h1>Projects<\/h1>/);
   assert.match(projectsPage, /data-testid="project-list"/);
-  assert.match(projectsPage, /All projects/);
   assert.match(projectsPage, /Open project/);
-  assert.match(projectsPage, /Review queue/);
-  assert.match(projectsPage, /Recent media/);
+  assert.doesNotMatch(projectsPage, /Review queue/);
+  assert.doesNotMatch(projectsPage, /Recent media/);
   assert.doesNotMatch(projectsPage, /projectReadiness/);
   assert.doesNotMatch(projectsPage, /aria-label="Production lifecycle"/);
   assert.doesNotMatch(projectsPage, /rounded-xl/);
@@ -30,7 +29,7 @@ test("projects page keeps async states and asset navigation route-backed and hon
   assert.doesNotMatch(projectsPage, /canonicalProjectId/);
   assert.doesNotMatch(projectsPage, /<AssetUpload/);
   assert.match(projectsPage, /href=\{`\/projects\/new\$\{demoSuffix\}`\}/);
-  assert.match(projectsPage, /\/assets\/\$\{encodeURIComponent\(asset\.id\)\}/);
+  assert.doesNotMatch(projectsPage, /\/assets\/\$\{encodeURIComponent\(asset\.id\)\}/);
   assert.match(projectsPage, /data-projects-state="error"/);
   assert.match(projectsPage, /data-projects-state="empty"/);
   assert.match(projectsPage, /Projects unavailable/);

@@ -8,7 +8,6 @@ import {
   ArrowRight,
   BriefcaseBusiness,
   Clapperboard,
-  FileVideo2,
   FolderPlus,
   LoaderCircle,
   Plus,
@@ -31,13 +30,6 @@ type ProjectsLoadState =
   | { status: "error"; responseStatus: number | null }
   | { status: "empty" }
   | { status: "success" };
-
-const REVIEW_READY_STATUSES = new Set([
-  "in_review",
-  "needs_changes",
-  "approved",
-  "final",
-]);
 
 function stageLabel(stage?: string | null) {
   if (typeof stage !== "string" || !stage) return "In production";
@@ -118,24 +110,9 @@ export default function ProjectsPage() {
         return {
           ...project,
           assetCount: projectAssets.length,
-          reviewReadyCount: projectAssets.filter((asset) =>
-            REVIEW_READY_STATUSES.has(asset.status),
-          ).length,
         };
       }),
     [assets, projects],
-  );
-
-  const recentAssets = useMemo(
-    () =>
-      [...assets]
-        .sort(
-          (left, right) =>
-            new Date(right.created_at).getTime() -
-            new Date(left.created_at).getTime(),
-        )
-        .slice(0, 6),
-    [assets],
   );
 
   function retryProjects() {
@@ -152,7 +129,6 @@ export default function ProjectsPage() {
       <div className="projects-content">
         <header className="projects-page-header">
           <div>
-            <p className="projects-eyebrow">Production</p>
             <h1>Projects</h1>
           </div>
           {loadState.status === "success" ? (
@@ -244,20 +220,14 @@ export default function ProjectsPage() {
           <>
             <section
               className="projects-section"
-              aria-labelledby="project-list-heading"
+              aria-label="Project list"
             >
               <div className="projects-section-heading">
                 <div>
-                  <h2 id="project-list-heading">All projects</h2>
-                  <span>{projectCards.length}</span>
+                  <p className="projects-count">
+                    {projectCards.length} {projectCards.length === 1 ? "project" : "projects"}
+                  </p>
                 </div>
-                <Link
-                  href={`/reviews${demoSuffix}`}
-                  className="projects-text-action"
-                  data-projects-action="true"
-                >
-                  Review queue <ArrowRight size={16} />
-                </Link>
               </div>
 
               <div className="project-list" data-testid="project-list">
@@ -287,7 +257,6 @@ export default function ProjectsPage() {
                             ? "deliverable"
                             : "deliverables"}
                         </span>
-                        <span>{project.reviewReadyCount} review-ready</span>
                       </div>
                     </div>
                     <Link
@@ -304,54 +273,6 @@ export default function ProjectsPage() {
               </div>
             </section>
 
-            {recentAssets.length > 0 ? (
-              <section
-                className="projects-section projects-recent"
-                aria-labelledby="recent-media-heading"
-              >
-                <div className="projects-section-heading">
-                  <div>
-                    <h2 id="recent-media-heading">Recent media</h2>
-                    <span>{recentAssets.length}</span>
-                  </div>
-                </div>
-                <div className="projects-media-list">
-                  {recentAssets.map((asset) => {
-                    const projectName =
-                      projects.find(
-                        (project) => project.id === asset.project_id,
-                      )?.name ?? "Project";
-                    return (
-                      <Link
-                        key={asset.id}
-                        href={
-                          demoMode && asset.href
-                            ? asset.href
-                            : `/projects/${encodeURIComponent(asset.project_id)}/assets/${encodeURIComponent(asset.id)}${demoSuffix}`
-                        }
-                        className="projects-media-row"
-                        data-projects-action="true"
-                      >
-                        <span
-                          className="projects-media-icon"
-                          aria-hidden="true"
-                        >
-                          <FileVideo2 size={19} />
-                        </span>
-                        <span className="projects-media-copy">
-                          <strong>{asset.title}</strong>
-                          <small>{projectName}</small>
-                        </span>
-                        <span className="projects-media-status">
-                          {stageLabel(asset.status)}
-                        </span>
-                        <ArrowRight size={17} />
-                      </Link>
-                    );
-                  })}
-                </div>
-              </section>
-            ) : null}
           </>
         ) : null}
 

@@ -13,65 +13,11 @@
     background: var(--surface, #fff);
   }
 
-  .brandHeader {
-    position: relative;
-    border-bottom: 1px solid var(--border, #dfe4ec);
-  }
-
-  .brandHeader::before {
-    content: "";
-    position: absolute;
-    inset: 0 0 auto;
-    height: 3px;
-    background: var(--cvp-gradient-ribbon, var(--accent, #0057ff));
-  }
-
-  .brandLink {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    padding: 12px 14px;
-    text-decoration: none;
-    border-radius: 0;
-  }
-
-  .brandLink:focus-visible {
-    outline: 2px solid var(--accent, #156bff);
-    outline-offset: -2px;
-  }
-
-  .brandMark {
-    flex: 0 0 auto;
-  }
-
-  .brandCopy {
-    min-width: 0;
-    display: grid;
-    gap: 1px;
-  }
-
-  .brandCopy strong {
-    color: var(--ink, #18223e);
-    font-size: 0.86rem;
-    font-weight: 720;
-    letter-spacing: 0.01em;
-    white-space: nowrap;
-  }
-
-  .brandCopy small {
-    color: var(--muted, #707b91);
-    font-size: 9px;
-    font-weight: 700;
-    letter-spacing: 0.14em;
-    text-transform: uppercase;
-    white-space: nowrap;
-  }
-
   .scroll {
     flex: 1;
     min-height: 0;
     overflow-y: auto;
-    padding: 14px 10px;
+    padding: 18px 10px;
     display: grid;
     gap: 20px;
     align-content: start;

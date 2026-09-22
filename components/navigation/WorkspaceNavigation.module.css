@@ -160,9 +160,9 @@
 }
 
 .groupLinks a {
-  min-height: 46px;
+  min-height: 44px;
   display: grid;
-  grid-template-columns: 34px minmax(0, 1fr);
+  grid-template-columns: 28px minmax(0, 1fr);
   align-items: center;
   gap: 10px;
   padding: 5px 9px;
@@ -178,8 +178,8 @@
 }
 
 .linkIcon {
-  width: 34px;
-  height: 34px;
+  width: 28px;
+  height: 28px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -189,25 +189,11 @@
 
 .linkCopy {
   min-width: 0;
-  display: grid;
-  gap: 1px;
-}
-
-.linkCopy strong,
-.linkCopy small {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-}
-
-.linkCopy strong {
   font-size: 0.76rem;
   font-weight: 640;
-}
-
-.linkCopy small {
-  color: var(--muted, #707b91);
-  font-size: 0.63rem;
 }
 
 .recentProjects {

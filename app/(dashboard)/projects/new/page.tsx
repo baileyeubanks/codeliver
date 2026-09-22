@@ -6,6 +6,7 @@ import { ArrowLeft, ArrowRight, FileText } from "lucide-react";
 import Link from "next/link";
 import { useDemoMode, useDemoSuffix } from "@/lib/demo/mode";
 import { createDemoProject } from "@/lib/demo/workspace-store";
+import styles from "../projects.module.css";
 
 export default function NewProject() {
   const router = useRouter();
@@ -69,38 +70,30 @@ export default function NewProject() {
   }
 
   return (
-    <div className="mx-auto flex w-full max-w-3xl flex-col gap-5 px-4 py-4 sm:px-6">
-      <header className="flex flex-col gap-4 border-b border-[var(--border)] pb-4">
+    <div className={`${styles.scope} projects-workspace`}>
+      <div className="projects-content projects-new-content">
+      <header className="projects-page-header projects-new-header">
         <Link
           href={`/projects${demoSuffix}`}
-          className="inline-flex w-fit items-center gap-2 text-sm font-medium text-[var(--muted)] transition-colors hover:text-[var(--ink)]"
+          className="projects-back-link"
         >
           <ArrowLeft size={16} /> Projects
         </Link>
-        <div className="max-w-2xl">
-          <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[var(--accent)]">
-            Project intake
-          </p>
-          <h1 className="mt-1 text-2xl font-semibold tracking-tight text-[var(--ink)]">
-            New production workspace
-          </h1>
-          <p className="mt-1 text-sm text-[var(--muted)]">
-            Start with the project name and production brief. Add media, people, review links, and delivery details from
-            the workspace.
+        <div>
+          <h1>New project</h1>
+          <p className="projects-page-deck">
+            Add a name now. You can fill in the production details from the project workspace.
           </p>
         </div>
       </header>
 
-      <section className="rounded-lg border border-[var(--border)] bg-[var(--surface)] p-4 sm:p-5">
-        <div className="mb-5 flex items-start gap-3 border-b border-[var(--border)] pb-4">
+      <section className="projects-new-form" aria-labelledby="project-details-heading">
+        <div className="projects-new-form-heading">
           <span className="flex h-9 w-9 items-center justify-center rounded-md bg-[var(--surface)] text-[var(--accent)]">
             <FileText size={17} />
           </span>
           <div>
-            <h2 className="text-base font-semibold text-[var(--ink)]">Workspace details</h2>
-            <p className="mt-1 text-sm text-[var(--muted)]">
-              These details become the starting project record.
-            </p>
+            <h2 id="project-details-heading">Project details</h2>
           </div>
         </div>
 
@@ -113,7 +106,7 @@ export default function NewProject() {
           </div>
         )}
 
-        <form onSubmit={handleSubmit} className="space-y-5">
+        <form onSubmit={handleSubmit} className="projects-new-fields">
           <div>
             <label
               htmlFor="new-project-name"
@@ -179,24 +172,25 @@ export default function NewProject() {
             />
           </div>
 
-          <div className="flex flex-wrap gap-2 border-t border-[var(--border)] pt-4">
+          <div className="projects-new-actions">
             <button
               type="submit"
               disabled={loading}
-              className="inline-flex h-10 items-center gap-2 rounded-md bg-[var(--accent)] px-4 text-sm font-semibold text-white transition-colors hover:bg-[var(--accent-hover)] disabled:opacity-50"
+              className="projects-action projects-primary-action"
             >
-              {loading ? "Creating workspace..." : "Create workspace"}
+              {loading ? "Creating project..." : "Create project"}
               <ArrowRight size={15} />
             </button>
             <Link
               href={`/projects${demoSuffix}`}
-              className="inline-flex h-10 items-center rounded-md border border-[var(--border)] bg-[var(--surface)] px-4 text-sm font-semibold text-[var(--ink)]"
+              className="projects-action projects-secondary-action"
             >
               Cancel
             </Link>
           </div>
         </form>
       </section>
+      </div>
     </div>
   );
 }

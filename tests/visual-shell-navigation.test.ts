@@ -100,6 +100,21 @@ test("dashboard project list defers uploads until a project cockpit is chosen", 
   );
 });
 
+test("workspace navigation keeps the durable global rail and avoids repeated link descriptions", () => {
+  const railSource = readFileSync(
+    resolve(repositoryRoot, "components/navigation/WorkspaceRail.tsx"),
+    "utf8",
+  );
+  const drawerSource = readFileSync(
+    resolve(repositoryRoot, "components/navigation/WorkspaceNavigation.tsx"),
+    "utf8",
+  );
+
+  assert.match(railSource, /\{sections\.map\(\(section\) => \(/);
+  assert.doesNotMatch(railSource, /primaryIds|secondarySections/);
+  assert.doesNotMatch(drawerSource, /<small>\{item\.description\}<\/small>/);
+});
+
 test("restored demo assets migrate to cockpit hrefs without changing public share links", () => {
   const publicUrl =
     "/review/demo?demo=1&asset=stale-current&intent=client_review&share=public-token";

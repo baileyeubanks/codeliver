@@ -18,7 +18,7 @@ test("Projects is project-first and removes the mobile zero-stat media dashboard
   assert.match(projectsPage, /Open project/);
   assert.doesNotMatch(projectsPage, /AssetUpload/);
   assert.doesNotMatch(projectsPage, />Upload media</);
-  assert.match(projectsPage, /\/assets\/\$\{encodeURIComponent\(asset\.id\)\}/);
+  assert.doesNotMatch(projectsPage, /\/assets\/\$\{encodeURIComponent\(asset\.id\)\}/);
   assert.match(projectsPage, /<div className="projects-content">/);
   assert.doesNotMatch(projectsPage, /<main className="projects-content">/);
   assert.doesNotMatch(projectsPage, /All production media/);

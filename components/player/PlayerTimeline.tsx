@@ -5,7 +5,7 @@ import { Scissors } from "lucide-react";
 import { usePlayerStore } from "@/lib/stores/playerStore";
 import { buildCommentChapters } from "@/lib/review/frame-review";
 
-interface TimelineComment {
+export interface TimelineComment {
   id?: string;
   timecode_seconds: number | null;
   status: string;
@@ -25,7 +25,7 @@ interface PlayerTimelineProps {
   selectedCommentId?: string | null;
 }
 
-function getCommentMarkerAriaLabel(comment: TimelineComment, timeSeconds: number) {
+export function getCommentMarkerAriaLabel(comment: TimelineComment, timeSeconds: number) {
   const timeLabel = Number.isFinite(timeSeconds)
     ? `${timeSeconds.toFixed(1)} seconds`
     : "unknown time";

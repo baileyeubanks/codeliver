@@ -12,7 +12,7 @@
   border-radius: 0 0 12px 12px;
 }
 .seekTrack { position: relative; height: 32px; display: flex; align-items: center; }
-.seek { appearance: none; width: 100%; height: 32px; margin: 0; cursor: pointer; background: transparent; accent-color: #0057ff; }
+.seek { position: relative; z-index: 1; appearance: none; width: 100%; height: 32px; margin: 0; cursor: pointer; background: transparent; accent-color: #0057ff; }
 .seek::-webkit-slider-runnable-track { height: 4px; border-radius: 8px; background: linear-gradient(to right, #0057ff 0 var(--progress), #aab8ce var(--progress) var(--buffered), #e5eaf2 var(--buffered) 100%); }
 .seek::-moz-range-track { height: 4px; border-radius: 8px; background: #e5eaf2; }
 .seek::-moz-range-progress { height: 4px; background: #0057ff; }
@@ -21,6 +21,13 @@
 .seek:focus-visible { outline: 2px solid #0057ff; outline-offset: 2px; border-radius: 4px; }
 .seek:disabled { opacity: .4; cursor: default; }
 .loopRegion { position: absolute; height: 10px; background: #0057ff33; pointer-events: none; border-radius: 3px; }
+.commentMarker { position: absolute; z-index: 2; top: 50%; min-width: 28px; min-height: 28px; padding: 0; border: 0; border-radius: 999px; background: transparent; cursor: pointer; transform: translate(-50%, -50%); }
+.commentMarker:focus-visible { outline: 2px solid #0057ff; outline-offset: 2px; }
+.commentMarker:hover .openCommentDot, .commentMarker:focus-visible .openCommentDot, .commentMarker[aria-current="true"] .openCommentDot { transform: scale(1.35); }
+.commentMarker:hover .resolvedCommentDot, .commentMarker:focus-visible .resolvedCommentDot, .commentMarker[aria-current="true"] .resolvedCommentDot { transform: scale(1.35); }
+.openCommentDot, .resolvedCommentDot { display: block; width: 9px; height: 9px; margin: auto; border: 2px solid #fff; border-radius: 999px; box-shadow: 0 0 0 1px rgb(20 32 51 / .35); transition: transform .15s ease; }
+.openCommentDot { background: #f59e0b; }
+.resolvedCommentDot { background: #16a34a; }
 .row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .row button { color: var(--control-ink); }
 .row button:focus-visible, .row select:focus-visible { outline: 2px solid #0057ff; outline-offset: 2px; }

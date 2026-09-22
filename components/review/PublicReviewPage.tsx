@@ -762,8 +762,6 @@ export default function PublicReviewPage({
     repliesByParent.set(comment.parent_id, existing);
   });
 
-  const timedThreads = rootComments.filter((comment) => comment.timecode_seconds != null).length;
-
   // P19b derived version state. linkVersions applies the share record's
   // current_version_only scope; the switcher and compare both consume it.
   const orderedVersions = sortVersions(versions);
@@ -1778,18 +1776,20 @@ export default function PublicReviewPage({
                   onNext: () => selectAdjacentComment(1),
                   disabled: orderedTimedRootComments.length === 0,
                 }}
+                commentMarkers={rootComments}
+                onCommentMarkerSelect={(comment) => handleCommentSelect(comment as ReviewComment)}
+                selectedCommentId={selectedCommentId}
                 onCutMarker={canComment ? handleCutMarker : undefined}
                 onImagePin={handleImagePin}
                 timeline={{
-                  label: "Timeline feedback",
-                  countLabel: `${timedThreads} notes · ${cutMarkers.length} cuts`,
+                  label: "Cut decisions",
+                  countLabel: `${cutMarkers.length} cuts`,
                   content: (
                     <div className="grid gap-2">
                       <PlayerTimeline
-                        comments={rootComments}
+                        comments={[]}
                         cutMarkers={cutMarkers}
                         onSeek={seekTo}
-                        onCommentSelect={(comment) => handleCommentSelect(comment as ReviewComment)}
                         selectedCommentId={selectedCommentId}
                       />
                       {cutMarkerError ? (

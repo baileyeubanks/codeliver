@@ -17,6 +17,7 @@ import {
 import { usePlayerStore } from "@/lib/stores/playerStore";
 import { nextLoopRegion } from "@/lib/review/frame-review";
 import { formatSmpteTimecode } from "@/components/player/timecode";
+import { getCommentMarkerAriaLabel, type TimelineComment } from "@/components/player/PlayerTimeline";
 
 interface PlayerControlsProps {
   videoRef: RefObject<HTMLVideoElement | null>;
@@ -25,13 +26,22 @@ interface PlayerControlsProps {
     onNext: () => void;
     disabled: boolean;
   };
+  commentMarkers?: TimelineComment[];
+  onCommentMarkerSelect?: (comment: TimelineComment) => void;
+  selectedCommentId?: string | null;
 }
 
 const PLAYBACK_RATES = [0.25, 0.5, 0.75, 1, 1.25, 1.5, 2];
 const SEEK_INTERVALS = [1, 2, 5, 10];
 const SEEK_INTERVAL_STORAGE_KEY = "codeliver.review.seek-interval";
 
-export default function PlayerControls({ videoRef, commentNavigation }: PlayerControlsProps) {
+export default function PlayerControls({
+  videoRef,
+  commentNavigation,
+  commentMarkers = [],
+  onCommentMarkerSelect,
+  selectedCommentId = null,
+}: PlayerControlsProps) {
   const {
     currentTime,
     duration,
@@ -152,6 +162,37 @@ export default function PlayerControls({ videoRef, commentNavigation }: PlayerCo
         {loopClosed ? (
           <span data-loop-region className={styles.loopRegion} style={{ left: `${((loopIn as number) / duration) * 100}%`, width: `${(((loopOut as number) - (loopIn as number)) / duration) * 100}%` }} />
         ) : null}
+        {commentMarkers
+          .filter((comment) => (
+            duration > 0
+            && Number.isFinite(comment.timecode_seconds)
+            && (comment.timecode_seconds as number) >= 0
+            && (comment.timecode_seconds as number) <= duration
+          ))
+          .map((comment, index) => {
+            const timeSeconds = comment.timecode_seconds as number;
+            const position = Math.max(0, Math.min(100, (timeSeconds / duration) * 100));
+            const selected = comment.id != null && comment.id === selectedCommentId;
+            return (
+              <button
+                key={comment.id ?? `${timeSeconds}-${index}`}
+                type="button"
+                data-comment-marker
+                data-comment-id={comment.id}
+                aria-current={selected ? "true" : undefined}
+                className={styles.commentMarker}
+                style={{ left: `${position}%` }}
+                onClick={(event) => {
+                  event.stopPropagation();
+                  onCommentMarkerSelect?.(comment);
+                  seekTo(timeSeconds);
+                }}
+                aria-label={getCommentMarkerAriaLabel(comment, timeSeconds)}
+              >
+                <span className={comment.status === "resolved" ? styles.resolvedCommentDot : styles.openCommentDot} />
+              </button>
+            );
+          })}
         <input
           className={styles.seek}
           type="range"

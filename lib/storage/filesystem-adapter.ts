@@ -3,14 +3,17 @@ import type { BigIntStats } from "node:fs";
 import {
   access,
   link,
+  lstat,
+  mkdir,
   open,
   realpath,
+  rmdir,
   statfs,
   unlink,
 } from "node:fs/promises";
 import type { FileHandle } from "node:fs/promises";
 import { createHash } from "node:crypto";
-import { dirname } from "node:path";
+import { basename, dirname } from "node:path";
 import type { Readable } from "node:stream";
 
 import type {
@@ -30,6 +33,8 @@ import type {
   StoredObjectReceipt,
 } from "./contracts";
 import type { StorageRuntimeConfig } from "./config";
+import { publishImmutableDirectory } from "./atomic-directory-publication.ts";
+import { CcnasReadCache, ccnasContentVersionId } from "./ccnas-read-cache.ts";
 import { syncDurableDirectory } from "./durable-files.ts";
 import { StorageError, isStorageError } from "./errors.ts";
 import { assertSafeObjectKey } from "./object-key.ts";
@@ -39,6 +44,8 @@ const UPLOAD_ID_PATTERN =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const COMMITTED_FILE_MODE = 0o400;
 const FILE_HASH_BUFFER_BYTES = 1024 * 1024;
+const VERSION_DIRECTORY_PATTERN = /^v[0-9]{8}$/;
+const HASHED_NAMESPACE_PATTERN = /^[0-9a-f]{20}$/;
 
 function normalizeSha256(value: string, label: string): string {
   const normalized = value.trim().toLowerCase();
@@ -113,6 +120,7 @@ export class FilesystemStorageAdapter implements StorageAdapter {
   readonly label: string;
   readonly kind: "local" | "ccnas";
   private readonly config: StorageRuntimeConfig;
+  private readonly ccnasReadCache: CcnasReadCache | null;
   private canonicalRootPromise: Promise<string> | null = null;
 
   constructor(
@@ -123,6 +131,24 @@ export class FilesystemStorageAdapter implements StorageAdapter {
     this.config = config;
     this.external = kind === "ccnas";
     this.label = kind === "local" ? "Local demo storage" : "CCNAS storage";
+    this.ccnasReadCache =
+      kind === "ccnas" && config.ccnasReadCacheRoot
+        ? new CcnasReadCache(
+            config.ccnasReadCacheRoot,
+            config.ccnasReadCacheReservedBytes,
+            config.ccnasReadCacheMaxBytes,
+          )
+        : null;
+  }
+
+  private requireCcnasReadCache(): CcnasReadCache {
+    if (!this.ccnasReadCache) {
+      throw new StorageError(
+        "STORAGE_NOT_CONFIGURED",
+        "CCNAS requires an explicit APFS read cache",
+      );
+    }
+    return this.ccnasReadCache;
   }
 
   private configuredRoot(): string {
@@ -150,6 +176,7 @@ export class FilesystemStorageAdapter implements StorageAdapter {
     let canonicalRoot: string | null = null;
     let readable = false;
     let writable = false;
+    let ccnasCacheReady = this.kind !== "ccnas";
     let capacity: StorageReadiness["capacity"] = null;
 
     if (!this.config.filesystemRoot) {
@@ -204,6 +231,47 @@ export class FilesystemStorageAdapter implements StorageAdapter {
       }
     }
 
+    if (this.kind === "ccnas") {
+      if (!this.config.ccnasReadCacheRoot) {
+        checks.push({
+          key: "ccnas-read-cache",
+          status: "fail",
+          message: "CCNAS APFS read cache is not configured",
+        });
+      } else {
+        try {
+          const cacheRoot = await resolveExistingRoot(
+            this.config.ccnasReadCacheRoot,
+          );
+          await access(cacheRoot, constants.R_OK | constants.W_OK);
+          const stats = await statfs(cacheRoot, { bigint: true });
+          const cacheCapacity = await this.requireCcnasReadCache().inspectCapacity();
+          const availableBytes = stats.bavail * stats.bsize;
+          ccnasCacheReady =
+            availableBytes >
+              this.config.ccnasReadCacheReservedBytes +
+                cacheCapacity.outstandingReservationBytes &&
+            cacheCapacity.usedBytes +
+              cacheCapacity.outstandingReservationBytes <=
+              cacheCapacity.maxBytes &&
+            (process.platform !== "darwin" || stats.type === 26n);
+          checks.push({
+            key: "ccnas-read-cache",
+            status: ccnasCacheReady ? "pass" : "fail",
+            message: ccnasCacheReady
+              ? "CCNAS APFS read cache is within its configured maximum and above reserve"
+              : "CCNAS read cache is not on APFS, exceeds its maximum, or is at/below reserve",
+          });
+        } catch {
+          checks.push({
+            key: "ccnas-read-cache",
+            status: "fail",
+            message: "CCNAS APFS read cache is unavailable to this process",
+          });
+        }
+      }
+    }
+
     checks.push({
       key: "write-authority",
       status: this.config.writeEnabled ? "pass" : "fail",
@@ -228,6 +296,7 @@ export class FilesystemStorageAdapter implements StorageAdapter {
         readable &&
         writable &&
         aboveReserve &&
+        ccnasCacheReady &&
         this.config.writeEnabled &&
         this.config.issues.length === 0,
       capabilities: [...this.capabilities],
@@ -542,6 +611,36 @@ export class FilesystemStorageAdapter implements StorageAdapter {
     return inspection.status;
   }
 
+  private async validateCcnasNasFileHandle(
+    file: FileHandle,
+    input: { size: number; sha256: string },
+  ): Promise<BigIntStats> {
+    const inspection = await this.hashStableFileHandle(file, {
+      requireImmutable: false,
+    });
+    if (inspection.size !== input.size || inspection.sha256 !== input.sha256) {
+      throw new StorageError(
+        "STORAGE_CHECKSUM",
+        "CCNAS object does not match its authoritative receipt",
+      );
+    }
+    return inspection.status;
+  }
+
+  private ccnasCommittedReceipt(
+    status: BigIntStats,
+    input: { objectKey: string; size: number; sha256: string },
+  ): StoredObjectReceipt {
+    return {
+      provider: "ccnas",
+      objectKey: input.objectKey,
+      size: input.size,
+      sha256: input.sha256,
+      providerVersionId: ccnasContentVersionId(input),
+      committedAt: new Date(Number(status.mtimeMs)).toISOString(),
+    };
+  }
+
   private committedReceipt(
     status: BigIntStats,
     input: {
@@ -693,6 +792,110 @@ export class FilesystemStorageAdapter implements StorageAdapter {
     return resolvePathInsideRoot(root, placementKey);
   }
 
+  private ccnasPublicationPaths(
+    root: string,
+    objectKey: string,
+    handle: MultipartHandle,
+  ): {
+    destinationDirectory: string;
+    destinationPath: string;
+    placementDirectory: string;
+    placementPath: string;
+  } {
+    this.assertHandle(handle);
+    const segments = objectKey.split("/");
+    if (
+      segments.length !== 8 ||
+      segments[0] !== "tenants" ||
+      !segments[1].startsWith("t-") ||
+      !HASHED_NAMESPACE_PATTERN.test(segments[1].slice(2)) ||
+      segments[2] !== "projects" ||
+      !segments[3].startsWith("p-") ||
+      !HASHED_NAMESPACE_PATTERN.test(segments[3].slice(2)) ||
+      segments[4] !== "objects" ||
+      !segments[5].startsWith("o-") ||
+      !HASHED_NAMESPACE_PATTERN.test(segments[5].slice(2)) ||
+      !VERSION_DIRECTORY_PATTERN.test(segments[6])
+    ) {
+      throw new StorageError(
+        "STORAGE_PATH_INVALID",
+        "CCNAS publication requires an exclusively owned version directory",
+      );
+    }
+    const destinationPath = resolvePathInsideRoot(root, objectKey);
+    const destinationDirectory = dirname(destinationPath);
+    const placementDirectory = resolvePathInsideRoot(
+      root,
+      `${dirname(dirname(objectKey))}/.codeliver-commit-${handle.uploadId}.tmp`,
+    );
+    return {
+      destinationDirectory,
+      destinationPath,
+      placementDirectory,
+      placementPath: resolvePathInsideRoot(
+        root,
+        `${dirname(dirname(objectKey))}/.codeliver-commit-${handle.uploadId}.tmp/${basename(objectKey)}`,
+      ),
+    };
+  }
+
+  private async removeCcnasCommitPlacement(
+    placementDirectory: string,
+    placementPath: string,
+  ): Promise<boolean> {
+    try {
+      await this.assertSafeCcnasDirectory(placementDirectory);
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code === "ENOENT") return false;
+      throw error;
+    }
+    let placement: FileHandle | null = null;
+    try {
+      placement = await open(
+        placementPath,
+        constants.O_RDONLY | constants.O_NOFOLLOW,
+      );
+      const status = await placement.stat({ bigint: true });
+      if (!status.isFile()) {
+        throw new StorageError(
+          "STORAGE_PATH_INVALID",
+          "CCNAS commit placement is not a regular file",
+        );
+      }
+      await unlink(placementPath);
+      await syncDurableDirectory(placementDirectory);
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
+    } finally {
+      await placement?.close().catch(() => undefined);
+    }
+
+    try {
+      await rmdir(placementDirectory);
+      await syncDurableDirectory(dirname(placementDirectory));
+      return true;
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code === "ENOENT") return false;
+      throw error;
+    }
+  }
+
+  private async assertSafeCcnasDirectory(path: string): Promise<void> {
+    const status = await lstat(path);
+    if (status.isSymbolicLink() || !status.isDirectory()) {
+      throw new StorageError(
+        "STORAGE_PATH_INVALID",
+        "CCNAS publication contains a symlink or unsafe directory",
+      );
+    }
+    if (await realpath(path) !== path) {
+      throw new StorageError(
+        "STORAGE_PATH_INVALID",
+        "CCNAS publication directory resolves through a symlink",
+      );
+    }
+  }
+
   private async removeCommitPlacement(path: string): Promise<BigIntStats | null> {
     let placement: FileHandle;
     try {
@@ -762,6 +965,79 @@ export class FilesystemStorageAdapter implements StorageAdapter {
         "Stored object byte range is invalid"
       );
     }
+    if (this.kind === "ccnas") {
+      if (!expectation?.sha256) {
+        throw new StorageError(
+          "STORAGE_CHECKSUM",
+          "CCNAS cold-cache reads require an authoritative checksum receipt",
+        );
+      }
+      const canonicalKey = assertSafeObjectKey(objectKey);
+      const expectedSha256 = normalizeSha256(
+        expectation.sha256,
+        "Object checksum",
+      );
+      const expectedContentVersion = ccnasContentVersionId({
+        objectKey: canonicalKey,
+        size: expectation.size,
+        sha256: expectedSha256,
+      });
+      const legacyVersion = /^fs-v1:[0-9a-f]{64}$/.test(
+        expectation.providerVersionId,
+      );
+      if (
+        expectation.providerVersionId !== expectedContentVersion &&
+        !legacyVersion
+      ) {
+        throw new StorageError(
+          "STORAGE_CHECKSUM",
+          "CCNAS receipt identity does not match its key, size, and checksum",
+        );
+      }
+      const sourcePath = await this.storedObjectPath(canonicalKey);
+      const cached = await this.requireCcnasReadCache().ensure({
+        objectKey: canonicalKey,
+        sourcePath,
+        size: expectation.size,
+        sha256: expectedSha256,
+      });
+      if (!legacyVersion && cached.providerVersionId !== expectation.providerVersionId) {
+        throw new StorageError(
+          "STORAGE_CHECKSUM",
+          "CCNAS cache identity does not match its committed receipt",
+        );
+      }
+      const file = await open(
+        cached.path,
+        constants.O_RDONLY | constants.O_NOFOLLOW,
+      );
+      try {
+        const status = await file.stat({ bigint: true });
+        if (
+          !hasStableFileIdentity(cached.status, status) ||
+          hasWriteBits(status)
+        ) {
+          throw new StorageError(
+            "STORAGE_CHECKSUM",
+            "APFS cache identity changed before playback",
+          );
+        }
+        const size = Number(status.size);
+        if (range && (range.start >= size || range.end >= size)) {
+          throw new StorageError(
+            "STORAGE_PATH_INVALID",
+            "Stored object byte range exceeds the object",
+          );
+        }
+        return file.createReadStream({
+          autoClose: true,
+          ...(range ? { start: range.start, end: range.end } : {}),
+        });
+      } catch (error) {
+        await file.close().catch(() => undefined);
+        throw error;
+      }
+    }
     const path = await this.storedObjectPath(objectKey);
     await assertSafeRegularFile(path);
     const file = await open(path, constants.O_RDONLY | constants.O_NOFOLLOW);
@@ -814,12 +1090,163 @@ export class FilesystemStorageAdapter implements StorageAdapter {
     }
   }
 
+  private async reconcileCcnasMultipartCommit(
+    root: string,
+    input: CommitMultipartInput,
+    objectKey: string,
+    expectedSha256: string,
+  ): Promise<MultipartCommitReconciliation> {
+    const objectDirectoryKey = dirname(dirname(objectKey));
+    await ensureSafeDirectoryTree(root, objectDirectoryKey);
+    const {
+      destinationDirectory,
+      destinationPath,
+      placementDirectory,
+      placementPath,
+    } = this.ccnasPublicationPaths(root, objectKey, input.handle);
+    const stagingPath = await this.stagingPath(input.handle);
+
+    try {
+      await this.assertSafeCcnasDirectory(destinationDirectory);
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code === "ENOENT") {
+        await this.removeCcnasCommitPlacement(
+          placementDirectory,
+          placementPath,
+        );
+        return { action: "not-committed", receipt: null };
+      }
+      throw error;
+    }
+    let destination: FileHandle;
+    try {
+      destination = await open(
+        destinationPath,
+        constants.O_RDONLY | constants.O_NOFOLLOW,
+      );
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code === "ENOENT") {
+        await this.removeCcnasCommitPlacement(
+          placementDirectory,
+          placementPath,
+        );
+        return { action: "not-committed", receipt: null };
+      }
+      throw error;
+    }
+
+    try {
+      let verifiedStatus = await this.validateCcnasNasFileHandle(
+        destination,
+        { size: input.size, sha256: expectedSha256 },
+      );
+      let action: MultipartCommitReconciliation["action"] = "committed";
+      const removedPlacement = await this.removeCcnasCommitPlacement(
+        placementDirectory,
+        placementPath,
+      );
+      if (removedPlacement) {
+        verifiedStatus = await this.validateCcnasNasFileHandle(
+          destination,
+          { size: input.size, sha256: expectedSha256 },
+        );
+        action = "staging-cleaned";
+      }
+
+      const cached = await this.requireCcnasReadCache().ensure({
+        objectKey,
+        sourcePath: destinationPath,
+        size: input.size,
+        sha256: expectedSha256,
+      });
+      if (
+        cached.providerVersionId !==
+        ccnasContentVersionId({
+          objectKey,
+          size: input.size,
+          sha256: expectedSha256,
+        })
+      ) {
+        throw new StorageError(
+          "STORAGE_CHECKSUM",
+          "APFS cache identity diverged from the CCNAS receipt",
+        );
+      }
+
+      try {
+        const staging = await open(
+          stagingPath,
+          constants.O_RDONLY | constants.O_NOFOLLOW,
+        );
+        try {
+          const stagingStatus = await staging.stat({ bigint: true });
+          if (!stagingStatus.isFile()) {
+            throw new StorageError(
+              "STORAGE_PATH_INVALID",
+              "Staging object is not a regular file",
+            );
+          }
+          const stagingInspection = await this.hashStableFileHandle(staging, {
+            requireImmutable: false,
+          });
+          if (
+            stagingInspection.size !== input.size ||
+            stagingInspection.sha256 !== expectedSha256
+          ) {
+            throw new StorageError(
+              "STORAGE_CHECKSUM",
+              "Staging bytes diverged from the recovered committed object",
+            );
+          }
+        } finally {
+          await staging.close();
+        }
+        await unlink(stagingPath);
+        await syncDurableDirectory(dirname(stagingPath));
+        action = "staging-cleaned";
+      } catch (error) {
+        if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
+      }
+
+      await destination.sync();
+      const finalStatus = await destination.stat({ bigint: true });
+      if (
+        !hasStableFileIdentity(verifiedStatus, finalStatus) ||
+        finalStatus.nlink !== 1n
+      ) {
+        throw new StorageError(
+          "STORAGE_CHECKSUM",
+          "Recovered CCNAS object identity changed during reconciliation",
+        );
+      }
+      await syncDurableDirectory(dirname(destinationPath));
+      return {
+        action,
+        receipt: this.ccnasCommittedReceipt(finalStatus, {
+          objectKey,
+          size: input.size,
+          sha256: expectedSha256,
+        }),
+      };
+    } finally {
+      await destination.close();
+    }
+  }
+
   async reconcileMultipartCommit(
     input: CommitMultipartInput
   ): Promise<MultipartCommitReconciliation> {
     const root = await this.requireWriteReady();
     const objectKey = assertSafeObjectKey(input.objectKey);
     const expectedSha256 = normalizeSha256(input.sha256, "Object checksum");
+    if (this.kind === "ccnas") {
+      return this.reconcileCcnasMultipartCommit(
+        root,
+        input,
+        objectKey,
+        expectedSha256,
+      );
+    }
     await ensureSafeDirectoryTree(root, dirname(objectKey));
     const destinationPath = resolvePathInsideRoot(root, objectKey);
     const stagingPath = await this.stagingPath(input.handle);
@@ -932,11 +1359,193 @@ export class FilesystemStorageAdapter implements StorageAdapter {
     }
   }
 
+  private async commitCcnasMultipart(
+    root: string,
+    input: CommitMultipartInput,
+    objectKey: string,
+    expectedSha256: string,
+  ): Promise<StoredObjectReceipt> {
+    const objectDirectoryKey = dirname(dirname(objectKey));
+    await ensureSafeDirectoryTree(root, objectDirectoryKey);
+    const {
+      destinationDirectory,
+      destinationPath,
+      placementDirectory,
+      placementPath,
+    } = this.ccnasPublicationPaths(root, objectKey, input.handle);
+    const stagingPath = await this.stagingPath(input.handle);
+    const staging = await open(
+      stagingPath,
+      constants.O_RDONLY | constants.O_NOFOLLOW,
+    );
+    let placement: FileHandle | null = null;
+    let destination: FileHandle | null = null;
+    let placementDirectoryCreated = false;
+    let published = false;
+    try {
+      const stagedStatus = await staging.stat({ bigint: true });
+      if (
+        !stagedStatus.isFile() ||
+        stagedStatus.size < 0n ||
+        stagedStatus.size > BigInt(Number.MAX_SAFE_INTEGER) ||
+        Number(stagedStatus.size) !== input.size
+      ) {
+        throw new StorageError(
+          "STORAGE_CHECKSUM",
+          "Multipart object changed before immutable CCNAS placement",
+        );
+      }
+      const sealedStagingStatus = await this.sealCommittedFileHandle(staging);
+
+      try {
+        await mkdir(placementDirectory, { mode: 0o700 });
+      } catch (error) {
+        if ((error as NodeJS.ErrnoException).code === "EEXIST") {
+          throw new StorageError(
+            "STORAGE_CONFLICT",
+            "CCNAS commit placement already exists; reconcile before retry",
+            true,
+          );
+        }
+        throw error;
+      }
+      placementDirectoryCreated = true;
+      await this.assertSafeCcnasDirectory(placementDirectory);
+      placement = await open(
+        placementPath,
+        constants.O_CREAT |
+          constants.O_EXCL |
+          constants.O_RDWR |
+          constants.O_NOFOLLOW,
+        0o600,
+      );
+      await this.copyExactFileBytes(staging, placement, input.size);
+      const copiedStagingStatus = await staging.stat({ bigint: true });
+      if (!hasStableFileIdentity(sealedStagingStatus, copiedStagingStatus)) {
+        throw new StorageError(
+          "STORAGE_CHECKSUM",
+          "Multipart object identity changed while creating CCNAS placement",
+        );
+      }
+      await this.sealCommittedFileHandle(placement);
+      const verifiedPlacementStatus =
+        await this.validateCommittedFileHandle(placement, {
+          size: input.size,
+          sha256: expectedSha256,
+        });
+      await syncDurableDirectory(placementDirectory);
+      await placement.close();
+      placement = null;
+
+      await publishImmutableDirectory(
+        placementDirectory,
+        destinationDirectory,
+      );
+      published = true;
+      await this.assertSafeCcnasDirectory(destinationDirectory);
+
+      destination = await open(
+        destinationPath,
+        constants.O_RDONLY | constants.O_NOFOLLOW,
+      );
+      const publishedStatus = await destination.stat({ bigint: true });
+      if (
+        !publishedStatus.isFile() ||
+        publishedStatus.dev !== verifiedPlacementStatus.dev ||
+        publishedStatus.ino !== verifiedPlacementStatus.ino
+      ) {
+        throw new StorageError(
+          "STORAGE_CHECKSUM",
+          "CCNAS destination does not match the sealed placement object",
+        );
+      }
+      const verifiedNasStatus = await this.validateCcnasNasFileHandle(
+        destination,
+        { size: input.size, sha256: expectedSha256 },
+      );
+      if (
+        verifiedNasStatus.dev !== publishedStatus.dev ||
+        verifiedNasStatus.ino !== publishedStatus.ino
+      ) {
+        throw new StorageError(
+          "STORAGE_CHECKSUM",
+          "CCNAS destination identity changed during checksum verification",
+        );
+      }
+      const cached = await this.requireCcnasReadCache().ensure({
+        objectKey,
+        sourcePath: destinationPath,
+        size: input.size,
+        sha256: expectedSha256,
+      });
+      if (
+        cached.providerVersionId !==
+        ccnasContentVersionId({
+          objectKey,
+          size: input.size,
+          sha256: expectedSha256,
+        })
+      ) {
+        throw new StorageError(
+          "STORAGE_CHECKSUM",
+          "APFS cache identity diverged from the CCNAS receipt",
+        );
+      }
+      await destination.sync();
+      await unlink(stagingPath);
+      await syncDurableDirectory(dirname(stagingPath));
+
+      const finalStatus = await destination.stat({ bigint: true });
+      if (
+        !hasStableFileIdentity(publishedStatus, finalStatus) ||
+        finalStatus.nlink !== 1n
+      ) {
+        throw new StorageError(
+          "STORAGE_CHECKSUM",
+          "Committed CCNAS object identity changed during publication",
+        );
+      }
+      await syncDurableDirectory(dirname(destinationPath));
+      return this.ccnasCommittedReceipt(finalStatus, {
+        objectKey,
+        size: input.size,
+        sha256: expectedSha256,
+      });
+    } catch (error) {
+      if (isFilesystemCapacityError(error)) {
+        throw new StorageError(
+          "STORAGE_CAPACITY",
+          "Storage ran out of capacity while creating immutable CCNAS placement",
+          true,
+        );
+      }
+      throw error;
+    } finally {
+      await destination?.close().catch(() => undefined);
+      await placement?.close().catch(() => undefined);
+      await staging.close();
+      if (placementDirectoryCreated && !published) {
+        await this.removeCcnasCommitPlacement(
+          placementDirectory,
+          placementPath,
+        ).catch(() => undefined);
+      }
+    }
+  }
+
   async commitMultipart(input: CommitMultipartInput): Promise<StoredObjectReceipt> {
     const root = await this.requireWriteReady();
     await this.requirePlacementCapacity(root, input.size);
     const objectKey = assertSafeObjectKey(input.objectKey);
     const expectedSha256 = normalizeSha256(input.sha256, "Object checksum");
+    if (this.kind === "ccnas") {
+      return this.commitCcnasMultipart(
+        root,
+        input,
+        objectKey,
+        expectedSha256,
+      );
+    }
     await ensureSafeDirectoryTree(root, dirname(objectKey));
     const stagingPath = await this.stagingPath(input.handle);
     const destinationPath = resolvePathInsideRoot(root, objectKey);

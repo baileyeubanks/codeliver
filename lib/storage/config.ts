@@ -6,6 +6,8 @@ import { CLAMAV_MAX_SCAN_BYTES } from "./scanner-limits.ts";
 const DEFAULT_MAX_UPLOAD_BYTES = 12n * 1024n * 1024n * 1024n;
 const DEFAULT_MAX_CHUNK_BYTES = 64n * 1024n * 1024n;
 const DEFAULT_RESERVED_BYTES = 1024n * 1024n * 1024n;
+const DEFAULT_CCNAS_READ_CACHE_RESERVED_BYTES = 10n * 1024n * 1024n * 1024n;
+const DEFAULT_CCNAS_READ_CACHE_MAX_BYTES = 250n * 1024n * 1024n * 1024n;
 const DEFAULT_TENANT_QUOTA_BYTES = 24n * 1024n * 1024n * 1024n;
 const DEFAULT_MALWARE_SCAN_TIMEOUT_MS = 15 * 60 * 1000;
 const DEFAULT_DERIVATIVE_HOOK_TIMEOUT_MS = 30 * 1000;
@@ -17,6 +19,9 @@ export interface StorageRuntimeConfig {
   providerWasExplicit: boolean;
   writeEnabled: boolean;
   filesystemRoot: string | null;
+  ccnasReadCacheRoot: string | null;
+  ccnasReadCacheReservedBytes: bigint;
+  ccnasReadCacheMaxBytes: bigint;
   stateRoot: string | null;
   driveFolderId: string | null;
   driveCredentialMode: "access-token" | "service-account" | null;
@@ -133,6 +138,26 @@ export function readStorageConfig(
   const rootName =
     provider === "local" ? "CODELIVER_LOCAL_STORAGE_ROOT" : "NAS_MEDIA_ROOT";
   const filesystemRoot = resolveExplicitRoot(rootValue, rootName, issues);
+  const ccnasReadCacheRoot =
+    provider === "ccnas"
+      ? resolveExplicitRoot(
+          env.CODELIVER_CCNAS_READ_CACHE_ROOT,
+          "CODELIVER_CCNAS_READ_CACHE_ROOT",
+          issues,
+        )
+      : null;
+  if (provider === "ccnas" && !ccnasReadCacheRoot) {
+    issues.push("CCNAS read cache root is required");
+  }
+  if (
+    provider === "ccnas" &&
+    filesystemRoot &&
+    ccnasReadCacheRoot &&
+    (ccnasReadCacheRoot === filesystemRoot ||
+      ccnasReadCacheRoot.startsWith(`${filesystemRoot}/`))
+  ) {
+    issues.push("CCNAS read cache root must be outside NAS_MEDIA_ROOT");
+  }
   const credentials = inspectDriveCredentials(env);
   const malwarePolicy =
     env.CODELIVER_MALWARE_POLICY === "allow-local-demo"
@@ -162,6 +187,20 @@ export function readStorageConfig(
     providerWasExplicit: provider !== "unconfigured",
     writeEnabled: enabled(env.CODELIVER_STORAGE_WRITE_ENABLED),
     filesystemRoot,
+    ccnasReadCacheRoot,
+    ccnasReadCacheReservedBytes: parsePositiveBigInt(
+      env.CODELIVER_CCNAS_READ_CACHE_RESERVED_BYTES,
+      DEFAULT_CCNAS_READ_CACHE_RESERVED_BYTES,
+      "CODELIVER_CCNAS_READ_CACHE_RESERVED_BYTES",
+      issues,
+      true,
+    ),
+    ccnasReadCacheMaxBytes: parsePositiveBigInt(
+      env.CODELIVER_CCNAS_READ_CACHE_MAX_BYTES,
+      DEFAULT_CCNAS_READ_CACHE_MAX_BYTES,
+      "CODELIVER_CCNAS_READ_CACHE_MAX_BYTES",
+      issues,
+    ),
     stateRoot: filesystemRoot ? join(filesystemRoot, ".codeliver-ingest", "control") : null,
     driveFolderId: env.GOOGLE_DRIVE_FOLDER_ID?.trim() || null,
     driveCredentialMode: credentials.mode,

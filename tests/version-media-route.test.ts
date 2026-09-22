@@ -192,7 +192,7 @@ test("an authorized viewer can range-stream bytes bound to the exact version rec
   const openCalls: Array<{
     objectKey: string;
     range?: { start: number; end: number };
-    expectation?: { size: number; providerVersionId: string };
+    expectation?: { size: number; sha256?: string; providerVersionId: string };
   }> = [];
   state.__ccoVersionMediaUser = {
     id: userId,
@@ -241,6 +241,7 @@ test("an authorized viewer can range-stream bytes bound to the exact version rec
     range: { start: 2, end: 5 },
     expectation: {
       size: bytes.length,
+      sha256,
       providerVersionId,
     },
   }]);

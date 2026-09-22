@@ -1651,7 +1651,8 @@ export class MediaPipelineService {
         try {
           const raw = await this.readStoredText(
             reference.manifest.objectKey,
-            this.config.maxReplayManifestBytes
+            this.config.maxReplayManifestBytes,
+            reference.manifest,
           );
           if (raw === "oversize") {
             failureCodes.add("PIPELINE_RESTORE_MANIFEST_OVERSIZE");
@@ -4429,8 +4430,35 @@ export class MediaPipelineService {
     };
   }
 
-  private async readStoredText(objectKey: string, maxBytes: number): Promise<string | "oversize"> {
-    const stream = await this.runtime.adapter.openStoredObjectReadStream(objectKey);
+  private async readStoredText(
+    objectKey: string,
+    maxBytes: number,
+    receipt: {
+      size: number;
+      sha256: string;
+      providerVersionId?: string | null;
+    },
+  ): Promise<string | "oversize"> {
+    if (
+      this.runtime.adapter.kind === "ccnas" &&
+      !receipt.providerVersionId
+    ) {
+      throw new MediaPipelineError(
+        "PIPELINE_SOURCE_RECEIPT_REQUIRED",
+        "CCNAS read requires a persisted provider receipt",
+      );
+    }
+    const stream = await this.runtime.adapter.openStoredObjectReadStream(
+      objectKey,
+      undefined,
+      receipt.providerVersionId
+        ? {
+            size: receipt.size,
+            sha256: receipt.sha256,
+            providerVersionId: receipt.providerVersionId,
+          }
+        : undefined,
+    );
     const chunks: Buffer[] = [];
     let size = 0;
     for await (const chunk of stream) {
@@ -4479,7 +4507,8 @@ export class MediaPipelineService {
       try {
         raw = await this.readStoredText(
           reference.manifest.objectKey,
-          this.config.maxReplayManifestBytes
+          this.config.maxReplayManifestBytes,
+          reference.manifest,
         );
       } catch {
         unreadableManifests += 1;
@@ -4582,7 +4611,11 @@ export class MediaPipelineService {
 
       let raw: string | "oversize";
       try {
-        raw = await this.readStoredText(reference.objectKey, this.config.maxReplayManifestBytes);
+        raw = await this.readStoredText(
+          reference.objectKey,
+          this.config.maxReplayManifestBytes,
+          reference,
+        );
       } catch {
         unreadableReceipts += 1;
         continue;
@@ -5151,7 +5184,11 @@ export class MediaPipelineService {
 
         let raw: string | "oversize";
         try {
-          raw = await this.readStoredText(object.objectKey, this.config.maxReplayManifestBytes);
+          raw = await this.readStoredText(
+            object.objectKey,
+            this.config.maxReplayManifestBytes,
+            object,
+          );
         } catch {
           unsafeEntries += 1;
           continue;

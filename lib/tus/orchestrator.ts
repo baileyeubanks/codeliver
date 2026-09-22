@@ -21,6 +21,7 @@ import type { UploadSessionRepository } from "./session-repository";
 import { bigintToSafeNumber } from "../storage/config.ts";
 import { createMalwareScanHook } from "../storage/malware.ts";
 import { buildUploadWorkflowReadiness, type UploadWorkflowReadiness } from "../storage/release-readiness.ts";
+import { ccnasContentVersionId } from "../storage/ccnas-read-cache.ts";
 import { buildVersionedObjectKey, hashStorageNamespace } from "../storage/object-key.ts";
 import { createStorageRuntime } from "../storage/runtime.ts";
 import { UploadOrchestrationError } from "./errors.ts";
@@ -946,6 +947,20 @@ export class UploadOrchestrator {
       );
     }
 
+    const persistedAuthoritativeSha256 =
+      session.computedSha256 ?? session.expectedSha256;
+    if (
+      this.adapter.kind === "ccnas" &&
+      (!persistedAuthoritativeSha256 ||
+        persistedAuthoritativeSha256 !== inspection.sha256)
+    ) {
+      return this.failRecoveryLocked(
+        session,
+        new Error("Recovered placement lacks an authoritative checksum receipt"),
+      );
+    }
+    const authoritativeSha256 =
+      persistedAuthoritativeSha256 ?? inspection.sha256;
     session.computedSha256 = inspection.sha256;
     session.objectKey = objectKey;
     await this.recordRecoveryLocked(
@@ -958,7 +973,22 @@ export class UploadOrchestrator {
     const scan = await this.scanVerifiedBytes(
       session,
       inspection.sha256,
-      () => this.adapter.openStoredObjectReadStream(objectKey)
+      () =>
+        this.adapter.kind === "ccnas"
+          ? this.adapter.openStoredObjectReadStream(
+              objectKey,
+              undefined,
+              {
+                size: inspection.size,
+                sha256: authoritativeSha256,
+                providerVersionId: ccnasContentVersionId({
+                  objectKey,
+                  size: inspection.size,
+                  sha256: authoritativeSha256,
+                }),
+              },
+            )
+          : this.adapter.openStoredObjectReadStream(objectKey)
     );
     return this.applyScanResult(session, scan);
   }

@@ -109,7 +109,7 @@ function publishedMetadata() {
 type Row = Record<string, unknown>;
 type OpenCall = {
   objectKey: string;
-  expectation?: { size: number; providerVersionId: string };
+  expectation?: { size: number; sha256?: string; providerVersionId: string };
 };
 type StaffHlsState = typeof globalThis & {
   __cvpStaffHlsUser: { id: string; app_metadata?: Record<string, unknown> } | null;
@@ -318,7 +318,11 @@ test("staff playlist authorizes exact active asset/version membership and hides 
   assert.deepEqual(state.__cvpStaffHlsOpenCalls, [
     {
       objectKey: playlistObjectKey,
-      expectation: { size: Buffer.byteLength(playlist), providerVersionId },
+      expectation: {
+        size: Buffer.byteLength(playlist),
+        sha256: digest(playlist),
+        providerVersionId,
+      },
     },
   ]);
 });
@@ -340,7 +344,11 @@ test("staff segment streams one exact immutable receipt", async () => {
   assert.deepEqual(state.__cvpStaffHlsOpenCalls, [
     {
       objectKey: segmentObjectKeys[1],
-      expectation: { size: segmentBytes[1].length, providerVersionId },
+      expectation: {
+        size: segmentBytes[1].length,
+        sha256: digest(segmentBytes[1]),
+        providerVersionId,
+      },
     },
   ]);
 });

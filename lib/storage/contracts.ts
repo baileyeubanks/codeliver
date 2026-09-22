@@ -107,6 +107,7 @@ export interface StoredObjectReadRange {
 
 export interface StoredObjectReadExpectation {
   size: number;
+  sha256?: string;
   providerVersionId: string;
 }
 

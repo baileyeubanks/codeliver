@@ -17,19 +17,21 @@ PROFILE_VALUES="$(
   CODELIVER_EXPECTED_STORAGE_MOUNT=/tmp/forbidden-storage \
   /bin/bash -c '
     source "$1"
-    printf "%s|%s|%s|%s|%s|%s|%s|%s|%s|%s" \
+    printf "%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s" \
       "$RUNTIME_PROFILE" "$APP_ROOT" "$ENV_FILE" "$EXPECTED_RUNTIME_USER" \
-      "$STORAGE_MOUNT" "$STORAGE_ROOT" "$LOG_ROOT" "$ADMIN_HOST" "$CLIENT_HOST" "$LAUNCHD_LABEL"
+      "$STORAGE_MOUNT" "$STORAGE_ROOT" "$CCNAS_CACHE_ROOT" "$LOG_ROOT" "$ADMIN_HOST" "$CLIENT_HOST" "$LAUNCHD_LABEL"
   ' _ "$COMMON"
 )"
 
-EXPECTED_VALUES='m2-failover|/Users/baileyeubanks/.local/share/codeliver-failover|/Users/baileyeubanks/.config/codeliver-failover/runtime.env|baileyeubanks|/Volumes/CC_NAS|/Volumes/CC_NAS/cvp-runtime/co-videopro|/Users/baileyeubanks/Library/Logs/Co-VideoPro|co-videopro.com|client.contentco-op.com|com.contentcoop.codeliver-failover'
+EXPECTED_VALUES='m2-failover|/Users/baileyeubanks/.local/share/codeliver-failover|/Users/baileyeubanks/.config/codeliver-failover/runtime.env|baileyeubanks|/Volumes/CC_NAS|/Volumes/CC_NAS/cvp-runtime/co-videopro|/Users/baileyeubanks/.local/share/codeliver-failover/ccnas-read-cache|/Users/baileyeubanks/Library/Logs/Co-VideoPro|co-videopro.com|client.contentco-op.com|com.contentcoop.codeliver-failover'
 [[ "$PROFILE_VALUES" == "$EXPECTED_VALUES" ]] || \
   fail_test "M2 failover constants are wrong or environment-overridable: $PROFILE_VALUES"
 
 if CODELIVER_RUNTIME_PROFILE=unsupported /bin/bash -c 'source "$1"' _ "$COMMON" >/dev/null 2>&1; then
   fail_test "unsupported runtime profile was accepted"
 fi
+/usr/bin/grep -Fq 'statfsSync' "$COMMON" || \
+  fail_test "runtime storage preflight does not verify the cache filesystem through statfs"
 
 ENV_TEMPLATE="$RUNTIME_DIR/runtime.m2-failover.env.example"
 [[ -f "$ENV_TEMPLATE" ]] || fail_test "M2 failover runtime env template is missing"
@@ -39,6 +41,9 @@ for expected in \
   'CLIENT_SITE_URL=https://client.contentco-op.com' \
   'NEXT_PUBLIC_CLIENT_SITE_URL=https://client.contentco-op.com' \
   'NAS_MEDIA_ROOT=/Volumes/CC_NAS/cvp-runtime/co-videopro' \
+  'CODELIVER_CCNAS_READ_CACHE_ROOT=/Users/baileyeubanks/.local/share/codeliver-failover/ccnas-read-cache' \
+  'CODELIVER_CCNAS_READ_CACHE_RESERVED_BYTES=107374182400' \
+  'CODELIVER_CCNAS_READ_CACHE_MAX_BYTES=268435456000' \
   'CODELIVER_CLAMSCAN_PATH=/opt/homebrew/bin/clamscan' \
   'FFMPEG_PATH=/opt/homebrew/bin/ffmpeg' \
   'FFPROBE_PATH=/opt/homebrew/bin/ffprobe'

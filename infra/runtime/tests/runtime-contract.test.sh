@@ -44,8 +44,9 @@ printf '%s\n' '// test-only readable npm CLI placeholder' >"$FAKE_NPM"
 APP_ROOT="$TMP_ROOT/app"
 STORAGE_MOUNT="$TMP_ROOT/BLAZE-STORE-2"
 STORAGE_ROOT="$STORAGE_MOUNT/media-vault/co-deliver"
+CACHE_ROOT="$APP_ROOT/ccnas-read-cache"
 ENV_FILE="$TMP_ROOT/runtime.env"
-/bin/mkdir -p "$STORAGE_ROOT"
+/bin/mkdir -p "$STORAGE_ROOT" "$CACHE_ROOT"
 
 write_env() {
   local path="$1"
@@ -74,6 +75,8 @@ write_env() {
     printf '%s\n' 'CODELIVER_STORAGE_WRITE_ENABLED=1'
     printf '%s\n' 'CODELIVER_HEALTH_REMOTE_PROBES=1'
     printf 'NAS_MEDIA_ROOT=%s\n' "$media_root"
+    printf 'CODELIVER_CCNAS_READ_CACHE_ROOT=%s\n' "$CACHE_ROOT"
+    printf '%s\n' 'CODELIVER_CCNAS_READ_CACHE_RESERVED_BYTES=0'
     printf '%s\n' 'CODELIVER_REQUIRE_NOTIFICATIONS=0'
     printf '%s\n' 'RESEND_API_KEY='
   } >"$path"
@@ -90,6 +93,7 @@ BASE_ENV=(
   "CODELIVER_EXPECTED_RUNTIME_USER=$(id -un)"
   "CODELIVER_EXPECTED_STORAGE_MOUNT=$STORAGE_MOUNT"
   "CODELIVER_EXPECTED_STORAGE_ROOT=$STORAGE_ROOT"
+  "CODELIVER_CCNAS_READ_CACHE_ROOT=$CACHE_ROOT"
 )
 
 env "${BASE_ENV[@]}" CODELIVER_TEST_ASSUME_MOUNTED=1 /bin/bash -c \

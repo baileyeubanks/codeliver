@@ -49,6 +49,28 @@ test("relative roots are rejected instead of being resolved implicitly", () => {
   assert.match(config.issues.join(" "), /absolute path/);
 });
 
+test("CCNAS requires an explicit APFS read cache root and reserve", () => {
+  const withoutCache = readStorageConfig({
+    CODELIVER_STORAGE_PROVIDER: "ccnas",
+    NAS_MEDIA_ROOT: "/Volumes/CC_NAS/cvp-runtime/co-videopro",
+    CODELIVER_STORAGE_WRITE_ENABLED: "1",
+  });
+  assert.equal(withoutCache.ccnasReadCacheRoot, null);
+  assert.match(withoutCache.issues.join(" "), /CCNAS read cache root/i);
+
+  const configured = readStorageConfig({
+    CODELIVER_STORAGE_PROVIDER: "ccnas",
+    NAS_MEDIA_ROOT: "/Volumes/CC_NAS/cvp-runtime/co-videopro",
+    CODELIVER_CCNAS_READ_CACHE_ROOT: "/Users/example/codeliver-cache",
+    CODELIVER_CCNAS_READ_CACHE_RESERVED_BYTES: "2147483648",
+    CODELIVER_CCNAS_READ_CACHE_MAX_BYTES: "5368709120",
+    CODELIVER_STORAGE_WRITE_ENABLED: "1",
+  });
+  assert.equal(configured.ccnasReadCacheRoot, "/Users/example/codeliver-cache");
+  assert.equal(configured.ccnasReadCacheReservedBytes, 2147483648n);
+  assert.equal(configured.ccnasReadCacheMaxBytes, 5368709120n);
+});
+
 test("Google Drive readiness validates configuration without granting writes", async () => {
   const secret = "drive-token-that-must-not-leak";
   const runtime = createStorageRuntime({

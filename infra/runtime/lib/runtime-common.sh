@@ -21,6 +21,9 @@ if [[ "$RUNTIME_TEST_MODE" == "1" ]]; then
   EXPECTED_RUNTIME_USER="${CODELIVER_EXPECTED_RUNTIME_USER:-$(id -un)}"
   STORAGE_MOUNT="${CODELIVER_EXPECTED_STORAGE_MOUNT:-$APP_ROOT/storage}"
   STORAGE_ROOT="${CODELIVER_EXPECTED_STORAGE_ROOT:-$STORAGE_MOUNT/media-vault/co-deliver}"
+  CCNAS_CACHE_ROOT="${CODELIVER_CCNAS_READ_CACHE_ROOT:-$APP_ROOT/ccnas-read-cache}"
+  CCNAS_CACHE_RESERVED_BYTES="${CODELIVER_CCNAS_READ_CACHE_RESERVED_BYTES:-0}"
+  CCNAS_CACHE_MAX_BYTES="${CODELIVER_CCNAS_READ_CACHE_MAX_BYTES:-1099511627776}"
   LOG_ROOT="$APP_ROOT/logs"
 else
   case "$RUNTIME_PROFILE" in
@@ -32,6 +35,9 @@ else
       EXPECTED_RUNTIME_USER="_mxappservice"
       STORAGE_MOUNT="/Volumes/BLAZE-STORE-2"
       STORAGE_ROOT="/Volumes/BLAZE-STORE-2/media-vault/co-deliver"
+      CCNAS_CACHE_ROOT="/Users/_mxappservice/.local/share/codeliver-ccnas-read-cache"
+      CCNAS_CACHE_RESERVED_BYTES="10737418240"
+      CCNAS_CACHE_MAX_BYTES="107374182400"
       LOG_ROOT="/Users/_mxappservice/Library/Logs/Co-Deliver"
       ;;
     m2-failover)
@@ -42,6 +48,9 @@ else
       EXPECTED_RUNTIME_USER="baileyeubanks"
       STORAGE_MOUNT="/Volumes/CC_NAS"
       STORAGE_ROOT="/Volumes/CC_NAS/cvp-runtime/co-videopro"
+      CCNAS_CACHE_ROOT="/Users/baileyeubanks/.local/share/codeliver-failover/ccnas-read-cache"
+      CCNAS_CACHE_RESERVED_BYTES="107374182400"
+      CCNAS_CACHE_MAX_BYTES="268435456000"
       LOG_ROOT="/Users/baileyeubanks/Library/Logs/Co-VideoPro"
       ;;
   esac
@@ -77,7 +86,8 @@ else
 fi
 
 readonly RUNTIME_TEST_MODE RUNTIME_PROFILE APP_ROOT ENV_FILE NODE_BIN NPM_CLI_JS EXPECTED_RUNTIME_USER
-readonly STORAGE_MOUNT STORAGE_ROOT LOG_ROOT RELEASES_ROOT STAGING_ROOT STATE_ROOT CONTROL_ROOT
+readonly STORAGE_MOUNT STORAGE_ROOT CCNAS_CACHE_ROOT CCNAS_CACHE_RESERVED_BYTES CCNAS_CACHE_MAX_BYTES
+readonly LOG_ROOT RELEASES_ROOT STAGING_ROOT STATE_ROOT CONTROL_ROOT
 readonly CURRENT_LINK PREVIOUS_LINK RECEIPTS_ROOT CANARY_LOG_ROOT LOCKS_ROOT PROMOTION_LOCK
 readonly EXPECTED_NODE_VERSION PRODUCTION_PORT DEFAULT_CANARY_PORT BIND_HOST ADMIN_HOST CLIENT_HOST
 readonly LAUNCHD_LABEL
@@ -204,12 +214,17 @@ load_runtime_env() {
     CODELIVER_STORAGE_WRITE_ENABLED=1
     CODELIVER_HEALTH_REMOTE_PROBES=1
     NAS_MEDIA_ROOT="$STORAGE_ROOT"
+    CODELIVER_CCNAS_READ_CACHE_ROOT="$CCNAS_CACHE_ROOT"
+    CODELIVER_CCNAS_READ_CACHE_RESERVED_BYTES="$CCNAS_CACHE_RESERVED_BYTES"
+    CODELIVER_CCNAS_READ_CACHE_MAX_BYTES="$CCNAS_CACHE_MAX_BYTES"
     CODELIVER_CLAMSCAN_PATH=/opt/homebrew/bin/clamscan
     FFMPEG_PATH=/opt/homebrew/bin/ffmpeg
     FFPROBE_PATH=/opt/homebrew/bin/ffprobe
     export NODE_ENV PORT CODELIVER_BIND_HOST ADMIN_SITE_URL NEXT_PUBLIC_ADMIN_SITE_URL
     export CLIENT_SITE_URL NEXT_PUBLIC_CLIENT_SITE_URL CODELIVER_STORAGE_PROVIDER
     export CODELIVER_STORAGE_WRITE_ENABLED CODELIVER_HEALTH_REMOTE_PROBES NAS_MEDIA_ROOT
+    export CODELIVER_CCNAS_READ_CACHE_ROOT CODELIVER_CCNAS_READ_CACHE_RESERVED_BYTES
+    export CODELIVER_CCNAS_READ_CACHE_MAX_BYTES
     export CODELIVER_CLAMSCAN_PATH FFMPEG_PATH FFPROBE_PATH
   fi
 
@@ -252,6 +267,14 @@ load_runtime_env() {
   [[ "${CODELIVER_STORAGE_WRITE_ENABLED:-}" == "1" ]] || fail "CODELIVER_STORAGE_WRITE_ENABLED must be 1"
   [[ "${CODELIVER_HEALTH_REMOTE_PROBES:-}" == "1" ]] || fail "CODELIVER_HEALTH_REMOTE_PROBES must be 1"
   [[ "${NAS_MEDIA_ROOT:-}" == "$STORAGE_ROOT" ]] || fail "NAS_MEDIA_ROOT must be $STORAGE_ROOT"
+  [[ "${CODELIVER_CCNAS_READ_CACHE_ROOT:-}" == "$CCNAS_CACHE_ROOT" ]] || \
+    fail "CODELIVER_CCNAS_READ_CACHE_ROOT must be $CCNAS_CACHE_ROOT"
+  if [[ "$RUNTIME_TEST_MODE" == "0" ]]; then
+    [[ "${CODELIVER_CCNAS_READ_CACHE_RESERVED_BYTES:-}" == "$CCNAS_CACHE_RESERVED_BYTES" ]] || \
+      fail "CODELIVER_CCNAS_READ_CACHE_RESERVED_BYTES must be $CCNAS_CACHE_RESERVED_BYTES"
+    [[ "${CODELIVER_CCNAS_READ_CACHE_MAX_BYTES:-}" == "$CCNAS_CACHE_MAX_BYTES" ]] || \
+      fail "CODELIVER_CCNAS_READ_CACHE_MAX_BYTES must be $CCNAS_CACHE_MAX_BYTES"
+  fi
 
   case "${CODELIVER_REQUIRE_NOTIFICATIONS:-}" in
     0) ;;
@@ -276,6 +299,21 @@ require_storage_ready() {
   [[ -r "$STORAGE_ROOT" && -w "$STORAGE_ROOT" ]] || fail "$STORAGE_ROOT must be readable and writable"
   [[ "$(file_owner "$STORAGE_ROOT")" == "$EXPECTED_RUNTIME_USER" ]] || \
     fail "$STORAGE_ROOT must be owned by $EXPECTED_RUNTIME_USER"
+  [[ -d "$CCNAS_CACHE_ROOT" && ! -L "$CCNAS_CACHE_ROOT" ]] || \
+    fail "$CCNAS_CACHE_ROOT is missing or is a symlink"
+  [[ -r "$CCNAS_CACHE_ROOT" && -w "$CCNAS_CACHE_ROOT" ]] || \
+    fail "$CCNAS_CACHE_ROOT must be readable and writable"
+  [[ "$(file_owner "$CCNAS_CACHE_ROOT")" == "$EXPECTED_RUNTIME_USER" ]] || \
+    fail "$CCNAS_CACHE_ROOT must be owned by $EXPECTED_RUNTIME_USER"
+  if [[ "$RUNTIME_TEST_MODE" == "0" ]]; then
+    "$NODE_BIN" -e '
+      const { statfsSync } = require("node:fs");
+      process.exit(statfsSync(process.argv[1], { bigint: true }).type === 26n ? 0 : 1);
+    ' "$CCNAS_CACHE_ROOT" >/dev/null 2>&1 || \
+      fail "$CCNAS_CACHE_ROOT must reside on APFS"
+    [[ "$(/usr/bin/stat -f '%d' "$CCNAS_CACHE_ROOT")" != "$(/usr/bin/stat -f '%d' "$STORAGE_ROOT")" ]] || \
+      fail "$CCNAS_CACHE_ROOT must be on a different filesystem from NAS_MEDIA_ROOT"
+  fi
 }
 
 require_pinned_node() {
@@ -288,15 +326,15 @@ require_pinned_node() {
 ensure_runtime_directories() {
   local directory mode
   for directory in "$APP_ROOT" "$RELEASES_ROOT" "$STAGING_ROOT" "$STATE_ROOT" "$STATE_ROOT/cache" \
-    "$CONTROL_ROOT" "$RECEIPTS_ROOT" "$CANARY_LOG_ROOT" "$LOCKS_ROOT" "$LOG_ROOT"; do
+    "$CONTROL_ROOT" "$RECEIPTS_ROOT" "$CANARY_LOG_ROOT" "$LOCKS_ROOT" "$CCNAS_CACHE_ROOT" "$LOG_ROOT"; do
     if [[ -e "$directory" || -L "$directory" ]]; then
       [[ -d "$directory" && ! -L "$directory" ]] || fail "runtime path must be a real directory: $directory"
     fi
   done
   /bin/mkdir -p "$RELEASES_ROOT" "$STAGING_ROOT" "$STATE_ROOT/cache" "$CONTROL_ROOT" \
-    "$RECEIPTS_ROOT" "$CANARY_LOG_ROOT" "$LOCKS_ROOT" "$LOG_ROOT"
+    "$RECEIPTS_ROOT" "$CANARY_LOG_ROOT" "$LOCKS_ROOT" "$CCNAS_CACHE_ROOT" "$LOG_ROOT"
   for directory in "$APP_ROOT" "$RELEASES_ROOT" "$STAGING_ROOT" "$STATE_ROOT" "$STATE_ROOT/cache" \
-    "$CONTROL_ROOT" "$RECEIPTS_ROOT" "$CANARY_LOG_ROOT" "$LOCKS_ROOT" "$LOG_ROOT"; do
+    "$CONTROL_ROOT" "$RECEIPTS_ROOT" "$CANARY_LOG_ROOT" "$LOCKS_ROOT" "$CCNAS_CACHE_ROOT" "$LOG_ROOT"; do
     [[ "$(file_owner "$directory")" == "$EXPECTED_RUNTIME_USER" ]] || \
       fail "runtime directory must be owned by $EXPECTED_RUNTIME_USER: $directory"
     mode="$(file_mode "$directory")"

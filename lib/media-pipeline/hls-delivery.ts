@@ -234,7 +234,11 @@ async function readExactPlaylist(
     stream = await adapter.openStoredObjectReadStream(
       receipt.objectKey,
       undefined,
-      { size: receipt.size, providerVersionId: receipt.providerVersionId },
+      {
+        size: receipt.size,
+        sha256: receipt.sha256,
+        providerVersionId: receipt.providerVersionId,
+      },
     );
     const chunks: Buffer[] = [];
     const hash = createHash("sha256");

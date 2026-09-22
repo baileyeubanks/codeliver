@@ -182,7 +182,7 @@ test("record and Whiteboard routes never mark Review as the active project surfa
     projectId: "el-paso",
     activeRecordTab: "brief",
   });
-  assert.match(recordRail, /<a[^>]*(?:href="\/projects\/el-paso\?tab=brief"[^>]*aria-current="page"|aria-current="page"[^>]*href="\/projects\/el-paso\?tab=brief")/);
+  assert.match(recordRail, /<a[^>]*(?:href="\/projects\/el-paso\?tab=brief"[^>]*data-active="true"[^>]*aria-current="page"|data-active="true"[^>]*aria-current="page"[^>]*href="\/projects\/el-paso\?tab=brief")/);
   assert.doesNotMatch(recordRail, /data-active="true"[^>]*aria-current="page"[^>]*>.*Review/);
 
   const whiteboardRail = renderedMarkup(navigation.CockpitProjectNavigation, {
@@ -190,7 +190,7 @@ test("record and Whiteboard routes never mark Review as the active project surfa
     projectId: "el-paso",
     activeWhiteboard: true,
   });
-  assert.match(whiteboardRail, /<a[^>]*(?:href="\/projects\/el-paso\/whiteboard"[^>]*aria-current="page"|aria-current="page"[^>]*href="\/projects\/el-paso\/whiteboard")/);
+  assert.match(whiteboardRail, /<a[^>]*(?:href="\/projects\/el-paso\/whiteboard"[^>]*data-active="true"[^>]*aria-current="page"|data-active="true"[^>]*aria-current="page"[^>]*href="\/projects\/el-paso\/whiteboard")/);
   assert.doesNotMatch(whiteboardRail, /data-active="true"[^>]*aria-current="page"[^>]*>.*Review/);
 
   const mobileRecordRail = renderedMarkup(navigation.CockpitMobileNavigation, {
@@ -200,6 +200,32 @@ test("record and Whiteboard routes never mark Review as the active project surfa
     onOpenDrawer: () => undefined,
   });
   assert.doesNotMatch(mobileRecordRail, /aria-current="page"/);
+});
+
+test("compact More is transient while the expanded rail retains its saved disclosure", () => {
+  const source = readFileSync(navigationPath, "utf8");
+  assert.match(source, /const \[compactSecondaryOpen, setCompactSecondaryOpen\] = useState\(false\)/);
+  assert.match(source, /const secondaryVisible = compact\s*\? compactSecondaryOpen\s*:/);
+  assert.match(source, /document\.addEventListener\("pointerdown", closeOnOutsidePointer\)/);
+  assert.match(source, /event\.key !== "Escape"/);
+  assert.match(source, /if \(compact\) setCompactSecondaryOpen\(false\);/);
+  assert.match(source, /if \(compact\) \{\s*setCompactSecondaryOpen\(\(open\) => !open\);/);
+});
+
+test("all active navigation links receive the primary active treatment", () => {
+  const styles = readFileSync(resolve(repositoryRoot, "components/cockpit/CockpitNavigation.module.css"), "utf8");
+  assert.match(styles, /\.primary a\[data-active="true"\]/);
+  assert.match(styles, /\.recordLinks a\[data-active="true"\]/);
+});
+
+test("the compact rail exposes an accurate expansion control", () => {
+  const markup = renderedMarkup(navigation.CockpitProjectNavigation, {
+    ...baseProps,
+    compact: true,
+    onCollapse: () => undefined,
+  });
+  assert.match(markup, /aria-label="Expand rail"/);
+  assert.match(markup, />Expand rail</);
 });
 
 test("mounted rail and drawer navigation use distinct More disclosure targets", () => {

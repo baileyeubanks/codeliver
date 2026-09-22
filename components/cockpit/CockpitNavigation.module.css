@@ -137,7 +137,9 @@
   color: var(--cockpit-accent, #156bff);
 }
 
-.primary button[data-active="true"] {
+.primary button[data-active="true"],
+.primary a[data-active="true"],
+.recordLinks a[data-active="true"] {
   background: var(--cockpit-accent-soft, #edf4ff);
   color: var(--cockpit-accent, #156bff);
   font-weight: 680;

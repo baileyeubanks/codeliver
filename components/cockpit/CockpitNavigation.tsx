@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useId, useRef, useSyncExternalStore } from "react";
+import { useCallback, useEffect, useId, useRef, useState, useSyncExternalStore } from "react";
 import Link from "next/link";
 import {
   CalendarDays,
@@ -17,6 +17,7 @@ import {
   MessageCircle,
   PackageCheck,
   PanelLeftClose,
+  PanelLeftOpen,
   Settings,
   X,
   type LucideIcon,
@@ -134,6 +135,9 @@ export function CockpitProjectNavigation({
   onNavigate,
 }: ProjectNavigationProps) {
   const secondaryNavigationId = useId();
+  const railRef = useRef<HTMLDivElement>(null);
+  const moreButtonRef = useRef<HTMLButtonElement>(null);
+  const [compactSecondaryOpen, setCompactSecondaryOpen] = useState(false);
   const primaryIds: CockpitSection[] = ["overview", "media", "plan", "delivery"];
   const primarySections = new Set<CockpitSection>(primaryIds);
   const storedSecondaryPreference = useProjectToolsPreference(projectId);
@@ -146,16 +150,51 @@ export function CockpitProjectNavigation({
   const hasProjectSurfaceActive = !activeRecordTab && !activeWhiteboard;
   const shouldRevealSelectedSecondary = Boolean(activeRecordTab)
     || (!activeWhiteboard && !primarySections.has(activeSection));
-  const secondaryVisible = storedSecondaryPreference
-    ? storedSecondaryPreference === "open"
-    : shouldRevealSelectedSecondary;
+  // The full rail remembers its disclosure because it has space to keep the
+  // named destinations visible. The compact rail uses a floating menu, which
+  // must behave like a transient menu instead of covering workspace controls.
+  const secondaryVisible = compact
+    ? compactSecondaryOpen
+    : storedSecondaryPreference
+      ? storedSecondaryPreference === "open"
+      : shouldRevealSelectedSecondary;
+
+  useEffect(() => {
+    if (!compact || !compactSecondaryOpen) return;
+
+    const closeOnOutsidePointer = (event: PointerEvent) => {
+      if (!railRef.current?.contains(event.target as Node)) setCompactSecondaryOpen(false);
+    };
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key !== "Escape") return;
+      event.preventDefault();
+      setCompactSecondaryOpen(false);
+      moreButtonRef.current?.focus();
+    };
+    document.addEventListener("pointerdown", closeOnOutsidePointer);
+    document.addEventListener("keydown", closeOnEscape);
+    return () => {
+      document.removeEventListener("pointerdown", closeOnOutsidePointer);
+      document.removeEventListener("keydown", closeOnEscape);
+    };
+  }, [compact, compactSecondaryOpen]);
 
   function select(section: CockpitSection) {
+    if (compact) setCompactSecondaryOpen(false);
     onSelect(section);
     onNavigate?.();
   }
 
+  function navigate() {
+    if (compact) setCompactSecondaryOpen(false);
+    onNavigate?.();
+  }
+
   function toggleSecondary() {
+    if (compact) {
+      setCompactSecondaryOpen((open) => !open);
+      return;
+    }
     writeProjectToolsPreference(
       projectToolsStorageKey(projectId),
       secondaryVisible ? "closed" : "open",
@@ -173,7 +212,7 @@ export function CockpitProjectNavigation({
   }
 
   return (
-    <div className={`${styles.rail} ${compact ? styles.compact : ""}`}>
+    <div ref={railRef} className={`${styles.rail} ${compact ? styles.compact : ""}`}>
       <nav className={styles.primary} aria-label="Project workspace">
         {primaryNavigation.map((item) => {
           const Icon = ICONS[item.icon];
@@ -196,8 +235,9 @@ export function CockpitProjectNavigation({
           <Link
             href={projectHref(`/projects/${encodeURIComponent(projectId)}/whiteboard`, { tab: null, surface: null })}
             title={compact ? "Whiteboard" : undefined}
+            data-active={activeWhiteboard}
             aria-current={activeWhiteboard ? "page" : undefined}
-            onClick={onNavigate}
+            onClick={navigate}
           >
             <CalendarDays size={18} />
             <span className={styles.label}>Whiteboard</span>
@@ -207,6 +247,7 @@ export function CockpitProjectNavigation({
           <button
             type="button"
             className={styles.moreButton}
+            ref={moreButtonRef}
             aria-label="More project tools"
             aria-expanded={secondaryVisible}
             aria-controls={secondaryNavigationId}
@@ -253,8 +294,9 @@ export function CockpitProjectNavigation({
                     href={projectHref(`/projects/${encodeURIComponent(projectId)}`, { surface: null, tab })}
                     title={label}
                     aria-label={label}
+                    data-active={activeRecordTab === tab}
                     aria-current={activeRecordTab === tab ? "page" : undefined}
-                    onClick={onNavigate}
+                    onClick={navigate}
                   >
                     <span className={styles.label}>{label}</span>
                   </Link>
@@ -264,16 +306,22 @@ export function CockpitProjectNavigation({
             </div>
           ) : null}
         </div>
-        <Link href={demoMode ? "/settings?demo=1" : "/settings"} title={compact ? "Settings" : undefined} onClick={onNavigate}>
+        <Link href={demoMode ? "/settings?demo=1" : "/settings"} title={compact ? "Settings" : undefined} onClick={navigate}>
           <Settings size={18} />
           <span className={styles.label}>Settings</span>
         </Link>
       </nav>
 
       {onCollapse ? (
-        <button className={styles.collapse} type="button" onClick={onCollapse} title="Compact project rail">
-          <PanelLeftClose size={17} />
-          <span className={styles.label}>Compact rail</span>
+        <button
+          className={styles.collapse}
+          type="button"
+          onClick={onCollapse}
+          title={compact ? "Expand project rail" : "Compact project rail"}
+          aria-label={compact ? "Expand rail" : "Compact rail"}
+        >
+          {compact ? <PanelLeftOpen size={17} /> : <PanelLeftClose size={17} />}
+          <span className={styles.label}>{compact ? "Expand rail" : "Compact rail"}</span>
         </button>
       ) : null}
     </div>

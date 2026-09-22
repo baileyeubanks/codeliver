@@ -91,3 +91,57 @@ export function timelineSecondsForClipSource(
   const source = Math.max(clip.source_in_seconds, Math.min(clip.source_out_seconds, sourceSeconds));
   return clip.timeline_in_seconds + (source - clip.source_in_seconds);
 }
+
+/** A source replacement is asynchronous. Keep the caller's current intent and
+ * request generation explicit so delayed metadata or play promises cannot
+ * revive a paused sequence or apply a prior source's seek. */
+export interface PlaybackIntent {
+  generation: number;
+  desiredPlaying: boolean;
+}
+
+export interface PlaybackRequest {
+  generation: number;
+  sourceUrl: string;
+  resume: boolean;
+}
+
+export function queuePlaybackRequest(
+  intent: PlaybackIntent,
+  sourceUrl: string,
+  resume: boolean,
+): { intent: PlaybackIntent; request: PlaybackRequest } {
+  const nextIntent = { generation: intent.generation + 1, desiredPlaying: resume };
+  return {
+    intent: nextIntent,
+    request: { generation: nextIntent.generation, sourceUrl, resume },
+  };
+}
+
+/** Pausing preserves a pending exact seek but makes it impossible for that
+ * request, or an older play promise, to restart media. */
+export function pausePlaybackRequest(
+  intent: PlaybackIntent,
+  request: PlaybackRequest | null,
+): { intent: PlaybackIntent; request: PlaybackRequest | null } {
+  const nextIntent = { generation: intent.generation + 1, desiredPlaying: false };
+  return {
+    intent: nextIntent,
+    request: request ? { ...request, generation: nextIntent.generation, resume: false } : null,
+  };
+}
+
+export function canResolvePlaybackRequest(
+  intent: PlaybackIntent,
+  request: PlaybackRequest,
+  observedSourceUrl: string,
+): boolean {
+  return request.generation === intent.generation && request.sourceUrl === observedSourceUrl;
+}
+
+export function canStartPlayback(
+  intent: PlaybackIntent,
+  request: PlaybackRequest,
+): boolean {
+  return request.generation === intent.generation && request.resume && intent.desiredPlaying;
+}

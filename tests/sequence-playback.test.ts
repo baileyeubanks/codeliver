@@ -1,9 +1,13 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import {
+  canResolvePlaybackRequest,
+  canStartPlayback,
   clampSequenceTimelinePosition,
   nextSequencePlayback,
+  pausePlaybackRequest,
   orderSequenceClips,
+  queuePlaybackRequest,
   resolveSequencePlayback,
   sequenceTimelineDuration,
   timelineSecondsForClipSource,
@@ -55,4 +59,30 @@ test("timeline position clamps keyboard and pointer values, including the exclus
   assert.equal(clampSequenceTimelinePosition(18, 10), 10);
   assert.equal(clampSequenceTimelinePosition(Number.NaN, 10), 0);
   assert.deepEqual(resolveSequencePlayback(clips, 100), { kind: "end", timelineSeconds: 10 });
+});
+
+
+test("playback request coordinator keeps a deliberate pause from restarting after metadata", () => {
+  const queued = queuePlaybackRequest({ generation: 0, desiredPlaying: false }, "https://source.test/b", true);
+  const paused = pausePlaybackRequest(queued.intent, queued.request);
+
+  assert.equal(paused.intent.desiredPlaying, false);
+  assert.equal(paused.request?.resume, false);
+  assert.equal(canResolvePlaybackRequest(paused.intent, queued.request, "https://source.test/b"), false);
+  assert.equal(canResolvePlaybackRequest(paused.intent, paused.request!, "https://source.test/b"), true);
+  assert.equal(canStartPlayback(paused.intent, paused.request!), false);
+});
+
+test("playback request coordinator rejects stale source metadata and preserves nonzero record starts", () => {
+  const first = queuePlaybackRequest({ generation: 0, desiredPlaying: false }, "https://source.test/a", true);
+  const second = queuePlaybackRequest(first.intent, "https://source.test/b", true);
+
+  assert.equal(canResolvePlaybackRequest(second.intent, first.request, "https://source.test/a"), false);
+  assert.equal(canResolvePlaybackRequest(second.intent, second.request, "https://source.test/a"), false);
+  assert.equal(canResolvePlaybackRequest(second.intent, second.request, "https://source.test/b"), true);
+
+  const nonzero = [clip("late", "source-a", 4, 6, 20, 22)];
+  assert.deepEqual(resolveSequencePlayback(nonzero, 0), {
+    kind: "clip", clip: nonzero[0], timelineSeconds: 4, sourceSeconds: 20,
+  });
 });

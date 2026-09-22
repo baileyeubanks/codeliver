@@ -9,11 +9,17 @@ import {
 } from "@/lib/demo/workspace-store";
 import { edlFilename, generateEdl } from "@/lib/covideopro/edl.ts";
 import {
+  canResolvePlaybackRequest,
+  canStartPlayback,
   nextSequencePlayback,
   orderSequenceClips,
+  pausePlaybackRequest,
+  queuePlaybackRequest,
   resolveSequencePlayback,
   sequenceTimelineDuration,
   timelineSecondsForClipSource,
+  type PlaybackIntent,
+  type PlaybackRequest,
   type SequencePlaybackTarget,
 } from "@/lib/projects/sequence-playback";
 import type { Sequence, SequenceClip } from "@/lib/covideopro/record.ts";
@@ -46,12 +52,12 @@ export default function SequenceTimeline({ sequence, clips, assets, onNotice }: 
   const duration = useMemo(() => sequenceTimelineDuration(ordered), [ordered]);
   const videoRef = useRef<HTMLVideoElement>(null);
   const trackRef = useRef<HTMLDivElement>(null);
-  const pendingSeekRef = useRef<{ target: SequencePlaybackTarget; resume: boolean } | null>(null);
+  const pendingSeekRef = useRef<{ target: SequencePlaybackTarget; request: PlaybackRequest } | null>(null);
+  const playbackIntentRef = useRef<PlaybackIntent>({ generation: 0, desiredPlaying: false });
   const initialSeekAppliedRef = useRef(false);
-  const isPlayingRef = useRef(false);
   const [selectedClipId, setSelectedClipId] = useState<string | null>(null);
   const [activeClipId, setActiveClipId] = useState<string | null>(() => ordered[0]?.id ?? null);
-  const [playhead, setPlayhead] = useState(0);
+  const [playhead, setPlayhead] = useState(() => ordered[0]?.timeline_in_seconds ?? 0);
   const [playing, setPlaying] = useState(false);
 
   const activeClip = ordered.find((clip) => clip.id === activeClipId) ?? ordered[0] ?? null;
@@ -60,9 +66,13 @@ export default function SequenceTimeline({ sequence, clips, assets, onNotice }: 
   const selected = ordered.find((clip) => clip.id === selectedClipId) ?? null;
   const selectedAsset = selected ? assets.find((asset) => asset.id === selected.asset_id) : null;
 
+  function absoluteSourceUrl(sourceUrl: string): string {
+    return new URL(sourceUrl, window.location.href).href;
+  }
+
   const finishPlayback = useCallback(() => {
     pendingSeekRef.current = null;
-    isPlayingRef.current = false;
+    playbackIntentRef.current = { generation: playbackIntentRef.current.generation + 1, desiredPlaying: false };
     videoRef.current?.pause();
     setPlaying(false);
     setPlayhead(duration);
@@ -72,14 +82,18 @@ export default function SequenceTimeline({ sequence, clips, assets, onNotice }: 
     const pending = pendingSeekRef.current;
     const video = videoRef.current;
     if (!pending || !video || video.readyState < HTMLMediaElement.HAVE_METADATA) return;
+    if (!canResolvePlaybackRequest(playbackIntentRef.current, pending.request, video.currentSrc)) return;
     video.currentTime = pending.target.sourceSeconds;
     pendingSeekRef.current = null;
-    if (!pending.resume) return;
+    if (!canStartPlayback(playbackIntentRef.current, pending.request)) return;
+    const requestGeneration = pending.request.generation;
     void video.play().then(() => {
-      isPlayingRef.current = true;
+      if (playbackIntentRef.current.generation !== requestGeneration || !playbackIntentRef.current.desiredPlaying) {
+        video.pause();
+        return;
+      }
       setPlaying(true);
     }).catch(() => {
-      isPlayingRef.current = false;
       setPlaying(false);
       onNotice("Playback was blocked by the browser.");
     });
@@ -87,24 +101,31 @@ export default function SequenceTimeline({ sequence, clips, assets, onNotice }: 
 
   const queuePlaybackTarget = useCallback((target: SequencePlaybackTarget, resume: boolean) => {
     const video = videoRef.current;
-    pendingSeekRef.current = { target, resume };
+    const sourceUrl = assets.find((asset) => asset.id === target.clip.asset_id)?.file_url ?? null;
+    if (!sourceUrl) {
+      finishPlayback();
+      return;
+    }
+    const queued = queuePlaybackRequest(playbackIntentRef.current, absoluteSourceUrl(sourceUrl), resume);
+    playbackIntentRef.current = queued.intent;
+    pendingSeekRef.current = { target, request: queued.request };
     setActiveClipId(target.clip.id);
     setPlayhead(target.timelineSeconds);
     if (video && activeClip?.asset_id === target.clip.asset_id && video.readyState >= HTMLMediaElement.HAVE_METADATA) {
       flushPendingSeek();
     }
-  }, [activeClip?.asset_id, flushPendingSeek]);
+  }, [activeClip?.asset_id, assets, finishPlayback, flushPendingSeek]);
 
   /** Clamp every interaction through the resolver. Gaps select the next clip;
    * the exclusive end updates the playhead and deliberately has no source seek. */
-  const seek = useCallback((timelineSeconds: number, resume = playing) => {
+  const seek = useCallback((timelineSeconds: number, resume = playbackIntentRef.current.desiredPlaying) => {
     const target = resolveSequencePlayback(ordered, timelineSeconds);
     if (target.kind === "end") {
       finishPlayback();
       return;
     }
     queuePlaybackTarget(target, resume);
-  }, [finishPlayback, ordered, playing, queuePlaybackTarget]);
+  }, [finishPlayback, ordered, queuePlaybackTarget]);
 
   useEffect(() => {
     const video = videoRef.current;
@@ -120,6 +141,10 @@ export default function SequenceTimeline({ sequence, clips, assets, onNotice }: 
   useEffect(() => {
     if (initialSeekAppliedRef.current || !activeClip) return;
     initialSeekAppliedRef.current = true;
+    const sourceUrl = assets.find((asset) => asset.id === activeClip.asset_id)?.file_url ?? null;
+    if (!sourceUrl) return;
+    const queued = queuePlaybackRequest(playbackIntentRef.current, absoluteSourceUrl(sourceUrl), false);
+    playbackIntentRef.current = queued.intent;
     pendingSeekRef.current = {
       target: {
         kind: "clip",
@@ -127,10 +152,10 @@ export default function SequenceTimeline({ sequence, clips, assets, onNotice }: 
         timelineSeconds: activeClip.timeline_in_seconds,
         sourceSeconds: activeClip.source_in_seconds,
       },
-      resume: false,
+      request: queued.request,
     };
     flushPendingSeek();
-  }, [activeClip, flushPendingSeek]);
+  }, [activeClip, assets, flushPendingSeek]);
 
   // Playback advances from the active record clip, never from a matching source
   // range. This supports repeated/reordered ranges and cross-asset sequences.
@@ -142,7 +167,7 @@ export default function SequenceTimeline({ sequence, clips, assets, onNotice }: 
     const currentClip = current;
 
     function advance() {
-      if (!isPlayingRef.current || pendingSeekRef.current) return;
+      if (!playbackIntentRef.current.desiredPlaying || pendingSeekRef.current) return;
       const next = nextSequencePlayback(ordered, currentClip.id);
       if (next.kind === "end") finishPlayback();
       else queuePlaybackTarget(next, true);
@@ -150,7 +175,7 @@ export default function SequenceTimeline({ sequence, clips, assets, onNotice }: 
     function onTimeUpdate() {
       // A departing source can emit a final timeupdate while its replacement
       // loads. It must not advance or overwrite the target clip's playhead.
-      if (!isPlayingRef.current || pendingSeekRef.current) return;
+      if (!playbackIntentRef.current.desiredPlaying || pendingSeekRef.current) return;
       const source = playbackVideo.currentTime;
       if (source >= currentClip.source_out_seconds - 0.04) {
         advance();
@@ -170,8 +195,10 @@ export default function SequenceTimeline({ sequence, clips, assets, onNotice }: 
 
   function togglePlay() {
     if (!playableUrl) return;
-    if (playing) {
-      isPlayingRef.current = false;
+    if (playing || playbackIntentRef.current.desiredPlaying) {
+      const paused = pausePlaybackRequest(playbackIntentRef.current, pendingSeekRef.current?.request ?? null);
+      playbackIntentRef.current = paused.intent;
+      if (pendingSeekRef.current && paused.request) pendingSeekRef.current = { ...pendingSeekRef.current, request: paused.request };
       videoRef.current?.pause();
       setPlaying(false);
       return;

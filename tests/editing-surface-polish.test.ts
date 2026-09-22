@@ -36,7 +36,9 @@ test("timeline uses first exact source frame, ignores stale paused events, and p
 
   assert.match(component, /initialSeekAppliedRef/);
   assert.match(component, /video\.currentTime = pending\.target\.sourceSeconds/);
-  assert.match(component, /if \(!isPlayingRef\.current \|\| pendingSeekRef\.current\) return/);
+  assert.match(component, /if \(!playbackIntentRef\.current\.desiredPlaying \|\| pendingSeekRef\.current\) return/);
+  assert.match(component, /canResolvePlaybackRequest\(playbackIntentRef\.current, pending\.request, video\.currentSrc\)/);
+  assert.match(component, /pausePlaybackRequest\(playbackIntentRef\.current, pendingSeekRef\.current\?\.request \?\? null\)/);
   assert.match(component, /style=\{\{ left: `\$\{left\}%`, width: `\$\{width\}%` \}\}/);
   assert.match(styles, /\.cv-timeline__clip \{ position: absolute; top: 0; bottom: 0;/);
 });

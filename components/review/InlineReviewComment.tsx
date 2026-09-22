@@ -186,8 +186,8 @@ export default function InlineReviewComment({
           type="button"
           onClick={() => void submit()}
           disabled={!reviewerName.trim() || !body.trim() || submitting}
-          title="Send comment and continue playback"
-          aria-label="Send comment and continue playback"
+          title="Send comment"
+          aria-label="Send comment"
         >
           {submitting ? <LoaderCircle className="animate-spin" size={16} /> : <Send size={16} />}
         </button>

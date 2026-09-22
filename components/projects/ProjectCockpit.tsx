@@ -1837,9 +1837,19 @@ export default function ProjectCockpit({
         const video = videoRef.current;
         if (video && typeof video.play === "function") {
           void video.play().then(() => setNativeVideoActive(true)).catch(() => {
+            if (!demoMode) {
+              setNativeVideoActive(false);
+              setIsPlaying(false);
+              setPlaybackError("This video could not play. Try again or choose another file.");
+              return;
+            }
             setSimulatedPlayback(true);
             setIsPlaying(true);
           });
+        } else if (!demoMode) {
+          setNativeVideoActive(false);
+          setIsPlaying(false);
+          setPlaybackError("Video playback is unavailable. Reload and try again.");
         } else {
           setSimulatedPlayback(true);
           setIsPlaying(true);

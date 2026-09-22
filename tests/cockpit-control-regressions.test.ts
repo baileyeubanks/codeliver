@@ -10,6 +10,10 @@ const cockpitSource = readFileSync(
   resolve(repositoryRoot, "components/projects/ProjectCockpit.tsx"),
   "utf8",
 );
+const inlineCommentSource = readFileSync(
+  resolve(repositoryRoot, "components/review/InlineReviewComment.tsx"),
+  "utf8",
+);
 const cockpitDockStyles = readFileSync(
   resolve(repositoryRoot, "components/cockpit/CockpitDock.module.css"),
   "utf8",
@@ -392,4 +396,17 @@ test("demo upload terminal states stay readable and dismissible", () => {
     globalStyles,
     /section\[data-state="complete"\] footer > button/,
   );
+});
+
+
+test("comment submission never pretends a production player resumed", () => {
+  assert.doesNotMatch(inlineCommentSource, /continue playback/);
+  assert.match(inlineCommentSource, /aria-label="Send comment"/);
+
+  const submitComment = cockpitSource.match(
+    /async function submitComment\(\) \{([\s\S]*?)\n  \}\n\n  async function toggleCommentStatus/,
+  )?.[1];
+  assert.ok(submitComment, "comment submission handler is missing");
+  assert.match(submitComment, /if \(!demoMode\) \{[\s\S]*?setIsPlaying\(false\);[\s\S]*?setPlaybackError\(/);
+  assert.match(submitComment, /else if \(!demoMode\) \{[\s\S]*?setIsPlaying\(false\);[\s\S]*?setPlaybackError\(/);
 });

@@ -248,6 +248,7 @@ export default function PublicReviewPage() {
   const requestedDemoShare = requestedDemoShareToken
     ? demoWorkspace.shareLinks.find((link) => link.token === requestedDemoShareToken)
     : null;
+  const isSourcePreview = Boolean(demoMode && sourceCatalog && !requestedDemoShare);
   const requestedDemoAssetId = demoMode
     ? searchParams.get("asset") ?? requestedDemoShare?.asset_ids[0] ?? sourceCatalog?.assets[0]?.id ?? null
     : null;
@@ -341,6 +342,7 @@ export default function PublicReviewPage() {
           });
           const publicVersionId = demoVersionAuthority.current.id;
           const requestedIntent =
+            sourceCatalog && !requestedDemoShare ? "internal_review" :
             requestedDemoShare?.share_intent ??
             normalizeShareIntent(searchParams.get("intent")) ??
             deriveShareIntent({
@@ -751,16 +753,18 @@ export default function PublicReviewPage() {
   const activeApproval =
     orderedApprovals.find((approval) => activeApprovalIdSet.has(approval.id)) ?? pendingApprovals[0] ?? null;
   const expiresLabel = formatShortDate(invite?.expires_at);
-  const shareMeta = formatShareIntentMeta(shareIntent);
+  const shareMeta = isSourcePreview
+    ? { ...formatShareIntentMeta(shareIntent), label: "Source preview", permissionsLabel: "Local notes" }
+    : formatShareIntentMeta(shareIntent);
   const pageDescription =
-    shareIntent === "final_delivery"
+    isSourcePreview ? "Imported source file. Notes stay in this local workspace." : shareIntent === "final_delivery"
       ? "Approved delivery and review history."
       : shareIntent === "approval_needed"
         ? "Client approval is active for this version."
         : shareIntent === "internal_review"
           ? "Internal review is active for this version."
           : "Client review is active for this version.";
-  const stageTitle = shareIntent === "final_delivery" ? "Delivery player" : "Review player";
+  const stageTitle = isSourcePreview ? "Source player" : shareIntent === "final_delivery" ? "Delivery player" : "Review player";
   const stageDescription = compareMode
     ? "A/B compare — linked playback, no pins or drawings"
     : drawMode
@@ -769,6 +773,7 @@ export default function PublicReviewPage() {
     ? "Pin mode active"
     : cutMarkers.length > 0
       ? `${cutMarkers.length} cut ${cutMarkers.length === 1 ? "decision" : "decisions"} marked`
+    : isSourcePreview ? "Imported file"
     : shareIntent === "final_delivery"
       ? "Approved version and delivery history"
       : `Version ${activeVersion?.version_number ?? version?.version_number ?? 1} · Client review`;
@@ -1348,7 +1353,7 @@ export default function PublicReviewPage() {
               {demoMode ? (
                 <span className="client-review-back-link" aria-label="External review">
                   <ArrowLeft size={13} />
-                  Shared review
+                  {isSourcePreview ? "Source preview" : "Shared review"}
                 </span>
               ) : null}
               {demoMode ? <span aria-hidden="true">/</span> : null}
@@ -1376,7 +1381,7 @@ export default function PublicReviewPage() {
           <div className="client-review-header-summary">
             <div className="client-review-access-row">
               <span className="client-review-state-badge">
-              {reviewState.label}
+              {isSourcePreview ? "Imported file" : reviewState.label}
               </span>
               {delivery?.locked ? (
                 <span
@@ -1508,12 +1513,12 @@ export default function PublicReviewPage() {
           <div>
             {orderedVersions.length > 0 ? (
               <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2 border-b border-white/10 bg-black px-3 py-2">
-                <VersionSwitcher
+                {isSourcePreview ? <span className="text-xs text-white/80">Imported file</span> : <VersionSwitcher
                   versions={linkVersions}
                   activeVersionId={activeVersion?.id ?? null}
                   onSelect={handleVersionSelect}
                   currentVersionOnly={currentVersionOnly}
-                />
+                />}
                 {viewingOlderVersion ? (
                   <span className="text-[11px] text-amber-300/90">
                     Viewing an older version — notes and approvals belong to

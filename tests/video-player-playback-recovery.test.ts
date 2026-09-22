@@ -392,3 +392,17 @@ test("ReviewMediaSurface clears a failed version across source changes and ignor
   );
   assert.ok(allElements(returnedA).some((element) => element.type === "video-player"));
 });
+
+
+test("HLS query and fragment do not change transport selection", () => {
+  FakeHls.instances = [];
+  FakeHls.supported = true;
+  const app = videoPlayerHarness();
+  const source = "/media/review.m3u8?revision=3#start";
+  app.render(source, () => {});
+  assert.equal(app.hlsInstances()[0]?.source, source);
+  app.render("/media/source.mp4?name=review.m3u8", () => {});
+  assert.equal(app.hlsInstances().length, 1);
+  assert.equal(app.video.src, "/media/source.mp4?name=review.m3u8");
+  app.unmount();
+});

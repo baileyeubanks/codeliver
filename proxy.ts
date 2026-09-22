@@ -46,6 +46,9 @@ const LOCAL_DEVELOPMENT_HOST_PATTERN =
   /^(?:localhost|127\.0\.0\.1|\[::1\])(?::([0-9]{1,5}))?$/i;
 const UUID_PATH_SEGMENT =
   "[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12}";
+const HLS_UUID_PATH_SEGMENT =
+  "[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[1-5][0-9A-Fa-f]{3}-[89ABab][0-9A-Fa-f]{3}-[0-9A-Fa-f]{12}";
+const HLS_SEGMENT_INDEX = "(?:0|[1-9][0-9]*)";
 
 const CLIENT_API_ROUTE_PATTERNS = [
   /^\/api\/auth\/(?:login|logout|session|signup|resend|google|password\/(?:forgot|reset))$/,
@@ -53,6 +56,9 @@ const CLIENT_API_ROUTE_PATTERNS = [
   /^\/api\/version$/, // G2 deployment truth; exact match, no subroutes exist
   /^\/api\/review\/[^/]+(?:\/(?:admission|approvals|comments|edit-decisions))?$/,
   new RegExp(`^/api/review/media/${UUID_PATH_SEGMENT}$`),
+  new RegExp(
+    `^/api/review/media/${HLS_UUID_PATH_SEGMENT}/hls/(?:playlist\\.m3u8|segments/${HLS_SEGMENT_INDEX})$`,
+  ),
 ];
 
 const ADMIN_API_ROUTE_PATTERNS = [
@@ -67,6 +73,9 @@ const ADMIN_API_ROUTE_PATTERNS = [
   new RegExp(`^/api/assets/${UUID_PATH_SEGMENT}$`),
   new RegExp(
     `^/api/assets/${UUID_PATH_SEGMENT}/(?:approvals|comments|edit-decisions|export|share|versions)$`,
+  ),
+  new RegExp(
+    `^/api/assets/${HLS_UUID_PATH_SEGMENT}/versions/${HLS_UUID_PATH_SEGMENT}/hls/(?:playlist\\.m3u8|segments/${HLS_SEGMENT_INDEX})$`,
   ),
   new RegExp(
     `^/api/assets/${UUID_PATH_SEGMENT}/analysis(?:/(?:batch|composition|decisions))?$`,

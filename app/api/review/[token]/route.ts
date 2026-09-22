@@ -1,4 +1,5 @@
 import { getExternalApprovalState } from "@/lib/review-invites";
+import { selectPublishedHlsPublication } from "@/lib/media-pipeline/hls-delivery";
 import { authorizeAdmittedReviewInvite } from "@/lib/review/admission-authority";
 import {
   EXTERNAL_COMMENT_COLUMNS,
@@ -57,6 +58,22 @@ async function getReview(_req: Request, { params }: { params: Promise<{ token: s
       versionLookup.status,
     );
   }
+
+  const hlsAssetResult = await supabase
+    .from("assets")
+    .select("id, metadata")
+    .eq("id", authority.claims.assetId)
+    .maybeSingle();
+  if (hlsAssetResult.error) return reviewBackendUnavailable();
+  const hlsPublication =
+    hlsAssetResult.data?.id === authority.claims.assetId
+      ? selectPublishedHlsPublication({
+          assetId: authority.claims.assetId,
+          assetMetadata: hlsAssetResult.data.metadata,
+          versionId: authority.claims.versionId,
+          versionAssetId: authority.claims.assetId,
+        })
+      : null;
 
   const [commentsResult, approvalsResult, workflowResult, editDecisionsResult] = await Promise.all([
     supabase
@@ -190,7 +207,10 @@ async function getReview(_req: Request, { params }: { params: Promise<{ token: s
     }
   }
 
-  const mediaUrl = `/api/review/media/${authority.claims.admissionId}`;
+  const sourceMediaUrl = `/api/review/media/${authority.claims.admissionId}`;
+  const mediaUrl = hlsPublication
+    ? `${sourceMediaUrl}/hls/playlist.m3u8`
+    : sourceMediaUrl;
 
   return reviewJson({
     asset: invite.assets
@@ -251,6 +271,9 @@ async function getReview(_req: Request, { params }: { params: Promise<{ token: s
     expires_at: invite.expires_at,
     delivery,
     download_enabled: invite.download_enabled ?? false,
+    download_url: invite.download_enabled
+      ? `${sourceMediaUrl}?download=1`
+      : null,
     watermark_enabled: invite.watermark_enabled ?? true,
     watermark_text: invite.watermark_text,
     workflow_mode: workflowResult.data?.mode ?? null,

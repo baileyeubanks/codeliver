@@ -105,6 +105,7 @@ import {
 } from "@/components/projects/ProjectRecordSections";
 import { useDemoMediaObjectUrl } from "@/lib/demo/media-blob-store";
 import { formatSmpteTimecode } from "@/components/player/timecode";
+import VideoPlayer from "@/components/player/VideoPlayer";
 import { normalizeReviewSeekStep, normalizeReviewShortcutKey, shouldIgnoreReviewShortcut } from "@/lib/review/player-policy";
 import { buildSurfaceUrl, getReviewSiteUrl } from "@/lib/surface-origins";
 import type { EditDecision } from "@/lib/types/codeliver";
@@ -554,6 +555,40 @@ export default function ProjectCockpit({
   const activePosterUrl = activeAsset?.thumbnail_url
     ?? demoPosterUrl
     ?? (demoMode && !localUploadActive ? "/demo/ceraweek-speaker.jpg" : null);
+  const hlsMediaActive = activeMediaUrl?.split(/[?#]/, 1)[0].toLowerCase().endsWith(".m3u8") ?? false;
+  useEffect(() => {
+    if (!hlsMediaActive) return;
+    const video = videoRef.current;
+    if (!video) return;
+    video.muted = isMuted;
+    video.volume = volume;
+    const handleLoadedMetadata = () => {
+      if (Number.isFinite(video.duration)) setNativeDuration(video.duration);
+      video.classList.add("active");
+      setNativeVideoActive(true);
+    };
+    const handlePlay = () => {
+      setIsPlaying(true);
+      setHasEnded(false);
+    };
+    const handlePause = () => setIsPlaying(false);
+    const handleEnded = () => {
+      setIsPlaying(false);
+      setHasEnded(true);
+    };
+    video.addEventListener("loadedmetadata", handleLoadedMetadata);
+    video.addEventListener("canplay", handleLoadedMetadata);
+    video.addEventListener("play", handlePlay);
+    video.addEventListener("pause", handlePause);
+    video.addEventListener("ended", handleEnded);
+    return () => {
+      video.removeEventListener("loadedmetadata", handleLoadedMetadata);
+      video.removeEventListener("canplay", handleLoadedMetadata);
+      video.removeEventListener("play", handlePlay);
+      video.removeEventListener("pause", handlePause);
+      video.removeEventListener("ended", handleEnded);
+    };
+  }, [activeMediaUrl, hlsMediaActive, isMuted, volume]);
   const duration = Math.max(1, nativeDuration || activeAsset?.duration_seconds || (demoMode ? 5 : 1));
   const previewDuration = demoMode
     ? activeAsset?.id === "denie-mcdonald-v4"
@@ -1873,31 +1908,40 @@ export default function ProjectCockpit({
                           unoptimized
                         />
                       ) : null}
-                      <video
-                        ref={videoRef}
-                        className={nativeVideoActive || (!demoMode && Boolean(activeMediaUrl)) ? "active" : ""}
-                        src={activeMediaUrl ?? undefined}
-                        poster={activePosterUrl ?? undefined}
-                        preload="metadata"
-                        playsInline
-                        muted={isMuted}
-                        onLoadedMetadata={(event) => {
-                          if (Number.isFinite(event.currentTarget.duration)) {
-                            setNativeDuration(event.currentTarget.duration);
-                            event.currentTarget.playbackRate = playbackSpeed;
-                          }
-                        }}
-                        onPlay={() => {
-                          setIsPlaying(true);
-                          setHasEnded(false);
-                        }}
-                        onPause={() => setIsPlaying(false)}
-                        onTimeUpdate={(event) => setCurrentTime(event.currentTarget.currentTime)}
-                        onEnded={() => {
-                          setIsPlaying(false);
-                          setHasEnded(true);
-                        }}
-                      />
+                      {hlsMediaActive && activeMediaUrl ? (
+                        <VideoPlayer
+                          src={activeMediaUrl}
+                          poster={activePosterUrl ?? undefined}
+                          onTimeUpdate={setCurrentTime}
+                          videoRef={videoRef}
+                        />
+                      ) : (
+                        <video
+                          ref={videoRef}
+                          className={nativeVideoActive || (!demoMode && Boolean(activeMediaUrl)) ? "active" : ""}
+                          src={activeMediaUrl ?? undefined}
+                          poster={activePosterUrl ?? undefined}
+                          preload="metadata"
+                          playsInline
+                          muted={isMuted}
+                          onLoadedMetadata={(event) => {
+                            if (Number.isFinite(event.currentTarget.duration)) {
+                              setNativeDuration(event.currentTarget.duration);
+                              event.currentTarget.playbackRate = playbackSpeed;
+                            }
+                          }}
+                          onPlay={() => {
+                            setIsPlaying(true);
+                            setHasEnded(false);
+                          }}
+                          onPause={() => setIsPlaying(false)}
+                          onTimeUpdate={(event) => setCurrentTime(event.currentTarget.currentTime)}
+                          onEnded={() => {
+                            setIsPlaying(false);
+                            setHasEnded(true);
+                          }}
+                        />
+                      )}
                       <time>{formatClock(currentTime)}</time>
                       <div
                         className={`cockpit-review-overlay ${styles.stageOverlay}`}

@@ -201,6 +201,14 @@ registerHooks({
       );
     }
     if (specifier === "@/lib/review-invites") return nextResolve(reviewInvitesStub, context);
+    if (specifier === "@/lib/media-pipeline/hls-delivery") {
+      return nextResolve(
+        pathToFileURL(
+          resolve(repositoryRoot, "lib/media-pipeline/hls-delivery.ts"),
+        ).href,
+        context,
+      );
+    }
     if (specifier === "@/lib/review/admission-authority") {
       return nextResolve(admissionAuthorityStub, context);
     }

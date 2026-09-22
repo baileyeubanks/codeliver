@@ -121,6 +121,7 @@ interface ReviewPayload {
   reviewer_name: string | null;
   expires_at: string | null;
   download_enabled: boolean;
+  download_url: string | null;
   watermark_enabled: boolean;
   watermark_text: string | null;
   workflow_mode: WorkflowMode | null;
@@ -208,6 +209,7 @@ export default function PublicReviewPage() {
   const [shareIntent, setShareIntent] = useState<ShareIntent>("client_review");
   const [workflowMode, setWorkflowMode] = useState<WorkflowMode | null>(null);
   const [delivery, setDelivery] = useState<ReviewPayload["delivery"]>(null);
+  const [downloadUrl, setDownloadUrl] = useState<string | null>(null);
   const [reviewerName, setReviewerName] = useState("");
   const [reviewerEmail, setReviewerEmail] = useState<string | null>(null);
   const [selectedCommentId, setSelectedCommentId] = useState<string | null>(null);
@@ -464,6 +466,9 @@ export default function PublicReviewPage() {
           setVersions(versionList);
           setActiveVersionId(initialVersion.id);
           setReviewerEmail(review.reviewer_email ?? null);
+          setDownloadUrl(
+            review.download_enabled ? initialVersion.file_url : null,
+          );
           setInvite({
             id: review.invite.id,
             reviewer_name: persistedApprovalState?.reviewer_name ?? review.reviewer_name,
@@ -527,6 +532,7 @@ export default function PublicReviewPage() {
         setReviewerEmail(
           (review as ReviewPayload & { reviewer_email?: string | null }).reviewer_email ?? null,
         );
+        setDownloadUrl(review.download_url);
         setInvite({
           id: review.invite.id,
           reviewer_name: review.reviewer_name,
@@ -804,6 +810,9 @@ export default function PublicReviewPage() {
   function handleVersionSelect(next: Version) {
     if (next.id === activeVersionId) return;
     setActiveVersionId(next.id);
+    if (demoMode && invite?.download_enabled) {
+      setDownloadUrl(next.file_url);
+    }
     resetPlayer();
     setFrameRate(resolveReviewFrameRate(asset?.frame_rate));
     setSelectedCommentId(null);
@@ -1386,9 +1395,9 @@ export default function PublicReviewPage() {
               <span>{invite?.view_count ?? 0} views</span>
               {expiresLabel ? <span>Expires {expiresLabel}</span> : null}
             </div>
-            {invite?.download_enabled && (activeVersion?.file_url || asset?.file_url) ? (
+            {invite?.download_enabled && downloadUrl ? (
               <a
-                href={activeVersion?.file_url ?? asset?.file_url ?? undefined}
+                href={downloadUrl ?? undefined}
                 download
                 className="client-review-download"
               >
@@ -1585,9 +1594,9 @@ export default function PublicReviewPage() {
                   ),
                 }}
                 fallbackAction={
-                  invite?.download_enabled && (activeVersion?.file_url || asset?.file_url) ? (
+                  invite?.download_enabled && downloadUrl ? (
                     <a
-                      href={activeVersion?.file_url ?? asset?.file_url ?? undefined}
+                      href={downloadUrl ?? undefined}
                       download
                       className="inline-flex items-center gap-2 rounded-[var(--radius-sm)] bg-[var(--accent)] px-3 py-2 text-sm font-medium text-white transition-colors hover:bg-[var(--accent-hover)]"
                     >

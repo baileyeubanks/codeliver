@@ -76,7 +76,12 @@ test("asset readers retain JWT authority while using migration-compatible projec
     /getProjectAccess\(\s*id,\s*user\.id,\s*"viewer",\s*authSupabase,\s*\)/,
   );
   assert.match(scoped, /authSupabase[\s\S]*?\.from\("assets"\)/);
-  assert.doesNotMatch(scoped, /\bmetadata\b/);
+  const authenticatedColumns =
+    scoped.match(/authSupabase[\s\S]*?\.select\(\s*"([^"]*)"/)?.[1] ?? "";
+  assert.doesNotMatch(authenticatedColumns, /\bmetadata\b/);
+  assert.match(scoped, /const metadataResult = await getSupabase\(\)/);
+  assert.match(scoped, /\.select\("id, metadata"\)/);
+  assert.match(scoped, /return apiJson\(\{ items \}\)/);
   assert.match(scoped, /\.eq\("project_id", id\)[\s\S]*?\.is\("deleted_at", null\)/);
 
   const detail = source("app/api/assets/[id]/route.ts");

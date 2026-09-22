@@ -3614,6 +3614,7 @@ a { color: inherit; text-decoration: none; }
 }
 
 .cockpit-video-poster { z-index: 1; object-fit: cover; transition: opacity 120ms ease; }
+.cockpit-video-frame > [data-player-root] { position: relative; z-index: 2; width: 100%; height: 100%; border-radius: 0; }
 .cockpit-video-frame video { position: relative; z-index: 2; display: block; width: 100%; height: 100%; object-fit: cover; visibility: hidden; }
 .cockpit-video-frame video.active { visibility: visible; }
 .cockpit-video-frame:has(video.active) .cockpit-video-poster { opacity: 0; }

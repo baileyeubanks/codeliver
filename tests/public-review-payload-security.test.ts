@@ -34,7 +34,7 @@ const admissionAuthorityStub = dataModule(`
         expires_at: null,
         watermark_enabled: false,
         watermark_text: null,
-        download_enabled: false,
+        download_enabled: true,
         view_count: 1,
         max_views: 1,
         assets: {
@@ -93,6 +93,54 @@ const sharingStub = dataModule(`
 `);
 
 const supabaseStub = dataModule(`
+  const publishedHlsMetadata = {
+    media_pipeline: {
+      schemaVersion: 1,
+      currentVersionId: "44444444-4444-4444-8444-444444444444",
+      versions: {
+        "44444444-4444-4444-8444-444444444444": {
+          schemaVersion: 1,
+          pipelineVersion: "co-deliver-media-pipeline/v1",
+          status: "published",
+          versionId: "44444444-4444-4444-8444-444444444444",
+          artifacts: {
+            hls: {
+              playlist: {
+                kind: "hls_playlist",
+                objectKey: "private-hls/playlist/playlist.m3u8",
+                filename: "playlist.m3u8",
+                contentType: "application/vnd.apple.mpegurl",
+                size: 100,
+                sha256: "a".repeat(64),
+                provider: "local",
+                providerVersionId: "fs-v1:" + "a".repeat(64)
+              },
+              segments: [{
+                kind: "hls_segment",
+                objectKey: "private-hls/segment/segment000.ts",
+                filename: "segment000.ts",
+                contentType: "video/mp2t",
+                size: 1000,
+                sha256: "b".repeat(64),
+                provider: "local",
+                providerVersionId: "fs-v1:" + "b".repeat(64)
+              }],
+              manifest: {
+                kind: "hls_manifest",
+                objectKey: "private-hls/manifest/hls-manifest.json",
+                filename: "hls-manifest.json",
+                contentType: "application/json",
+                size: 200,
+                sha256: "c".repeat(64),
+                provider: "local",
+                providerVersionId: "fs-v1:" + "c".repeat(64)
+              }
+            }
+          }
+        }
+      }
+    }
+  };
   const privateComment = {
     id: "comment-a",
     review_id: "review-private",
@@ -150,7 +198,12 @@ const supabaseStub = dataModule(`
       return {
         data: this.table === "approval_workflows"
           ? { id: "workflow-a", mode: "parallel", status: "active" }
-          : null,
+          : this.table === "assets"
+            ? {
+                id: "33333333-3333-4333-8333-333333333333",
+                metadata: publishedHlsMetadata
+              }
+            : null,
         error: null
       };
     }
@@ -182,6 +235,14 @@ registerHooks({
     }
     if (specifier === "@/lib/review-invites") {
       return nextResolve(reviewInvitesStub, context);
+    }
+    if (specifier === "@/lib/media-pipeline/hls-delivery") {
+      return nextResolve(
+        pathToFileURL(
+          resolve(repositoryRoot, "lib/media-pipeline/hls-delivery.ts"),
+        ).href,
+        context,
+      );
     }
     if (specifier === "@/lib/review/admission-authority") {
       return nextResolve(admissionAuthorityStub, context);
@@ -255,7 +316,7 @@ test("anonymous review payload exposes only the external-safe asset projection",
     title: "Launch film",
     file_type: "video",
     file_url:
-      "/api/review/media/11111111-1111-4111-8111-111111111111",
+      "/api/review/media/11111111-1111-4111-8111-111111111111/hls/playlist.m3u8",
     status: "in_review",
     projects: { id: "project-a", name: "Launch" },
   });
@@ -264,7 +325,7 @@ test("anonymous review payload exposes only the external-safe asset projection",
     asset_id: "asset-a",
     version_number: 1,
     file_url:
-      "/api/review/media/11111111-1111-4111-8111-111111111111",
+      "/api/review/media/11111111-1111-4111-8111-111111111111/hls/playlist.m3u8",
     file_size: 12,
     thumbnail_url: null,
     duration_seconds: 2,
@@ -305,7 +366,11 @@ test("anonymous review payload exposes only the external-safe asset projection",
   }]);
   assert.doesNotMatch(
     JSON.stringify(payload),
-    /nas_path|metadata|storage_provider|private-user-id|private-resolver-id|private-request-id|review-private|invite-private|reviewer-private@example\.test|INTERNAL EDITORIAL NOTE|uploaded_by|author_email|author_id|resolved_by|resolved_at|review_invite_id|client_request_id|rich_body|mentions|storedReviewXss|onerror|private-provider\.example|\/api\/media\/versions/,
+    /nas_path|metadata|storage_provider|private-hls|private-user-id|private-resolver-id|private-request-id|review-private|invite-private|reviewer-private@example\.test|INTERNAL EDITORIAL NOTE|uploaded_by|author_email|author_id|resolved_by|resolved_at|review_invite_id|client_request_id|rich_body|mentions|storedReviewXss|onerror|private-provider\.example|\/api\/media\/versions/,
+  );
+  assert.equal(
+    payload.download_url,
+    "/api/review/media/11111111-1111-4111-8111-111111111111?download=1",
   );
   assert.equal(payload.invite.view_count, 1);
   assert.equal(payload.invite.max_views, 1);

@@ -89,7 +89,7 @@ export default function VideoPlayer({
     const handleNativeError = () => reportActiveFailure();
     video.addEventListener("error", handleNativeError);
 
-    const isHls = src.endsWith(".m3u8");
+    const isHls = src.split(/[?#]/, 1)[0].toLowerCase().endsWith(".m3u8");
     if (isHls && Hls.isSupported()) {
       const hls = new Hls();
       const handleHlsError = (_event: Events.ERROR, data: ErrorData) => {

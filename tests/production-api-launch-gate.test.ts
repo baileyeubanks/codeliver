@@ -218,12 +218,13 @@ test("production API launch gate fails closed before public, auth, and demo bypa
       for (const [pathname, method] of [
         ["/api/upload/tus", "POST"],
         [`/api/upload/tus/${RESOURCE_ID}`, "PATCH"],
+        [`/api/upload/tus/${RESOURCE_ID}/scan`, "POST"],
       ] as const) {
         const response = await proxy(request(ADMIN_HOST, pathname, { method }));
         assert.equal(response.status, 200, pathname);
         assert.equal(response.headers.get("x-middleware-next"), "1", pathname);
       }
-      assert.equal(runtimeState.__ccoLaunchGateGetUserCalls, callsBefore + 2);
+      assert.equal(runtimeState.__ccoLaunchGateGetUserCalls, callsBefore + 3);
 
       runtimeState.__ccoLaunchGateUser = {
         app_metadata: { content_coop_role: "client" },

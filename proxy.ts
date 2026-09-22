@@ -98,7 +98,7 @@ const ADMIN_API_ROUTE_PATTERNS = [
   /^\/api\/transcode$/,
   new RegExp(`^/api/transcode/jobs/${UUID_PATH_SEGMENT}$`),
   /^\/api\/upload\/tus$/,
-  new RegExp(`^/api/upload/tus/${UUID_PATH_SEGMENT}$`),
+  new RegExp(`^/api/upload/tus/${UUID_PATH_SEGMENT}(?:/scan)?$`),
   /^\/api\/webhooks$/,
 ];
 

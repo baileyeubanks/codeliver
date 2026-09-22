@@ -6,10 +6,14 @@ import test from "node:test";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
 const repositoryRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
+const forbiddenDemoAuth = `data:text/javascript,${encodeURIComponent(
+  'export async function requireAuth() { throw new Error("Local demo endpoints must not query the auth provider"); }',
+)}`;
 
 registerHooks({
   resolve(specifier, context, nextResolve) {
     if (specifier === "next/server") return nextResolve("next/server.js", context);
+    if (specifier === "@/lib/auth") return nextResolve(forbiddenDemoAuth, context);
     if (specifier.startsWith("@/")) {
       const base = resolve(repositoryRoot, specifier.slice(2));
       const path = extname(base)

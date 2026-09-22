@@ -1478,6 +1478,24 @@
     justify-content: space-between;
   }
 
+  .nav {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 5px;
+    overflow: visible;
+    padding-bottom: 12px;
+  }
+
+  .nav button {
+    width: 100%;
+    min-height: 38px;
+    grid-template-columns: 18px minmax(0, 1fr);
+  }
+
+  .nav button:last-child {
+    grid-column: 1 / -1;
+  }
+
   .formGrid,
   .policyGrid,
   .workspaceBar {

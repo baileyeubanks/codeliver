@@ -136,6 +136,9 @@ export function AccountSettings({
   profile: DemoWorkspaceSettings["profile"];
   email: string;
 }) {
+  const profileFormRef = useRef<HTMLFormElement>(null);
+  const [profileDirty, setProfileDirty] = useState(false);
+
   function saveAccount(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!demoMode) {
@@ -151,6 +154,7 @@ export function AccountSettings({
       updateEnterpriseProfile(current, { firstName, lastName, title }),
     );
     reportMutation(outcome, onNotice, "Account profile saved");
+    if (outcome.changed || outcome.reason === "ok") setProfileDirty(false);
   }
 
   const membership = state.memberships.find(
@@ -180,6 +184,7 @@ export function AccountSettings({
 
       <SettingsSection title="Profile" detail="The email address remains owned by the authentication provider.">
         <form
+          ref={profileFormRef}
           key={`${profile.firstName}-${profile.lastName}-${state.profile.title}-${email}`}
           className={styles.formGrid}
           onSubmit={saveAccount}
@@ -194,6 +199,7 @@ export function AccountSettings({
               required
               maxLength={60}
               disabled={!demoMode}
+              onChange={() => setProfileDirty(true)}
             />
           </label>
           <label className={styles.field}>
@@ -206,6 +212,7 @@ export function AccountSettings({
               required
               maxLength={60}
               disabled={!demoMode}
+              onChange={() => setProfileDirty(true)}
             />
           </label>
           <label className={styles.field}>
@@ -217,6 +224,7 @@ export function AccountSettings({
               autoComplete="organization-title"
               maxLength={80}
               disabled={!demoMode}
+              onChange={() => setProfileDirty(true)}
             />
           </label>
           <label className={styles.field}>
@@ -229,6 +237,18 @@ export function AccountSettings({
             />
           </label>
           <div className={styles.formActions}>
+            <button
+              className={styles.button}
+              type="button"
+              disabled={!demoMode || !profileDirty}
+              onClick={() => {
+                profileFormRef.current?.reset();
+                setProfileDirty(false);
+                onNotice("Profile changes discarded");
+              }}
+            >
+              Discard changes
+            </button>
             <button className={`${styles.button} ${styles.buttonPrimary}`} type="submit" disabled={!demoMode}>
               <Save size={14} aria-hidden="true" /> Save profile
             </button>
@@ -675,12 +695,13 @@ export function SecuritySettings({ state, demoMode, mutate, onNotice }: SharedPa
                       type="button"
                       className={`${styles.button} ${styles.buttonDanger}`}
                       disabled={!demoMode}
+                      aria-label={`Revoke session for ${session.device}`}
                       onClick={() => {
                         const outcome = mutate((current) => revokeDemoSession(current, session.id));
                         reportMutation(outcome, onNotice, "Demo session revoked");
                       }}
                     >
-                      Revoke
+                      Revoke session
                     </button>
                   )}
                 </div>

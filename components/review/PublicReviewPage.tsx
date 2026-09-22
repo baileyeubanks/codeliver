@@ -1417,7 +1417,7 @@ export default function PublicReviewPage() {
                 Download
               </a>
             ) : null}
-            {asset && activeVersion ? (
+            {asset && activeVersion && !isSourcePreview ? (
               <button
                 type="button"
                 className="client-review-download"
@@ -1679,9 +1679,9 @@ export default function PublicReviewPage() {
             }
           : null,
         comments: {
-          title: railTab === "summary" ? "Producer summary" : commentsTitle,
+          title: railTab === "summary" && !isSourcePreview ? "Producer summary" : commentsTitle,
           description:
-            railTab === "summary"
+            railTab === "summary" && !isSourcePreview
               ? "One-page brief of this review — classifications are rule-based suggestions."
               : commentsDescription,
           countLabel: `${rootComments.length} total`,
@@ -1694,7 +1694,7 @@ export default function PublicReviewPage() {
           content: (
             <div className="space-y-3">
               <div role="group" aria-label="Rail view" className="flex items-center gap-1.5">
-                {(["comments", "summary"] as const).map((tab) => (
+                {(isSourcePreview ? ["comments"] as const : ["comments", "summary"] as const).map((tab) => (
                   <button
                     key={tab}
                     type="button"
@@ -1711,7 +1711,7 @@ export default function PublicReviewPage() {
                 ))}
               </div>
 
-              {railTab === "summary" ? (
+              {railTab === "summary" && !isSourcePreview ? (
                 <ProducerSummaryPanel
                   projectName={asset?.projects?.name ?? "Project"}
                   assetTitle={asset?.title ?? "Review"}

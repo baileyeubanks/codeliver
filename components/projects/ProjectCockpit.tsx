@@ -118,6 +118,7 @@ import {
 import {
   canOperateExactInternalReviewVersion,
   reviewCommentDraftKey,
+  visibleExactInternalReviewRecords,
 } from "@/lib/review/internal-version-operations";
 import { formatSmpteTimecode } from "@/components/player/timecode";
 import VideoPlayer from "@/components/player/VideoPlayer";
@@ -724,22 +725,28 @@ export default function ProjectCockpit({
   const canShare = roleCan(workspaceRole, "reviews:comment");
 
   const comments = demoMode
-    ? activeAsset && activeDemoVersionId
-      ? workspace.reviewComments.filter(
+    ? visibleExactInternalReviewRecords(
+      reviewOperationsAllowed,
+      activeAsset && activeDemoVersionId
+        ? workspace.reviewComments.filter(
       (comment) =>
         comment.asset_id === activeAsset?.id &&
         comment.version_id === activeDemoVersionId,
-      )
-      : []
+        )
+        : [],
+    )
     : requestedLiveVersionUnavailable ? [] : liveAssetDataId === activeAsset?.id ? liveComments : [];
   const cutMarkers = demoMode
-    ? activeAsset && activeDemoVersionId
-      ? workspace.reviewCutMarkers.filter(
+    ? visibleExactInternalReviewRecords(
+      reviewOperationsAllowed,
+      activeAsset && activeDemoVersionId
+        ? workspace.reviewCutMarkers.filter(
       (marker) =>
         marker.asset_id === activeAsset?.id &&
         marker.version_id === activeDemoVersionId,
-      )
-      : []
+        )
+        : [],
+    )
     : requestedLiveVersionUnavailable ? [] : liveAssetDataId === activeAsset?.id ? liveCutMarkers : [];
   const visibleComments = comments.filter((comment) => comment.status === commentStatus);
   const projectTasks = demoMode
@@ -1276,7 +1283,7 @@ export default function ProjectCockpit({
     setSimulatedPlayback(false);
     setPendingPin(null);
     setResumeAfterComment(false);
-    if (requestedVersionId) {
+    if (requestedVersionId !== null) {
       const params = new URLSearchParams(searchParams.toString());
       params.set("asset", asset.id);
       params.delete("version");

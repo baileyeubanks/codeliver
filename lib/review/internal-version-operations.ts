@@ -31,6 +31,14 @@ export function runWhenInternalReviewVersionIsAvailable<T>(
   return available ? operation() : undefined;
 }
 
+/** An unavailable versioned route must not render records from a fallback cut. */
+export function visibleExactInternalReviewRecords<T>(
+  available: boolean,
+  records: readonly T[],
+): readonly T[] {
+  return available ? records : [];
+}
+
 /** A typed but unsent note must remain with the exact cut it was written on. */
 export function reviewCommentDraftKey(assetId: string, versionId: string | null) {
   return `${assetId}:${versionId ?? "current"}`;

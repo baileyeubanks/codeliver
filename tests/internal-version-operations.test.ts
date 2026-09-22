@@ -4,6 +4,7 @@ import test from "node:test";
 import {
   canOperateExactInternalReviewVersion,
   runWhenInternalReviewVersionIsAvailable,
+  visibleExactInternalReviewRecords,
 } from "../lib/review/internal-version-operations.ts";
 
 test("an unsupported live historical URL cannot invoke a review mutation", async () => {
@@ -70,4 +71,14 @@ test("a versioned URL must match its resolved version and asset exactly", () => 
     requestedAssetId: "asset-a",
     activeAssetId: "asset-a",
   }), true);
+});
+
+test("invalid version scope cannot display notes or markers from the current cut", () => {
+  const currentNotes = [{ id: "current-note" }];
+  const currentMarkers = [{ id: "current-marker" }];
+
+  assert.deepEqual(visibleExactInternalReviewRecords(false, currentNotes), []);
+  assert.deepEqual(visibleExactInternalReviewRecords(false, currentMarkers), []);
+  assert.equal(visibleExactInternalReviewRecords(true, currentNotes), currentNotes);
+  assert.equal(visibleExactInternalReviewRecords(true, currentMarkers), currentMarkers);
 });

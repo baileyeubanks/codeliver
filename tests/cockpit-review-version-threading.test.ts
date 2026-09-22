@@ -53,6 +53,14 @@ test("an unavailable internal version cannot reach player or write handlers", ()
   const shortcutEnd = cockpit.indexOf("function handleReviewShortcut(event", shortcutStart);
   const shortcutBody = cockpit.slice(shortcutStart, shortcutEnd);
   assert.match(shortcutBody, /if \(!reviewOperationsAllowed\) return false;/);
+  assert.match(cockpit, /visibleExactInternalReviewRecords\(\s*reviewOperationsAllowed,/);
+});
+
+test("selecting an asset clears an explicit malformed version and keeps the selected asset in the URL", () => {
+  const selectAsset = cockpit.match(/function selectAsset\(asset: MediaAsset\) \{([\s\S]*?)\n  \}/)?.[1] ?? "";
+  assert.match(selectAsset, /if \(requestedVersionId !== null\)/);
+  assert.match(selectAsset, /params\.set\("asset", asset\.id\)/);
+  assert.match(selectAsset, /params\.delete\("version"\)/);
 });
 
 test("historical review details do not inherit current approval or contextual sharing", () => {

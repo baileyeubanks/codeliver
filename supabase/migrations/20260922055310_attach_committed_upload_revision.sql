@@ -400,6 +400,27 @@ BEGIN
 END;
 $$;
 
+-- The authenticated storage-readiness route calls this zero-argument RPC.
+-- Reaching it through PostgREST proves both schema-cache visibility and the
+-- service role's authority for the exact revision attachment function.
+CREATE OR REPLACE FUNCTION co_production.revision_upload_capability()
+RETURNS boolean
+LANGUAGE sql
+STABLE
+SECURITY INVOKER
+SET search_path = ''
+AS $$
+  SELECT
+    pg_catalog.to_regprocedure(
+      'co_production.attach_committed_upload_revision(uuid,uuid,uuid,uuid,uuid,integer,text,text,bigint,text,text,text,text,timestamp with time zone)'
+    ) IS NOT NULL
+    AND pg_catalog.has_function_privilege(
+      current_user,
+      'co_production.attach_committed_upload_revision(uuid,uuid,uuid,uuid,uuid,integer,text,text,bigint,text,text,text,text,timestamp with time zone)',
+      'EXECUTE'
+    )
+$$;
+
 DROP TRIGGER IF EXISTS deliverable_items_a_publication_guard ON co_production.deliverable_items;
 CREATE TRIGGER deliverable_items_a_publication_guard
   BEFORE INSERT OR UPDATE OR DELETE OR TRUNCATE ON co_production.deliverable_items
@@ -448,7 +469,9 @@ GRANT EXECUTE ON FUNCTION co_production.attach_committed_upload_revision(
 
 REVOKE ALL ON FUNCTION co_production.acquire_delivery_publication_lock() FROM PUBLIC, anon, authenticated;
 REVOKE ALL ON FUNCTION co_production.guard_delivery_publication_statement() FROM PUBLIC, anon, authenticated;
+REVOKE ALL ON FUNCTION co_production.revision_upload_capability() FROM PUBLIC, anon, authenticated;
 GRANT EXECUTE ON FUNCTION co_production.acquire_delivery_publication_lock() TO service_role;
 GRANT EXECUTE ON FUNCTION co_production.guard_delivery_publication_statement() TO service_role;
+GRANT EXECUTE ON FUNCTION co_production.revision_upload_capability() TO service_role;
 
 COMMIT;

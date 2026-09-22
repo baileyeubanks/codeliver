@@ -43,7 +43,9 @@ import {
 import {
   addDemoReviewComment,
   addDemoReviewCutMarker,
+  editDemoPublicReviewComment,
   recordDemoPublicReviewApproval,
+  setDemoPublicReviewCommentResolved,
   useDemoWorkspace,
 } from "@/lib/demo/workspace-store";
 import {
@@ -676,6 +678,32 @@ export default function PublicReviewPage({
     versions.find((candidate) => candidate.id === activeVersionId) ??
     currentVersion(versions) ??
     version;
+  const demoWorkspaceAsset = demoMode && asset
+    ? demoWorkspace.assets.find((candidate) => candidate.id === asset.id)
+    : null;
+  const localReviewBinding =
+    demoWorkspaceAsset && asset && activeVersion && invite
+      ? {
+          projectId: demoWorkspaceAsset.project_id,
+          assetId: asset.id,
+          versionId: activeVersion.id,
+          reviewInviteId: invite.id,
+          assetType: asset.file_type,
+        }
+      : null;
+  const localReviewCommentIds = new Set(
+    localReviewBinding
+      ? demoWorkspace.reviewComments
+          .filter(
+            (comment) =>
+              comment.project_id === localReviewBinding.projectId &&
+              comment.asset_id === localReviewBinding.assetId &&
+              comment.version_id === localReviewBinding.versionId &&
+              comment.review_invite_id === localReviewBinding.reviewInviteId,
+          )
+          .map((comment) => comment.id)
+      : [],
+  );
   const viewingOlderVersion = Boolean(
     activeVersion && !activeVersion.is_current && versions.length > 1,
   );
@@ -847,14 +875,15 @@ export default function PublicReviewPage({
       reviewerName.trim() || invite?.reviewer_name?.trim() || (sourceCatalog ? "Local reviewer" : "Client Reviewer");
 
     if (demoMode) {
-      if (!canComment || !activeVersion || !invite) {
+      if (!canComment || !localReviewBinding) {
         setReplyError("This review is not available for replies.");
         return;
       }
       const persisted = addDemoReviewComment({
-        assetId: asset.id,
-        versionId: activeVersion.id,
-        reviewInviteId: invite.id,
+        projectId: localReviewBinding.projectId,
+        assetId: localReviewBinding.assetId,
+        versionId: localReviewBinding.versionId,
+        reviewInviteId: localReviewBinding.reviewInviteId,
         parentId,
         authorName,
         authorEmail: reviewerEmail,
@@ -867,11 +896,7 @@ export default function PublicReviewPage({
         return;
       }
       const reply = projectPersistedDemoReviewComment(persisted, {
-        projectId: persisted.project_id,
-        assetId: asset.id,
-        versionId: activeVersion.id,
-        reviewInviteId: invite.id,
-        assetType: asset.file_type,
+        ...localReviewBinding,
       });
       if (reply) setComments((current) =>
         current.some((comment) => comment.id === reply.id) ? current : [...current, reply],
@@ -914,6 +939,52 @@ export default function PublicReviewPage({
           : "Could not post your reply.",
       );
     }
+  }
+
+  function handleLocalCommentEdit(commentId: string, body: string) {
+    if (!canComment || !localReviewBinding || !localReviewCommentIds.has(commentId)) return;
+    const persisted = editDemoPublicReviewComment({
+      projectId: localReviewBinding.projectId,
+      assetId: localReviewBinding.assetId,
+      versionId: localReviewBinding.versionId,
+      reviewInviteId: localReviewBinding.reviewInviteId,
+      commentId,
+      body,
+    });
+    const projected = persisted
+      ? projectPersistedDemoReviewComment(persisted, localReviewBinding)
+      : null;
+    if (!projected) {
+      setReplyError("Could not save this edit. Check this review and browser storage, then try again.");
+      return;
+    }
+    setComments((current) =>
+      current.map((comment) => (comment.id === projected.id ? projected : comment)),
+    );
+    setReplyError("");
+  }
+
+  function handleLocalCommentResolution(commentId: string, resolved: boolean) {
+    if (!canComment || !localReviewBinding || !localReviewCommentIds.has(commentId)) return;
+    const persisted = setDemoPublicReviewCommentResolved({
+      projectId: localReviewBinding.projectId,
+      assetId: localReviewBinding.assetId,
+      versionId: localReviewBinding.versionId,
+      reviewInviteId: localReviewBinding.reviewInviteId,
+      commentId,
+      resolved,
+    });
+    const projected = persisted
+      ? projectPersistedDemoReviewComment(persisted, localReviewBinding)
+      : null;
+    if (!projected) {
+      setReplyError("Could not update this thread. Check this review and browser storage, then try again.");
+      return;
+    }
+    setComments((current) =>
+      current.map((comment) => (comment.id === projected.id ? projected : comment)),
+    );
+    setReplyError("");
   }
 
   function handleFramePin(x: number, y: number, timeSeconds: number) {
@@ -1731,10 +1802,27 @@ export default function PublicReviewPage({
                     comments={comments}
                     roster={mentionRoster}
                     demoMode={demoMode}
+                    canReact={canComment}
                     selectedId={selectedCommentId}
                     onSelect={(comment) => handleCommentSelect(comment as ReviewComment)}
                     onSeek={(time) => seekTo(time)}
-                    onReplySubmit={(parentId, body) => void handleReplySubmit(parentId, body)}
+                    onReplySubmit={canComment
+                      ? (parentId, body) => void handleReplySubmit(parentId, body)
+                      : undefined}
+                    canReplyTo={(comment) =>
+                      !demoMode || localReviewCommentIds.has(comment.id)
+                    }
+                    onEdit={demoMode && canComment && localReviewBinding
+                      ? handleLocalCommentEdit
+                      : undefined}
+                    canEditComment={(comment) => localReviewCommentIds.has(comment.id)}
+                    onResolve={demoMode && canComment && localReviewBinding
+                      ? (commentId) => handleLocalCommentResolution(commentId, true)
+                      : undefined}
+                    onUnresolve={demoMode && canComment && localReviewBinding
+                      ? (commentId) => handleLocalCommentResolution(commentId, false)
+                      : undefined}
+                    canResolveComment={(comment) => localReviewCommentIds.has(comment.id)}
                   />
                 </>
               )}

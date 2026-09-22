@@ -27,6 +27,10 @@ interface CommentListProps {
   onUnresolve?: (id: string) => void;
   onEdit?: (id: string, body: string) => void;
   onDelete?: (id: string) => void;
+  canReplyTo?: (comment: Comment) => boolean;
+  canResolveComment?: (comment: Comment) => boolean;
+  canEditComment?: (comment: Comment) => boolean;
+  canReact?: boolean;
 }
 
 const FILTERS: { id: CommentThreadFilter; label: string }[] = [
@@ -54,6 +58,10 @@ export default function CommentList({
   onUnresolve,
   onEdit,
   onDelete,
+  canReplyTo,
+  canResolveComment,
+  canEditComment,
+  canReact = true,
 }: CommentListProps) {
   const [filter, setFilter] = useState<CommentThreadFilter>("all");
 
@@ -114,6 +122,10 @@ export default function CommentList({
               onUnresolve={onUnresolve}
               onEdit={onEdit}
               onDelete={onDelete}
+              canReply={Boolean(onReplySubmit) && (canReplyTo?.(thread.comment) ?? true)}
+              canResolve={Boolean(onResolve || onUnresolve) && (canResolveComment?.(thread.comment) ?? true)}
+              canEditComment={canEditComment}
+              canReact={canReact}
             />
           ))}
         </div>

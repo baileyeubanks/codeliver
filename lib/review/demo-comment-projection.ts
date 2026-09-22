@@ -67,9 +67,9 @@ export function projectPersistedDemoReviewComment(
     status: comment.status,
     visibility: "external",
     resolved_by: null,
-    resolved_at: null,
+    resolved_at: comment.resolved_at ?? null,
     created_at: comment.created_at,
-    updated_at: comment.created_at,
+    updated_at: comment.updated_at ?? comment.created_at,
     ...(annotations.length > 0 ? { annotations } : {}),
   };
 }

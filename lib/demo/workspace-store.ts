@@ -196,6 +196,8 @@ export interface DemoReviewComment {
   annotations?: AnnotationData[];
   status: "open" | "resolved";
   created_at: string;
+  updated_at?: string;
+  resolved_at?: string | null;
 }
 
 export interface DemoPublicReviewState {
@@ -1469,6 +1471,82 @@ export function addDemoReviewComment(input: {
   });
 
   return committed ? comment : null;
+}
+
+interface DemoPublicReviewCommentMutation {
+  projectId: string;
+  assetId: string;
+  versionId: string;
+  reviewInviteId: string;
+  commentId: string;
+}
+
+const DEMO_REVIEW_COMMENT_BODY_LIMIT_BYTES = 32 * 1_024;
+
+function findScopedDemoReviewComment(input: DemoPublicReviewCommentMutation) {
+  return currentState.reviewComments.find(
+    (comment) => isScopedDemoReviewComment(comment, input),
+  );
+}
+
+function isScopedDemoReviewComment(
+  comment: DemoReviewComment,
+  input: DemoPublicReviewCommentMutation,
+) {
+  return (
+    comment.id === input.commentId &&
+    comment.project_id === input.projectId &&
+    comment.asset_id === input.assetId &&
+    comment.version_id === input.versionId &&
+    comment.review_invite_id === input.reviewInviteId
+  );
+}
+
+export function editDemoPublicReviewComment(
+  input: DemoPublicReviewCommentMutation & { body: string },
+) {
+  const body = input.body.trim();
+  if (!body || new TextEncoder().encode(body).byteLength > DEMO_REVIEW_COMMENT_BODY_LIMIT_BYTES) {
+    return null;
+  }
+
+  ensureHydrated();
+  const existing = findScopedDemoReviewComment(input);
+  if (!existing) return null;
+  const updated: DemoReviewComment = {
+    ...existing,
+    body,
+    updated_at: new Date().toISOString(),
+  };
+  const committed = commitPersistedState((state) => ({
+    ...state,
+    reviewComments: state.reviewComments.map((comment) =>
+      isScopedDemoReviewComment(comment, input) ? updated : comment,
+    ),
+  }));
+  return committed ? updated : null;
+}
+
+export function setDemoPublicReviewCommentResolved(
+  input: DemoPublicReviewCommentMutation & { resolved: boolean },
+) {
+  ensureHydrated();
+  const existing = findScopedDemoReviewComment(input);
+  if (!existing || existing.parent_id) return null;
+  const updatedAt = new Date().toISOString();
+  const updated: DemoReviewComment = {
+    ...existing,
+    status: input.resolved ? "resolved" : "open",
+    resolved_at: input.resolved ? updatedAt : null,
+    updated_at: updatedAt,
+  };
+  const committed = commitPersistedState((state) => ({
+    ...state,
+    reviewComments: state.reviewComments.map((comment) =>
+      isScopedDemoReviewComment(comment, input) ? updated : comment,
+    ),
+  }));
+  return committed ? updated : null;
 }
 
 const DEMO_APPROVAL_DECISIONS = new Set<ApprovalDecision>([

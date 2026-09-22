@@ -12,6 +12,9 @@ type ScanBoundaryState = typeof globalThis & {
   __ccoScanBoundaryBeginCalls: number;
   __ccoScanBoundaryScans: number;
   __ccoScanBoundaryRecoveries: number;
+  __ccoScanBoundaryCatalogCalls: number;
+  __ccoScanBoundaryCatalogBusy: boolean;
+  __ccoScanBoundaryDerivativeRetries: number;
 };
 const state = globalThis as ScanBoundaryState;
 
@@ -45,12 +48,27 @@ const orchestratorStub = moduleUrl(`
         assetId:"asset-a",versionId:"version-a",catalog:{state:"attached"}
       };
       return globalThis.__ccoScanBoundarySession;
+    },
+    async retryDerivatives(){
+      globalThis.__ccoScanBoundaryDerivativeRetries += 1;
+      globalThis.__ccoScanBoundarySession = {...globalThis.__ccoScanBoundarySession,derivatives:{state:"ready"}};
+      return globalThis.__ccoScanBoundarySession;
     }
   }}
 `);
 const sharedStub = moduleUrl(`
   export function assertUploadStorageConfigured(){}
-  export async function ensureCatalogAsset(){return {id:"asset-a",version_id:"version-a"}}
+  export async function ensureCatalogAsset(){
+    globalThis.__ccoScanBoundaryCatalogCalls += 1;
+    if(globalThis.__ccoScanBoundaryCatalogBusy){
+      const error = new Error("Upload session is busy; retry after backoff");
+      error.name = "UploadOrchestrationError";
+      error.code = "UPLOAD_BUSY";
+      error.retryable = true;
+      throw error;
+    }
+    return {id:"asset-a",version_id:"version-a"}
+  }
   export function jsonUploadError(error,headers){return new Response(JSON.stringify({error:error.message}),{status:500,headers})}
 `);
 
@@ -95,6 +113,16 @@ async function post() {
   );
 }
 
+async function get() {
+  const { GET } = await import(
+    pathToFileURL(resolve(repositoryRoot, "app/api/upload/tus/[uploadId]/scan/route.ts")).href
+  );
+  return GET(
+    new NextRequest(`https://co-videopro.com/api/upload/tus/${uploadId}/scan`),
+    { params: Promise.resolve({ uploadId }) },
+  );
+}
+
 test("duplicate deferred POST callbacks run the expensive scan once", async () => {
   state.__ccoScanBoundarySession = baseSession();
   state.__ccoScanBoundaryAfter = [];
@@ -120,7 +148,9 @@ test("POST schedules clean placement recovery without waiting on the active lock
   state.__ccoScanBoundaryBeginCalls = 0;
   state.__ccoScanBoundaryRecoveries = 0;
   const response = await post();
+  const payload = await response.json();
   assert.equal(response.status, 202);
+  assert.equal(payload.message, "Saving verified media to durable storage.");
   assert.equal(state.__ccoScanBoundaryRecoveries, 0);
   assert.equal(state.__ccoScanBoundaryAfter.length, 1);
   await state.__ccoScanBoundaryAfter[0]();
@@ -135,6 +165,9 @@ test("POST observes an active retained-byte timeout retry without synchronously 
   };
   state.__ccoScanBoundaryAfter = [];
   state.__ccoScanBoundaryBeginCalls = 0;
+  state.__ccoScanBoundaryCatalogCalls = 0;
+  state.__ccoScanBoundaryCatalogBusy = false;
+  state.__ccoScanBoundaryDerivativeRetries = 0;
   state.__ccoScanBoundaryScans = 0;
   const response = await post();
   assert.equal(response.status, 202);
@@ -165,4 +198,28 @@ test("POST after scan completion returns the exact ready receipt without startin
   assert.deepEqual(payload.version, { id: "version-a", number: 1 });
   assert.equal(state.__ccoScanBoundaryBeginCalls, 0);
   assert.equal(state.__ccoScanBoundaryAfter.length, 0);
+  assert.equal(state.__ccoScanBoundaryCatalogCalls, 0);
+  assert.equal(state.__ccoScanBoundaryDerivativeRetries, 1);
+});
+
+test("GET keeps a clean committed upload processing while catalog attachment is busy", async () => {
+  state.__ccoScanBoundarySession = {
+    ...baseSession(),
+    state: "committed",
+    finalizationDeferred: false,
+    scan: { verdict: "clean" },
+    receipt: { objectKey: "object" },
+    catalog: { state: "pending" },
+  };
+  state.__ccoScanBoundaryCatalogCalls = 0;
+  state.__ccoScanBoundaryCatalogBusy = true;
+
+  const response = await get();
+  const payload = await response.json();
+  assert.equal(response.status, 202);
+  assert.equal(payload.state, "committed");
+  assert.equal(payload.originalReady, false);
+  assert.equal(payload.processing, true);
+  assert.match(payload.message, /finalizing.*catalog/i);
+  assert.equal(state.__ccoScanBoundaryCatalogCalls, 1);
 });

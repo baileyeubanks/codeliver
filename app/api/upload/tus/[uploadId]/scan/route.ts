@@ -32,21 +32,80 @@ function retryable(session: UploadSession): boolean {
   );
 }
 
+function catalogAttached(session: UploadSession): boolean {
+  return (
+    session.catalog.state === "attached" &&
+    Boolean(session.assetId && session.versionId)
+  );
+}
+
+function uploadBusy(error: unknown): boolean {
+  return (
+    typeof error === "object" &&
+    error !== null &&
+    "code" in error &&
+    error.code === "UPLOAD_BUSY"
+  );
+}
+
+async function attachCatalogForStatus(
+  orchestrator: ReturnType<typeof createDefaultUploadOrchestrator>,
+  session: UploadSession,
+  userId: string,
+): Promise<{ session: UploadSession; busy: boolean }> {
+  if (catalogAttached(session)) {
+    if (session.derivatives?.state === "ready") return { session, busy: false };
+    try {
+      return {
+        session: await orchestrator.retryDerivatives(session.id, userId),
+        busy: false,
+      };
+    } catch (error) {
+      if (!uploadBusy(error)) throw error;
+      return {
+        session: (await orchestrator.getSession(session.id, userId)) ?? session,
+        busy: true,
+      };
+    }
+  }
+  try {
+    await ensureCatalogAsset(orchestrator, session, userId);
+  } catch (error) {
+    if (!uploadBusy(error)) throw error;
+    return {
+      session: (await orchestrator.getSession(session.id, userId)) ?? session,
+      busy: true,
+    };
+  }
+  return {
+    session: (await orchestrator.getSession(session.id, userId)) ?? session,
+    busy: false,
+  };
+}
+
 function statusPayload(session: UploadSession) {
   const ready =
     session.state === "committed" &&
     session.scan?.verdict === "clean" &&
     session.catalog.state === "attached" &&
     Boolean(session.assetId && session.versionId && session.receipt);
+  const processing =
+    session.state === "verifying" ||
+    (session.state === "committed" && session.scan?.verdict === "clean" && !ready);
   return {
     state: session.state,
     retryable: retryable(session),
     originalReady: ready,
+    processing,
     message:
       session.state === "verifying"
-        ? "Security scan is running against the retained verified upload."
+        ? session.scan?.verdict === "clean"
+          ? "Saving verified media to durable storage."
+          : "Security scan is running against the retained verified upload."
         : ready
           ? "Security scan passed and the upload is ready."
+          : processing
+            ? "Verified media is saved and finalizing its catalog record."
           : retryable(session)
             ? "Security scan timed out. The verified upload remains quarantined and can be scanned again."
             : session.state === "rejected"
@@ -78,9 +137,11 @@ export async function POST(_request: NextRequest, { params }: RouteParams) {
       return apiJson({ error: "Upload not found", code: "UPLOAD_NOT_FOUND" }, { status: 404, headers: NO_STORE });
     }
     if (current.state === "committed") {
-      await ensureCatalogAsset(orchestrator, current, user.id);
-      const attached = (await orchestrator.getSession(uploadId, user.id)) ?? current;
-      return apiJson(statusPayload(attached), { status: 200, headers: NO_STORE });
+      const attached = await attachCatalogForStatus(orchestrator, current, user.id);
+      return apiJson(statusPayload(attached.session), {
+        status: attached.busy ? 202 : 200,
+        headers: NO_STORE,
+      });
     }
     const deferred =
       current.state === "verifying" &&
@@ -111,7 +172,7 @@ export async function POST(_request: NextRequest, { params }: RouteParams) {
               ? await orchestrator.recoverSession(uploadId, user.id)
               : await orchestrator.resumeMalwareScanRetry(uploadId, user.id);
         if (!result) return;
-        if (result.state === "committed") {
+        if (result.state === "committed" && !catalogAttached(result)) {
           await ensureCatalogAsset(orchestrator, result, user.id);
         }
       } catch (error: unknown) {
@@ -147,8 +208,11 @@ export async function GET(_request: NextRequest, { params }: RouteParams) {
       session = (await orchestrator.getSession(uploadId, user.id)) ?? session;
     }
     if (session.state === "committed") {
-      await ensureCatalogAsset(orchestrator, session, user.id);
-      session = (await orchestrator.getSession(uploadId, user.id)) ?? session;
+      const attached = await attachCatalogForStatus(orchestrator, session, user.id);
+      return apiJson(statusPayload(attached.session), {
+        status: attached.busy ? 202 : 200,
+        headers: NO_STORE,
+      });
     }
     return apiJson(statusPayload(session), { status: 200, headers: NO_STORE });
   } catch (error) {

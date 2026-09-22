@@ -10,7 +10,13 @@ import { PendingMalwareScanHook } from "../lib/storage/malware.ts";
 import type { UploadSession } from "../lib/tus/session.ts";
 import { createStorageRuntime } from "../lib/storage/runtime.ts";
 import { buildVersionedObjectKey, hashStorageNamespace } from "../lib/storage/object-key.ts";
-import { UploadOrchestrator, type PostCommitHook } from "../lib/tus/orchestrator.ts";
+import {
+  createDefaultUploadOrchestrator,
+  createMediaPipelineCatalogHook,
+  UploadOrchestrator,
+  type PostCommitHook,
+} from "../lib/tus/orchestrator.ts";
+import type { MediaPipelineEnqueueInput } from "../lib/media-pipeline/types.ts";
 import { FileUploadSessionRepository } from "../lib/tus/session-repository.ts";
 
 const CLEAN_SCANNER: MalwareScanHook = {
@@ -58,7 +64,8 @@ function createOrchestrator(
   root: string,
   scanner: MalwareScanHook = CLEAN_SCANNER,
   overrides: NodeJS.ProcessEnv = {},
-  postCommitHooks: PostCommitHook[] = []
+  postCommitHooks: PostCommitHook[] = [],
+  catalogDerivativeHooks: PostCommitHook[] = []
 ): UploadOrchestrator {
   const runtime = createStorageRuntime(environment(root, overrides));
   return new UploadOrchestrator({
@@ -67,6 +74,7 @@ function createOrchestrator(
     sessions: new FileUploadSessionRepository(root, 60_000),
     scanner,
     postCommitHooks,
+    catalogDerivativeHooks,
   });
 }
 
@@ -1202,6 +1210,115 @@ test("derivative readiness persists failure and explicit retry", async () => {
   } finally {
     rmSync(root, { recursive: true, force: true });
   }
+});
+
+test("catalog derivative enqueue waits for immutable asset and version identity", async () => {
+  const root = mkdtempSync(join(tmpdir(), "codeliver-session-catalog-derivative-"));
+  const observed: UploadSession[] = [];
+  const hook: PostCommitHook = { async onCommitted(session) { observed.push(structuredClone(session)); } };
+  const orchestrator = createOrchestrator(root, CLEAN_SCANNER, {}, [], [hook]);
+  try {
+    const created = await orchestrator.createSession(createInput());
+    const committed = await orchestrator.appendPart({ uploadId: created.session.id, tenantId: "tenant-a", offset: 0, chunks: chunks("payload") });
+    assert.equal(committed.session.state, "committed");
+    assert.equal(committed.session.derivatives.state, "pending");
+    assert.equal(observed.length, 0);
+    await orchestrator.reconcileCatalog(created.session.id, "tenant-a", async () => ({ id: "asset-a", version_id: "version-a" }));
+    const attached = await orchestrator.getSession(created.session.id, "tenant-a");
+    assert.equal(observed.length, 1);
+    assert.equal(observed[0]?.assetId, "asset-a");
+    assert.equal(observed[0]?.versionId, "version-a");
+    assert.equal(observed[0]?.projectId, "project-a");
+    assert.equal(observed[0]?.receipt?.objectKey, committed.session.objectKey);
+    assert.equal(attached?.catalog.state, "attached");
+    assert.equal(attached?.derivatives.state, "ready");
+    assert.equal(attached?.derivatives.attempts, 1);
+  } finally { rmSync(root, { recursive: true, force: true }); }
+});
+
+test("catalog reconciliation retries a failed idempotent derivative enqueue without hiding the original", async () => {
+  const root = mkdtempSync(join(tmpdir(), "codeliver-session-catalog-derivative-retry-"));
+  let attempts = 0;
+  const hook: PostCommitHook = { async onCommitted() { attempts += 1; if (attempts === 1) throw new Error("pipeline queue unavailable"); } };
+  const orchestrator = createOrchestrator(root, CLEAN_SCANNER, {}, [], [hook]);
+  try {
+    const created = await orchestrator.createSession(createInput());
+    const committed = await orchestrator.appendPart({ uploadId: created.session.id, tenantId: "tenant-a", offset: 0, chunks: chunks("payload") });
+    await orchestrator.reconcileCatalog(created.session.id, "tenant-a", async () => ({ id: "asset-a", version_id: "version-a" }));
+    const failed = await orchestrator.getSession(created.session.id, "tenant-a");
+    assert.equal(failed?.derivatives.state, "error");
+    assert.equal(failed?.derivatives.attempts, 1);
+    assert.match(failed?.derivatives.lastError ?? "", /pipeline queue unavailable/);
+    assert.equal(orchestrator.releaseReadiness(failed!).originalReady, true);
+    await orchestrator.reconcileCatalog(created.session.id, "tenant-a", async () => ({ id: "asset-a", version_id: "version-a" }));
+    const retried = await orchestrator.getSession(created.session.id, "tenant-a");
+    assert.equal(retried?.derivatives.state, "ready");
+    assert.equal(retried?.derivatives.attempts, 2);
+    assert.equal(attempts, 2);
+    assert.equal(committed.session.receipt?.sha256, retried?.receipt?.sha256);
+  } finally { rmSync(root, { recursive: true, force: true }); }
+});
+
+test("an attached upload from the pre-hook runtime can enqueue its blocked derivatives", async () => {
+  const root = mkdtempSync(join(tmpdir(), "codeliver-session-catalog-derivative-recovery-"));
+  let attempts = 0;
+  try {
+    const legacy = createOrchestrator(root);
+    const created = await legacy.createSession(createInput());
+    await legacy.appendPart({ uploadId: created.session.id, tenantId: "tenant-a", offset: 0, chunks: chunks("payload") });
+    await legacy.reconcileCatalog(created.session.id, "tenant-a", async () => ({ id: "asset-a", version_id: "version-a" }));
+    const blocked = await legacy.getSession(created.session.id, "tenant-a");
+    assert.equal(blocked?.catalog.state, "attached");
+    assert.equal(blocked?.derivatives.state, "blocked");
+    const upgraded = createOrchestrator(root, CLEAN_SCANNER, {}, [], [{ async onCommitted(session) {
+      attempts += 1;
+      assert.equal(session.assetId, "asset-a");
+      assert.equal(session.versionId, "version-a");
+      assert.ok(session.receipt);
+    } }]);
+    const recovered = await upgraded.retryDerivatives(created.session.id, "tenant-a");
+    assert.equal(recovered.derivatives.state, "ready");
+    assert.equal(recovered.derivatives.attempts, 1);
+    assert.equal(attempts, 1);
+  } finally { rmSync(root, { recursive: true, force: true }); }
+});
+
+test("default upload runtime advertises the durable catalog derivative enqueue hook", async () => {
+  const root = mkdtempSync(join(tmpdir(), "codeliver-session-default-derivative-"));
+  try {
+    const orchestrator = createDefaultUploadOrchestrator(environment(root));
+    const diagnostics = await orchestrator.diagnostics("tenant-a");
+    assert.equal(diagnostics.workflow.derivatives.enqueueConfigured, true);
+    assert.equal(diagnostics.workflow.derivatives.durableSessionState, true);
+  } finally { rmSync(root, { recursive: true, force: true }); }
+});
+
+test("media pipeline catalog hook enqueues the exact immutable receipt-bound version", async () => {
+  const root = mkdtempSync(join(tmpdir(), "codeliver-session-media-hook-"));
+  const orchestrator = createOrchestrator(root);
+  const enqueued: MediaPipelineEnqueueInput[] = [];
+  try {
+    const created = await orchestrator.createSession(createInput());
+    await orchestrator.appendPart({ uploadId: created.session.id, tenantId: "tenant-a", offset: 0, chunks: chunks("payload") });
+    await orchestrator.reconcileCatalog(created.session.id, "tenant-a", async () => ({ id: "asset-a", version_id: "version-a" }));
+    const attached = await orchestrator.getSession(created.session.id, "tenant-a");
+    assert.ok(attached?.receipt);
+    const hook = createMediaPipelineCatalogHook(environment(root), { async enqueue(input) { enqueued.push(input); } });
+    await hook.onCommitted(attached);
+    assert.deepEqual(enqueued, [{
+      assetId: "asset-a", versionId: "version-a", projectId: "project-a",
+      source: {
+        objectKey: attached.objectKey, filename: "master.mov", versionNumber: 1,
+        expectedSize: 7, expectedSha256: attached.computedSha256,
+        receipt: {
+          provider: attached.receipt.provider, objectKey: attached.receipt.objectKey,
+          size: attached.receipt.size, sha256: attached.receipt.sha256,
+          providerVersionId: attached.receipt.providerVersionId,
+          committedAt: attached.receipt.committedAt,
+        },
+      },
+    }]);
+  } finally { rmSync(root, { recursive: true, force: true }); }
 });
 
 test("derivative enqueue timeout is durable and does not roll back the original", async () => {

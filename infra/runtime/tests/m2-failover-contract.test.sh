@@ -17,13 +17,13 @@ PROFILE_VALUES="$(
   CODELIVER_EXPECTED_STORAGE_MOUNT=/tmp/forbidden-storage \
   /bin/bash -c '
     source "$1"
-    printf "%s|%s|%s|%s|%s|%s|%s|%s|%s" \
+    printf "%s|%s|%s|%s|%s|%s|%s|%s|%s|%s" \
       "$RUNTIME_PROFILE" "$APP_ROOT" "$ENV_FILE" "$EXPECTED_RUNTIME_USER" \
-      "$STORAGE_MOUNT" "$STORAGE_ROOT" "$ADMIN_HOST" "$CLIENT_HOST" "$LAUNCHD_LABEL"
+      "$STORAGE_MOUNT" "$STORAGE_ROOT" "$LOG_ROOT" "$ADMIN_HOST" "$CLIENT_HOST" "$LAUNCHD_LABEL"
   ' _ "$COMMON"
 )"
 
-EXPECTED_VALUES='m2-failover|/Users/baileyeubanks/.local/share/codeliver-failover|/Users/baileyeubanks/.config/codeliver-failover/runtime.env|baileyeubanks|/Volumes/CC_NAS|/Volumes/CC_NAS/cvp-runtime/co-videopro|co-videopro.com|client.contentco-op.com|com.contentcoop.codeliver-failover'
+EXPECTED_VALUES='m2-failover|/Users/baileyeubanks/.local/share/codeliver-failover|/Users/baileyeubanks/.config/codeliver-failover/runtime.env|baileyeubanks|/Volumes/CC_NAS|/Volumes/CC_NAS/cvp-runtime/co-videopro|/Users/baileyeubanks/Library/Logs/Co-VideoPro|co-videopro.com|client.contentco-op.com|com.contentcoop.codeliver-failover'
 [[ "$PROFILE_VALUES" == "$EXPECTED_VALUES" ]] || \
   fail_test "M2 failover constants are wrong or environment-overridable: $PROFILE_VALUES"
 

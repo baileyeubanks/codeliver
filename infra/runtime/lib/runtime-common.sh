@@ -21,6 +21,7 @@ if [[ "$RUNTIME_TEST_MODE" == "1" ]]; then
   EXPECTED_RUNTIME_USER="${CODELIVER_EXPECTED_RUNTIME_USER:-$(id -un)}"
   STORAGE_MOUNT="${CODELIVER_EXPECTED_STORAGE_MOUNT:-$APP_ROOT/storage}"
   STORAGE_ROOT="${CODELIVER_EXPECTED_STORAGE_ROOT:-$STORAGE_MOUNT/media-vault/co-deliver}"
+  LOG_ROOT="$APP_ROOT/logs"
 else
   case "$RUNTIME_PROFILE" in
     m4)
@@ -31,6 +32,7 @@ else
       EXPECTED_RUNTIME_USER="_mxappservice"
       STORAGE_MOUNT="/Volumes/BLAZE-STORE-2"
       STORAGE_ROOT="/Volumes/BLAZE-STORE-2/media-vault/co-deliver"
+      LOG_ROOT="/Users/_mxappservice/Library/Logs/Co-Deliver"
       ;;
     m2-failover)
       APP_ROOT="/Users/baileyeubanks/.local/share/codeliver-failover"
@@ -40,6 +42,7 @@ else
       EXPECTED_RUNTIME_USER="baileyeubanks"
       STORAGE_MOUNT="/Volumes/CC_NAS"
       STORAGE_ROOT="/Volumes/CC_NAS/cvp-runtime/co-videopro"
+      LOG_ROOT="/Users/baileyeubanks/Library/Logs/Co-VideoPro"
       ;;
   esac
 fi
@@ -74,7 +77,7 @@ else
 fi
 
 readonly RUNTIME_TEST_MODE RUNTIME_PROFILE APP_ROOT ENV_FILE NODE_BIN NPM_CLI_JS EXPECTED_RUNTIME_USER
-readonly STORAGE_MOUNT STORAGE_ROOT RELEASES_ROOT STAGING_ROOT STATE_ROOT CONTROL_ROOT
+readonly STORAGE_MOUNT STORAGE_ROOT LOG_ROOT RELEASES_ROOT STAGING_ROOT STATE_ROOT CONTROL_ROOT
 readonly CURRENT_LINK PREVIOUS_LINK RECEIPTS_ROOT CANARY_LOG_ROOT LOCKS_ROOT PROMOTION_LOCK
 readonly EXPECTED_NODE_VERSION PRODUCTION_PORT DEFAULT_CANARY_PORT BIND_HOST ADMIN_HOST CLIENT_HOST
 readonly LAUNCHD_LABEL
@@ -285,15 +288,15 @@ require_pinned_node() {
 ensure_runtime_directories() {
   local directory mode
   for directory in "$APP_ROOT" "$RELEASES_ROOT" "$STAGING_ROOT" "$STATE_ROOT" "$STATE_ROOT/cache" \
-    "$CONTROL_ROOT" "$RECEIPTS_ROOT" "$CANARY_LOG_ROOT" "$LOCKS_ROOT"; do
+    "$CONTROL_ROOT" "$RECEIPTS_ROOT" "$CANARY_LOG_ROOT" "$LOCKS_ROOT" "$LOG_ROOT"; do
     if [[ -e "$directory" || -L "$directory" ]]; then
       [[ -d "$directory" && ! -L "$directory" ]] || fail "runtime path must be a real directory: $directory"
     fi
   done
   /bin/mkdir -p "$RELEASES_ROOT" "$STAGING_ROOT" "$STATE_ROOT/cache" "$CONTROL_ROOT" \
-    "$RECEIPTS_ROOT" "$CANARY_LOG_ROOT" "$LOCKS_ROOT"
+    "$RECEIPTS_ROOT" "$CANARY_LOG_ROOT" "$LOCKS_ROOT" "$LOG_ROOT"
   for directory in "$APP_ROOT" "$RELEASES_ROOT" "$STAGING_ROOT" "$STATE_ROOT" "$STATE_ROOT/cache" \
-    "$CONTROL_ROOT" "$RECEIPTS_ROOT" "$CANARY_LOG_ROOT" "$LOCKS_ROOT"; do
+    "$CONTROL_ROOT" "$RECEIPTS_ROOT" "$CANARY_LOG_ROOT" "$LOCKS_ROOT" "$LOG_ROOT"; do
     [[ "$(file_owner "$directory")" == "$EXPECTED_RUNTIME_USER" ]] || \
       fail "runtime directory must be owned by $EXPECTED_RUNTIME_USER: $directory"
     mode="$(file_mode "$directory")"

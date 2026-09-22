@@ -59,7 +59,6 @@ import { resolveDemoReviewerEmail } from "@/lib/review/demo-reviewer-identity";
 import { projectPersistedDemoReviewComment } from "@/lib/review/demo-comment-projection";
 import {
   deriveReviewState,
-  formatAssetStatusLabel,
 } from "@/lib/review-state";
 import {
   deriveShareIntent,
@@ -748,24 +747,10 @@ export default function PublicReviewPage({
     workflowMode,
   });
   const openThreads = reviewState.counts.openThreads;
-  const resolvedThreads = reviewState.counts.resolvedThreads;
-  const pendingApprovals = orderedApprovals.filter((approval) => approval.status === "pending");
-  const completedApprovals = approvals.filter((approval) => approval.status !== "pending");
-  const activeApprovalIdSet = new Set(activeApprovalIds);
-  const activeApproval =
-    orderedApprovals.find((approval) => activeApprovalIdSet.has(approval.id)) ?? pendingApprovals[0] ?? null;
   const expiresLabel = formatShortDate(invite?.expires_at);
   const shareMeta = isSourcePreview
     ? { ...formatShareIntentMeta(shareIntent), label: "Source preview", permissionsLabel: "Local notes" }
     : formatShareIntentMeta(shareIntent);
-  const pageDescription =
-    isSourcePreview ? "Imported source file. Notes stay in this local workspace." : shareIntent === "final_delivery"
-      ? "Approved delivery and review history."
-      : shareIntent === "approval_needed"
-        ? "Client approval is active for this version."
-        : shareIntent === "internal_review"
-          ? "Internal review is active for this version."
-          : "Client review is active for this version.";
   const stageTitle = isSourcePreview ? "Source player" : shareIntent === "final_delivery" ? "Delivery player" : "Review player";
   const stageDescription = compareMode
     ? "A/B compare — linked playback, no pins or drawings"
@@ -1370,96 +1355,107 @@ export default function PublicReviewPage({
               <span className="client-review-project-name">
                 {asset?.projects?.name ?? "Project"}
               </span>
-              <span className="client-review-intent-badge">
-                {shareMeta.label}
-              </span>
             </div>
 
             <div className="client-review-title-row">
               <h1 className="review-display">
                 {asset?.title ?? "Review"}
               </h1>
-              {asset ? (
-                <span className="client-review-status-badge">
-                  {formatAssetStatusLabel(asset.status)}
-                </span>
-              ) : null}
+              <span className="client-review-status-badge">
+                {isSourcePreview ? "Source file" : reviewState.label}
+              </span>
             </div>
-            <p className="client-review-page-description">{pageDescription}</p>
           </div>
 
           <div className="client-review-header-summary">
-            <div className="client-review-access-row">
-              <span className="client-review-state-badge">
-              {isSourcePreview ? "Imported file" : reviewState.label}
-              </span>
-              {delivery?.locked ? (
-                <span
-                  className="client-review-state-badge"
-                  title={delivery.sha256 ? `Checksum ${delivery.sha256}` : undefined}
-                >
-                  Locked final delivery
-                </span>
-              ) : null}
-              <span>{shareMeta.permissionsLabel}</span>
-            </div>
-            {delivery?.locked && delivery.sha256 ? (
-              <p className="client-review-reviewer">
-                Checksum <strong>{delivery.sha256.slice(0, 12)}…</strong>
-              </p>
-            ) : null}
-            {reviewerName || invite?.reviewer_name ? (
-              <p className="client-review-reviewer">
-                Reviewing as <strong>{reviewerName || invite?.reviewer_name}</strong>
-              </p>
-            ) : null}
-            <div className="client-review-link-meta">
-              <span>{invite?.view_count ?? 0} views</span>
-              {expiresLabel ? <span>Expires {expiresLabel}</span> : null}
-            </div>
-            {invite?.download_enabled && downloadUrl ? (
-              <a
-                href={downloadUrl ?? undefined}
-                download
-                className="client-review-download"
-              >
-                <Download size={13} />
-                Download
-              </a>
-            ) : null}
-            {asset && activeVersion && !isSourcePreview ? (
-              <button
-                type="button"
-                className="client-review-download"
-                onClick={() => {
-                  const opened = openReviewReport({
-                    assetId: asset.id,
-                    assetTitle: asset.title,
-                    projectName: asset.projects?.name ?? "Review",
-                    versionId: activeVersion.id,
-                    versionNumber: activeVersion.version_number,
-                    approvalLabel: reviewState.label,
-                    comments,
-                  });
-                  setReportError(opened ? "" : "Allow pop-ups for this site, then open the review report again.");
-                }}
-              >
-                <Printer size={13} />
-                Review report
-              </button>
-            ) : null}
-            {reportError ? <p role="alert" className="text-xs text-[var(--muted)]">{reportError}</p> : null}
-            {demoMode ? (
-              <button
-                type="button"
-                onClick={() => setShareSettingsOpen(true)}
-                title="Review link settings (local preview — this browser only)"
-                className="client-review-download"
-              >
-                <Settings2 size={13} />
-                Share settings
-              </button>
-            ) : null}
+            <details className="client-review-tools">
+              <summary>Review details</summary>
+              <div className="client-review-tools-panel">
+                <div className="client-review-detail-grid">
+                  <span>
+                    Review
+                    <strong>{shareMeta.label}</strong>
+                  </span>
+                  <span>
+                    Access
+                    <strong>{shareMeta.permissionsLabel}</strong>
+                  </span>
+                  {reviewerName || invite?.reviewer_name ? (
+                    <span>
+                      Reviewer
+                      <strong>{reviewerName || invite?.reviewer_name}</strong>
+                    </span>
+                  ) : null}
+                  <span>
+                    Views
+                    <strong>{invite?.view_count ?? 0}</strong>
+                  </span>
+                  {expiresLabel ? (
+                    <span>
+                      Expires
+                      <strong>{expiresLabel}</strong>
+                    </span>
+                  ) : null}
+                  {delivery?.locked ? (
+                    <span>
+                      Delivery
+                      <strong>Locked final</strong>
+                    </span>
+                  ) : null}
+                  {delivery?.locked && delivery.sha256 ? (
+                    <span>
+                      Checksum
+                      <strong>{delivery.sha256.slice(0, 12)}…</strong>
+                    </span>
+                  ) : null}
+                </div>
+                <div className="client-review-tool-actions">
+                  {invite?.download_enabled && downloadUrl ? (
+                    <a
+                      href={downloadUrl ?? undefined}
+                      download
+                      className="client-review-download"
+                    >
+                      <Download size={13} />
+                      Download
+                    </a>
+                  ) : null}
+                  {asset && activeVersion && !isSourcePreview ? (
+                    <button
+                      type="button"
+                      className="client-review-download"
+                      onClick={() => {
+                        const opened = openReviewReport({
+                          assetId: asset.id,
+                          assetTitle: asset.title,
+                          projectName: asset.projects?.name ?? "Review",
+                          versionId: activeVersion.id,
+                          versionNumber: activeVersion.version_number,
+                          approvalLabel: reviewState.label,
+                          comments,
+                        });
+                        setReportError(opened ? "" : "Allow pop-ups for this site, then open the review report again.");
+                      }}
+                    >
+                      <Printer size={13} />
+                      Review report
+                    </button>
+                  ) : null}
+                  {demoMode ? (
+                    <button
+                      type="button"
+                      onClick={() => setShareSettingsOpen(true)}
+                      title="Review link settings (local preview — this browser only)"
+                      className="client-review-download"
+                    >
+                      <Settings2 size={13} />
+                      Share settings
+                    </button>
+                  ) : null}
+                </div>
+                {reportError ? <p role="alert" className="text-xs text-[var(--muted)]">{reportError}</p> : null}
+              </div>
+            </details>
           </div>
         </>
       }
@@ -1509,26 +1505,21 @@ export default function PublicReviewPage({
               <X size={12} />
             </button>
           </>
-        ) : (
-          <>
-            <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[var(--dim)]">
-              Review state
-            </p>
-            <p className="mt-2 text-sm font-medium text-[var(--ink)]">{reviewState.label}</p>
-            <p className="mt-2 text-sm leading-6 text-[var(--muted)]">{reviewState.summary}</p>
-            <p className="mt-2 text-xs leading-5 text-[var(--dim)]">Next: {reviewState.nextStep}</p>
-          </>
-        ),
+        ) : null,
         media: (
           <div>
             {orderedVersions.length > 0 ? (
               <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2 border-b border-white/10 bg-black px-3 py-2">
-                {isSourcePreview ? <span className="text-xs text-white/80">Imported file</span> : <VersionSwitcher
-                  versions={linkVersions}
-                  activeVersionId={activeVersion?.id ?? null}
-                  onSelect={handleVersionSelect}
-                  currentVersionOnly={currentVersionOnly}
-                />}
+                {isSourcePreview && orderedVersions.length === 1 ? (
+                  <span className="text-xs font-medium text-white/80">Imported file</span>
+                ) : (
+                  <VersionSwitcher
+                    versions={linkVersions}
+                    activeVersionId={activeVersion?.id ?? null}
+                    onSelect={handleVersionSelect}
+                    currentVersionOnly={currentVersionOnly}
+                  />
+                )}
                 {viewingOlderVersion ? (
                   <span className="text-[11px] text-amber-300/90">
                     Viewing an older version — notes and approvals belong to
@@ -1600,18 +1591,20 @@ export default function PublicReviewPage({
                         onCommentSelect={(comment) => handleCommentSelect(comment as ReviewComment)}
                         selectedCommentId={selectedCommentId}
                       />
-                      <p
-                        className={`min-h-5 text-xs ${
-                          cutMarkerError ? "text-[var(--red)]" : "text-[var(--dim)]"
-                        }`}
-                        role={cutMarkerError ? "alert" : "status"}
-                        aria-live="polite"
-                      >
-                        {cutMarkerError ||
-                          (canComment
-                            ? "Press Down to propose a version-bound cut at the playhead."
-                            : "Cut decisions are read-only for this link.")}
-                      </p>
+                      {cutMarkerError ? (
+                        <p className="min-h-5 text-xs text-[var(--red)]" role="alert" aria-live="polite">
+                          {cutMarkerError}
+                        </p>
+                      ) : (
+                        <details className="review-timeline-help">
+                          <summary>Timeline shortcut</summary>
+                          <p>
+                            {canComment
+                              ? "Press Down to propose a version-bound cut at the playhead."
+                              : "Cut decisions are read-only for this link."}
+                          </p>
+                        </details>
+                      )}
                     </div>
                   ),
                 }}
@@ -1642,14 +1635,7 @@ export default function PublicReviewPage({
         intro: null,
         approval: permissions === "approve"
           ? {
-              header: (
-                <div className="flex flex-wrap items-center justify-between gap-3">
-                  <span className="text-xs text-[var(--dim)]">Sign-off progress</span>
-                  <span className="rounded-full bg-[var(--bg)] px-3 py-1 text-xs text-[var(--muted)]">
-                    {completedApprovals.length}/{approvals.length || 1} decided
-                  </span>
-                </div>
-              ),
+              header: null,
               // The decision context lives inside ApprovalPanel ("Your decision"
               // card) — a second summary card here duplicated it and buried the
               // comments rail. Removed in the visual normalization pass.
@@ -1703,8 +1689,9 @@ export default function PublicReviewPage({
           emptyDescription: emptyCommentsDescription,
           content: (
             <div className="space-y-3">
-              <div role="group" aria-label="Rail view" className="flex items-center gap-1.5">
-                {(isSourcePreview ? ["comments"] as const : ["comments", "summary"] as const).map((tab) => (
+              {!isSourcePreview ? (
+                <div role="group" aria-label="Rail view" className="flex items-center gap-1.5">
+                  {(["comments", "summary"] as const).map((tab) => (
                   <button
                     key={tab}
                     type="button"
@@ -1718,8 +1705,9 @@ export default function PublicReviewPage({
                   >
                     {tab === "comments" ? "Comments" : "Summary"}
                   </button>
-                ))}
-              </div>
+                  ))}
+                </div>
+              ) : null}
 
               {railTab === "summary" && !isSourcePreview ? (
                 <ProducerSummaryPanel

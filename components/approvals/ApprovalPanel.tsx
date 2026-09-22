@@ -104,12 +104,14 @@ export default function ApprovalPanel({
   const [name, setName] = useState(identityName ?? "");
   const [note, setNote] = useState("");
 
+  const orderedSteps = [...steps].sort((left, right) => left.step_order - right.step_order);
   const assetState: AssetApprovalState = locked
     ? "locked"
     : currentAssetState(steps, comments);
-  const pill = STATE_PILL[assetState];
+  const pill = orderedSteps.length === 0 && !locked
+    ? { label: "Not configured", color: "var(--dim)" }
+    : STATE_PILL[assetState];
 
-  const orderedSteps = [...steps].sort((left, right) => left.step_order - right.step_order);
   const activeIds =
     activeStepIds ?? activeApprovalSteps(steps, workflowMode).map((step) => step.id);
   const currentStep =
@@ -169,39 +171,53 @@ export default function ApprovalPanel({
         <ol className="mt-3 flex flex-col gap-2" aria-label="Approval steps">
           {orderedSteps.map((step) => {
             const chip = stepChipState(step, activeIds);
-            const chipStyle = CHIP_STYLE[chip];
+            const changesRequested = step.status === "changes_requested";
+            const chipStyle = changesRequested
+              ? { label: "Changes requested", color: "var(--orange)" }
+              : CHIP_STYLE[chip];
             return (
               <li
                 key={step.id}
                 data-step-id={step.id}
                 data-chip-state={chip}
-                className={`flex flex-wrap items-center justify-between gap-3 rounded-[var(--radius-sm)] border px-3 py-2 ${
+                className={`rounded-[var(--radius-sm)] border px-3 py-2 ${
                   chip === "current" ? "border-[var(--accent)]" : "border-[var(--border)]"
                 }`}
               >
-                <div className="flex min-w-0 items-center gap-2">
-                  <ChipIcon state={chip} />
-                  <span className="text-xs text-[var(--dim)]">Step {step.step_order}</span>
-                  <span className="truncate text-sm font-medium text-[var(--ink)]">
-                    {step.role_label}
-                  </span>
-                </div>
-                <div className="flex min-w-0 flex-wrap items-center gap-2">
-                  {step.decided_at && (
-                    <span className="text-xs text-[var(--dim)]">
-                      {new Date(step.decided_at).toLocaleString()}
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <div className="flex min-w-0 items-center gap-2">
+                    {changesRequested ? (
+                      <AlertCircle size={12} style={{ color: chipStyle.color }} />
+                    ) : (
+                      <ChipIcon state={chip} />
+                    )}
+                    <span className="text-xs text-[var(--dim)]">Step {step.step_order}</span>
+                    <span className="truncate text-sm font-medium text-[var(--ink)]">
+                      {step.role_label}
                     </span>
-                  )}
-                  <span
-                    className="rounded-[var(--radius-sm)] px-2 py-0.5 text-xs font-medium"
-                    style={{
-                      backgroundColor: `color-mix(in srgb, ${chipStyle.color} 14%, transparent)`,
-                      color: chipStyle.color,
-                    }}
-                  >
-                    {chipStyle.label}
-                  </span>
+                  </div>
+                  <div className="flex min-w-0 flex-wrap items-center gap-2">
+                    {step.decided_at && (
+                      <span className="text-xs text-[var(--dim)]">
+                        {new Date(step.decided_at).toLocaleString()}
+                      </span>
+                    )}
+                    <span
+                      className="rounded-[var(--radius-sm)] px-2 py-0.5 text-xs font-medium"
+                      style={{
+                        backgroundColor: `color-mix(in srgb, ${chipStyle.color} 14%, transparent)`,
+                        color: chipStyle.color,
+                      }}
+                    >
+                      {chipStyle.label}
+                    </span>
+                  </div>
                 </div>
+                {step.decision_note ? (
+                  <p className="mt-2 text-xs leading-5 text-[var(--muted)]">
+                    {step.decision_note}
+                  </p>
+                ) : null}
               </li>
             );
           })}

@@ -28,9 +28,9 @@
   --radius-lg: 8px;
   --radius-sm: 6px;
   --radius-xl: 8px;
-  --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.32);
-  --shadow-md: 0 10px 26px rgba(0, 0, 0, 0.44);
-  --shadow-lg: 0 18px 46px rgba(0, 0, 0, 0.55);
+  --shadow-sm: 0 4px 18px rgba(26, 54, 93, 0.08);
+  --shadow-md: 0 14px 34px rgba(26, 54, 93, 0.14);
+  --shadow-lg: 0 24px 54px rgba(26, 54, 93, 0.18);
   --transition-fast: 150ms cubic-bezier(0.4, 0, 0.2, 1);
   min-width: 0;
   min-height: 100svh;
@@ -47,6 +47,16 @@
 .shell *::before,
 .shell *::after {
   box-sizing: border-box;
+}
+
+.visuallyHidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
 }
 
 .skipLink {
@@ -123,12 +133,12 @@
 }
 
 .brand {
-  min-height: 62px;
+  min-height: 54px;
   display: flex;
   align-items: center;
   gap: 11px;
   border-bottom: 1px solid var(--border);
-  padding: 9px 13px;
+  padding: 8px 13px;
 }
 
 .productBrand {
@@ -179,13 +189,16 @@
 
 .meta {
   min-width: 0;
-  display: grid;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
   gap: 12px;
-  padding: 13px;
+  padding: 11px 13px 12px;
 }
 
 .meta :global(.client-review-title-block) {
   min-width: 0;
+  flex: 1 1 auto;
 }
 
 .meta :global(.client-review-breadcrumbs) {
@@ -219,9 +232,7 @@
   white-space: nowrap;
 }
 
-.meta :global(.client-review-intent-badge),
-.meta :global(.client-review-status-badge),
-.meta :global(.client-review-state-badge) {
+.meta :global(.client-review-status-badge) {
   min-height: 24px;
   display: inline-flex;
   align-items: center;
@@ -232,20 +243,13 @@
   white-space: nowrap;
 }
 
-.meta :global(.client-review-intent-badge),
-.meta :global(.client-review-state-badge) {
-  border: 1px solid color-mix(in srgb, var(--accent) 22%, transparent);
-  background: var(--accent-dim);
-  color: var(--accent);
-}
-
 .meta :global(.client-review-title-row) {
   min-width: 0;
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   gap: 8px 10px;
-  margin-top: 6px;
+  margin-top: 5px;
 }
 
 .meta :global(.client-review-title-row h1) {
@@ -253,82 +257,113 @@
   width: 100%;
   overflow-wrap: anywhere;
   color: var(--ink);
-  font-size: 1.08rem;
+  font-size: 1.2rem;
   font-weight: 720;
   letter-spacing: 0;
   line-height: 1.2;
 }
 
 .meta :global(.client-review-status-badge) {
-  border: 1px solid rgba(127, 168, 140, 0.32);
-  background: rgba(127, 168, 140, 0.12);
-  color: #9dc3aa;
+  border: 1px solid color-mix(in srgb, var(--accent) 24%, var(--border));
+  background: var(--accent-dim);
+  color: var(--accent);
   text-transform: capitalize;
-}
-
-.meta :global(.client-review-page-description) {
-  margin-top: 5px;
-  color: var(--muted);
-  font-size: 0.72rem;
-  line-height: 1.5;
 }
 
 .meta :global(.client-review-header-summary) {
   min-width: 0;
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  align-items: center;
-  gap: 7px 12px;
+  width: auto;
+  display: block;
+  position: relative;
+  flex: 0 0 auto;
 }
 
-.meta :global(.client-review-access-row),
-.meta :global(.client-review-reviewer) {
-  grid-column: 1 / -1;
+.meta :global(.client-review-tools) {
+  position: relative;
 }
 
-.meta :global(.client-review-access-row) {
+.meta :global(.client-review-tools > summary) {
+  min-height: 40px;
   display: flex;
-  flex-wrap: wrap;
   align-items: center;
-  gap: 7px;
-  color: var(--muted);
-  font-size: 0.68rem;
+  justify-content: center;
+  gap: 6px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 7px 11px;
+  background: var(--surface);
+  color: var(--ink-secondary);
+  font-size: 0.72rem;
+  font-weight: 680;
+  cursor: pointer;
+  list-style: none;
 }
 
-.meta :global(.client-review-reviewer) {
-  color: var(--muted);
-  font-size: 0.7rem;
+.meta :global(.client-review-tools > summary::-webkit-details-marker) {
+  display: none;
 }
 
-.meta :global(.client-review-reviewer strong) {
+.meta :global(.client-review-tools[open] > summary) {
+  border-color: color-mix(in srgb, var(--accent) 42%, var(--border));
+  background: var(--accent-dim);
+  color: var(--accent);
+}
+
+.meta :global(.client-review-tools-panel) {
+  position: absolute;
+  z-index: 70;
+  top: calc(100% + 8px);
+  right: 0;
+  width: min(330px, calc(100vw - 26px));
+  display: grid;
+  gap: 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 13px;
+  background: var(--surface);
+  box-shadow: var(--shadow-md);
+}
+
+.meta :global(.client-review-detail-grid) {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.meta :global(.client-review-detail-grid span) {
+  min-width: 0;
+  color: var(--muted);
+  font-size: 0.69rem;
+  line-height: 1.45;
+}
+
+.meta :global(.client-review-detail-grid strong) {
+  display: block;
+  overflow: hidden;
+  margin-top: 1px;
   color: var(--ink);
   font-weight: 650;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-.meta :global(.client-review-link-meta) {
-  display: flex;
-  align-items: center;
-  color: var(--muted);
-  font-size: 0.66rem;
-}
-
-.meta :global(.client-review-link-meta span + span) {
-  margin-left: 9px;
-  padding-left: 9px;
-  border-left: 1px solid var(--border);
+.meta :global(.client-review-tool-actions) {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 7px;
 }
 
 .meta :global(.client-review-download) {
-  min-height: 34px;
+  min-height: 38px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 6px;
-  justify-self: end;
+  width: 100%;
   border: 1px solid var(--border);
   border-radius: 6px;
-  padding: 5px 10px;
-  background: var(--surface);
+  padding: 6px 9px;
+  background: var(--surface-2);
   color: var(--ink-secondary);
   font-size: 0.7rem;
   font-weight: 650;
@@ -351,7 +386,14 @@
 
 .stage {
   min-width: 0;
-  padding: 12px 10px 14px;
+  position: relative;
+  padding: 8px 10px 14px;
+}
+
+.stageToolbar {
+  position: relative;
+  z-index: 20;
+  height: 0;
 }
 
 .stageHeader,
@@ -452,7 +494,7 @@
   --border-light: rgba(255, 255, 255, 0.2);
   overflow: hidden;
   border: 1px solid #1d2a3a;
-  border-radius: 8px;
+  border-radius: 10px;
   background: #050505;
   color: var(--ink);
   box-shadow: 0 12px 28px rgba(19, 36, 62, 0.16);
@@ -487,6 +529,23 @@
   background: var(--surface);
 }
 
+.media :global(.review-timeline-help) {
+  min-height: 22px;
+  color: var(--dim);
+  font-size: 0.7rem;
+}
+
+.media :global(.review-timeline-help > summary) {
+  width: fit-content;
+  cursor: pointer;
+  font-weight: 650;
+}
+
+.media :global(.review-timeline-help > p) {
+  margin-top: 4px;
+  line-height: 1.45;
+}
+
 .media :global(.review-pending-pin) {
   z-index: 31;
   width: 18px;
@@ -512,16 +571,17 @@
 }
 
 .context {
-  margin-top: 10px;
+  margin-top: 8px;
   border: 1px solid var(--border);
   border-radius: 8px;
-  padding: 12px;
+  padding: 10px 12px;
   background: var(--surface);
-  box-shadow: var(--shadow-sm);
 }
 
 .rail {
   min-width: 0;
+  display: flex;
+  flex-direction: column;
   border-top: 1px solid var(--border);
   background: var(--surface);
 }
@@ -537,15 +597,37 @@
 }
 
 .railHeader {
-  display: grid;
-  gap: 10px;
+  min-height: 58px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
   border-bottom: 1px solid var(--border);
-  padding-top: 14px;
-  padding-bottom: 13px;
+  padding-top: 10px;
+  padding-bottom: 10px;
 }
 
-.railStats {
-  justify-content: flex-start;
+.railTitle {
+  color: var(--ink);
+  font-family: var(--font-display, "Inter Display", "Inter", sans-serif);
+  font-size: 1rem;
+  font-weight: 720;
+  line-height: 1.2;
+}
+
+.railMeta {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 3px 8px;
+  color: var(--muted);
+  font-size: 0.68rem;
+  text-align: right;
+}
+
+.railMeta span + span {
+  padding-left: 8px;
+  border-left: 1px solid var(--border);
 }
 
 .guide {
@@ -574,8 +656,8 @@
 
 .approval {
   border-bottom: 1px solid var(--border);
-  padding-top: 14px;
-  padding-bottom: 14px;
+  padding-top: 10px;
+  padding-bottom: 10px;
   background: var(--surface-2);
 }
 
@@ -603,35 +685,7 @@
 
 .comments {
   min-width: 0;
-}
-
-.commentsHeader {
-  padding-top: 14px;
-  padding-bottom: 10px;
-}
-
-.commentsTitleRow {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-}
-
-.commentsTitleRow h3 {
-  color: var(--ink);
-  font-size: 0.8rem;
-  font-weight: 700;
-}
-
-.commentsTitleRow span,
-.commentsHeader p {
-  color: var(--muted);
-  font-size: 0.68rem;
-}
-
-.commentsHeader p {
-  margin-top: 4px;
-  line-height: 1.5;
+  flex: 1 1 auto;
 }
 
 .filters {
@@ -671,7 +725,7 @@
 }
 
 .commentList {
-  padding-top: 12px;
+  padding-top: 10px;
   padding-bottom: 14px;
 }
 
@@ -695,14 +749,27 @@
 }
 
 .composer {
+  flex: 0 0 auto;
+  border-bottom: 1px solid var(--border);
   border-top: 1px solid var(--border);
   background: var(--surface);
 }
 
 .composer > div {
   border-top: 0;
+  padding-top: 12px;
+  padding-bottom: 12px;
   padding-right: 12px;
   padding-left: 12px;
+}
+
+.composer > div > div:first-child > div > p + p {
+  display: none;
+}
+
+.composer textarea {
+  min-height: 96px;
+  height: 96px;
 }
 
 .shell :where(button, a, input, textarea, select):focus-visible {
@@ -722,10 +789,9 @@
   }
 
   .meta {
-    grid-template-columns: minmax(320px, 1fr) minmax(220px, auto);
     align-items: center;
     gap: 18px;
-    padding: 13px 16px;
+    padding: 11px 16px;
   }
 
   .meta :global(.client-review-title-row) {
@@ -737,18 +803,6 @@
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
-  }
-
-  .meta :global(.client-review-header-summary) {
-    display: grid;
-    grid-template-columns: auto auto;
-    justify-items: end;
-  }
-
-  .meta :global(.client-review-access-row),
-  .meta :global(.client-review-reviewer) {
-    grid-column: 1 / -1;
-    justify-self: end;
   }
 
   .stage,
@@ -775,16 +829,16 @@
   }
 
   .header {
-    min-height: 88px;
+    min-height: 74px;
     display: grid;
-    grid-template-columns: 220px minmax(0, 1fr);
+    grid-template-columns: 205px minmax(0, 1fr);
   }
 
   .brand {
-    min-height: 88px;
+    min-height: 74px;
     border-right: 1px solid var(--border);
     border-bottom: 0;
-    padding: 12px 20px;
+    padding: 10px 18px;
   }
 
   .brandImage {
@@ -803,8 +857,8 @@
   }
 
   .meta {
-    gap: 22px;
-    padding: 12px 20px;
+    gap: 20px;
+    padding: 10px 18px;
   }
 
   .meta :global(.client-review-project-name) {
@@ -824,27 +878,28 @@
   .stage,
   .rail {
     min-height: 0;
-    overflow-y: auto;
   }
 
   .stage {
-    padding: 16px 18px 18px;
+    overflow-y: auto;
+    padding: 8px 16px 16px;
   }
 
-  .stageHeader {
-    grid-template-columns: minmax(0, 1fr) auto;
-    align-items: end;
-    gap: 18px;
-    margin-bottom: 12px;
+  .rail {
+    overflow: hidden;
   }
 
-  .stageHeader .stats {
-    max-width: 430px;
-    justify-content: flex-end;
+  .comments {
+    min-height: 0;
+    overflow-y: auto;
+  }
+
+  .composer {
+    flex: 0 0 auto;
   }
 
   .media :global(.review-video-frame) > div {
-    max-height: calc(100svh - 330px);
+    max-height: calc(100svh - 250px);
   }
 
   .rail {
@@ -859,7 +914,7 @@
   }
 
   .stage {
-    padding: 18px 22px 22px;
+    padding: 8px 20px 18px;
   }
 }
 
@@ -882,14 +937,40 @@
   }
 }
 
-.focusButton { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 44px; padding: 0 14px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface); color: var(--ink); font: inherit; font-size: 13px; cursor: pointer; }
-.focusButton[aria-pressed="true"] { color: var(--accent); background: var(--accent-dim); }
-.focusButton:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.focusButton {
+  position: absolute;
+  top: 54px;
+  left: 10px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  min-height: 34px;
+  padding: 0 10px;
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  border-radius: 8px;
+  background: rgba(8, 12, 18, 0.78);
+  color: #f5f8fc;
+  font: inherit;
+  font-size: 11px;
+  font-weight: 650;
+  cursor: pointer;
+  backdrop-filter: blur(8px);
+}
+
+.focusButton[aria-pressed="true"] {
+  border-color: color-mix(in srgb, var(--accent) 62%, white);
+  background: color-mix(in srgb, var(--accent) 65%, #080c12);
+  color: #fff;
+}
+
+.focusButton:focus-visible {
+  outline: 2px solid #fff;
+  outline-offset: 2px;
+}
 .focused .body { grid-template-columns: minmax(0, 1fr); }
 .focused .rail, .focused .context, .focused .stageHeader { display: none; }
 .focused .stage { width: 100%; max-width: 1600px; margin-inline: auto; }
 .focused .media video { max-height: calc(100svh - 210px); object-fit: contain; }
-
-.focusActions { display: flex; justify-content: flex-end; padding: 8px 20px 0; }
 
 .focused .media :global(.review-video-frame) { max-width: calc((100svh - 210px) * 16 / 9); margin-inline: auto; }

@@ -178,7 +178,11 @@ function defaultActiveApprovalIds(
     .map((approval) => approval.id);
 }
 
-export default function PublicReviewPage() {
+export default function PublicReviewPage({
+  demoMode = false,
+}: {
+  demoMode?: boolean;
+}) {
   const { token } = useParams<{ token: string }>();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -247,7 +251,6 @@ export default function PublicReviewPage() {
   const [admissionRecoveryHref, setAdmissionRecoveryHref] = useState<string | null>(null);
   const [approvalSubmitting, setApprovalSubmitting] = useState(false);
   const [approvalError, setApprovalError] = useState("");
-  const demoMode = token === "demo" || searchParams.get("demo") === "1";
   // Canonical local links keep the share token in the visible route after
   // redirection; the proxy can still supply "demo" as the route param.
   const pathShareToken = /^\/review\/([^/]+)$/.exec(pathname)?.[1];

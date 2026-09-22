@@ -539,6 +539,6 @@ export async function proxy(req: NextRequest) {
 
 export const config = {
   matcher: [
-    "/((?!robots\\.txt|sitemap\\.xml|manifest\\.webmanifest|favicon\\.ico|icon\\.svg).*)",
+    "/((?!robots\\.txt|sitemap\\.xml|manifest\\.webmanifest|favicon\\.ico|icon\\.png).*)",
   ],
 };

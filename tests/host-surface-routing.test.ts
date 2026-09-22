@@ -476,7 +476,7 @@ test("proxy routes verified identities and denies untrusted managed-surface acce
       "/sitemap.xml",
       "/manifest.webmanifest",
       "/favicon.ico",
-      "/icon.svg",
+      "/icon.png",
     ];
     const unsupportedHosts = [
       `studio.${ADMIN_SURFACE_HOST}`,

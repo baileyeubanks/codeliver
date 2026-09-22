@@ -132,6 +132,18 @@ test("live review selects the unique current version when no historical cut was 
   );
 });
 
+test("a live asset without one explicit current marker fails closed", () => {
+  assert.equal(
+    resolveExactLiveInternalReviewVersion({
+      requestedAssetId: "asset-a",
+      activeAssetId: "asset-a",
+      requestedVersionId: null,
+      versions: liveVersions.map((version) => ({ ...version, is_current: false })),
+    }).status,
+    "unavailable",
+  );
+});
+
 test("a duplicated live version identity is unavailable even when one row is current", () => {
   assert.equal(
     resolveExactLiveInternalReviewVersion({

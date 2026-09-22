@@ -94,14 +94,9 @@ export function resolveExactLiveInternalReviewVersion<T extends InternalLiveRevi
   }
 
   const markedCurrent = scopedVersions.filter((version) => version.is_current);
-  if (markedCurrent.length === 1) return { status: "resolved", version: markedCurrent[0] };
-  if (markedCurrent.length > 1) return { status: "unavailable" };
-
-  const sorted = [...scopedVersions].sort((left, right) => right.version_number - left.version_number);
-  if (!sorted[0] || sorted[0].version_number === sorted[1]?.version_number) {
-    return { status: "unavailable" };
-  }
-  return { status: "resolved", version: sorted[0] };
+  return markedCurrent.length === 1
+    ? { status: "resolved", version: markedCurrent[0] }
+    : { status: "unavailable" };
 }
 
 /** Ignore a response if a newer request or a different active asset superseded it. */

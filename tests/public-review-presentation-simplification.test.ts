@@ -19,6 +19,8 @@ test("public review keeps the player first and removes repeated presentation chr
 
   assert.match(styles, /\.rail\s*\{[\s\S]*?display:\s*flex/);
   assert.match(styles, /@media \(min-width:\s*981px\)[\s\S]*?\.composer\s*\{[\s\S]*?flex:\s*0 0 auto/);
+  assert.match(styles, /@media \(min-width:\s*981px\)[\s\S]*?\.rail\s*\{[\s\S]*?overflow-y:\s*auto/);
+  assert.match(styles, /@media \(min-width:\s*981px\)[\s\S]*?\.comments\s*\{[\s\S]*?overflow:\s*visible/);
   assert.match(styles, /\.visuallyHidden\s*\{/);
 });
 

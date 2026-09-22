@@ -886,12 +886,15 @@
   }
 
   .rail {
-    overflow: hidden;
+    overflow-x: hidden;
+    overflow-y: auto;
+    overscroll-behavior: contain;
   }
 
   .comments {
-    min-height: 0;
-    overflow-y: auto;
+    min-height: auto;
+    flex: 0 0 auto;
+    overflow: visible;
   }
 
   .composer {

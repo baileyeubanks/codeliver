@@ -977,16 +977,16 @@ export default function PublicReviewPage({
 
   // Local replies commit with their parent and exact review identity before
   // appearing saved. Remote replies use the admitted comments API.
-  async function handleReplySubmit(parentId: string, body: string): Promise<boolean> {
+  async function handleReplySubmit(parentId: string, body: string): Promise<ReviewComment | null> {
     const replyBody = body.trim();
-    if (!asset || !replyBody) return false;
+    if (!asset || !replyBody) return null;
     const authorName =
       reviewerName.trim() || invite?.reviewer_name?.trim() || (sourceCatalog ? "Local reviewer" : "Client Reviewer");
 
     if (demoMode) {
       if (!canComment || !localReviewBinding) {
         setReplyError("This review is not available for replies.");
-        return false;
+        return null;
       }
       const persisted = addDemoReviewComment({
         projectId: localReviewBinding.projectId,
@@ -1002,7 +1002,7 @@ export default function PublicReviewPage({
       });
       if (!persisted) {
         setReplyError("Could not save your reply. Check this review and browser storage, then try again.");
-        return false;
+        return null;
       }
       const reply = projectPersistedDemoReviewComment(persisted, {
         ...localReviewBinding,
@@ -1011,7 +1011,7 @@ export default function PublicReviewPage({
         current.some((comment) => comment.id === reply.id) ? current : [...current, reply],
       );
       setReplyError("");
-      return Boolean(reply);
+      return reply;
     }
 
     try {
@@ -1040,14 +1040,14 @@ export default function PublicReviewPage({
         current.some((comment) => comment.id === reply.id) ? current : [...current, reply],
       );
       setReplyError("");
-      return true;
+      return reply;
     } catch (replySubmitError) {
       setReplyError(
         replySubmitError instanceof Error
           ? replySubmitError.message
           : "Could not post your reply.",
       );
-      return false;
+      return null;
     }
   }
 
@@ -1449,10 +1449,13 @@ export default function PublicReviewPage({
                 onPrevious={() => selectAdjacentComment(-1)}
                 onNext={() => selectAdjacentComment(1)}
                 onReply={async (body) => {
-                  if (!(await handleReplySubmit(comment.id, body))) {
-                    throw new Error("Could not save your reply.");
-                  }
+                  const reply = await handleReplySubmit(comment.id, body);
+                  if (!reply) throw new Error("Could not save your reply.");
+                  return reply;
                 }}
+                versionId={activeVersion?.id ?? null}
+                attachmentEndpoint={!demoMode ? `/api/review/${token}/comments/attachments` : undefined}
+                onAttachmentCreated={(commentId, attachment) => setComments((current) => current.map((candidate) => candidate.id === commentId ? { ...candidate, attachments: [...(candidate.attachments ?? []), attachment] } : candidate))}
               />
             );
         })}
@@ -1481,6 +1484,7 @@ export default function PublicReviewPage({
             rasterSize={drawingRasterSize}
             onCancel={clearPin}
             onCommentCreated={handleCommentCreated}
+            attachmentEndpoint={!demoMode ? `/api/review/${token}/comments/attachments` : undefined}
           />
         ) : null}
 

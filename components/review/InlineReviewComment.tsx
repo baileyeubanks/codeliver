@@ -1,13 +1,15 @@
 "use client";
 
 import { useEffect, useRef, useState, type CSSProperties } from "react";
-import { AlertCircle, GripVertical, LoaderCircle, PenLine, Send, X } from "lucide-react";
+import { AlertCircle, GripVertical, ImagePlus, LoaderCircle, PenLine, Send, X } from "lucide-react";
 import { submitReviewComment } from "@/lib/review/submit-review-comment";
 import { formatTimeLong } from "@/lib/stores/playerStore";
 import type { AnnotationData, Comment } from "@/lib/types/codeliver";
 import { rasterizeAnnotations } from "@/components/review/annotation/rasterize";
 import AnchoredLeaderLine from "@/components/review/AnchoredLeaderLine";
 import { useCalloutDrag } from "@/components/review/useCalloutDrag";
+import { REVIEW_IMAGE_ACCEPT, uploadReviewImageAttachment, validateReviewImage } from "@/lib/review/image-attachments-client";
+import type { CommentAttachment } from "@/lib/types/codeliver";
 
 interface InlineReviewCommentProps {
   token?: string;
@@ -28,7 +30,10 @@ interface InlineReviewCommentProps {
   onCommentCreated?: (comment: Comment) => void;
   /** Internal review uses its authenticated asset route. This callback must
    * resolve only after that route has persisted the exact version-bound note. */
-  onPersist?: (input: { body: string; timecode: number; pin: { x: number; y: number } }) => Promise<void>;
+  onPersist?: (input: { body: string; timecode: number; pin: { x: number; y: number } }) => Promise<{ id: string }>;
+  attachmentEndpoint?: string;
+  onAttachmentCreated?: (commentId: string, attachment: CommentAttachment) => void;
+  onComplete?: () => void;
 }
 
 export default function InlineReviewComment({
@@ -47,6 +52,9 @@ export default function InlineReviewComment({
   onCancel,
   onCommentCreated,
   onPersist,
+  attachmentEndpoint,
+  onAttachmentCreated,
+  onComplete,
 }: InlineReviewCommentProps) {
   const reviewerNameRef = useRef<HTMLInputElement>(null);
   const commentRef = useRef<HTMLTextAreaElement>(null);
@@ -55,6 +63,10 @@ export default function InlineReviewComment({
   const [body, setBody] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
+  const [attachment, setAttachment] = useState<File | null>(null);
+  const [persistedCommentId, setPersistedCommentId] = useState<string | null>(null);
+  const attachmentKey = useRef<string | null>(null);
+  const attachmentInput = useRef<HTMLInputElement>(null);
   const composing = useRef(false);
   const anchorRef = useRef<HTMLDivElement>(null);
   const cardRef = useRef<HTMLDivElement>(null);
@@ -71,40 +83,35 @@ export default function InlineReviewComment({
   }, []);
 
   async function submit() {
-    if (!reviewerName.trim() || !body.trim() || submitting) return;
+    if (!reviewerName.trim() || submitting) return;
+    if (!persistedCommentId && !body.trim()) return;
     setSubmitting(true);
     setError("");
-
     try {
-      const hasDrawing = Boolean(annotations?.length);
-      const size = rasterSize ?? { width: 1280, height: 720 };
-      const drawing = hasDrawing
-        ? rasterizeAnnotations(annotations ?? [], size.width, size.height)
-        : null;
-      if (onPersist) {
-        await onPersist({ body: body.trim(), timecode, pin });
-      } else {
-        const comment = await submitReviewComment({
-          token: token ?? "",
-          demoMode,
-          assetId,
-          assetType,
-          versionId,
-          reviewInviteId,
-          reviewerName,
-          body,
-          timecode,
-          pin,
-          drawing,
-          annotations: hasDrawing ? annotations : undefined,
-        });
-        onCommentCreated?.(comment);
+      let comment: { id: string } | null = persistedCommentId ? { id: persistedCommentId } : null;
+      if (!comment) {
+        const hasDrawing = Boolean(annotations?.length);
+        const size = rasterSize ?? { width: 1280, height: 720 };
+        const drawing = hasDrawing ? rasterizeAnnotations(annotations ?? [], size.width, size.height) : null;
+        comment = onPersist
+          ? await onPersist({ body: body.trim(), timecode, pin })
+          : await submitReviewComment({ token: token ?? "", demoMode, assetId, assetType, versionId, reviewInviteId, reviewerName, body, timecode, pin, drawing, annotations: hasDrawing ? annotations : undefined });
+        if (!attachment) {
+          onCommentCreated?.(comment as Comment);
+          onComplete?.();
+          return;
+        }
+        setPersistedCommentId(comment.id);
       }
+      if (!attachment || !attachmentEndpoint || !versionId) throw new Error("Image attachments are unavailable for this review version.");
+      attachmentKey.current ??= crypto.randomUUID();
+      const saved = await uploadReviewImageAttachment({ endpoint: attachmentEndpoint, commentId: comment.id, versionId, idempotencyKey: attachmentKey.current, file: attachment });
+      onCommentCreated?.({ ...(comment as Comment), attachments: [saved] });
+      onAttachmentCreated?.(comment.id, saved);
+      onComplete?.();
     } catch (submitError) {
       setError(submitError instanceof Error ? submitError.message : "Could not post your comment.");
-    } finally {
-      setSubmitting(false);
-    }
+    } finally { setSubmitting(false); }
   }
 
   return (
@@ -132,6 +139,8 @@ export default function InlineReviewComment({
           <X size={14} />
         </button>
       </header>
+
+      {!demoMode ? <div className="review-inline-comment-attachment"><input ref={attachmentInput} type="file" accept={REVIEW_IMAGE_ACCEPT} hidden onChange={(event) => { const file = event.target.files?.[0] ?? null; const invalid = file ? validateReviewImage(file) : null; if (invalid) { setAttachment(null); setError(invalid); return; } setAttachment(file); attachmentKey.current = null; setError(""); }} /><button type="button" onClick={() => attachmentInput.current?.click()} disabled={submitting} aria-label="Attach image"><ImagePlus size={13} /> {attachment ? attachment.name : "Attach image"}</button></div> : null}
 
       {annotations?.length ? (
         <p

@@ -1,22 +1,27 @@
 "use client";
 
-import { ChevronLeft, ChevronRight, GripVertical, MessageSquareText, Send, X } from "lucide-react";
+import { ChevronLeft, ChevronRight, GripVertical, ImagePlus, MessageSquareText, Send, X } from "lucide-react";
 import { useRef, useState, type CSSProperties } from "react";
 import { formatTimeLong } from "@/lib/stores/playerStore";
-import type { Comment } from "@/lib/types/codeliver";
+import type { Comment, CommentAttachment } from "@/lib/types/codeliver";
 import AnchoredLeaderLine from "@/components/review/AnchoredLeaderLine";
 import { useCalloutDrag } from "@/components/review/useCalloutDrag";
+import AttachmentPreview from "@/components/comments/AttachmentPreview";
+import { REVIEW_IMAGE_ACCEPT, uploadReviewImageAttachment, validateReviewImage } from "@/lib/review/image-attachments-client";
 
 interface AnchoredCommentCalloutProps {
-  comment: Pick<Comment, "id" | "author_name" | "body" | "timecode_seconds" | "pin_x" | "pin_y">;
+  comment: Pick<Comment, "id" | "author_name" | "body" | "timecode_seconds" | "pin_x" | "pin_y" | "attachments">;
   threadNumber: number;
   replyCount: number;
-  replies: Array<Pick<Comment, "id" | "author_name" | "body">>;
+  replies: Array<Pick<Comment, "id" | "author_name" | "body" | "attachments">>;
   canReply: boolean;
   onClose: () => void;
   onPrevious: () => void;
   onNext: () => void;
-  onReply: (body: string) => Promise<void>;
+  onReply: (body: string) => Promise<{ id: string }>;
+  versionId?: string | null;
+  attachmentEndpoint?: string;
+  onAttachmentCreated?: (commentId: string, attachment: CommentAttachment) => void;
 }
 
 /** A view-only anchor with a movable conversation card. Dragging never mutates
@@ -31,10 +36,17 @@ export default function AnchoredCommentCallout({
   onPrevious,
   onNext,
   onReply,
+  versionId,
+  attachmentEndpoint,
+  onAttachmentCreated,
 }: AnchoredCommentCalloutProps) {
   const [reply, setReply] = useState("");
   const [sending, setSending] = useState(false);
   const [error, setError] = useState("");
+  const [attachment, setAttachment] = useState<File | null>(null);
+  const [persistedReplyId, setPersistedReplyId] = useState<string | null>(null);
+  const attachmentKey = useRef<string | null>(null);
+  const attachmentInput = useRef<HTMLInputElement>(null);
   const composing = useRef(false);
   const anchorRef = useRef<HTMLElement>(null);
   const cardRef = useRef<HTMLDivElement>(null);
@@ -43,17 +55,24 @@ export default function AnchoredCommentCallout({
   const vertical = (comment.pin_y ?? 50) > 56 ? "above" : "below";
 
   async function submitReply() {
-    if (!reply.trim() || sending) return;
+    if ((!reply.trim() && !persistedReplyId) || sending) return;
     setSending(true);
     setError("");
     try {
-      await onReply(reply.trim());
-      setReply("");
-    } catch (reason) {
-      setError(reason instanceof Error ? reason.message : "Could not save your reply.");
-    } finally {
-      setSending(false);
-    }
+      let replyId = persistedReplyId;
+      if (!replyId) {
+        const created = await onReply(reply.trim());
+        replyId = created.id;
+        if (!attachment) { setReply(""); return; }
+        setPersistedReplyId(replyId);
+      }
+      if (!attachment || !attachmentEndpoint || !versionId) throw new Error("Image attachments are unavailable for this review version.");
+      attachmentKey.current ??= crypto.randomUUID();
+      const saved = await uploadReviewImageAttachment({ endpoint: attachmentEndpoint, commentId: replyId, versionId, idempotencyKey: attachmentKey.current, file: attachment });
+      onAttachmentCreated?.(replyId, saved);
+      setReply(""); setAttachment(null); setPersistedReplyId(null); attachmentKey.current = null;
+    } catch (reason) { setError(reason instanceof Error ? reason.message : "Could not save your reply."); }
+    finally { setSending(false); }
   }
 
   return (
@@ -90,10 +109,12 @@ export default function AnchoredCommentCallout({
           </nav>
         </header>
         <p>{comment.body}</p>
+        {comment.attachments?.map((attachment) => <AttachmentPreview key={attachment.id} attachment={attachment} />)}
         <div className="review-anchored-comment-thread"><MessageSquareText size={12} /> {replyCount} {replyCount === 1 ? "reply" : "replies"}</div>
-        {replies.length ? <ol className="review-anchored-comment-replies">{replies.map((item) => <li key={item.id}><strong>{item.author_name || "Reviewer"}</strong><span>{item.body}</span></li>)}</ol> : null}
+        {replies.length ? <ol className="review-anchored-comment-replies">{replies.map((item) => <li key={item.id}><strong>{item.author_name || "Reviewer"}</strong><span>{item.body}</span>{item.attachments?.map((attachment) => <AttachmentPreview key={attachment.id} attachment={attachment} />)}</li>)}</ol> : null}
         {canReply ? (
           <div className="review-anchored-comment-reply">
+            {!attachmentEndpoint ? null : <><input ref={attachmentInput} type="file" accept={REVIEW_IMAGE_ACCEPT} hidden onChange={(event) => { const file = event.target.files?.[0] ?? null; const invalid = file ? validateReviewImage(file) : null; if (invalid) { setAttachment(null); setError(invalid); return; } setAttachment(file); attachmentKey.current = null; setError(""); }} /><button type="button" className="review-anchored-comment-image" onClick={() => attachmentInput.current?.click()} aria-label="Attach image"><ImagePlus size={13} /></button></>}
             <textarea
               value={reply}
               rows={2}

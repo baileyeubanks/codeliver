@@ -1674,7 +1674,7 @@ export default function ProjectCockpit({
         pinY: pin?.y,
       });
       if (!created) throw new Error("The comment could not be saved.");
-      return;
+      return created;
     }
     const liveVersionId = activeLiveVersion?.id;
     if (!liveVersionId) throw new Error("Requested media version unavailable.");
@@ -1692,10 +1692,9 @@ export default function ProjectCockpit({
     });
     if (!response.ok) throw new Error("The comment could not be saved.");
     const created = (await response.json()) as Record<string, unknown>;
-    setLiveComments((current) => [
-      ...current,
-      normalizeLiveComment(created, project.id, activeAsset.id),
-    ]);
+    const normalized = normalizeLiveComment(created, project.id, activeAsset.id);
+    setLiveComments((current) => [...current, normalized]);
+    return normalized;
   }
 
   async function addCutDecision() {
@@ -2501,6 +2500,8 @@ export default function ProjectCockpit({
                               onPrevious={() => selectAdjacentReviewComment(-1)}
                               onNext={() => selectAdjacentReviewComment(1)}
                               onReply={(body) => persistExactComment({ body, timecode: comment.time_seconds, parentId: comment.id })}
+                              versionId={demoMode ? activeDemoVersionId : activeLiveVersion?.id ?? null}
+                              attachmentEndpoint={!demoMode ? `/api/assets/${activeAsset.id}/comments/attachments` : undefined}
                             />
                           ))}
                         {pendingPin ? (
@@ -2523,8 +2524,9 @@ export default function ProjectCockpit({
                             timecode={pendingPin.timeSeconds}
                             pin={pendingPin}
                             onCancel={() => setPendingPin(null)}
-                            onPersist={async ({ body, timecode, pin }) => {
-                              await persistExactComment({ body, timecode, pin });
+                            attachmentEndpoint={!demoMode ? `/api/assets/${activeAsset.id}/comments/attachments` : undefined}
+                            onPersist={({ body, timecode, pin }) => persistExactComment({ body, timecode, pin })}
+                            onComplete={() => {
                               setPendingPin(null);
                               setSelectedCommentId(null);
                               setResumeAfterComment(false);

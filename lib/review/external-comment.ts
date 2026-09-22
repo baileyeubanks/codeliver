@@ -1,10 +1,13 @@
+import type { ExternalAnnotation } from "@/lib/review/annotation-persistence";
+
 export const EXTERNAL_COMMENT_COLUMNS =
   "id, asset_id, version_id, parent_id, author_name, body, timecode_seconds, frame_number, pin_x, pin_y, status, visibility, created_at, updated_at";
 
 export function projectExternalComment(
-  comment: Record<string, unknown>
+  comment: Record<string, unknown>,
+  annotations: ExternalAnnotation[] = [],
 ): Record<string, unknown> {
-  return {
+  const projected: Record<string, unknown> = {
     id: comment.id,
     asset_id: comment.asset_id,
     version_id: comment.version_id,
@@ -20,4 +23,7 @@ export function projectExternalComment(
     created_at: comment.created_at,
     updated_at: comment.updated_at,
   };
+
+  if (annotations.length > 0) projected.annotations = annotations;
+  return projected;
 }

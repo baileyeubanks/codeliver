@@ -19,10 +19,9 @@ interface SubmitReviewCommentInput {
 /**
  * Local preview semantics: demo comments persist through the workspace store,
  * which has no annotation column, so the drawing rides on the returned
- * comment object (annotations + a WebP attachment) for this session. The
- * production comment schema does not yet persist annotation artifacts, so
- * remote requests send only the text/time/pin record. The drawing is kept in
- * this browser session and must not be mistaken for durable review evidence.
+ * comment object (annotations + a WebP attachment) for this session. Real
+ * review requests persist the normalized vector annotations. The WebP raster
+ * remains a local preview and is never accepted as an arbitrary upload URL.
  */
 function withDrawing(
   comment: Comment,
@@ -32,7 +31,7 @@ function withDrawing(
 ): Comment {
   const enriched: Comment = { ...comment };
 
-  if (annotations?.length) {
+  if (annotations?.length && !comment.annotations?.length) {
     const annotationRecords: Annotation[] = annotations.map((data, index) => ({
       id: `annotation-${comment.id}-${index}`,
       comment_id: comment.id,
@@ -141,6 +140,7 @@ export async function submitReviewComment({
       timecode_seconds: assetType === "video" ? timecode : null,
       pin_x: pin?.x ?? null,
       pin_y: pin?.y ?? null,
+      annotations: annotations?.length ? annotations : null,
     }),
   });
 
@@ -155,6 +155,8 @@ export async function submitReviewComment({
     throw new Error("Comment saved, but the response was invalid.");
   }
 
-  // Keep the non-durable drawing visible to its author for this session.
+  // The API returns durable vector annotations. Keep only the raster preview
+  // local to this browser session; fall back to the submitted vectors solely
+  // for compatibility with an older response shape.
   return withDrawing(comment, annotations, drawing, comment.created_at);
 }

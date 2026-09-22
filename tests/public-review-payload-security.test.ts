@@ -142,6 +142,7 @@ const supabaseStub = dataModule(`
     }
     select() { return this; }
     eq() { return this; }
+    in() { return this; }
     or() { return this; }
     order() { return this; }
     update() { return this; }
@@ -209,6 +210,14 @@ registerHooks({
       return nextResolve(
         pathToFileURL(
           resolve(repositoryRoot, "lib/review/external-comment.ts"),
+        ).href,
+        context,
+      );
+    }
+    if (specifier === "@/lib/review/annotation-persistence") {
+      return nextResolve(
+        pathToFileURL(
+          resolve(repositoryRoot, "lib/review/annotation-persistence.ts"),
         ).href,
         context,
       );

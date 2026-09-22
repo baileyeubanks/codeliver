@@ -397,7 +397,7 @@ test("public recipient reads and mutations remain bound to invite, asset, versio
   assert.match(commentRoute, /review_invite_id: invite\.id/);
   assert.match(commentRoute, /visibility: "external"/);
   assert.match(commentRoute, /\.select\(EXTERNAL_COMMENT_COLUMNS\)/);
-  assert.match(commentRoute, /projectExternalComment\(data\)/);
+  assert.match(commentRoute, /projectExternalComment\(data, persistedAnnotations\)/);
   assert.match(cutRoute, /\.eq\("review_invite_id", invite\.id\)/);
   assert.match(cutRoute, /\.eq\("version_id", versionLookup\.version\.id\)/);
   assert.match(cutRoute, /status: "proposed"/);

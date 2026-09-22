@@ -4,6 +4,11 @@ import {
   EXTERNAL_COMMENT_COLUMNS,
   projectExternalComment,
 } from "@/lib/review/external-comment";
+import {
+  EXTERNAL_ANNOTATION_COLUMNS,
+  projectExternalAnnotation,
+  type ExternalAnnotation,
+} from "@/lib/review/annotation-persistence";
 import { validateReviewReadRequest } from "@/lib/review/request-boundary";
 import {
   reviewBackendUnavailable,
@@ -99,6 +104,49 @@ async function getReview(_req: Request, { params }: { params: Promise<{ token: s
     return reviewBackendUnavailable();
   }
 
+  const externalComments = commentsResult.data ?? [];
+  const annotationsByCommentId = new Map<string, ExternalAnnotation[]>();
+  const commentIds = externalComments
+    .map((comment) => comment.id)
+    .filter((id): id is string => typeof id === "string");
+  if (commentIds.length > 0) {
+    const annotationsResult = await supabase
+      .from("annotations")
+      .select(EXTERNAL_ANNOTATION_COLUMNS)
+      .eq("asset_id", invite.asset_id)
+      .eq("version_id", versionLookup.version.id)
+      .in("comment_id", commentIds)
+      .order("created_at", { ascending: true });
+    if (annotationsResult.error) {
+      return reviewBackendUnavailable();
+    }
+
+    const commentsById = new Map(
+      externalComments
+        .filter(
+          (comment) =>
+            typeof comment.id === "string" &&
+            comment.asset_id === invite.asset_id &&
+            comment.version_id === versionLookup.version.id,
+        )
+        .map((comment) => [comment.id as string, comment]),
+    );
+    for (const row of annotationsResult.data ?? []) {
+      if (typeof row.comment_id !== "string") continue;
+      const comment = commentsById.get(row.comment_id);
+      if (!comment) continue;
+      const projected = projectExternalAnnotation(row, {
+        commentId: row.comment_id,
+        assetId: invite.asset_id,
+        versionId: versionLookup.version.id,
+      });
+      if (!projected) continue;
+      const existing = annotationsByCommentId.get(row.comment_id) ?? [];
+      existing.push(projected);
+      annotationsByCommentId.set(row.comment_id, existing);
+    }
+  }
+
   const approvalState = getExternalApprovalState({
     approvals: (approvalsResult.data ?? []) as ApprovalStep[],
     invite,
@@ -185,8 +233,13 @@ async function getReview(_req: Request, { params }: { params: Promise<{ token: s
     approvals: approvalState.approvals,
     active_approval_ids: approvalState.activeApprovalIds,
     approval_access_message: approvalState.approvalAccessMessage,
-    comments: (commentsResult.data ?? []).map((comment) =>
-      projectExternalComment(comment)
+    comments: externalComments.map((comment) =>
+      projectExternalComment(
+        comment,
+        typeof comment.id === "string"
+          ? annotationsByCommentId.get(comment.id) ?? []
+          : [],
+      )
     ),
     permissions: invite.permissions,
     share_intent: deriveShareIntent({

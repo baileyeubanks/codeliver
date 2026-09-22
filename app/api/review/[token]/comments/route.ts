@@ -8,6 +8,12 @@ import {
   reserveReviewActionRate,
 } from "@/lib/review/admission-authority";
 import {
+  EXTERNAL_ANNOTATION_COLUMNS,
+  parseExternalAnnotations,
+  projectExternalAnnotation,
+  type ExternalAnnotation,
+} from "@/lib/review/annotation-persistence";
+import {
   EXTERNAL_COMMENT_COLUMNS,
   projectExternalComment,
 } from "@/lib/review/external-comment";
@@ -120,10 +126,14 @@ async function postComment(req: Request, { params }: { params: Promise<{ token: 
       Number.isFinite(pinY) &&
       pinY >= 0 &&
       pinY <= 100);
+  const annotationResult = parseExternalAnnotations(body.annotations);
+  const annotationsHaveAnchor =
+    annotationResult.ok &&
+    (annotationResult.annotations.length === 0 || (pinX != null && pinY != null));
 
-  if (!hasValidTimecode || !hasValidPinPair) {
+  if (!hasValidTimecode || !hasValidPinPair || !annotationResult.ok || !annotationsHaveAnchor) {
     return reviewError(
-      "Comment timing or point coordinates are invalid",
+      "Comment timing, point coordinates, or annotations are invalid",
       400,
       "REVIEW_REQUEST_INVALID",
       responseHeaders,
@@ -275,6 +285,54 @@ async function postComment(req: Request, { params }: { params: Promise<{ token: 
     return reviewBackendUnavailable(responseHeaders);
   }
 
+  const persistedAnnotations: ExternalAnnotation[] = [];
+  if (data && annotationResult.annotations.length > 0) {
+    const annotationRows = annotationResult.annotations.map((annotation) => ({
+      comment_id: data.id,
+      asset_id: invite.asset_id,
+      version_id: versionLookup.version.id,
+      type: annotation.kind,
+      data: annotation,
+      frame_number: data.frame_number ?? null,
+      created_by: null,
+    }));
+    const annotationInsert = await getSupabase()
+      .from("annotations")
+      .insert(annotationRows)
+      .select(EXTERNAL_ANNOTATION_COLUMNS);
+
+    if (annotationInsert.error || !Array.isArray(annotationInsert.data)) {
+      await getSupabase()
+        .from("comments")
+        .delete()
+        .eq("id", data.id)
+        .eq("asset_id", invite.asset_id)
+        .eq("version_id", versionLookup.version.id)
+        .eq("review_invite_id", invite.id);
+      return reviewBackendUnavailable(responseHeaders);
+    }
+
+    for (const row of annotationInsert.data) {
+      const projected = projectExternalAnnotation(row, {
+        commentId: data.id,
+        assetId: invite.asset_id,
+        versionId: versionLookup.version.id,
+      });
+      if (projected) persistedAnnotations.push(projected);
+    }
+
+    if (persistedAnnotations.length !== annotationResult.annotations.length) {
+      await getSupabase()
+        .from("comments")
+        .delete()
+        .eq("id", data.id)
+        .eq("asset_id", invite.asset_id)
+        .eq("version_id", versionLookup.version.id)
+        .eq("review_invite_id", invite.id);
+      return reviewBackendUnavailable(responseHeaders);
+    }
+  }
+
   const asset = await getSupabase()
     .from("assets")
     .select("project_id, title")
@@ -319,7 +377,7 @@ async function postComment(req: Request, { params }: { params: Promise<{ token: 
   }
 
   return reviewJson(
-    data ? projectExternalComment(data) : {},
+    data ? projectExternalComment(data, persistedAnnotations) : {},
     { status: 201, headers: responseHeaders },
   );
 }

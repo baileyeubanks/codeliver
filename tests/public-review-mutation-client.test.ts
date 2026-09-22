@@ -10,7 +10,7 @@ function source(path: string) {
   return readFileSync(resolve(repositoryRoot, path), "utf8");
 }
 
-test("remote frame comments do not upload session-only raster or vector drawings", () => {
+test("remote frame comments send vectors without uploading the session-only raster", () => {
   const submit = source("lib/review/submit-review-comment.ts");
   const remoteStart = submit.indexOf(
     "const response = await fetch(`/api/review/${token}/comments`",
@@ -24,7 +24,7 @@ test("remote frame comments do not upload session-only raster or vector drawings
   const remoteRequest = submit.slice(remoteStart, remoteEnd);
 
   assert.doesNotMatch(remoteRequest, /\bdrawing\s*:/);
-  assert.doesNotMatch(remoteRequest, /\bannotations\s*:/);
+  assert.match(remoteRequest, /\bannotations:\s*annotations\?\.length\s*\?\s*annotations\s*:\s*null/);
   assert.match(remoteRequest, /credentials:\s*"same-origin"/);
   assert.match(remoteRequest, /cache:\s*"no-store"/);
   assert.match(remoteRequest, /referrerPolicy:\s*"no-referrer"/);

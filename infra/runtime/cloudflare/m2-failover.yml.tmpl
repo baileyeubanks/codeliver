@@ -1,0 +1,24 @@
+tunnel: 5930eff7-9474-4427-826a-83e129c804e0
+credentials-file: /Users/baileyeubanks/.config/codeliver-failover/cloudflared-credentials.json
+metrics: 127.0.0.1:20243
+
+originRequest:
+  connectTimeout: 10s
+  keepAliveTimeout: 1m30s
+  keepAliveConnections: 100
+  tcpKeepAlive: 30s
+
+ingress:
+  - hostname: co-videopro.com
+    service: http://127.0.0.1:4103
+    originRequest:
+      httpHostHeader: co-videopro.com
+  - hostname: www.co-videopro.com
+    service: http://127.0.0.1:4103
+    originRequest:
+      httpHostHeader: co-videopro.com
+  - hostname: client.contentco-op.com
+    service: http://127.0.0.1:4103
+    originRequest:
+      httpHostHeader: client.contentco-op.com
+  - service: http_status:404

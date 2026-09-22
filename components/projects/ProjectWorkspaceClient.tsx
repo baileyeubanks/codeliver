@@ -61,6 +61,12 @@ interface Asset {
   href?: string;
 }
 
+type StorageReadinessFeaturePayload = {
+  features?: {
+    revisionUploads?: boolean;
+  };
+};
+
 type DemoUploadTarget =
   | { kind: "new_asset" }
   | { kind: "revision"; assetId: string };
@@ -82,6 +88,7 @@ export default function ProjectWorkspaceClient() {
   const [uploading, setUploading] = useState(false);
   const [uploadStatus, setUploadStatus] = useState<CockpitUploadStatus | null>(null);
   const [revisionTarget, setRevisionTarget] = useState<RevisionUploadTarget | null>(null);
+  const [revisionUploadsAvailable, setRevisionUploadsAvailable] = useState(false);
   const revisionRequest = useRef(0);
   const activeProjectIdRef = useRef(id);
   activeProjectIdRef.current = id;
@@ -130,6 +137,30 @@ export default function ProjectWorkspaceClient() {
     if (demoMode) return;
     invalidateRemoteRevisionUpload();
   }, [demoMode, id, invalidateRemoteRevisionUpload]);
+
+  useEffect(() => {
+    if (demoMode) {
+      setRevisionUploadsAvailable(false);
+      return;
+    }
+    const controller = new AbortController();
+    setRevisionUploadsAvailable(false);
+    void fetch("/api/storage/readiness", {
+      cache: "no-store",
+      signal: controller.signal,
+    })
+      .then(async (response) => response.ok
+        ? await response.json() as StorageReadinessFeaturePayload
+        : {})
+      .then((readinessPayload) => {
+        if (controller.signal.aborted) return;
+        setRevisionUploadsAvailable(readinessPayload.features?.revisionUploads === true);
+      })
+      .catch(() => {
+        if (!controller.signal.aborted) setRevisionUploadsAvailable(false);
+      });
+    return () => controller.abort();
+  }, [demoMode, id]);
 
   useEffect(() => {
     if (!id || demoMode) return;
@@ -589,6 +620,7 @@ export default function ProjectWorkspaceClient() {
         uploadStatus={uploadStatus}
         onUpload={openRemoteUploadPicker}
         onUploadRevision={openRemoteRevisionPicker}
+        revisionUploadsAvailable={revisionUploadsAvailable}
         onUploadChooseRevisionFile={chooseRemoteRevisionFile}
         onUploadDismiss={dismissRemoteUploadStatus}
       />

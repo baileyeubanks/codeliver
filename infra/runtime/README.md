@@ -136,3 +136,62 @@ links atomically, and writes an immutable receipt:
 Rollback never removes, rewrites, or rebuilds either release. It never runs
 automatically after a failed production check; the operator retains explicit
 authority over the rollback and service restart.
+
+## M2 + CCNAS failover origin
+
+`CODELIVER_RUNTIME_PROFILE=m2-failover` selects a second fixed runtime contract
+that does not depend on M4 or `BLAZE-STORE-2`:
+
+- application root: `/Users/baileyeubanks/.local/share/codeliver-failover`
+- private environment: `/Users/baileyeubanks/.config/codeliver-failover/runtime.env`
+- storage mount: `/Volumes/CC_NAS`
+- new managed-media root: `/Volumes/CC_NAS/cvp-runtime/co-videopro`
+- origin: `127.0.0.1:4103`, with `https://co-videopro.com` for staff/admin
+  and `https://client.contentco-op.com` for provisioned clients
+- application service: `com.contentcoop.codeliver-failover`
+- tunnel service: `com.contentcoop.codeliver-failover-cloudflared`
+
+The managed-media root starts empty. It provides durable storage for uploads
+received by the failover origin; it does not recover or claim custody of media
+from the unavailable M4 RAID. Existing client/project media remains unavailable
+until copied from a verified source with receipt identity preserved.
+
+The failover uses the existing `cco-videopro` Cloudflare Tunnel. The apex route
+already targets that tunnel. `client.contentco-op.com` must be added to the same
+tunnel only after confirming it is still unoccupied; `admin.contentco-op.com`
+belongs to the separate CCO commercial app and must not be changed. A connector
+on M2 is an independent active origin, not automatic dual-origin health
+failover: the M4 connector must remain out of service while its local origin is
+unhealthy, otherwise Cloudflare can still select it and return 502.
+
+Before activation, install the private environment and tunnel credential files
+at mode `0600`/`0400`, install the two checked-in launch agents, and place the
+checked-in tunnel template at
+`/Users/baileyeubanks/.config/codeliver-failover/cloudflared.yml`. Do not put a
+tunnel token in a plist or command line. Validate the source and artifacts:
+
+```bash
+/bin/bash infra/runtime/tests/m2-failover-contract.test.sh
+/bin/bash infra/runtime/tests/runtime-contract.test.sh
+CODELIVER_RUNTIME_PROFILE=m2-failover ./infra/runtime/prepare-release.sh \
+  --source /absolute/clean/qualified/source \
+  --release YYYYMMDDTHHMMSSZ-<12-char-sha> \
+  --git-sha <full-40-char-sha>
+CODELIVER_RUNTIME_PROFILE=m2-failover ./infra/runtime/canary-release.sh \
+  --release YYYYMMDDTHHMMSSZ-<12-char-sha>
+```
+
+Only after the exact release passes canary and the CCNAS/scanner/readiness
+checks may it be selected, the application launch agent loaded, and the M2
+tunnel connector started. Prove loopback health/version first, then public
+health/version and one managed playback path before treating M2 as active.
+
+Rollback is explicit and preserves evidence:
+
+1. unload only `com.contentcoop.codeliver-failover-cloudflared`;
+2. unload only `com.contentcoop.codeliver-failover`;
+3. if a prior M2 release exists, use `rollback-release.sh` with both exact IDs;
+4. leave release directories, activation receipts, and the CCNAS media root in
+   place; never delete them as part of traffic rollback;
+5. restore M4 traffic only after its own storage, loopback, and public checks
+   pass.

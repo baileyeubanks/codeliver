@@ -704,12 +704,14 @@ export default function ProjectCockpit({
     ? sortDemoMediaVersions(workspace.mediaVersions.filter((version) => version.asset_id === activeAsset.id))
     : [];
   const revisionableActiveAsset = Boolean(
-    demoMode &&
-      activeAsset &&
-      isRevisionableDemoMedia(
-        workspace.mediaVersions,
-        activeAsset.id,
-        Boolean(sourceCatalog?.assets.some((source) => source.id === activeAsset.id)),
+    activeAsset &&
+      (
+        !demoMode ||
+        isRevisionableDemoMedia(
+          workspace.mediaVersions,
+          activeAsset.id,
+          Boolean(sourceCatalog?.assets.some((source) => source.id === activeAsset.id)),
+        )
       ),
   );
   const demoMediaUrl = useDemoMediaObjectUrl(

@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>com.contentcoop.codeliver-failover</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>/Users/baileyeubanks/.local/share/codeliver-failover/control/run-current.sh</string>
+  </array>
+  <key>EnvironmentVariables</key>
+  <dict>
+    <key>CODELIVER_RUNTIME_PROFILE</key>
+    <string>m2-failover</string>
+  </dict>
+  <key>RunAtLoad</key>
+  <true/>
+  <key>KeepAlive</key>
+  <true/>
+  <key>ThrottleInterval</key>
+  <integer>15</integer>
+  <key>ExitTimeOut</key>
+  <integer>45</integer>
+  <key>ProcessType</key>
+  <string>Background</string>
+  <key>Umask</key>
+  <integer>63</integer>
+  <key>StandardOutPath</key>
+  <string>/Users/baileyeubanks/Library/Logs/Co-VideoPro/failover.stdout.log</string>
+  <key>StandardErrorPath</key>
+  <string>/Users/baileyeubanks/Library/Logs/Co-VideoPro/failover.stderr.log</string>
+</dict>
+</plist>

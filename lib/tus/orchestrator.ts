@@ -72,6 +72,18 @@ export interface UploadSessionReleaseReadiness {
   failClosed: true;
 }
 
+export interface RecoverAttachedRevisionSessionInput {
+  tenantId: string;
+  projectId: string;
+  idempotencyKey: string;
+  filename: string;
+  mimeType: string;
+  size: number;
+  assetId: string;
+  expectedCurrentVersionId: string;
+  expectedSha256?: string;
+}
+
 function sha256(value: string): string {
   return createHash("sha256").update(value).digest("hex");
 }
@@ -136,6 +148,8 @@ function sessionsMatch(existing: UploadSession, input: {
   mimeType: string;
   size: number;
   version: number;
+  assetId: string | null;
+  expectedCurrentVersionId: string | null;
   expectedSha256: string | null;
 }): boolean {
   return (
@@ -147,6 +161,10 @@ function sessionsMatch(existing: UploadSession, input: {
     existing.mimeType === input.mimeType &&
     existing.size === input.size &&
     existing.version === input.version &&
+    (input.expectedCurrentVersionId === null ||
+      existing.assetId === input.assetId) &&
+    (existing.expectedCurrentVersionId ?? null) ===
+      input.expectedCurrentVersionId &&
     existing.expectedSha256 === input.expectedSha256
   );
 }
@@ -369,12 +387,32 @@ export class UploadOrchestrator {
       ? requireText(input.folderId, "Folder id", 256)
       : null;
     const version = input.version ?? 1;
+    const assetId = input.assetId
+      ? requireText(input.assetId, "Asset id", 256)
+      : null;
+    const expectedCurrentVersionId = input.expectedCurrentVersionId
+      ? requireText(
+          input.expectedCurrentVersionId,
+          "Expected current version id",
+          256,
+        )
+      : null;
     const expectedSha256 = normalizeSha256(input.expectedSha256);
     if (!Number.isSafeInteger(input.size) || input.size <= 0) {
       throw new UploadOrchestrationError("UPLOAD_INVALID", "Upload size must be positive");
     }
     if (!Number.isSafeInteger(version) || version <= 0) {
       throw new UploadOrchestrationError("UPLOAD_INVALID", "Version must be positive");
+    }
+    if (
+      (assetId === null) !== (expectedCurrentVersionId === null) ||
+      (version === 1 && expectedCurrentVersionId !== null) ||
+      (version > 1 && expectedCurrentVersionId === null)
+    ) {
+      throw new UploadOrchestrationError(
+        "UPLOAD_INVALID",
+        "Revision uploads require one asset and expected current version",
+      );
     }
 
     const idempotencyKeyHash = sha256(`${tenantKey}\u0000${idempotencyKey}`);
@@ -387,6 +425,8 @@ export class UploadOrchestrator {
       mimeType,
       size: input.size,
       version,
+      assetId,
+      expectedCurrentVersionId,
       expectedSha256,
     };
     const createUnderLock = async (): Promise<CreateUploadSessionResult> => {
@@ -427,7 +467,8 @@ export class UploadOrchestrator {
         scan: null,
         partCount: 0,
         lastPartSha256: null,
-        assetId: null,
+        assetId,
+        expectedCurrentVersionId,
         versionId: null,
         catalog: {
           state: "pending",
@@ -486,6 +527,78 @@ export class UploadOrchestrator {
     return this.sessions.withAdmissionLock(() =>
       this.sessions.withTenantLock(tenantKey, createUnderLock)
     );
+  }
+
+  /**
+   * Recover the immutable result of an already attached revision before the
+   * route rechecks live current-version authority. This exception is narrow:
+   * incomplete sessions still take the normal preflight, and an idempotency
+   * key bound to any different request metadata fails closed.
+   */
+  async recoverAttachedRevisionSession(
+    input: RecoverAttachedRevisionSessionInput,
+  ): Promise<UploadSession | null> {
+    const tenantKey = hashStorageNamespace(input.tenantId);
+    const projectId = requireText(input.projectId, "Project id", 256);
+    const filename = requireText(input.filename, "Filename", 512);
+    const mimeType = requireText(input.mimeType, "MIME type", 256);
+    const idempotencyKey = requireText(input.idempotencyKey, "Idempotency key", 256);
+    const assetId = requireText(input.assetId, "Asset id", 256);
+    const expectedCurrentVersionId = requireText(
+      input.expectedCurrentVersionId,
+      "Expected current version id",
+      256,
+    );
+    const expectedSha256 = normalizeSha256(input.expectedSha256);
+    if (!Number.isSafeInteger(input.size) || input.size <= 0) {
+      throw new UploadOrchestrationError("UPLOAD_INVALID", "Upload size must be positive");
+    }
+    const idempotencyKeyHash = sha256(`${tenantKey}\u0000${idempotencyKey}`);
+
+    return this.sessions.withTenantLock(tenantKey, async () => {
+      const existing = await this.sessions.findByIdempotencyHash(idempotencyKeyHash);
+      if (!existing) return null;
+      if (
+        existing.version <= 1 ||
+        !sessionsMatch(existing, {
+          tenantKey,
+          projectId,
+          folderId: null,
+          provider: this.adapter.kind,
+          filename,
+          mimeType,
+          size: input.size,
+          version: existing.version,
+          assetId,
+          expectedCurrentVersionId,
+          expectedSha256,
+        })
+      ) {
+        throw new UploadOrchestrationError(
+          "UPLOAD_CONFLICT",
+          "Idempotency key is already bound to different upload metadata",
+        );
+      }
+
+      const receipt = existing.receipt;
+      const receiptBound = Boolean(
+        existing.state === "committed" &&
+          existing.offset === existing.size &&
+          existing.catalog.state === "attached" &&
+          existing.versionId &&
+          existing.objectKey &&
+          existing.computedSha256 &&
+          existing.scan?.verdict === "clean" &&
+          receipt &&
+          receipt.provider === existing.provider &&
+          receipt.objectKey === existing.objectKey &&
+          receipt.size === existing.size &&
+          receipt.sha256 === existing.computedSha256 &&
+          typeof receipt.providerVersionId === "string" &&
+          receipt.providerVersionId.length > 0
+      );
+      return receiptBound ? existing : null;
+    });
   }
 
   private objectKeyFor(session: UploadSession): string {

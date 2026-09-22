@@ -1,10 +1,15 @@
 import { isBackendUnavailableError } from "@/lib/api/backend";
 import { apiError, apiJson, backendUnavailable } from "@/lib/api/responses";
 import { requireAuth } from "@/lib/auth";
+import {
+  CO_PRODUCTION_DATA_SCHEMA,
+  getSupabaseDataSchema,
+} from "@/lib/data-authority";
 import { readStorageConfig } from "@/lib/storage/config";
 import { createMalwareScanHook } from "@/lib/storage/malware";
 import { buildUploadWorkflowReadiness } from "@/lib/storage/release-readiness";
 import { createStorageRuntime } from "@/lib/storage/runtime";
+import { getSupabase } from "@/lib/supabase";
 import { createDefaultUploadOrchestrator } from "@/lib/tus/orchestrator";
 
 export const runtime = "nodejs";
@@ -37,6 +42,17 @@ export async function GET() {
         scanner,
         derivativeHooksConfigured: false,
       });
+    let revisionUploads = false;
+    if (
+      readiness.readyForWrites &&
+      getSupabaseDataSchema() === CO_PRODUCTION_DATA_SCHEMA
+    ) {
+      const capability = await getSupabase().rpc(
+        "revision_upload_capability",
+      );
+      revisionUploads =
+        capability.error === null && capability.data === true;
+    }
     return apiJson(
     {
       status: readiness.readyForWrites ? "ready" : "blocked",
@@ -46,6 +62,9 @@ export async function GET() {
       external: readiness.external,
       writeEnabled: readiness.writeEnabled,
       readyForWrites: readiness.readyForWrites,
+      features: {
+        revisionUploads,
+      },
       capabilities: readiness.capabilities,
       checks: readiness.checks,
       capacity: readiness.capacity,

@@ -67,6 +67,9 @@ const orchestratorStubUrl = `data:text/javascript,${encodeURIComponent(`
 const sharedStubUrl = `data:text/javascript,${encodeURIComponent(`
   export function assertUploadStorageConfigured() {}
   export async function requireOwnedUploadTarget() {}
+  export async function requireOwnedRevisionUploadTarget() {
+    throw new Error("initial V1 tests must not resolve revision authority");
+  }
 
   export async function ensureCatalogAsset() {
     if (globalThis.__ccoUploadBoundaryCatalogError) {

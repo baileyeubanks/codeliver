@@ -339,7 +339,12 @@
     grid-column: 1;
     grid-row: 3;
     padding-top: 15px;
-    padding-bottom: 36px;
+    /* Keep the final review actions above both fixed navigation and Copilot. */
+    padding-bottom: calc(100px + env(safe-area-inset-bottom));
+  }
+
+  .shell :global(.cockpit-mobile-review-strip) {
+    scroll-margin-bottom: calc(144px + env(safe-area-inset-bottom));
   }
 
   .shell :global(.cockpit-overview-grid) {

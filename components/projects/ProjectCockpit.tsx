@@ -129,10 +129,11 @@ import VideoPlayer from "@/components/player/VideoPlayer";
 import InlineReviewComment from "@/components/review/InlineReviewComment";
 import AnchoredCommentCallout from "@/components/review/AnchoredCommentCallout";
 import { adjacentTimedComment, orderedTimedComments } from "@/lib/review/comment-navigation";
+import { refreshReviewImageAttachments } from "@/lib/review/image-attachments-client";
 import { normalizeReviewSeekStep, normalizeReviewShortcutKey, projectPointIntoMedia, shouldIgnoreReviewShortcut } from "@/lib/review/player-policy";
 import { buildSurfaceUrl, getReviewSiteUrl } from "@/lib/surface-origins";
 import { mayOpenRevisionUploader } from "@/lib/uploads/revision-upload";
-import type { EditDecision, Version } from "@/lib/types/codeliver";
+import type { CommentAttachment, EditDecision, Version } from "@/lib/types/codeliver";
 import styles from "./ProjectCockpit.module.css";
 
 interface ProjectCockpitProps {
@@ -2494,7 +2495,7 @@ export default function ProjectCockpit({
                               }}
                               threadNumber={orderedRootReviewComments.findIndex((candidate) => candidate.id === comment.id) + 1}
                               replyCount={comments.filter((candidate) => candidate.parent_id === comment.id).length}
-                              replies={comments.filter((candidate) => candidate.parent_id === comment.id).map((reply) => ({ id: reply.id, author_name: reply.author_name, body: reply.body }))}
+                              replies={comments.filter((candidate) => candidate.parent_id === comment.id).map((reply) => ({ id: reply.id, author_name: reply.author_name, body: reply.body, attachments: (reply as typeof reply & { attachments?: CommentAttachment[] }).attachments }))}
                               canReply={reviewOperationsAllowed}
                               onClose={() => setSelectedCommentId(null)}
                               onPrevious={() => selectAdjacentReviewComment(-1)}
@@ -2502,6 +2503,13 @@ export default function ProjectCockpit({
                               onReply={(body) => persistExactComment({ body, timecode: comment.time_seconds, parentId: comment.id })}
                               versionId={demoMode ? activeDemoVersionId : activeLiveVersion?.id ?? null}
                               attachmentEndpoint={!demoMode ? `/api/assets/${activeAsset.id}/comments/attachments` : undefined}
+                              onAttachmentCreated={(commentId, attachment) => setLiveComments((current) => current.map((candidate) => candidate.id === commentId ? { ...candidate, attachments: [...((candidate as typeof candidate & { attachments?: CommentAttachment[] }).attachments ?? []), attachment] } : candidate))}
+                              onRefreshAttachment={async (commentId, attachmentId) => {
+                                if (demoMode || !activeLiveVersion) return null;
+                                const attachments = await refreshReviewImageAttachments({ endpoint: `/api/assets/${activeAsset.id}/comments/attachments`, commentId, versionId: activeLiveVersion.id });
+                                setLiveComments((current) => current.map((candidate) => candidate.id === commentId ? { ...candidate, attachments } : candidate));
+                                return attachments.find((attachment) => attachment.id === attachmentId)?.file_url ?? null;
+                              }}
                             />
                           ))}
                         {pendingPin ? (
@@ -2525,6 +2533,7 @@ export default function ProjectCockpit({
                             pin={pendingPin}
                             onCancel={() => setPendingPin(null)}
                             attachmentEndpoint={!demoMode ? `/api/assets/${activeAsset.id}/comments/attachments` : undefined}
+                            onAttachmentCreated={(commentId, attachment) => setLiveComments((current) => current.map((candidate) => candidate.id === commentId ? { ...candidate, attachments: [...((candidate as typeof candidate & { attachments?: CommentAttachment[] }).attachments ?? []), attachment] } : candidate))}
                             onPersist={({ body, timecode, pin }) => persistExactComment({ body, timecode, pin })}
                             onComplete={() => {
                               setPendingPin(null);

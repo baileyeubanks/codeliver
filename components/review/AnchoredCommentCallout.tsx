@@ -22,6 +22,7 @@ interface AnchoredCommentCalloutProps {
   versionId?: string | null;
   attachmentEndpoint?: string;
   onAttachmentCreated?: (commentId: string, attachment: CommentAttachment) => void;
+  onRefreshAttachment?: (commentId: string, attachmentId: string) => Promise<string | null>;
 }
 
 /** A view-only anchor with a movable conversation card. Dragging never mutates
@@ -39,6 +40,7 @@ export default function AnchoredCommentCallout({
   versionId,
   attachmentEndpoint,
   onAttachmentCreated,
+  onRefreshAttachment,
 }: AnchoredCommentCalloutProps) {
   const [reply, setReply] = useState("");
   const [sending, setSending] = useState(false);
@@ -109,9 +111,9 @@ export default function AnchoredCommentCallout({
           </nav>
         </header>
         <p>{comment.body}</p>
-        {comment.attachments?.map((attachment) => <AttachmentPreview key={attachment.id} attachment={attachment} />)}
+        {comment.attachments?.map((attachment) => <AttachmentPreview key={attachment.id} attachment={attachment} onRefreshUrl={() => onRefreshAttachment?.(comment.id, attachment.id) ?? Promise.resolve(null)} />)}
         <div className="review-anchored-comment-thread"><MessageSquareText size={12} /> {replyCount} {replyCount === 1 ? "reply" : "replies"}</div>
-        {replies.length ? <ol className="review-anchored-comment-replies">{replies.map((item) => <li key={item.id}><strong>{item.author_name || "Reviewer"}</strong><span>{item.body}</span>{item.attachments?.map((attachment) => <AttachmentPreview key={attachment.id} attachment={attachment} />)}</li>)}</ol> : null}
+        {replies.length ? <ol className="review-anchored-comment-replies">{replies.map((item) => <li key={item.id}><strong>{item.author_name || "Reviewer"}</strong><span>{item.body}</span>{item.attachments?.map((attachment) => <AttachmentPreview key={attachment.id} attachment={attachment} onRefreshUrl={() => onRefreshAttachment?.(item.id, attachment.id) ?? Promise.resolve(null)} />)}</li>)}</ol> : null}
         {canReply ? (
           <div className="review-anchored-comment-reply">
             {!attachmentEndpoint ? null : <><input ref={attachmentInput} type="file" accept={REVIEW_IMAGE_ACCEPT} hidden onChange={(event) => { const file = event.target.files?.[0] ?? null; const invalid = file ? validateReviewImage(file) : null; if (invalid) { setAttachment(null); setError(invalid); return; } setAttachment(file); attachmentKey.current = null; setError(""); }} /><button type="button" className="review-anchored-comment-image" onClick={() => attachmentInput.current?.click()} aria-label="Attach image"><ImagePlus size={13} /></button></>}

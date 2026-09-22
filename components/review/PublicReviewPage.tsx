@@ -26,6 +26,7 @@ import AnnotationThumbnail from "@/components/review/annotation/AnnotationThumbn
 import AnnotationToolbar from "@/components/review/annotation/AnnotationToolbar";
 import AnchoredCommentCallout from "@/components/review/AnchoredCommentCallout";
 import { adjacentTimedComment, orderedTimedComments } from "@/lib/review/comment-navigation";
+import { refreshReviewImageAttachments } from "@/lib/review/image-attachments-client";
 import VersionCompare from "@/components/review/VersionCompare";
 import VersionSwitcher from "@/components/review/VersionSwitcher";
 import ShareLinkAccessGate from "@/components/sharing/ShareLinkAccessGate";
@@ -1456,6 +1457,12 @@ export default function PublicReviewPage({
                 versionId={activeVersion?.id ?? null}
                 attachmentEndpoint={!demoMode ? `/api/review/${token}/comments/attachments` : undefined}
                 onAttachmentCreated={(commentId, attachment) => setComments((current) => current.map((candidate) => candidate.id === commentId ? { ...candidate, attachments: [...(candidate.attachments ?? []), attachment] } : candidate))}
+                onRefreshAttachment={async (commentId, attachmentId) => {
+                  if (demoMode || !activeVersion?.id) return null;
+                  const attachments = await refreshReviewImageAttachments({ endpoint: `/api/review/${token}/comments/attachments`, commentId, versionId: activeVersion.id });
+                  setComments((current) => current.map((candidate) => candidate.id === commentId ? { ...candidate, attachments } : candidate));
+                  return attachments.find((attachment) => attachment.id === attachmentId)?.file_url ?? null;
+                }}
               />
             );
         })}

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Download, Scissors, Trash2 } from "lucide-react";
 import {
   removeSequenceClip,
@@ -8,6 +8,14 @@ import {
   trimSequenceClip,
 } from "@/lib/demo/workspace-store";
 import { edlFilename, generateEdl } from "@/lib/covideopro/edl.ts";
+import {
+  nextSequencePlayback,
+  orderSequenceClips,
+  resolveSequencePlayback,
+  sequenceTimelineDuration,
+  timelineSecondsForClipSource,
+  type SequencePlaybackTarget,
+} from "@/lib/projects/sequence-playback";
 import type { Sequence, SequenceClip } from "@/lib/covideopro/record.ts";
 
 interface TimelineAsset {
@@ -30,94 +38,123 @@ function fmt(total: number): string {
 }
 
 /**
- * Bespoke sequence timeline: real playback (source seeked clip-to-clip),
- * playhead sync, trim/split/ripple-delete through validated store mutations.
+ * Bespoke sequence timeline: each record clip carries the source identity used
+ * for preview. That remains reliable when one source is repeated or reordered.
  */
 export default function SequenceTimeline({ sequence, clips, assets, onNotice }: SequenceTimelineProps) {
-  const ordered = useMemo(
-    () => [...clips].sort((a, b) => a.timeline_in_seconds - b.timeline_in_seconds),
-    [clips],
-  );
-  const duration = ordered.reduce((max, clip) => Math.max(max, clip.timeline_out_seconds), 0);
+  const ordered = useMemo(() => orderSequenceClips(clips), [clips]);
+  const duration = useMemo(() => sequenceTimelineDuration(ordered), [ordered]);
   const videoRef = useRef<HTMLVideoElement>(null);
   const trackRef = useRef<HTMLDivElement>(null);
+  const pendingSeekRef = useRef<{ target: SequencePlaybackTarget; resume: boolean } | null>(null);
   const [selectedClipId, setSelectedClipId] = useState<string | null>(null);
+  const [activeClipId, setActiveClipId] = useState<string | null>(() => ordered[0]?.id ?? null);
   const [playhead, setPlayhead] = useState(0);
   const [playing, setPlaying] = useState(false);
 
-  const firstAsset = ordered.length > 0 ? assets.find((asset) => asset.id === ordered[0].asset_id) : null;
-  const playableUrl = firstAsset?.file_url ?? null;
+  const activeClip = ordered.find((clip) => clip.id === activeClipId) ?? ordered[0] ?? null;
+  const activeAsset = activeClip ? assets.find((asset) => asset.id === activeClip.asset_id) ?? null : null;
+  const playableUrl = activeAsset?.file_url ?? null;
   const selected = ordered.find((clip) => clip.id === selectedClipId) ?? null;
   const selectedAsset = selected ? assets.find((asset) => asset.id === selected.asset_id) : null;
 
-  function clipAt(timelineSeconds: number): SequenceClip | null {
-    return ordered.find(
-      (clip) => timelineSeconds >= clip.timeline_in_seconds && timelineSeconds < clip.timeline_out_seconds,
-    ) ?? null;
-  }
+  const finishPlayback = useCallback(() => {
+    pendingSeekRef.current = null;
+    videoRef.current?.pause();
+    setPlaying(false);
+    setPlayhead(duration);
+  }, [duration]);
 
-  /** Map sequence timeline position → source time for the video element. */
-  function sourceTimeFor(timelineSeconds: number): { clip: SequenceClip; source: number } | null {
-    const clip = clipAt(timelineSeconds);
-    if (!clip) return null;
-    return { clip, source: clip.source_in_seconds + (timelineSeconds - clip.timeline_in_seconds) };
-  }
-
-  function seek(timelineSeconds: number) {
-    const target = sourceTimeFor(Math.max(0, Math.min(duration, timelineSeconds)));
+  const flushPendingSeek = useCallback(() => {
+    const pending = pendingSeekRef.current;
     const video = videoRef.current;
-    if (!target || !video) return;
-    video.currentTime = target.source;
-    setPlayhead(timelineSeconds);
-  }
+    if (!pending || !video || video.readyState < HTMLMediaElement.HAVE_METADATA) return;
+    video.currentTime = pending.target.sourceSeconds;
+    pendingSeekRef.current = null;
+    if (!pending.resume) return;
+    void video.play().then(() => setPlaying(true)).catch(() => {
+      setPlaying(false);
+      onNotice("Playback was blocked by the browser.");
+    });
+  }, [onNotice]);
 
-  // Playback engine: advance through clips at source boundaries.
+  const queuePlaybackTarget = useCallback((target: SequencePlaybackTarget, resume: boolean) => {
+    const video = videoRef.current;
+    pendingSeekRef.current = { target, resume };
+    setActiveClipId(target.clip.id);
+    setPlayhead(target.timelineSeconds);
+    if (video && activeClip?.asset_id === target.clip.asset_id && video.readyState >= HTMLMediaElement.HAVE_METADATA) {
+      flushPendingSeek();
+    }
+  }, [activeClip?.asset_id, flushPendingSeek]);
+
+  /** Clamp every interaction through the resolver. Gaps select the next clip;
+   * the exclusive end updates the playhead and deliberately has no source seek. */
+  const seek = useCallback((timelineSeconds: number, resume = playing) => {
+    const target = resolveSequencePlayback(ordered, timelineSeconds);
+    if (target.kind === "end") {
+      finishPlayback();
+      return;
+    }
+    queuePlaybackTarget(target, resume);
+  }, [finishPlayback, ordered, playing, queuePlaybackTarget]);
+
   useEffect(() => {
     const video = videoRef.current;
     if (!video) return;
+    const onMetadata = () => flushPendingSeek();
+    video.addEventListener("loadedmetadata", onMetadata);
+    if (video.readyState >= HTMLMediaElement.HAVE_METADATA) flushPendingSeek();
+    return () => video.removeEventListener("loadedmetadata", onMetadata);
+  }, [activeClipId, flushPendingSeek, playableUrl]);
+
+  // Playback advances from the active record clip, never from a matching source
+  // range. This supports repeated/reordered ranges and cross-asset sequences.
+  useEffect(() => {
+    const video = videoRef.current;
+    const current = ordered.find((clip) => clip.id === activeClipId) ?? ordered[0] ?? null;
+    if (!video || !current) return;
+    const playbackVideo = video;
+    const currentClip = current;
+
+    function advance() {
+      const next = nextSequencePlayback(ordered, currentClip.id);
+      if (next.kind === "end") finishPlayback();
+      else queuePlaybackTarget(next, true);
+    }
     function onTimeUpdate() {
-      if (!video) return;
-      const source = video.currentTime;
-      const current = ordered.find(
-        (clip) => source >= clip.source_in_seconds && source < clip.source_out_seconds,
-      );
-      if (current) {
-        setPlayhead(current.timeline_in_seconds + (source - current.source_in_seconds));
+      const source = playbackVideo.currentTime;
+      if (source >= currentClip.source_out_seconds - 0.04) {
+        advance();
         return;
       }
-      const next = ordered.find((clip) => clip.source_in_seconds > source);
-      if (next && playing) {
-        video.currentTime = next.source_in_seconds;
-        setPlayhead(next.timeline_in_seconds);
-      } else if (!next) {
-        setPlaying(false);
-        video.pause();
-        setPlayhead(duration);
+      if (source >= currentClip.source_in_seconds) {
+        setPlayhead(timelineSecondsForClipSource(currentClip, source));
       }
     }
     video.addEventListener("timeupdate", onTimeUpdate);
-    return () => video.removeEventListener("timeupdate", onTimeUpdate);
-  }, [ordered, playing, duration]);
+    video.addEventListener("ended", advance);
+    return () => {
+      video.removeEventListener("timeupdate", onTimeUpdate);
+      video.removeEventListener("ended", advance);
+    };
+  }, [activeClipId, duration, finishPlayback, ordered, queuePlaybackTarget]);
 
   function togglePlay() {
-    const video = videoRef.current;
-    if (!video || !playableUrl) return;
+    if (!playableUrl) return;
     if (playing) {
-      video.pause();
+      videoRef.current?.pause();
       setPlaying(false);
-    } else {
-      if (playhead >= duration - 0.05) seek(0);
-      else seek(playhead);
-      void video.play().then(() => setPlaying(true)).catch(() => onNotice("Playback was blocked by the browser."));
+      return;
     }
+    seek(playhead >= duration ? 0 : playhead, true);
   }
 
   function handleTrackClick(event: React.MouseEvent<HTMLDivElement>) {
     const track = trackRef.current;
     if (!track || duration === 0) return;
     const rect = track.getBoundingClientRect();
-    const ratio = (event.clientX - rect.left) / rect.width;
-    seek(ratio * duration);
+    seek(((event.clientX - rect.left) / rect.width) * duration);
   }
 
   function handleSplit() {
@@ -233,7 +270,7 @@ export default function SequenceTimeline({ sequence, clips, assets, onNotice }: 
           </>
         ) : (
           <div className="cv-timeline__novideo">
-            No playable source attached to {firstAsset?.title ?? "this media"} yet — upload media to preview the assembly.
+            No playable source attached to {activeAsset?.title ?? "this media"} yet — upload media to preview the assembly.
           </div>
         )}
       </div>

@@ -1,0 +1,93 @@
+import type { SequenceClip } from "@/lib/covideopro/record.ts";
+
+export interface SequencePlaybackTarget {
+  kind: "clip";
+  clip: SequenceClip;
+  timelineSeconds: number;
+  sourceSeconds: number;
+}
+
+export interface SequencePlaybackEnd {
+  kind: "end";
+  timelineSeconds: number;
+}
+
+export type SequencePlaybackResolution = SequencePlaybackTarget | SequencePlaybackEnd;
+
+/** Keep source selection deterministic even when one source range appears more
+ * than once or clips arrive out of order from the record. */
+export function orderSequenceClips(clips: readonly SequenceClip[]): SequenceClip[] {
+  return [...clips].sort((left, right) =>
+    left.timeline_in_seconds - right.timeline_in_seconds
+    || left.timeline_out_seconds - right.timeline_out_seconds
+    || left.track_index - right.track_index
+    || left.id.localeCompare(right.id),
+  );
+}
+
+export function sequenceTimelineDuration(clips: readonly SequenceClip[]): number {
+  return orderSequenceClips(clips).reduce(
+    (maximum, clip) => Math.max(maximum, clip.timeline_out_seconds),
+    0,
+  );
+}
+
+export function clampSequenceTimelinePosition(
+  timelineSeconds: number,
+  duration: number,
+): number {
+  if (!Number.isFinite(timelineSeconds)) return 0;
+  return Math.max(0, Math.min(Math.max(0, duration), timelineSeconds));
+}
+
+/** Resolve a timeline point to the exact record clip and its source position.
+ * Gaps move to the next ordered clip; the exclusive timeline end is a stable
+ * terminal position rather than a seek into an arbitrary source asset. */
+export function resolveSequencePlayback(
+  clips: readonly SequenceClip[],
+  timelineSeconds: number,
+): SequencePlaybackResolution {
+  const ordered = orderSequenceClips(clips);
+  const duration = sequenceTimelineDuration(ordered);
+  const position = clampSequenceTimelinePosition(timelineSeconds, duration);
+  const clipAtPosition = ordered.find((candidate) =>
+    position >= candidate.timeline_in_seconds && position < candidate.timeline_out_seconds,
+  );
+  const nextClip = clipAtPosition ? null : ordered.find((candidate) => candidate.timeline_in_seconds >= position);
+  const clip = clipAtPosition ?? nextClip;
+
+  if (!clip) return { kind: "end", timelineSeconds: duration };
+  const resolvedTimelineSeconds = clipAtPosition ? position : clip.timeline_in_seconds;
+  return {
+    kind: "clip",
+    clip,
+    timelineSeconds: resolvedTimelineSeconds,
+    sourceSeconds: clip.source_in_seconds + (resolvedTimelineSeconds - clip.timeline_in_seconds),
+  };
+}
+
+/** Advance strictly from the active clip identity. Source time alone is not a
+ * clip identity because a sequence may reuse or reorder the same source range. */
+export function nextSequencePlayback(
+  clips: readonly SequenceClip[],
+  activeClipId: string | null,
+): SequencePlaybackResolution {
+  const ordered = orderSequenceClips(clips);
+  const activeIndex = activeClipId ? ordered.findIndex((clip) => clip.id === activeClipId) : -1;
+  const next = activeIndex >= 0 ? ordered[activeIndex + 1] : ordered[0];
+  if (!next) return { kind: "end", timelineSeconds: sequenceTimelineDuration(ordered) };
+  return {
+    kind: "clip",
+    clip: next,
+    timelineSeconds: next.timeline_in_seconds,
+    sourceSeconds: next.source_in_seconds,
+  };
+}
+
+export function timelineSecondsForClipSource(
+  clip: SequenceClip,
+  sourceSeconds: number,
+): number {
+  const source = Math.max(clip.source_in_seconds, Math.min(clip.source_out_seconds, sourceSeconds));
+  return clip.timeline_in_seconds + (source - clip.source_in_seconds);
+}

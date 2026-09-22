@@ -12,8 +12,10 @@ test("sequences render one active timeline and keep imported projects honest abo
   assert.match(component, /const \[activeSequenceId, setActiveSequenceId\]/);
   assert.match(component, /const activeSequence = sequences\.find/);
   assert.equal((component.match(/<SequenceTimeline/g) ?? []).length, 1);
+  assert.match(component, /<SequenceTimeline\s+key=\{activeSequence\.id\}/);
   assert.match(component, /No local sequence assembly or transcript selects are recorded for this imported project\./);
   assert.match(component, /No transcript-backed or manual selects are recorded for this imported project\./);
+  assert.match(component, /const transcriptAssets = sourceCatalog \? \[\] : workspace\.assets/);
 });
 
 test("timeline selection exposes its exact source and record range and works by keyboard", () => {

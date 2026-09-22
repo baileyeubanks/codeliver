@@ -742,7 +742,9 @@ export function SequencesSection({ projectId, demoMode, onNotice }: SectionProps
     onNotice(result.ok ? "Select created from transcript." : result.reason);
   }
 
-  const transcriptAssets = workspace.assets
+  // Imported source workspaces carry only source-backed records. Fixture transcript
+  // seeds must never attach to a coincidentally named imported asset.
+  const transcriptAssets = sourceCatalog ? [] : workspace.assets
     .filter((asset) => asset.project_id === projectId && seedTranscriptSegments[asset.id]?.length)
     .map((asset) => ({ asset, segments: seedTranscriptSegments[asset.id] }));
   const activeSequence = sequences.find((sequence) => sequence.id === activeSequenceId) ?? sequences[0] ?? null;
@@ -867,6 +869,7 @@ export function SequencesSection({ projectId, demoMode, onNotice }: SectionProps
             {activeSequence.status === "draft" ? <button type="button" onClick={() => review(activeSequence.id)}>Send to review</button> : null}
           </div>
           <SequenceTimeline
+            key={activeSequence.id}
             sequence={activeSequence}
             clips={activeClips}
             assets={workspace.assets}

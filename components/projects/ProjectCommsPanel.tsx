@@ -9,7 +9,7 @@
 import Link from "next/link";
 import { useMemo } from "react";
 import { formatDateShort, formatDateTimeShort } from "@/lib/projects/dates.ts";
-import { buildInternalDemoAssetHref } from "@/lib/demo/workspace";
+import { projectConversationThreads } from "@/lib/projects/conversations";
 import { useDemoWorkspace } from "@/lib/demo/workspace-store";
 import styles from "./ProjectWorkspaceTabs.module.css";
 
@@ -31,23 +31,10 @@ export default function ProjectCommsPanel({ projectId }: { projectId: string }) 
     [workspace.decisions, projectId],
   );
 
-  const threads = (() => {
-    const comments = workspace.reviewComments
-      .filter((comment) => comment.project_id === projectId)
-      .sort((a, b) => a.created_at.localeCompare(b.created_at));
-    const byAsset = new Map<string, typeof comments>();
-    for (const comment of comments) {
-      const list = byAsset.get(comment.asset_id) ?? [];
-      list.push(comment);
-      byAsset.set(comment.asset_id, list);
-    }
-    return [...byAsset.entries()].map(([assetId, assetComments]) => ({
-      assetId,
-      title:
-        workspace.assets.find((asset) => asset.id === assetId)?.title ?? "Untitled media",
-      comments: assetComments,
-    }));
-  })();
+  const threads = projectConversationThreads({
+    projectId, assets: workspace.assets, comments: workspace.reviewComments,
+    versions: workspace.mediaVersions ?? [], shareLinks: workspace.shareLinks ?? [],
+  });
   const hasRecordedComms = decisions.length > 0 || threads.length > 0;
 
   return (
@@ -90,15 +77,17 @@ export default function ProjectCommsPanel({ projectId }: { projectId: string }) 
             <p className={styles.muted}>No conversations on this project yet.</p>
           ) : (
             threads.map((thread) => (
-              <section key={thread.assetId} className={styles.threadCard} aria-label={`Conversation on ${thread.title}`}>
+              <section key={thread.id} className={styles.threadCard} aria-label={`Conversation on ${thread.title} · ${thread.versionLabel}`}>
                 <div className={styles.threadHeader}>
-                  <h4 className={styles.threadTitle}>{thread.title}</h4>
+                  <h4 className={styles.threadTitle}>{thread.title} · {thread.versionLabel}</h4>
+                  {thread.reviewHref ? (
                   <Link
                     className={styles.reviewLink}
-                    href={buildInternalDemoAssetHref(projectId, thread.assetId)}
+                    href={thread.reviewHref}
                   >
                     Open in review
                   </Link>
+                  ) : <span className={styles.muted}>Review link unavailable</span>}
                 </div>
                 {thread.comments.map((comment) => (
                   <div key={comment.id} className={styles.commentItem}>

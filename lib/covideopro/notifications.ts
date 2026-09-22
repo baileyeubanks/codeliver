@@ -7,7 +7,9 @@
  * queued/pending — never claimed delivery.
  */
 
-import { createHash } from "node:crypto";
+// This module also runs in the demo client. Next supplies its browser crypto
+// implementation for the bare specifier; the node: scheme cannot be bundled.
+import { createHash } from "crypto";
 import type {
   NotificationChannel,
   NotificationOutboxItem,

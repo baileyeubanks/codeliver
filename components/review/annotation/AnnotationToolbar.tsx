@@ -50,7 +50,7 @@ export default function AnnotationToolbar({
 
   return (
     <div
-      className="pointer-events-none absolute right-3 top-3 z-10 flex max-w-[calc(100%_-_1.5rem)] flex-col items-end gap-2"
+      className="pointer-events-none absolute right-3 top-14 z-10 flex max-w-[calc(100%_-_1.5rem)] flex-col items-end gap-2"
     >
       <div
         data-annotation-toolbar
@@ -68,7 +68,7 @@ export default function AnnotationToolbar({
           onClick={onToggleDrawMode}
         >
           <Pencil size={15} />
-          <span>Draw</span>
+          <span className={drawMode ? "hidden sm:inline" : undefined}>Draw</span>
         </button>
 
         {drawMode ? (

@@ -23,3 +23,12 @@ test("project Copilot placement stays scoped and clears desktop player controls"
     /@media \(min-width: 901px\) \{[\s\S]*?body:has\(\.cockpit-shell\) \.cvp-copilot-pill \{[\s\S]*?bottom: 96px/,
   );
 });
+
+test("mobile project Copilot height reserves the fixed workspace navigation", () => {
+  const styles = source("app/globals.css");
+
+  assert.match(
+    styles,
+    /@media \(max-width: 900px\) \{[\s\S]*?body:has\(\.cockpit-shell\) \.cvp-copilot \{[\s\S]*?max-height: calc\(100dvh - 108px - env\(safe-area-inset-bottom\)\) !important/,
+  );
+});

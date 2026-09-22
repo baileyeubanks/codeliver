@@ -6147,6 +6147,13 @@ body {
 
 /* Project routes have their own mobile navigation outside the workspace shell. */
 @media (max-width: 900px) {
+  /* The fixed project navigation starts 76px above the visual viewport edge.
+     The panel's inline desktop cap cannot account for it, so reserve both that
+     bar and the panel margin before the browser calculates its actual height. */
+  body:has(.cockpit-shell) .cvp-copilot {
+    max-height: calc(100dvh - 108px - env(safe-area-inset-bottom)) !important;
+  }
+
   body:has(.cockpit-shell) .cvp-copilot-pill {
     right: 12px;
     bottom: calc(76px + env(safe-area-inset-bottom));

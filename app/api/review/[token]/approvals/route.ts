@@ -1,5 +1,9 @@
 import { recordApprovalDecision } from "@/lib/approval-decisions";
 import {
+  assertAssetNotLocked,
+  isAssetDeliveryLockedError,
+} from "@/lib/delivery/lock";
+import {
   authorizeAdmittedReviewInvite,
   reserveReviewActionRate,
 } from "@/lib/review/admission-authority";
@@ -221,6 +225,20 @@ async function patchApproval(req: Request, { params }: { params: Promise<{ token
   }
 
   const supabase = getSupabase();
+  try {
+    await assertAssetNotLocked(invite.asset_id, supabase);
+  } catch (error) {
+    if (isAssetDeliveryLockedError(error)) {
+      return reviewError(
+        "This delivery is locked and its approval is final",
+        409,
+        "ASSET_LOCKED",
+        responseHeaders,
+      );
+    }
+    return reviewBackendUnavailable(responseHeaders);
+  }
+
   const [approvalsResult, workflowResult] = await Promise.all([
     supabase
       .from("approvals")

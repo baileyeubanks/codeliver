@@ -20,7 +20,7 @@ function source(path: string) {
  * state. */
 const admissionAuthorityStub = dataModule(`
   export async function authorizeAdmittedReviewInvite() {
-    return {
+    return globalThis.__ccoClientSurfaceAdmission ?? {
       ok: true,
       claims: {
         admissionId: "11111111-1111-4111-8111-111111111111",
@@ -38,7 +38,7 @@ const admissionAuthorityStub = dataModule(`
         version_id: "version-a",
         reviewer_name: "External reviewer",
         reviewer_email: "reviewer@example.test",
-        permissions: "view",
+        permissions: "approve",
         expires_at: null,
         watermark_enabled: false,
         watermark_text: null,
@@ -56,12 +56,61 @@ const admissionAuthorityStub = dataModule(`
       }
     };
   }
+
+  export async function reserveReviewActionRate() {
+    return { ok: true };
+  }
 `);
 
 const reviewInvitesStub = dataModule(`
   export function getExternalApprovalState() {
     return { approvals: [], activeApprovalIds: [], approvalAccessMessage: null };
   }
+
+  export function inviteCanApprove() {
+    return true;
+  }
+
+  export function canInviteDecideApproval({ approvalId }) {
+    return {
+      ok: true,
+      approval: {
+        id: approvalId,
+        asset_id: "asset-a",
+        workflow_id: "workflow-a",
+        role_label: "Client approver",
+        status: "pending"
+      }
+    };
+  }
+`);
+
+const approvalDecisionsStub = dataModule(`
+  export async function recordApprovalDecision({ approvalId }) {
+    globalThis.__ccoClientSurfaceApprovalWrites =
+      (globalThis.__ccoClientSurfaceApprovalWrites ?? 0) + 1;
+    return {
+      ok: true,
+      data: { id: approvalId, status: "approved" },
+      assetStatus: "approved"
+    };
+  }
+`);
+
+const demoReviewStub = dataModule(`
+  export const demoReviewPayload = {
+    asset: { id: "demo-asset", status: "in_review" },
+    invite: { id: "demo-invite", view_count: 0, max_views: null },
+    approvals: [],
+    reviewer_name: "Demo reviewer",
+    reviewer_email: "demo@example.test",
+    permissions: "approve",
+    expires_at: null,
+    watermark_enabled: false,
+    watermark_text: null,
+    download_enabled: false,
+    workflow_mode: null
+  };
 `);
 
 const versionsStub = dataModule(`
@@ -112,6 +161,10 @@ const supabaseStub = dataModule(`
     }
     then(resolve, reject) {
       const tables = globalThis.__ccoClientSurfaceTables ?? {};
+      globalThis.__ccoClientSurfaceQueries = [
+        ...(globalThis.__ccoClientSurfaceQueries ?? []),
+        { table: this.table, filters: this.filters }
+      ];
       return Promise.resolve({
         data: this.matching(tables[this.table] ?? []),
         error: (globalThis.__ccoClientSurfaceErrors ?? {})[this.table]
@@ -129,6 +182,24 @@ const supabaseStub = dataModule(`
 registerHooks({
   resolve(specifier, context, nextResolve) {
     if (specifier === "next/server") return nextResolve("next/server.js", context);
+    if (specifier === "@/lib/approval-decisions") {
+      return nextResolve(approvalDecisionsStub, context);
+    }
+    if (specifier === "@/lib/review/demoReview") {
+      return nextResolve(demoReviewStub, context);
+    }
+    if (specifier === "@/lib/delivery/lock") {
+      return nextResolve(
+        pathToFileURL(resolve(repositoryRoot, "lib/delivery/lock.ts")).href,
+        context,
+      );
+    }
+    if (specifier === "@/lib/api/backend") {
+      return nextResolve(
+        pathToFileURL(resolve(repositoryRoot, "lib/api/backend.ts")).href,
+        context,
+      );
+    }
     if (specifier === "@/lib/review-invites") return nextResolve(reviewInvitesStub, context);
     if (specifier === "@/lib/review/admission-authority") {
       return nextResolve(admissionAuthorityStub, context);
@@ -165,7 +236,10 @@ registerHooks({
 });
 
 type ClientSurfaceGlobal = typeof globalThis & {
+  __ccoClientSurfaceAdmission?: Record<string, unknown>;
+  __ccoClientSurfaceApprovalWrites: number;
   __ccoClientSurfaceErrors: Record<string, string>;
+  __ccoClientSurfaceQueries: Array<Record<string, unknown>>;
   __ccoClientSurfaceTables: Record<string, Array<Record<string, unknown>>>;
 };
 
@@ -177,11 +251,36 @@ async function reviewRoute() {
   );
 }
 
+async function approvalRoute() {
+  return import(
+    pathToFileURL(resolve(repositoryRoot, "app/api/review/[token]/approvals/route.ts")).href
+  );
+}
+
 function getReviewPayload() {
   return reviewRoute().then(({ GET }) =>
     GET(new Request("https://client.contentco-op.com/api/review/opaque-token"), {
       params: Promise.resolve({ token: "opaque-token" }),
     }),
+  );
+}
+
+async function patchReviewApproval() {
+  const { PATCH } = await approvalRoute();
+  return PATCH(
+    new Request("https://client.contentco-op.com/api/review/opaque-token/approvals", {
+      method: "PATCH",
+      headers: {
+        "content-type": "application/json",
+        origin: "https://client.contentco-op.com",
+      },
+      body: JSON.stringify({
+        id: "approval-a",
+        status: "approved",
+        reviewer_name: "External reviewer",
+      }),
+    }),
+    { params: Promise.resolve({ token: "opaque-token" }) },
   );
 }
 
@@ -242,6 +341,93 @@ test("the public review page renders the locked badge and checksum for locked de
   assert.match(page, /delivery\?\.locked/);
   assert.match(page, /Locked final delivery/);
   assert.match(page, /sha256/);
+
+  const approvalLockDerivation =
+    page.match(/const approvalLocked = Boolean\([\s\S]*?\n  \);/)?.[0] ?? "";
+  assert.match(
+    approvalLockDerivation,
+    /delivery\?\.locked/,
+    "a real locked delivery must make the approval panel terminal",
+  );
+});
+
+test("public approval writes reject a locked admitted asset before the decision write", async () => {
+  state.__ccoClientSurfaceAdmission = undefined;
+  state.__ccoClientSurfaceApprovalWrites = 0;
+  state.__ccoClientSurfaceErrors = {};
+  state.__ccoClientSurfaceQueries = [];
+  state.__ccoClientSurfaceTables = {
+    deliverable_items: [
+      {
+        deliverable_id: "deliverable-a",
+        asset_id: "asset-a",
+        version_id: "version-locked",
+      },
+    ],
+    deliverables: [{ id: "deliverable-a", locked_at: lockedAt }],
+  };
+
+  const response = await patchReviewApproval();
+  assert.equal(response.status, 409);
+  assert.equal((await response.json()).code, "ASSET_LOCKED");
+  assert.equal(state.__ccoClientSurfaceApprovalWrites, 0);
+  const assetLockLookup = state.__ccoClientSurfaceQueries.find(
+    (query) => query.table === "deliverable_items",
+  );
+  assert.equal(
+    JSON.stringify(assetLockLookup?.filters),
+    JSON.stringify([{ column: "asset_id", values: ["asset-a"] }]),
+    "the admitted invite asset, not a caller-supplied asset or version, owns the terminal lock",
+  );
+});
+
+test("public approval writes remain available when the admitted asset is unlocked", async () => {
+  state.__ccoClientSurfaceAdmission = undefined;
+  state.__ccoClientSurfaceApprovalWrites = 0;
+  state.__ccoClientSurfaceErrors = {};
+  state.__ccoClientSurfaceQueries = [];
+  state.__ccoClientSurfaceTables = {
+    deliverable_items: [
+      { deliverable_id: "deliverable-a", asset_id: "asset-a", version_id: "version-a" },
+    ],
+    deliverables: [{ id: "deliverable-a", locked_at: null }],
+    approvals: [{ id: "approval-a", asset_id: "asset-a", status: "pending" }],
+  };
+
+  const response = await patchReviewApproval();
+  assert.equal(response.status, 200);
+  assert.equal(state.__ccoClientSurfaceApprovalWrites, 1);
+});
+
+test("public approval writes fail closed when delivery lock state is unavailable", async () => {
+  state.__ccoClientSurfaceAdmission = undefined;
+  state.__ccoClientSurfaceApprovalWrites = 0;
+  state.__ccoClientSurfaceErrors = { deliverable_items: "private failure" };
+  state.__ccoClientSurfaceQueries = [];
+  state.__ccoClientSurfaceTables = {};
+
+  const response = await patchReviewApproval();
+  assert.equal(response.status, 503);
+  assert.equal((await response.json()).code, "REVIEW_SERVICE_UNAVAILABLE");
+  assert.equal(state.__ccoClientSurfaceApprovalWrites, 0);
+});
+
+test("public approval authorization rejects before delivery lock lookup", async () => {
+  state.__ccoClientSurfaceAdmission = {
+    ok: false,
+    status: 403,
+    code: "REVIEW_ADMISSION_REQUIRED",
+  };
+  state.__ccoClientSurfaceApprovalWrites = 0;
+  state.__ccoClientSurfaceErrors = {};
+  state.__ccoClientSurfaceQueries = [];
+  state.__ccoClientSurfaceTables = {};
+
+  const response = await patchReviewApproval();
+  assert.equal(response.status, 403);
+  assert.equal(state.__ccoClientSurfaceQueries.length, 0);
+  assert.equal(state.__ccoClientSurfaceApprovalWrites, 0);
+  state.__ccoClientSurfaceAdmission = undefined;
 });
 
 /* ── portal projections ────────────────────────────────────────────────── */

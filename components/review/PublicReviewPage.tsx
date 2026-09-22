@@ -676,10 +676,11 @@ export default function PublicReviewPage() {
   // P19a/P20: locked assets live on the persisted public-review state, keyed
   // by asset. A locked approval is terminal — the panel renders it read-only.
   const approvalLocked = Boolean(
-    asset &&
-      demoWorkspace.publicReviewStates.some(
-        (state) => state.asset_id === asset.id && state.locked_asset_ids?.includes(asset.id),
-      ),
+    delivery?.locked ||
+      (asset &&
+        demoWorkspace.publicReviewStates.some(
+          (state) => state.asset_id === asset.id && state.locked_asset_ids?.includes(asset.id),
+        )),
   );
 
   // P18 roster: the people already on this review — honest, no fake handles.

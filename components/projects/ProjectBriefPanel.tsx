@@ -177,6 +177,7 @@ export default function ProjectBriefPanel({
           </div>
         </form>
       ) : viewed === null ? (
+        importedContext ? (
         <section className={styles.card} aria-label="Imported project context">
           <h3 className={styles.cardTitle}>Imported project context</h3>
           {importedContext?.summary ? (
@@ -191,6 +192,11 @@ export default function ProjectBriefPanel({
             Imported context is not a formal brief or evidence of approval. Start the brief when the project needs a versioned record.
           </p>
         </section>
+        ) : (
+          <div className={styles.emptyState}>
+            No creative brief yet. Start one to anchor objectives, audience, and messaging.
+          </div>
+        )
       ) : (
         <>
           <div className={styles.versionRail} aria-label="Brief version history">

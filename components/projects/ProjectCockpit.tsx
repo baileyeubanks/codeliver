@@ -115,7 +115,10 @@ import {
   resolvePinnedDemoMediaVersion,
   sortDemoMediaVersions,
 } from "@/lib/demo/media-version-authority";
-import { canOperateExactInternalReviewVersion } from "@/lib/review/internal-version-operations";
+import {
+  canOperateExactInternalReviewVersion,
+  reviewCommentDraftKey,
+} from "@/lib/review/internal-version-operations";
 import { formatSmpteTimecode } from "@/components/player/timecode";
 import VideoPlayer from "@/components/player/VideoPlayer";
 import { normalizeReviewSeekStep, normalizeReviewShortcutKey, shouldIgnoreReviewShortcut } from "@/lib/review/player-policy";
@@ -220,6 +223,7 @@ function versionLabel(asset: MediaAsset, demoMode: boolean) {
   const version = asset.version_count ?? (demoMode ? 1 : null);
   return version ? `Version ${version}` : "Version not indexed";
 }
+
 
 function mediaResolutionLabel(asset: MediaAsset, demoMode: boolean) {
   if (asset.file_type !== "video") return "Source file";
@@ -485,7 +489,7 @@ export default function ProjectCockpit({
   const [playbackSpeed, setPlaybackSpeed] = useState(1);
   const [volume, setVolume] = useState(1);
   const [hasEnded, setHasEnded] = useState(false);
-  const [commentBody, setCommentBody] = useState("");
+  const [commentDrafts, setCommentDrafts] = useState<Record<string, string>>({});
   const [pendingPin, setPendingPin] = useState<{
     x: number;
     y: number;
@@ -602,6 +606,14 @@ export default function ProjectCockpit({
       : currentDemoMediaVersion(workspace.mediaVersions, activeAsset.id)
     : null;
   const activeDemoVersionId = activeDemoVersion?.id ?? null;
+  const activeCommentDraftKey = activeAsset
+    ? reviewCommentDraftKey(activeAsset.id, demoMode ? activeDemoVersionId : null)
+    : null;
+  const commentBody = activeCommentDraftKey ? commentDrafts[activeCommentDraftKey] ?? "" : "";
+  function setCommentBody(value: string) {
+    if (!activeCommentDraftKey) return;
+    setCommentDrafts((current) => ({ ...current, [activeCommentDraftKey]: value }));
+  }
   const reviewOperationsAllowed = canOperateExactInternalReviewVersion({
     demoMode,
     requestedVersionId,
@@ -2418,7 +2430,7 @@ export default function ProjectCockpit({
                             <>
                               <p className="cockpit-review-status"><i /> {requestedReviewVersionUnavailable ? "Version unavailable" : `Historical V${activeDemoVersion?.version_number}`}</p>
                               <p className="cockpit-rail-empty">
-                                This cut keeps its own notes and markers. Current approval and share state are not applied here.
+                                This cut keeps its own notes and markers. Current approval and share state are not applied here; new share links use the latest cut.
                               </p>
                             </>
                           ) : (
@@ -2593,12 +2605,7 @@ export default function ProjectCockpit({
                           </div>
                         </section>
 
-                        {versionScopedReview ? (
-                          <section className={styles.dockSection}>
-                            <h2>Version scope</h2>
-                            <p className="cockpit-rail-empty">Create a new project-level link from Share to choose a version explicitly.</p>
-                          </section>
-                        ) : (
+                        {!versionScopedReview ? (
                           <section className={styles.dockSection}>
                             <header><h2>Share readiness</h2><button type="button" onClick={() => selectSection("reviews")}>Links</button></header>
                             <dl className="cockpit-details">
@@ -2610,7 +2617,7 @@ export default function ProjectCockpit({
                               Open share controls
                             </button>
                           </section>
-                        )}
+                        ) : null}
                       </div>
                     ) : effectiveDockTab === "versions" ? (
                       <VersionCompareDock

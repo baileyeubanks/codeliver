@@ -19,3 +19,8 @@ export function runWhenInternalReviewVersionIsAvailable<T>(
 ): T | undefined {
   return available ? operation() : undefined;
 }
+
+/** A typed but unsent note must remain with the exact cut it was written on. */
+export function reviewCommentDraftKey(assetId: string, versionId: string | null) {
+  return `${assetId}:${versionId ?? "current"}`;
+}

@@ -57,8 +57,14 @@ test("historical review details do not inherit current approval or contextual sh
   assert.match(cockpit, /const contextualShareAllowed = Boolean\(activeAsset && !versionScopedReview\)/);
   assert.match(cockpit, /disabled: !contextualShareAllowed \|\| !canShare/);
   assert.match(cockpit, /versionScopedReview \? "Review context" : "Review status"/);
-  assert.match(cockpit, /Current approval and share state are not applied here\./);
-  assert.match(cockpit, /Create a new project-level link from Share to choose a version explicitly\./);
+  assert.match(cockpit, /Current approval and share state are not applied here/);
+  assert.match(cockpit, /new share links use the latest cut\./);
   const historicalDock = cockpit.match(/\{versionScopedReview \? \([\s\S]*?\) : \(\n\s*<>\n\s*<p className="cockpit-review-status"/ )?.[0] ?? "";
   assert.doesNotMatch(historicalDock, /setShareOpen\(true\)|Start review|Share readiness|Batch share/);
+});
+
+test("the active composer reads its draft from the exact asset and version", () => {
+  assert.match(cockpit, /const \[commentDrafts, setCommentDrafts\] = useState<Record<string, string>>\(\{\}\)/);
+  assert.match(cockpit, /reviewCommentDraftKey\(activeAsset\.id, demoMode \? activeDemoVersionId : null\)/);
+  assert.match(cockpit, /commentDrafts\[activeCommentDraftKey\] \?\? ""/);
 });

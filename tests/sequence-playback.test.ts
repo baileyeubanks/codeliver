@@ -6,6 +6,7 @@ import {
   clampSequenceTimelinePosition,
   nextSequencePlayback,
   pausePlaybackRequest,
+  playbackPromiseOutcome,
   orderSequenceClips,
   queuePlaybackRequest,
   resolveSequencePlayback,
@@ -85,4 +86,23 @@ test("playback request coordinator rejects stale source metadata and preserves n
   assert.deepEqual(resolveSequencePlayback(nonzero, 0), {
     kind: "clip", clip: nonzero[0], timelineSeconds: 4, sourceSeconds: 20,
   });
+});
+
+
+test("delayed play promise outcomes cannot interfere with newer playback intent", () => {
+  const first = queuePlaybackRequest({ generation: 0, desiredPlaying: false }, "https://source.test/a", true);
+  const newer = queuePlaybackRequest(first.intent, "https://source.test/b", true);
+
+  assert.equal(playbackPromiseOutcome(newer.intent, first.request), "ignore", "old success must not pause or alter newer playback");
+  assert.equal(playbackPromiseOutcome(newer.intent, first.request, { name: "NotAllowedError" }), "ignore", "old rejection must stay silent");
+  assert.equal(playbackPromiseOutcome(newer.intent, newer.request), "start");
+});
+
+test("play promise failures distinguish a quiet abort from a current real failure", () => {
+  const queued = queuePlaybackRequest({ generation: 0, desiredPlaying: false }, "https://source.test/a", true);
+  const paused = pausePlaybackRequest(queued.intent, queued.request);
+
+  assert.equal(playbackPromiseOutcome(paused.intent, queued.request, { name: "AbortError" }), "ignore", "pause invalidates its old promise");
+  assert.equal(playbackPromiseOutcome(queued.intent, queued.request, { name: "AbortError" }), "abort");
+  assert.equal(playbackPromiseOutcome(queued.intent, queued.request, { name: "NotAllowedError" }), "failure");
 });

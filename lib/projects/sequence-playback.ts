@@ -145,3 +145,18 @@ export function canStartPlayback(
 ): boolean {
   return request.generation === intent.generation && request.resume && intent.desiredPlaying;
 }
+
+export type PlaybackPromiseOutcome = "start" | "ignore" | "abort" | "failure";
+
+/** Decide a delayed play() completion against the latest user intent. An older
+ * completion must be inert: it cannot pause media, clear a newer intent, or
+ * report a browser error belonging to an obsolete source request. */
+export function playbackPromiseOutcome(
+  intent: PlaybackIntent,
+  request: PlaybackRequest,
+  error?: { name?: string } | null,
+): PlaybackPromiseOutcome {
+  if (request.generation !== intent.generation || !intent.desiredPlaying) return "ignore";
+  if (!error) return "start";
+  return error.name === "AbortError" ? "abort" : "failure";
+}

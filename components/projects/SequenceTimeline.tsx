@@ -14,6 +14,7 @@ import {
   nextSequencePlayback,
   orderSequenceClips,
   pausePlaybackRequest,
+  playbackPromiseOutcome,
   queuePlaybackRequest,
   resolveSequencePlayback,
   sequenceTimelineDuration,
@@ -86,16 +87,25 @@ export default function SequenceTimeline({ sequence, clips, assets, onNotice }: 
     video.currentTime = pending.target.sourceSeconds;
     pendingSeekRef.current = null;
     if (!canStartPlayback(playbackIntentRef.current, pending.request)) return;
-    const requestGeneration = pending.request.generation;
+    const request = pending.request;
     void video.play().then(() => {
-      if (playbackIntentRef.current.generation !== requestGeneration || !playbackIntentRef.current.desiredPlaying) {
-        video.pause();
+      if (playbackPromiseOutcome(playbackIntentRef.current, request) !== "start") return;
+      setPlaying(true);
+    }).catch((error: unknown) => {
+      const outcome = playbackPromiseOutcome(
+        playbackIntentRef.current,
+        request,
+        error instanceof Error ? error : null,
+      );
+      if (outcome === "ignore") return;
+      if (outcome === "abort") {
+        playbackIntentRef.current = { generation: playbackIntentRef.current.generation + 1, desiredPlaying: false };
+        setPlaying(false);
         return;
       }
-      setPlaying(true);
-    }).catch(() => {
+      playbackIntentRef.current = { generation: playbackIntentRef.current.generation + 1, desiredPlaying: false };
       setPlaying(false);
-      onNotice("Playback was blocked by the browser.");
+      onNotice("Playback could not start in this browser.");
     });
   }, [onNotice]);
 

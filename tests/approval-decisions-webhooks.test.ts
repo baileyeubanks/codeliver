@@ -224,6 +224,23 @@ class FakeSupabase {
   from(table: string) {
     return new FakeQuery(this.scenario, table);
   }
+
+  async rpc(name: string, args: Record<string, unknown>) {
+    assert.equal(name, "record_version_approval_decision");
+    assert.equal(args.p_asset_id, "asset-a");
+    assert.equal(args.p_version_id, "version-a");
+    return {
+      data: {
+        approval: { id: "approval-a", status: "approved" },
+        asset_status: "in_review",
+        asset_title: "Tenant A campaign",
+        all_approved: false,
+        workflow_completed: false,
+        webhook_event: "asset.approved",
+      },
+      error: null,
+    };
+  }
 }
 
 type ApprovalTestGlobal = typeof globalThis & {
@@ -253,6 +270,7 @@ async function recordDecision(scenario: Scenario) {
   );
   const result = await recordApprovalDecision({
     assetId: "asset-a",
+    versionId: "version-a",
     approvalId: "approval-a",
     status: "approved",
     actor: {

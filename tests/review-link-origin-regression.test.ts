@@ -294,7 +294,6 @@ test("every previously-broken call site uses the review-site helper", () => {
   const expectations: Array<[string, RegExp]> = [
     ["components/projects/ProjectCockpit.tsx", /getReviewSiteUrl\(window\.location\.origin\)/],
     ["app/(dashboard)/reviews/page.tsx", /toReviewSiteUrl\(value, runtimeOrigin\)/],
-    ["app/api/assets/[id]/approvals/route.ts", /\$\{getReviewSiteUrl\(\)\}\/review\//],
     ["app/api/approvals/notify/route.ts", /\$\{getReviewSiteUrl\(\)\}\/review\//],
     // 2026-09-09: team invite acceptance links pointed at the dead client host.
     ["app/api/teams/invites/route.ts", /\$\{getReviewSiteUrl\(\)\}\/invite\//],

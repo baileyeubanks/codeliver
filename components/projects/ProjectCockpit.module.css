@@ -668,6 +668,34 @@
   background: #ffffff;
   box-shadow: 0 0 0 3px #4385ff;
 }
+.approvalSetup {
+  display: grid;
+  gap: 12px;
+  max-width: 480px;
+  padding: 18px;
+  border: 1px solid var(--cockpit-border, #d9e2ee);
+  border-radius: 10px;
+  background: var(--cockpit-panel, #ffffff);
+}
+.approvalSetup > div,
+.approvalSetup label { display: grid; gap: 5px; }
+.approvalSetup p { margin: 0; color: var(--cockpit-muted, #637184); font-size: 13px; line-height: 1.45; }
+.approvalSetup label span { color: var(--cockpit-ink, #17273a); font-size: 12px; font-weight: 700; }
+.approvalSetup input {
+  min-height: 40px;
+  border: 1px solid var(--cockpit-border, #d9e2ee);
+  border-radius: 7px;
+  padding: 0 10px;
+  color: var(--cockpit-ink, #17273a);
+}
+.approvalSetup button {
+  min-height: 42px;
+  border-radius: 7px;
+  background: var(--cockpit-accent, #156bff);
+  color: #ffffff;
+  font-weight: 700;
+}
+.approvalSetup button:disabled { cursor: not-allowed; opacity: .55; }
 .playerControls:global(.cockpit-video-controls) > span { margin-right: auto; }
 .playerControls:global(.cockpit-video-controls) button,
 .playerControls:global(.cockpit-video-controls) select { min-height: 36px; }

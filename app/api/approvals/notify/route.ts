@@ -27,10 +27,14 @@ export async function POST(req: Request) {
   if (!body || typeof body !== "object" || Array.isArray(body)) {
     return apiError("Invalid request body", "INVALID_REQUEST", 400);
   }
-  const { approval_id, asset_id } = body as { approval_id: string; asset_id: string };
+  const { approval_id, asset_id, version_id } = body as {
+    approval_id: string;
+    asset_id: string;
+    version_id: string;
+  };
 
-  if (!approval_id || !asset_id) {
-    return apiError("approval_id and asset_id are required", "INVALID_REQUEST", 400);
+  if (!approval_id || !asset_id || !version_id) {
+    return apiError("approval_id, asset_id, and version_id are required", "INVALID_REQUEST", 400);
   }
 
   try {
@@ -54,11 +58,23 @@ export async function POST(req: Request) {
     .select("*")
     .eq("id", approval_id)
     .eq("asset_id", asset_id)
+    .eq("version_id", version_id)
     .single();
 
     if (stepErr) return backendUnavailable();
     if (!step) return apiError("Approval step not found", "APPROVAL_NOT_FOUND", 404);
     if (!step.assignee_email) return apiError("No assignee email", "INVALID_APPROVAL", 400);
+
+    const workflow = await supabase
+      .from("approval_workflows")
+      .select("id")
+      .eq("id", step.workflow_id)
+      .eq("asset_id", asset_id)
+      .eq("version_id", version_id)
+      .eq("status", "active")
+      .maybeSingle();
+    if (workflow.error) return backendUnavailable();
+    if (!workflow.data) return apiError("Approval workflow is not active", "APPROVAL_NOT_FOUND", 404);
 
   const { data: asset, error: assetErr } = await supabase
     .from("assets")
@@ -79,6 +95,9 @@ export async function POST(req: Request) {
     if (!project) return apiError("Project not found", "PROJECT_NOT_FOUND", 404);
     const reviewInvite = await createApprovalInvite({
     assetId: asset_id,
+    versionId: version_id,
+    workflowId: workflow.data.id,
+    approvalId: approval_id,
     reviewerEmail: step.assignee_email,
     createdBy: user.id,
   });

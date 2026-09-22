@@ -36,6 +36,8 @@ const admissionAuthorityStub = dataModule(`
         id: "invite-a",
         asset_id: "asset-a",
         version_id: "version-a",
+        approval_workflow_id: "workflow-a",
+        approval_id: "approval-a",
         reviewer_name: "External reviewer",
         reviewer_email: "reviewer@example.test",
         permissions: "approve",
@@ -153,7 +155,14 @@ const supabaseStub = dataModule(`
       if (this.table === "projects") {
         return { data: { id: "project-a", owner_id: "owner-a" }, error: null };
       }
-      return { data: null, error: null };
+      const tables = globalThis.__ccoClientSurfaceTables ?? {};
+      const rows = this.matching(tables[this.table] ?? []);
+      return {
+        data: rows.length === 1 ? rows[0] : null,
+        error: (globalThis.__ccoClientSurfaceErrors ?? {})[this.table]
+          ? { message: "private failure" }
+          : null,
+      };
     }
     matching(rows) {
       return rows.filter((row) =>
@@ -298,6 +307,7 @@ async function patchReviewApproval() {
       },
       body: JSON.stringify({
         id: "approval-a",
+        version_id: "version-a",
         status: "approved",
         reviewer_name: "External reviewer",
       }),
@@ -413,7 +423,20 @@ test("public approval writes remain available when the admitted asset is unlocke
       { deliverable_id: "deliverable-a", asset_id: "asset-a", version_id: "version-a" },
     ],
     deliverables: [{ id: "deliverable-a", locked_at: null }],
-    approvals: [{ id: "approval-a", asset_id: "asset-a", status: "pending" }],
+    approval_workflows: [{
+      id: "workflow-a",
+      asset_id: "asset-a",
+      version_id: "version-a",
+      mode: "sequential",
+      status: "active",
+    }],
+    approvals: [{
+      id: "approval-a",
+      asset_id: "asset-a",
+      version_id: "version-a",
+      workflow_id: "workflow-a",
+      status: "pending",
+    }],
   };
 
   const response = await patchReviewApproval();

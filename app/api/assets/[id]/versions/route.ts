@@ -1,7 +1,10 @@
 import { apiError, apiJson } from "@/lib/api/responses";
 import { requireAuth } from "@/lib/auth";
 import { getAssetAccess } from "@/lib/access-control";
-import { selectPublishedHlsPublication } from "@/lib/media-pipeline/hls-delivery";
+import {
+  selectPublishedHlsPublication,
+  selectPublishedProbeFrameRate,
+} from "@/lib/media-pipeline/hls-delivery";
 import { getSupabase } from "@/lib/supabase";
 import { versionUploadRetiredResponse } from "@/lib/versions/retirement";
 import { withAssetRouteBoundary } from "../../asset-route-boundary";
@@ -39,20 +42,23 @@ async function GETHandler(_req: Request, { params }: { params: Promise<{ id: str
 
   if (error) return apiError("Asset versions are unavailable", "BACKEND_UNAVAILABLE", 503);
   const items = (data ?? []).map((version) => {
-    const publication = assetResult.data
-      ? selectPublishedHlsPublication({
+    const pipelineInput = assetResult.data
+      ? {
           assetId: id,
           assetMetadata: assetResult.data.metadata,
           versionId: version.id,
           versionAssetId: version.asset_id,
-        })
+        }
       : null;
+    const publication = pipelineInput ? selectPublishedHlsPublication(pipelineInput) : null;
+    const frameRate = pipelineInput ? selectPublishedProbeFrameRate(pipelineInput) : null;
     return publication
       ? {
           ...version,
           file_url: `/api/assets/${id}/versions/${version.id}/hls/playlist.m3u8`,
+          frame_rate: frameRate,
         }
-      : version;
+      : { ...version, frame_rate: null };
   });
   return NextResponse.json({ items });
 }

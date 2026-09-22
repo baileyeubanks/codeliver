@@ -21,6 +21,7 @@ const RECEIPT_CATALOG_CHECKPOINT_STALE_MS = 24 * 60 * 60 * 1000;
 
 export interface MediaPipelineJobStoreOptions {
   root: string;
+  workspaceRoot?: string;
   now?: () => Date;
 }
 
@@ -546,17 +547,28 @@ function assertJobShape(value: unknown): asserts value is MediaPipelineJob {
 
 export class MediaPipelineJobStore {
   private readonly root: string;
+  private readonly workspaceRoot: string;
+  private readonly hasDedicatedWorkspaceRoot: boolean;
   private readonly now: () => Date;
   private canonicalRootPromise: Promise<string> | null = null;
+  private canonicalWorkspaceRootPromise: Promise<string> | null = null;
 
   constructor(options: MediaPipelineJobStoreOptions) {
     this.root = options.root;
+    this.workspaceRoot = options.workspaceRoot ?? options.root;
+    this.hasDedicatedWorkspaceRoot =
+      options.workspaceRoot !== undefined && options.workspaceRoot !== options.root;
     this.now = options.now ?? (() => new Date());
   }
 
   private canonicalRoot(): Promise<string> {
     this.canonicalRootPromise ??= resolveExistingRoot(this.root);
     return this.canonicalRootPromise;
+  }
+
+  private canonicalWorkspaceRoot(): Promise<string> {
+    this.canonicalWorkspaceRootPromise ??= resolveExistingRoot(this.workspaceRoot);
+    return this.canonicalWorkspaceRootPromise;
   }
 
   private controlDirectories() {
@@ -566,7 +578,6 @@ export class MediaPipelineJobStore {
       "locks",
       "worker-slots",
       "cancel",
-      "work",
       "restore-receipts",
       "receipt-catalog-checkpoints",
       "receipt-catalog-checkpoint-reset-receipts",
@@ -596,7 +607,6 @@ export class MediaPipelineJobStore {
       | "locks"
       | "worker-slots"
       | "cancel"
-      | "work"
       | "restore-receipts"
       | "receipt-catalog-checkpoints"
       | "receipt-catalog-checkpoint-reset-receipts"
@@ -2937,8 +2947,13 @@ export class MediaPipelineJobStore {
     if (!isUuid(jobId) || !Number.isSafeInteger(attempt) || attempt < 0) {
       throw new MediaPipelineError("PIPELINE_SOURCE_INVALID", "Pipeline workspace input is invalid");
     }
-    const root = await this.ensureLayout();
-    return ensureSafeDirectoryTree(root, `${PIPELINE_ROOT}/work/${jobId}/attempt-${attempt}`);
+    const root = await this.canonicalWorkspaceRoot();
+    return ensureSafeDirectoryTree(
+      root,
+      this.hasDedicatedWorkspaceRoot
+        ? `.codeliver-media-pipeline-work/${jobId}/attempt-${attempt}`
+        : `${PIPELINE_ROOT}/work/${jobId}/attempt-${attempt}`
+    );
   }
 
   async removeWorkspace(jobId: string, attempt: number): Promise<void> {

@@ -30,6 +30,8 @@ export interface ReviewInviteRecord {
   id: string;
   asset_id: string;
   version_id: string | null;
+  approval_workflow_id?: string | null;
+  approval_id?: string | null;
   token?: string;
   token_hash?: string;
   token_ciphertext?: string;
@@ -62,9 +64,9 @@ export function normalizeReviewerEmail(value?: string | null) {
 export async function getReviewInviteByToken(token: string) {
   const lookup = opaqueTokenLookup(token);
   const dataSchema = getSupabaseDataSchema();
-  const projection =
+  const projection: string =
     dataSchema === CO_PRODUCTION_DATA_SCHEMA
-      ? "id, asset_id, version_id, reviewer_name, reviewer_email, permissions, password_hash, expires_at, watermark_enabled, watermark_text, download_enabled, view_count, max_views, last_viewed_at, active, assets(id, title, file_type, file_url, status, deleted_at, projects(id, name))"
+      ? "id, asset_id, version_id, approval_workflow_id, approval_id, reviewer_name, reviewer_email, permissions, password_hash, expires_at, watermark_enabled, watermark_text, download_enabled, view_count, max_views, last_viewed_at, active, assets(id, title, file_type, file_url, status, deleted_at, projects(id, name))"
       : "id, asset_id, version_id, reviewer_name, reviewer_email, permissions, password_hash, expires_at, watermark_enabled, watermark_text, download_enabled, view_count, max_views, last_viewed_at, assets(id, title, file_type, file_url, status, deleted_at, projects(id, name))";
   const { data, error } = await getSupabase()
     .from("review_invites")
@@ -246,11 +248,17 @@ export function canInviteDecideApproval({
 
 export async function createApprovalInvite({
   assetId,
+  versionId,
+  workflowId,
+  approvalId,
   reviewerEmail,
   reviewerName,
   createdBy,
 }: {
   assetId: string;
+  versionId: string;
+  workflowId: string;
+  approvalId: string;
   reviewerEmail: string;
   reviewerName?: string | null;
   createdBy?: string | null;
@@ -260,7 +268,7 @@ export async function createApprovalInvite({
     throw new Error("Approval invites require a reviewer email");
   }
 
-  const versionLookup = await resolveAssetVersion({ assetId });
+  const versionLookup = await resolveAssetVersion({ assetId, versionId });
   if (!versionLookup.ok) {
     throw new Error(versionLookup.error);
   }
@@ -271,6 +279,8 @@ export async function createApprovalInvite({
     .insert({
       asset_id: assetId,
       version_id: versionLookup.version.id,
+      approval_workflow_id: workflowId,
+      approval_id: approvalId,
       ...persistedOpaqueTokenFields(token),
       permissions: "approve" satisfies SharePermission,
       created_by: createdBy ?? null,

@@ -317,6 +317,8 @@ function normalizeAdmittedInvite(
   const permissions = row.permissions;
   const viewCount = integer(row.view_count);
   const maxViews = nullableInteger(row.max_views);
+  const approvalWorkflowId = row.approval_workflow_id ?? null;
+  const approvalId = row.approval_id ?? null;
   if (
     !UUID_PATTERN.test(String(row.invite_id ?? "")) ||
     !UUID_PATTERN.test(String(row.asset_id ?? "")) ||
@@ -339,7 +341,11 @@ function normalizeAdmittedInvite(
     (row.invite_expires_at !== null &&
       timestampSeconds(row.invite_expires_at) === null) ||
     (row.watermark_text !== null &&
-      typeof row.watermark_text !== "string")
+      typeof row.watermark_text !== "string") ||
+    (approvalWorkflowId !== null && !UUID_PATTERN.test(String(approvalWorkflowId))) ||
+    (approvalId !== null && !UUID_PATTERN.test(String(approvalId))) ||
+    (approvalWorkflowId === null) !== (approvalId === null) ||
+    (approvalWorkflowId !== null && permissions !== "approve")
   ) {
     return null;
   }
@@ -348,6 +354,8 @@ function normalizeAdmittedInvite(
     id: row.invite_id as string,
     asset_id: row.asset_id as string,
     version_id: row.version_id as string,
+    approval_workflow_id: approvalWorkflowId as string | null,
+    approval_id: approvalId as string | null,
     reviewer_name: row.reviewer_name as string | null,
     reviewer_email: row.reviewer_email as string | null,
     permissions: permissions as ReviewInviteRecord["permissions"],

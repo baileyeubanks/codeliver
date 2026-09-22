@@ -390,6 +390,15 @@ test("public review approvals persist through the demo workspace authority", () 
   );
 });
 
+test("public approval decisions carry the exact reviewed version to the server", () => {
+  const publicReview = source("components/review/PublicReviewPage.tsx");
+  const handlerStart = publicReview.indexOf("async function handleApprovalDecision");
+  const handlerEnd = publicReview.indexOf("\n  function renderPins", handlerStart);
+  const handler = publicReview.slice(handlerStart, handlerEnd);
+  assert.match(handler, /\/api\/review\/\$\{token\}\/approvals/);
+  assert.match(handler, /version_id: version\?\.id/);
+});
+
 test("public recipient reads and mutations remain bound to invite, asset, version, and visibility", () => {
   const reviewRoute = source("app/api/review/[token]/route.ts");
   const commentRoute = source("app/api/review/[token]/comments/route.ts");

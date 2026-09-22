@@ -18,6 +18,7 @@ const SHARE_RATE_LIMIT = 100;
 const SHARE_RATE_WINDOW_MS = 10 * 60 * 1000;
 
 interface ApprovalRoute {
+  workflowId: string;
   approvalId: string;
   stepOrder: number;
 }
@@ -36,6 +37,8 @@ type ReviewInviteRow = {
   id: string;
   asset_id: string;
   version_id: string;
+  approval_workflow_id: string | null;
+  approval_id: string | null;
   token?: string;
   token_hash?: string;
   token_ciphertext?: string;
@@ -90,6 +93,7 @@ function serializeInvite(
     },
     approval_route: item.approvalRoute
       ? {
+          workflow_id: item.approvalRoute.workflowId,
           approval_id: item.approvalRoute.approvalId,
           step_order: item.approvalRoute.stepOrder,
         }
@@ -108,10 +112,24 @@ async function resolveApprovalRoute({
     return { ok: true as const, route: null };
   }
 
+  const workflow = await client
+    .from("approval_workflows")
+    .select("id")
+    .eq("asset_id", item.assetId)
+    .eq("version_id", item.versionId)
+    .eq("status", "active")
+    .maybeSingle();
+  if (workflow.error) return { ok: false as const, status: 500, error: workflow.error.message };
+  if (!workflow.data) {
+    return { ok: false as const, status: 409, error: "This version has no active approval workflow" };
+  }
+
   const { data, error } = await client
     .from("approvals")
     .select("id, step_order, assignee_email, status")
     .eq("asset_id", item.assetId)
+    .eq("version_id", item.versionId)
+    .eq("workflow_id", workflow.data.id)
     .eq("status", "pending")
     .order("step_order", { ascending: true });
   if (error) return { ok: false as const, status: 500, error: error.message };
@@ -130,7 +148,11 @@ async function resolveApprovalRoute({
 
   return {
     ok: true as const,
-    route: { approvalId: approval.id, stepOrder: approval.step_order } satisfies ApprovalRoute,
+    route: {
+      workflowId: workflow.data.id,
+      approvalId: approval.id,
+      stepOrder: approval.step_order,
+    } satisfies ApprovalRoute,
   };
 }
 
@@ -217,6 +239,7 @@ export function previewPreparedShareManifest(manifest: PreparedShareManifest) {
       max_views: item.maxViews,
       approval_route: item.approvalRoute
         ? {
+            workflow_id: item.approvalRoute.workflowId,
             approval_id: item.approvalRoute.approvalId,
             step_order: item.approvalRoute.stepOrder,
           }
@@ -350,6 +373,8 @@ export async function createPreparedShareManifest({
   const rows = manifest.items.map((item, index) => ({
     asset_id: item.assetId,
     version_id: item.version.id,
+    approval_workflow_id: item.approvalRoute?.workflowId ?? null,
+    approval_id: item.approvalRoute?.approvalId ?? null,
     ...persistedOpaqueTokenFields(tokens[index]),
     permissions: item.permissions,
     created_by: actor.id,
@@ -393,6 +418,7 @@ export async function createPreparedShareManifest({
       download_enabled: item.downloadEnabled,
       watermark_enabled: item.watermarkEnabled,
       expires_at: item.expiresAt,
+      approval_workflow_id: item.approvalRoute?.workflowId ?? null,
       approval_id: item.approvalRoute?.approvalId ?? null,
       retention_class: "share_authority",
       retain_until: retentionDate(item.policy.auditRetentionDays, now),

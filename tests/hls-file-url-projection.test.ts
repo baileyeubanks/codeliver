@@ -59,6 +59,7 @@ function metadata() {
           pipelineVersion: "co-deliver-media-pipeline/v1",
           status: "published",
           versionId: publishedVersionId,
+          probe: { frameRate: 24000 / 1001 },
           artifacts: {
             hls: {
               playlist: artifact(
@@ -237,7 +238,9 @@ test("staff version payload projects published HLS while preserving source fallb
     payload.items[0].file_url,
     `/api/assets/${assetId}/versions/${publishedVersionId}/hls/playlist.m3u8`,
   );
+  assert.equal(payload.items[0].frame_rate, 24000 / 1001);
   assert.equal(payload.items[1].file_url, "/api/media/versions/private-source-b");
+  assert.equal(payload.items[1].frame_rate, null);
   assert.deepEqual(state.__cvpHlsProjectionAccessCalls, [
     { assetId, userId, minimumRole: "viewer" },
   ]);

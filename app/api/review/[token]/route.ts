@@ -1,5 +1,8 @@
 import { getExternalApprovalState } from "@/lib/review-invites";
-import { selectPublishedHlsPublication } from "@/lib/media-pipeline/hls-delivery";
+import {
+  selectPublishedHlsPublication,
+  selectPublishedProbeFrameRate,
+} from "@/lib/media-pipeline/hls-delivery";
 import { authorizeAdmittedReviewInvite } from "@/lib/review/admission-authority";
 import {
   EXTERNAL_COMMENT_COLUMNS,
@@ -75,9 +78,19 @@ async function getReview(_req: Request, { params }: { params: Promise<{ token: s
           versionAssetId: authority.claims.assetId,
         })
       : null;
+  const frameRate =
+    hlsAssetResult.data?.id === authority.claims.assetId
+      ? selectPublishedProbeFrameRate({
+          assetId: authority.claims.assetId,
+          assetMetadata: hlsAssetResult.data.metadata,
+          versionId: authority.claims.versionId,
+          versionAssetId: authority.claims.assetId,
+        })
+      : null;
 
   const projectId = invite.assets?.projects?.id;
   if (typeof projectId !== "string") return reviewBackendUnavailable();
+  const approvalWorkflowId = invite.approval_workflow_id ?? "00000000-0000-0000-0000-000000000000";
   const [commentsResult, approvalsResult, workflowResult, editDecisionsResult, projectResult] = await Promise.all([
     supabase
       .from("comments")
@@ -90,12 +103,15 @@ async function getReview(_req: Request, { params }: { params: Promise<{ token: s
       .from("approvals")
       .select("*")
       .eq("asset_id", invite.asset_id)
+      .eq("version_id", versionLookup.version.id)
+      .eq("workflow_id", approvalWorkflowId)
       .order("step_order", { ascending: true }),
     supabase
       .from("approval_workflows")
-      .select("id, mode, status")
+      .select("id, version_id, mode, status")
+      .eq("id", approvalWorkflowId)
       .eq("asset_id", invite.asset_id)
-      .eq("status", "active")
+      .eq("version_id", versionLookup.version.id)
       .maybeSingle(),
     supabase
       .from("edit_decisions")
@@ -243,6 +259,7 @@ async function getReview(_req: Request, { params }: { params: Promise<{ token: s
           file_type: invite.assets.file_type,
           file_url: mediaUrl,
           status: invite.assets.status,
+          frame_rate: frameRate,
           projects: invite.assets.projects,
         }
       : null,

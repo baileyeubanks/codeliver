@@ -203,6 +203,27 @@ export function selectPublishedHlsPublication({
   return { assetId, versionId, playlist, segments, manifest };
 }
 
+/**
+ * Returns the measured frame rate only when it belongs to the same validated,
+ * published HLS version selected for playback. This projects a display-safe
+ * probe field without exposing the pipeline publication metadata itself.
+ */
+export function selectPublishedProbeFrameRate(
+  input: PublishedHlsSelectionInput,
+): number | null {
+  if (!selectPublishedHlsPublication(input)) return null;
+
+  const metadata = record(input.assetMetadata);
+  const pipeline = record(metadata?.media_pipeline);
+  const versions = record(pipeline?.versions);
+  const publication = record(versions?.[input.versionId]);
+  const probe = record(publication?.probe);
+  const frameRate = probe?.frameRate;
+  return typeof frameRate === "number" && Number.isFinite(frameRate) && frameRate > 0
+    ? frameRate
+    : null;
+}
+
 function normalizeSegmentRoutePrefix(value: string): string {
   if (
     !value ||

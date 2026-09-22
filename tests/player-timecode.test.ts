@@ -25,6 +25,18 @@ test("honors non-default frame rates", () => {
   assert.equal(formatSmpteTimecode(0.999, 60), "00:00:00:59");
 });
 
+test("fractional rates use elapsed frames with non-drop-frame minute rollovers", () => {
+  const fps23976 = 24000 / 1001;
+  const fps2997 = 30000 / 1001;
+
+  // 58.266823 seconds has elapsed 1,397 frames at 23.976fps. Its nominal
+  // 24fps NDF display is 00:00:58:05, not a wall-clock fractional frame.
+  assert.equal(formatSmpteTimecode(58.266823, fps23976), "00:00:58:05");
+  assert.equal(formatSmpteTimecode(1440 / fps23976, fps23976), "00:01:00:00");
+  assert.equal(formatSmpteTimecode(1800 / fps2997, fps2997), "00:01:00:00");
+  assert.equal(formatSmpteTimecode(60, fps2997), "00:00:59:28");
+});
+
 test("non-finite and negative input degrades to zero", () => {
   assert.equal(formatSmpteTimecode(Number.NaN), "00:00:00:00");
   assert.equal(formatSmpteTimecode(Number.POSITIVE_INFINITY), "00:00:00:00");

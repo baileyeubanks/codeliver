@@ -125,6 +125,8 @@ import {
   visibleExactInternalReviewRecords,
 } from "@/lib/review/internal-version-operations";
 import { formatSmpteTimecode } from "@/components/player/timecode";
+import { resolveReviewFrameRate } from "@/lib/review/frame-review";
+import { usePlayerStore } from "@/lib/stores/playerStore";
 import VideoPlayer from "@/components/player/VideoPlayer";
 import InlineReviewComment from "@/components/review/InlineReviewComment";
 import AnchoredCommentCallout from "@/components/review/AnchoredCommentCallout";
@@ -156,10 +158,26 @@ interface ProjectCockpitProps {
   /** Continues a revision after its exact target is verified, preserving native picker activation. */
   onUploadChooseRevisionFile?: () => void;
   onUploadDismiss?: () => void;
+  /** Refreshes the server-owned asset projection after a producer mutation. */
+  onRefreshAssets?: () => Promise<void>;
 }
 
 type CockpitApprovalStage = Omit<DemoApprovalStage, "status"> & { status: string };
 type LiveReviewVersion = Version;
+type LiveApprovalWorkflow = {
+  id: string;
+  asset_id: string;
+  version_id: string;
+  steps: Array<{
+    id: string;
+    asset_id: string;
+    version_id: string;
+    step_order: number;
+    role_label: string | null;
+    assignee_email: string | null;
+    status: string;
+  }>;
+};
 
 export interface CockpitUploadStatus {
   assetId?: string;
@@ -408,6 +426,9 @@ function normalizeLiveReviewVersion(record: Record<string, unknown>): LiveReview
     thumbnail_url: typeof record.thumbnail_url === "string" ? record.thumbnail_url : null,
     duration_seconds: typeof record.duration_seconds === "number" ? record.duration_seconds : null,
     resolution: typeof record.resolution === "string" ? record.resolution : null,
+    frame_rate: typeof record.frame_rate === "number" && Number.isFinite(record.frame_rate)
+      ? record.frame_rate
+      : null,
     is_current: record.is_current === true,
     notes: typeof record.notes === "string" ? record.notes : null,
     uploaded_by: typeof record.uploaded_by === "string" ? record.uploaded_by : null,
@@ -493,10 +514,12 @@ export default function ProjectCockpit({
   revisionUploadsAvailable,
   onUploadChooseRevisionFile,
   onUploadDismiss,
+  onRefreshAssets,
 }: ProjectCockpitProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const workspace = useDemoWorkspace();
+  const setPlayerFrameRate = usePlayerStore((state) => state.setFrameRate);
   const online = useOnlineStatus();
   const compactViewport = useMediaQuery("(max-width: 900px)");
   const narrowViewport = useMediaQuery("(max-width: 1180px)");
@@ -579,6 +602,7 @@ export default function ProjectCockpit({
   });
   const liveAssetRequestRef = useRef(0);
   const liveVersionRequestRef = useRef(0);
+  const liveApprovalWorkflowRequestRef = useRef(0);
   const [toast, setToast] = useState("");
   const [commentSubmitting, setCommentSubmitting] = useState(false);
   const [nativeDuration, setNativeDuration] = useState(0);
@@ -591,8 +615,19 @@ export default function ProjectCockpit({
   const [liveVersionAssetId, setLiveVersionAssetId] = useState<string | null>(null);
   const [liveVersionsLoading, setLiveVersionsLoading] = useState(false);
   const [liveVersionsError, setLiveVersionsError] = useState(false);
+  const [liveApprovalWorkflow, setLiveApprovalWorkflow] = useState<LiveApprovalWorkflow | null>(null);
+  const [liveApprovalWorkflowKey, setLiveApprovalWorkflowKey] = useState<string | null>(null);
+  const [liveApprovalWorkflowStatus, setLiveApprovalWorkflowStatus] = useState<"idle" | "loading" | "ready" | "error">("idle");
   const [liveTasks] = useState<DemoProjectTask[]>([]);
   const [liveActivity, setLiveActivity] = useState<DemoActivityItem[]>([]);
+  const [approvalSetupEmail, setApprovalSetupEmail] = useState("");
+  const [approvalSetupLabel, setApprovalSetupLabel] = useState("Client approval");
+  const [approvalSetupError, setApprovalSetupError] = useState("");
+  const [approvalSetupSubmitting, setApprovalSetupSubmitting] = useState(false);
+  const [approvalShareDefaults, setApprovalShareDefaults] = useState<{
+    intent: "approval_needed";
+    reviewerEmail: string;
+  } | null>(null);
   const [systemsReadiness, setSystemsReadiness] = useState<CockpitReadinessState>(DEFAULT_COCKPIT_READINESS);
   const handleHlsPlaybackError = useCallback(() => {
     setIsPlaying(false);
@@ -682,6 +717,14 @@ export default function ProjectCockpit({
   const activeLiveReviewKey = activeAsset && activeLiveVersion
     ? `${activeAsset.id}:${activeLiveVersion.id}`
     : null;
+  const activeReviewTargetRef = useRef({
+    assetId: activeAsset?.id ?? null,
+    versionId: activeLiveVersion?.id ?? null,
+  });
+  activeReviewTargetRef.current = {
+    assetId: activeAsset?.id ?? null,
+    versionId: activeLiveVersion?.id ?? null,
+  };
   const activeLiveMediaUrl = activeLiveVersion
     ? activeLiveVersion.file_url.startsWith("/api/assets/")
       ? activeLiveVersion.file_url
@@ -762,6 +805,13 @@ export default function ProjectCockpit({
           : activeAsset?.thumbnail_url ?? (sourceCatalog ? null : "/demo/ceraweek-speaker.jpg")
     : activeLiveVersion?.thumbnail_url ?? activeAsset?.thumbnail_url ?? null;
   const hlsMediaActive = activeMediaUrl?.split(/[?#]/, 1)[0].toLowerCase().endsWith(".m3u8") ?? false;
+  const activeFrameRate = demoMode
+    ? sourceCatalog?.assets.find((source) => source.id === activeAsset?.id)?.frame_rate
+    : activeLiveVersion?.frame_rate;
+  const formatActiveTimecode = (seconds: number) => formatClock(seconds, activeFrameRate ?? undefined);
+  useEffect(() => {
+    setPlayerFrameRate(resolveReviewFrameRate(activeFrameRate));
+  }, [activeFrameRate, setPlayerFrameRate]);
   useEffect(() => {
     if (!hlsMediaActive) return;
     const video = videoRef.current;
@@ -856,11 +906,14 @@ export default function ProjectCockpit({
   const projectTasks = demoMode
     ? workspace.tasks.filter((task) => task.project_id === project.id)
     : liveTasks;
-  const approvalStages: CockpitApprovalStage[] = versionScopedReview
+  const approvalWorkflowReady = demoMode || versionScopedReview || (
+    activeLiveReviewKey === liveApprovalWorkflowKey && liveApprovalWorkflowStatus === "ready"
+  );
+  const reportedApprovalStages: CockpitApprovalStage[] = versionScopedReview
     ? []
     : demoMode
       ? workspace.approvalStages.filter((stage) => stage.asset_id === activeAsset?.id)
-      : [...(activeAsset?.approval_records ?? [])]
+      : [...(liveApprovalWorkflow?.steps ?? [])]
       .sort((left, right) => (left.step_order ?? 0) - (right.step_order ?? 0))
       .map((approval) => ({
         id: approval.id,
@@ -873,6 +926,7 @@ export default function ProjectCockpit({
           : [],
         status: approval.status,
       }));
+  const approvalStages = reportedApprovalStages;
   const viewerName = viewer?.name || (demoMode
     ? `${workspace.settings.profile.firstName} ${workspace.settings.profile.lastName}`.trim()
     : "Content Co-op");
@@ -1186,6 +1240,41 @@ export default function ProjectCockpit({
     setLiveAssetDataKey(`${assetId}:${versionId}`);
   }, [activeAsset, activeLiveReviewKey, activeLiveVersion, demoMode, project.id]);
 
+  const loadLiveApprovalWorkflow = useCallback(async (assetId: string, versionId: string) => {
+    const key = `${assetId}:${versionId}`;
+    const requestId = liveApprovalWorkflowRequestRef.current + 1;
+    liveApprovalWorkflowRequestRef.current = requestId;
+    setLiveApprovalWorkflowKey(key);
+    setLiveApprovalWorkflowStatus("loading");
+
+    try {
+      const response = await fetch(
+        `/api/approvals/workflow?asset_id=${encodeURIComponent(assetId)}&version_id=${encodeURIComponent(versionId)}`,
+        { cache: "no-store" },
+      );
+      if (!response.ok) throw new Error("Approval workflow is unavailable.");
+      const payload = await response.json() as { workflow?: LiveApprovalWorkflow | null };
+      if (
+        requestId !== liveApprovalWorkflowRequestRef.current
+        || activeReviewTargetRef.current.assetId !== assetId
+        || activeReviewTargetRef.current.versionId !== versionId
+      ) return null;
+      setLiveApprovalWorkflow(payload.workflow ?? null);
+      setLiveApprovalWorkflowStatus("ready");
+      return payload.workflow ?? null;
+    } catch (error) {
+      if (
+        requestId === liveApprovalWorkflowRequestRef.current
+        && activeReviewTargetRef.current.assetId === assetId
+        && activeReviewTargetRef.current.versionId === versionId
+      ) {
+        setLiveApprovalWorkflow(null);
+        setLiveApprovalWorkflowStatus("error");
+      }
+      throw error;
+    }
+  }, []);
+
   useEffect(() => {
     if (demoMode) return;
     let cancelled = false;
@@ -1217,6 +1306,17 @@ export default function ProjectCockpit({
     if (demoMode) return;
     void loadLiveAssetData().catch(() => undefined);
   }, [demoMode, loadLiveAssetData]);
+
+  useEffect(() => {
+    if (demoMode || !activeAsset || !activeLiveVersion || versionScopedReview) {
+      liveApprovalWorkflowRequestRef.current += 1;
+      setLiveApprovalWorkflow(null);
+      setLiveApprovalWorkflowKey(null);
+      setLiveApprovalWorkflowStatus("idle");
+      return;
+    }
+    void loadLiveApprovalWorkflow(activeAsset.id, activeLiveVersion.id).catch(() => undefined);
+  }, [activeAsset, activeLiveVersion, demoMode, loadLiveApprovalWorkflow, versionScopedReview]);
 
   const leaveReviewView = useCallback(() => {
     if (!reviewViewActive) return;
@@ -1725,7 +1825,7 @@ export default function ProjectCockpit({
         timeSeconds: currentTime,
       });
       setToast(saved
-        ? `Cut decision marked at ${formatClock(currentTime)}`
+        ? `Cut decision marked at ${formatActiveTimecode(currentTime)}`
         : "This cut marker could not be bound to the current media version.");
       return;
     }
@@ -1741,7 +1841,7 @@ export default function ProjectCockpit({
         source: "keyboard",
         start_seconds: currentTime,
         end_seconds: null,
-        label: `Cut at ${formatClock(currentTime)}`,
+        label: `Cut at ${formatActiveTimecode(currentTime)}`,
         confidence: null,
         client_request_id: crypto.randomUUID(),
         status: "proposed",
@@ -1764,7 +1864,7 @@ export default function ProjectCockpit({
         created_at: decision.created_at,
       },
     ]);
-    setToast(`Cut proposal saved at ${formatClock(currentTime)}`);
+    setToast(`Cut proposal saved at ${formatActiveTimecode(currentTime)}`);
   }
 
   function handleReviewShortcutEvent(
@@ -1868,6 +1968,92 @@ export default function ProjectCockpit({
           setIsPlaying(true);
         }
       });
+    }
+  }
+
+  async function createApprovalWorkflow() {
+    if (!activeAsset || demoMode || approvalSetupSubmitting) return;
+    const recipientEmail = approvalSetupEmail.trim();
+    const roleLabel = approvalSetupLabel.trim();
+    if (!recipientEmail || !roleLabel) {
+      setApprovalSetupError("Add an approval recipient and step label.");
+      return;
+    }
+    if (!activeLiveVersion || versionScopedReview) {
+      setApprovalSetupError("Approval setup is available only on the current review version.");
+      return;
+    }
+
+    const target = { assetId: activeAsset.id, versionId: activeLiveVersion.id };
+    const normalizedRecipientEmail = recipientEmail.toLowerCase();
+    let postAccepted = false;
+
+    setApprovalSetupSubmitting(true);
+    setApprovalSetupError("");
+    try {
+      const response = await fetch("/api/approvals/workflow", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          asset_id: activeAsset.id,
+          version_id: activeLiveVersion.id,
+          mode: "sequential",
+          steps: [{
+            step_order: 1,
+            role_label: approvalSetupLabel.trim(),
+            assignee_email: approvalSetupEmail.trim(),
+          }],
+        }),
+      });
+      postAccepted = response.ok;
+    } catch {
+      postAccepted = false;
+    }
+
+    try {
+      await loadLiveAssetData();
+      await onRefreshAssets?.();
+    } catch {
+      setApprovalSetupError("Approval setup could not be confirmed because the live project data did not refresh. Check the workflow before creating a link.");
+      setApprovalSetupSubmitting(false);
+      return;
+    }
+
+    if (
+      activeReviewTargetRef.current.assetId !== target.assetId
+      || activeReviewTargetRef.current.versionId !== target.versionId
+    ) {
+      setApprovalSetupError("The selected review target changed while approval was being set up. Check the workflow on the current version before creating a link.");
+      setApprovalSetupSubmitting(false);
+      return;
+    }
+
+    try {
+      const workflow = await loadLiveApprovalWorkflow(target.assetId, target.versionId);
+      const matchingPendingStep = workflow?.steps.some((step) => (
+        step.status === "pending"
+        && step.role_label === roleLabel
+        && step.assignee_email?.trim().toLowerCase() === normalizedRecipientEmail
+      ));
+      if (!matchingPendingStep) {
+        setApprovalSetupError(
+          postAccepted
+            ? "Approval setup was accepted but the pending signer is not visible yet. Check the workflow before creating a link."
+            : "Approval setup could not be confirmed. Check the workflow before creating a link.",
+        );
+        return;
+      }
+
+      setApprovalShareDefaults({ intent: "approval_needed", reviewerEmail: recipientEmail });
+      setShareOpen(true);
+    } catch {
+      setApprovalSetupError(
+        postAccepted
+          ? "Approval setup was accepted but its live status could not be confirmed. Check the workflow before creating a link."
+          : "Approval setup could not be confirmed. Check the workflow before creating a link.",
+      );
+    } finally {
+      setApprovalSetupSubmitting(false);
     }
   }
 
@@ -2468,7 +2654,7 @@ export default function ProjectCockpit({
                           }}
                         />
                       )}
-                      <time>{formatClock(currentTime)}</time>
+                      <time>{formatActiveTimecode(currentTime)}</time>
                       {playbackError ? (
                         <p role="alert">
                           {playbackError} <button type="button" onClick={retryPlaybackSource}>Retry playback</button>
@@ -2569,13 +2755,13 @@ export default function ProjectCockpit({
                         <button type="button" onClick={() => selectAdjacentReviewComment(1)} disabled={orderedRootReviewComments.length === 0} aria-label="Next comment" title="Next comment">
                           <ChevronRight size={18} />
                         </button>
-                        <span data-transport-time>{formatClock(currentTime)} / {formatClock(previewDuration)}</span>
+                        <span data-transport-time>{formatActiveTimecode(currentTime)} / {formatActiveTimecode(previewDuration)}</span>
                         <div className={styles.playerSeekTrack}>
                           <input
                             type="range"
                             min={0}
                             max={previewDuration}
-                            step={0.01}
+                            step={1 / resolveReviewFrameRate(activeFrameRate)}
                             value={Math.min(currentTime, previewDuration)}
                             onChange={(event) => seekTo(Number(event.target.value))}
                             className={styles.playerSeek}
@@ -2587,7 +2773,7 @@ export default function ProjectCockpit({
                               type="button"
                               className={`${styles.playerCommentMarker} ${selectedCommentId === comment.id ? styles.playerCommentMarkerSelected : ""}`}
                               style={{ left: `${(comment.time_seconds / previewDuration) * 100}%` }}
-                              aria-label={`Open comment at ${formatClock(comment.time_seconds)}`}
+                              aria-label={`Open comment at ${formatActiveTimecode(comment.time_seconds)}`}
                               aria-pressed={selectedCommentId === comment.id}
                               onClick={(event) => {
                                 event.stopPropagation();
@@ -2674,7 +2860,7 @@ export default function ProjectCockpit({
                         />
                       </div>
                       <button className="cockpit-timecode" type="button" onClick={() => seekTo(currentTime)}>
-                        {formatClock(currentTime)}
+                        {formatActiveTimecode(currentTime)}
                       </button>
                       <button className="cockpit-add-comment" type="button" onClick={() => void submitComment()} disabled={!commentBody.trim() || commentSubmitting}>
                         {commentSubmitting ? "Saving" : "Add comment"}
@@ -2840,8 +3026,8 @@ export default function ProjectCockpit({
                               ) : (
                             <>
                               <p className="cockpit-rail-empty">No approval workflow has been requested.</p>
-                              <button className="cockpit-rail-secondary" type="button" onClick={() => setShareOpen(true)} disabled={!canShare}>
-                                Start review
+                              <button className="cockpit-rail-secondary" type="button" onClick={() => selectSection("approvals")} disabled={!canUpload}>
+                                Set up approval
                               </button>
                             </>
                               )}
@@ -3116,7 +3302,44 @@ export default function ProjectCockpit({
                 <header><div><h2>Approval workflow</h2><p>Sequential review stages and accountable sign-off.</p></div></header>
                 <div className="cockpit-table-list">
                   {approvalStages.map((stage, index) => <article key={stage.id}><span className="cockpit-list-icon"><CheckCircle2 size={18} /></span><div><strong>Step {index + 1}: {stage.name}</strong><small>{stage.reviewer_names.length ? `${stage.approved_reviewer_names.length}/${stage.reviewer_names.length} reviewers approved` : "Unassigned"}</small></div><span className={stage.status === "approved" ? "status-active" : "status-pending"}>{stage.status.replaceAll("_", " ")}</span>{stage.status !== "approved" && demoMode ? <button type="button" onClick={() => approveDemoStage(stage.id)}>Approve</button> : stage.status === "approved" ? <Check size={17} /> : null}</article>)}
-                  {approvalStages.length === 0 ? <EmptyState title="No approval workflow" body="Create a review link with approval access to start one." /> : null}
+                  {approvalStages.length === 0 && activeAsset && !demoMode && !versionScopedReview && approvalWorkflowReady ? (
+                    <form
+                      className={styles.approvalSetup}
+                      onSubmit={(event) => {
+                        event.preventDefault();
+                        void createApprovalWorkflow();
+                      }}
+                    >
+                      <div>
+                        <strong>Set up approval</strong>
+                        <p>Assign the first required signer before creating an approval link.</p>
+                      </div>
+                      <label>
+                        <span>Approval recipient email</span>
+                        <input
+                          type="email"
+                          value={approvalSetupEmail}
+                          onChange={(event) => setApprovalSetupEmail(event.target.value)}
+                          aria-label="Approval recipient email"
+                          autoComplete="email"
+                          required
+                        />
+                      </label>
+                      <label>
+                        <span>Approval step label</span>
+                        <input
+                          value={approvalSetupLabel}
+                          onChange={(event) => setApprovalSetupLabel(event.target.value)}
+                          aria-label="Approval step label"
+                          required
+                        />
+                      </label>
+                      {approvalSetupError ? <p role="alert">{approvalSetupError}</p> : null}
+                      <button type="submit" disabled={!canUpload || approvalSetupSubmitting}>
+                        {approvalSetupSubmitting ? "Creating approval…" : "Create approval and open sharing"}
+                      </button>
+                    </form>
+                  ) : approvalStages.length === 0 && versionScopedReview ? <EmptyState title="Historical approval record" body="Approval rounds belong to their original version. Open the current version to start a new round." /> : approvalStages.length === 0 && !approvalWorkflowReady ? <EmptyState title="Loading approval workflow" body="Checking the current version before offering a new approval round." /> : approvalStages.length === 0 ? <EmptyState title="Approval workflow unavailable" body="Reload this project before setting up approval." /> : null}
                 </div>
               </>
             ) : null}
@@ -3233,8 +3456,11 @@ export default function ProjectCockpit({
             assetId={activeAsset.id}
             assetTitle={activeAsset.title}
             assetStatus={activeAsset.status}
+            initialShareIntent={approvalShareDefaults?.intent}
+            initialReviewerEmail={approvalShareDefaults?.reviewerEmail}
             onClose={() => {
               setShareOpen(false);
+              setApprovalShareDefaults(null);
               void loadLiveAssetData();
             }}
           />

@@ -42,6 +42,10 @@ const projectAssetsRouteSource = readFileSync(
   resolve(repositoryRoot, "app/api/projects/[id]/assets/route.ts"),
   "utf8",
 );
+const shareModalSource = readFileSync(
+  resolve(repositoryRoot, "components/sharing/ShareModal.tsx"),
+  "utf8",
+);
 
 test("a focused review deep link releases control when the operator changes modes", () => {
   assert.match(
@@ -343,6 +347,47 @@ test("production approval and version labels come from indexed records", () => {
   assert.match(cockpitSource, /approval\.role_label \|\| "Approval"/);
   assert.doesNotMatch(cockpitSource, /Assigned reviewer/);
   assert.match(cockpitSource, /Version not indexed/);
+});
+
+test("a producer can explicitly configure the first approval step before opening sharing", () => {
+  const setupHandler = cockpitSource.match(
+    /async function createApprovalWorkflow\(\) \{([\s\S]*?)\n  \}\n\n  async function toggleCommentStatus/,
+  )?.[1] ?? "";
+
+  assert.match(setupHandler, /fetch\("\/api\/approvals\/workflow", \{/);
+  assert.match(setupHandler, /method: "POST"/);
+  assert.match(setupHandler, /asset_id: activeAsset\.id/);
+  assert.match(setupHandler, /version_id: activeLiveVersion\.id/);
+  assert.match(setupHandler, /mode: "sequential"/);
+  assert.match(setupHandler, /step_order: 1/);
+  assert.match(setupHandler, /role_label: approvalSetupLabel\.trim\(\)/);
+  assert.match(setupHandler, /assignee_email: approvalSetupEmail\.trim\(\)/);
+  assert.match(setupHandler, /await loadLiveAssetData\(\)/);
+  assert.match(setupHandler, /await loadLiveApprovalWorkflow\(target\.assetId, target\.versionId\)/);
+  assert.match(setupHandler, /await onRefreshAssets\?\.\(\)/);
+  assert.match(setupHandler, /activeReviewTargetRef\.current/);
+  assert.match(setupHandler, /setApprovalShareDefaults\(/);
+  assert.match(setupHandler, /setShareOpen\(true\);/);
+  assert.doesNotMatch(setupHandler, /setShareLinkActive|notification|send/);
+  assert.doesNotMatch(cockpitSource, /createdApprovalStages/);
+  assert.match(cockpitSource, /aria-label="Approval recipient email"/);
+  assert.match(cockpitSource, /aria-label="Approval step label"/);
+  assert.match(cockpitSource, /Create approval and open sharing/);
+  assert.match(cockpitSource, /approvalStages\.length === 0 && activeAsset && !demoMode && !versionScopedReview/);
+  assert.match(cockpitSource, /Approval rounds belong to their original version/);
+});
+
+test("approval setup opens an approval-ready share draft only after live authority refreshes", () => {
+  assert.match(cockpitSource, /onRefreshAssets\?: \(\) => Promise<void>/);
+  assert.match(projectWorkspaceClientSource, /onRefreshAssets=\{refreshRemoteAssets\}/);
+  assert.match(cockpitSource, /initialShareIntent=\{approvalShareDefaults\?\.intent\}/);
+  assert.match(cockpitSource, /initialReviewerEmail=\{approvalShareDefaults\?\.reviewerEmail\}/);
+  assert.match(cockpitSource, /\?asset_id=\$\{encodeURIComponent\(assetId\)\}&version_id=\$\{encodeURIComponent\(versionId\)\}/);
+  assert.match(shareModalSource, /initialShareIntent\?: ShareIntent/);
+  assert.match(shareModalSource, /initialReviewerEmail\?: string/);
+  assert.match(shareModalSource, /const requestedShareIntent = initialShareIntent \?\? "client_review"/);
+  assert.match(shareModalSource, /useState<ShareIntent>\(requestedShareIntent\)/);
+  assert.match(shareModalSource, /useState\(initialReviewerEmail \?\? ""\)/);
 });
 
 test("media inspector never fabricates unprobed resolution or frame rate", () => {

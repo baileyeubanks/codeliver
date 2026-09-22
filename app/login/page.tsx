@@ -241,6 +241,10 @@ export default function LoginPage() {
         <footer className={styles.footer}>
           <span>New to Co‑VideoPro?</span>
           <Link href={signupHref}>Create an account</Link>
+          <span aria-hidden="true">·</span>
+          <Link href="/privacy">Privacy</Link>
+          <span aria-hidden="true">·</span>
+          <Link href="/terms">Terms</Link>
         </footer>
       </section>
     </AuthShell>

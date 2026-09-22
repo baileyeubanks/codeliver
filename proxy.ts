@@ -26,9 +26,12 @@ const PUBLIC_EXACT_ROUTES = [
   LOGIN_PATH,
   "/signup",
   "/forgot-password",
+  "/forgot", // D6b alias → /forgot-password (must stay public)
   "/reset-password",
   "/onboarding",
   "/welcome",
+  "/privacy", // D8b anonymous legal
+  "/terms", // D8b anonymous legal
   "/auth/callback",
   "/auth/confirm",
   "/api/notifications/provider-events",

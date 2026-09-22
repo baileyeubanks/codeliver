@@ -53,7 +53,7 @@ export const COCKPIT_NAVIGATION: CockpitNavigationItem[] = [
   { id: "metadata", label: "Metadata", shortLabel: "Info", icon: "metadata" },
 ];
 
-const MOBILE_IDS = new Set<CockpitSection>(["overview", "media", "reviews", "tasks"]);
+const MOBILE_IDS = new Set<CockpitSection>(["overview", "media", "plan", "delivery"]);
 
 export const MOBILE_COCKPIT_NAVIGATION = COCKPIT_NAVIGATION.filter((item) =>
   MOBILE_IDS.has(item.id),

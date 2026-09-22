@@ -66,18 +66,6 @@
   grid-template-columns: 64px minmax(0, 1fr);
 }
 
-.shell[data-rail="compact"] :global(.cockpit-header) {
-  grid-template-columns: 64px minmax(230px, 270px) auto minmax(220px, 1fr) auto;
-}
-
-.shell[data-rail="compact"] :global(.cockpit-brand) {
-  justify-content: center;
-  padding: 8px;
-}
-
-.shell[data-rail="compact"] .brandLockup { width:44px; height:34px; }
-.shell[data-rail="compact"] .brandLockup img { width:110px; max-width:none; }
-
 .shell[data-rail="compact"] :global(.cockpit-sidebar) {
   padding-inline: 8px;
 }
@@ -102,6 +90,11 @@
 
 .shell[data-mode="focus"] :global(.cockpit-section-heading) {
   margin-bottom: 7px;
+}
+
+.shell :global(.cockpit-review-strip),
+.shell :global(.cockpit-pipeline-strip) {
+  display: none;
 }
 
 .overviewWithoutDock {
@@ -366,14 +359,6 @@
     grid-template-columns: 240px minmax(250px, 292px) auto minmax(320px, 1fr) auto;
   }
 
-  .shell[data-rail="compact"] {
-    grid-template-columns: 64px minmax(0, 1fr);
-  }
-
-  .shell[data-rail="compact"] :global(.cockpit-header) {
-    grid-template-columns: 64px minmax(250px, 292px) auto minmax(320px, 1fr) auto;
-  }
-
   .shell :global(.cockpit-main) {
     padding-inline: 34px;
   }
@@ -399,10 +384,6 @@
   .shell :global(.cockpit-brand) {
     justify-content: center;
     padding: 8px;
-  }
-
-  .shell :global(.cockpit-sidebar) {
-    padding-inline: 8px;
   }
 
   .shell :global(.cockpit-overview-grid) {
@@ -440,10 +421,6 @@
     grid-column: 1;
     grid-row: 2;
     top: 64px;
-  }
-
-  .shell :global(.cockpit-sidebar) {
-    display: none;
   }
 
   .shell :global(.cockpit-main) {

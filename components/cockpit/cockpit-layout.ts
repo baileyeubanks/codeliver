@@ -18,7 +18,7 @@ export const DEFAULT_COCKPIT_LAYOUT: CockpitLayoutState = {
   version: COCKPIT_LAYOUT_VERSION,
   mode: "review",
   rail: "expanded",
-  dockOpen: true,
+  dockOpen: false,
   dockTab: "review",
   density: "compact",
 };

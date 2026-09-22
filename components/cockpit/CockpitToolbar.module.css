@@ -67,6 +67,38 @@
   display: contents;
 }
 
+/* Review stays in the work area. Layout controls remain available from More,
+   rather than competing with the project navigation on every visit. */
+.modes,
+.desktopControls,
+.presence {
+  display: none;
+}
+
+.toolsButton {
+  min-height: 32px;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  margin-left: auto;
+  padding: 0 10px;
+  border: 1px solid var(--cockpit-border, #dfe4ec);
+  border-radius: 6px;
+  background: #fff;
+  color: var(--cockpit-copy, #3f4962);
+  font: inherit;
+  font-size: 0.65rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.toolsButton:hover,
+.toolsButton[aria-expanded="true"] {
+  border-color: var(--cockpit-accent, #156bff);
+  background: var(--cockpit-accent-soft, #edf4ff);
+  color: var(--cockpit-accent, #156bff);
+}
+
 .lifecycle {
   min-width: 0;
   display: inline-flex;
@@ -120,7 +152,7 @@
 
 .overflow {
   position: relative;
-  display: none;
+  display: block;
 }
 
 .overflowButton {
@@ -305,6 +337,12 @@
   color: #267553;
   font-size: 0.61rem;
   font-weight: 650;
+}
+
+.toolbar .modes,
+.toolbar .desktopControls,
+.toolbar .presence {
+  display: none !important;
 }
 
 @media (max-width: 1180px) {

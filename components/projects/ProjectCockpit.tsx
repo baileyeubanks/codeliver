@@ -60,7 +60,6 @@ import CoProduceLifecycleDrawer, {
   type CoProduceLifecycleData,
   type CoProduceLifecycleDestination,
 } from "@/components/cockpit/CoProduceLifecycleDrawer";
-import CockpitOverviewDrawer from "@/components/cockpit/CockpitOverviewDrawer";
 import CockpitReviewTimeline from "@/components/cockpit/CockpitReviewTimeline";
 import {
   CockpitMobileNavigation,
@@ -70,8 +69,6 @@ import {
 import CockpitToolbar from "@/components/cockpit/CockpitToolbar";
 import VersionCompareDock from "@/components/cockpit/VersionCompareDock";
 import { COCKPIT_NAVIGATION, type CockpitSection } from "@/components/cockpit/cockpit-navigation";
-import { projectPipeline } from "@/lib/covideopro/pipeline.ts";
-import PipelineStrip from "@/components/projects/PipelineStrip";
 import { useCockpitLayout } from "@/components/cockpit/useCockpitLayout";
 import type { MediaAsset } from "@/components/projects/MediaCard";
 import {
@@ -748,21 +745,7 @@ export default function ProjectCockpit({
   const approvedCount = assets.filter((asset) =>
     ["approved", "final"].includes(asset.status),
   ).length;
-  const commentCount = assets.reduce(
-    (sum, asset) => sum + (asset.id === activeAsset?.id ? comments.length : asset.comment_count ?? 0),
-    0,
-  );
   const dueTodayCount = projectTasks.filter((task) => !task.completed && task.due_label === "Today").length;
-  const overviewMetrics = [
-    { label: "In review", value: inReviewCount, unit: "Items" },
-    { label: "Approved", value: approvedCount, unit: "Items" },
-    {
-      label: "Due today",
-      value: demoMode ? dueTodayCount : "—",
-      unit: demoMode ? "Tasks" : "Not indexed",
-    },
-    { label: "Total comments", value: commentCount, unit: "Comments" },
-  ];
   const openCommentCount = comments.filter((comment) => comment.status === "open").length;
   const resolvedCommentCount = comments.filter((comment) => comment.status === "resolved").length;
   const approvedStageCount = approvalStages.filter((stage) => stage.status === "approved").length;
@@ -770,19 +753,6 @@ export default function ProjectCockpit({
   const approvedReviewerCount = approvalStages.reduce((sum, stage) => sum + stage.approved_reviewer_names.length, 0);
   const activeShareLinkCount = projectLinks.filter((link) => link.is_active).length;
   const systemsHref = demoMode ? "/settings?section=systems&demo=1" : "/settings?section=systems";
-  const pipelineStages = demoMode
-    ? projectPipeline({
-        stage: project.stage ?? "development",
-        briefs: workspace.briefs.filter((brief) => brief.project_id === project.id),
-        proposals: workspace.proposals.filter((proposal) => proposal.project_id === project.id),
-        productionDays: workspace.productionDays.filter((day) => day.project_id === project.id),
-        releases: workspace.releases.filter((release) => release.project_id === project.id),
-        shots: workspace.shots.filter((shot) => shot.project_id === project.id),
-        sequences: workspace.sequences.filter((sequence) => sequence.project_id === project.id),
-        deliverables: workspace.deliverables.filter((deliverable) => deliverable.project_id === project.id),
-        assets,
-      })
-    : [];
   const reviewReadinessItems = activeAsset ? [
     {
       id: "status",
@@ -1933,6 +1903,7 @@ export default function ProjectCockpit({
         <CockpitProjectNavigation
           activeSection={activeSection}
           dueTodayCount={dueTodayCount}
+          projectId={project.id}
           demoMode={demoMode}
           compact={compactRail}
           overviewOpen={overviewOpen}
@@ -1940,31 +1911,23 @@ export default function ProjectCockpit({
           onCollapse={toggleRail}
         />
       </aside>
-        <CockpitProjectNavigationDrawer
-          open={mobileNavOpen}
-          activeSection={activeSection}
-          dueTodayCount={dueTodayCount}
-          demoMode={demoMode}
-          overviewOpen={overviewOpen}
+      <CockpitProjectNavigationDrawer
+        open={mobileNavOpen}
+        activeSection={activeSection}
+        dueTodayCount={dueTodayCount}
+        projectId={project.id}
+        demoMode={demoMode}
+        overviewOpen={overviewOpen}
         onSelect={selectSection}
         onClose={() => setMobileNavOpen(false)}
       />
-        <CockpitMobileNavigation
-          activeSection={activeSection}
-          dueTodayCount={dueTodayCount}
+      <CockpitMobileNavigation
+        activeSection={activeSection}
+        dueTodayCount={dueTodayCount}
         overviewOpen={overviewOpen}
         drawerOpen={mobileNavOpen}
         onSelect={selectSection}
         onOpenDrawer={() => setMobileNavOpen(true)}
-      />
-
-      <CockpitOverviewDrawer
-        compactRail={compactRail}
-        metrics={overviewMetrics}
-        open={overviewOpen}
-        projectName={project.name}
-        viewerName={demoMode ? "Content Co-op" : viewerName}
-        onClose={() => setOverviewOpen(false)}
       />
 
       <main id="cockpit-workspace-content" className="cockpit-main" tabIndex={-1}>
@@ -2300,10 +2263,6 @@ export default function ProjectCockpit({
                   <div className={styles.reviewArchive}>
                     <ProjectSourceArchive projectId={project.id} />
                   </div>
-                ) : null}
-
-                {pipelineStages.length > 0 ? (
-                  <PipelineStrip stages={pipelineStages} onOpen={(surface) => selectSection(surface)} />
                 ) : null}
 
                 {activeAsset && !reviewViewActive ? (

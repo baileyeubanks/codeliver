@@ -1,9 +1,8 @@
 "use client";
 
-import { useRef } from "react";
+import { useRef, useState } from "react";
 import Link from "next/link";
 import {
-  Archive,
   CalendarDays,
   CheckCircle2,
   ClipboardCheck,
@@ -19,7 +18,6 @@ import {
   PackageCheck,
   PanelLeftClose,
   Settings,
-  Users,
   X,
   type LucideIcon,
 } from "lucide-react";
@@ -55,6 +53,7 @@ interface CockpitNavigationModeProps {
 interface ProjectNavigationProps extends CockpitNavigationModeProps {
   activeSection: CockpitSection;
   dueTodayCount: number;
+  projectId?: string;
   compact?: boolean;
   overviewOpen?: boolean;
   onSelect: (section: CockpitSection) => void;
@@ -65,6 +64,7 @@ interface ProjectNavigationProps extends CockpitNavigationModeProps {
 export function CockpitProjectNavigation({
   activeSection,
   dueTodayCount,
+  projectId,
   compact = false,
   demoMode = false,
   overviewOpen = false,
@@ -72,6 +72,11 @@ export function CockpitProjectNavigation({
   onCollapse,
   onNavigate,
 }: ProjectNavigationProps) {
+  const [secondaryOpen, setSecondaryOpen] = useState(false);
+  const primarySections = new Set<CockpitSection>(["overview", "media", "plan", "delivery"]);
+  const primaryNavigation = COCKPIT_NAVIGATION.filter((item) => primarySections.has(item.id));
+  const secondaryNavigation = COCKPIT_NAVIGATION.filter((item) => !primarySections.has(item.id));
+
   function select(section: CockpitSection) {
     onSelect(section);
     onNavigate?.();
@@ -80,7 +85,7 @@ export function CockpitProjectNavigation({
   return (
     <div className={`${styles.rail} ${compact ? styles.compact : ""}`}>
       <nav className={styles.primary} aria-label="Project workspace">
-        {COCKPIT_NAVIGATION.map((item) => {
+        {primaryNavigation.map((item) => {
           const Icon = ICONS[item.icon];
           return (
             <button
@@ -99,19 +104,63 @@ export function CockpitProjectNavigation({
             </button>
           );
         })}
+        {projectId ? (
+          <Link
+            href={`/projects/${encodeURIComponent(projectId)}/whiteboard${demoMode ? "?demo=1" : ""}`}
+            title={compact ? "Whiteboard" : undefined}
+            onClick={onNavigate}
+          >
+            <CalendarDays size={18} />
+            <span className={styles.label}>Whiteboard</span>
+          </Link>
+        ) : null}
+        <button
+          type="button"
+          className={styles.moreButton}
+          aria-expanded={secondaryOpen}
+          aria-controls="project-secondary-navigation"
+          onClick={() => setSecondaryOpen((open) => !open)}
+        >
+          <Menu size={18} />
+          <span className={styles.label}>More project tools</span>
+        </button>
+        {secondaryOpen ? (
+          <div id="project-secondary-navigation" className={styles.secondary} aria-label="More project tools">
+            {secondaryNavigation.map((item) => {
+              const Icon = ICONS[item.icon];
+              return (
+                <button
+                  key={item.id}
+                  type="button"
+                  data-active={activeSection === item.id}
+                  aria-current={activeSection === item.id ? "page" : undefined}
+                  onClick={() => select(item.id)}
+                >
+                  <Icon size={18} />
+                  <span className={styles.label}>{item.label}</span>
+                </button>
+              );
+            })}
+            {projectId ? (
+              <div className={styles.recordLinks}>
+                <span>Project records</span>
+                {[
+                  ["brief", "Brief"], ["milestones", "Milestones"], ["deliverables", "Deliverables"],
+                  ["team", "Team"], ["files", "Files"], ["comms", "Comms"], ["calendar", "Calendar"],
+                ].map(([tab, label]) => (
+                  <Link key={tab} href={`/projects/${encodeURIComponent(projectId)}?${demoMode ? "demo=1&" : ""}tab=${tab}`} onClick={onNavigate}>
+                    {label}
+                  </Link>
+                ))}
+              </div>
+            ) : null}
+          </div>
+        ) : null}
         <Link href={demoMode ? "/settings?demo=1" : "/settings"} title={compact ? "Settings" : undefined} onClick={onNavigate}>
           <Settings size={18} />
           <span className={styles.label}>Settings</span>
         </Link>
       </nav>
-
-      <div className={styles.shortcuts}>
-        <p>Project shortcuts</p>
-        <button type="button" onClick={() => select("creative")}><FileText size={17} /> <span>Creative brief</span></button>
-        <button type="button" onClick={() => select("proposal")}><FileText size={17} /> <span>Proposal</span></button>
-        <button type="button" onClick={() => select("media")}><Archive size={17} /> <span>Assets</span></button>
-        <Link href={demoMode ? "/settings?section=organization&demo=1" : "/settings?section=organization"} onClick={onNavigate}><Users size={17} /> <span>Team</span></Link>
-      </div>
 
       {onCollapse ? (
         <button className={styles.collapse} type="button" onClick={onCollapse} title="Compact project rail">

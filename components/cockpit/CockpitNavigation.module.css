@@ -4,6 +4,68 @@
   flex-direction: column;
 }
 
+.moreButton {
+  width: 100%;
+  min-height: 42px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--cockpit-copy, #3f4962);
+  font: inherit;
+  cursor: pointer;
+}
+
+.moreButton:hover,
+.moreButton[aria-expanded="true"] {
+  background: var(--cockpit-accent-soft, #edf4ff);
+  color: var(--cockpit-accent, #156bff);
+}
+
+.secondary {
+  display: grid;
+  gap: 2px;
+  margin: 2px 0 6px;
+  padding: 5px 0;
+  border-block: 1px solid var(--cockpit-border, #dfe4ec);
+}
+
+.recordLinks {
+  display: grid;
+  gap: 2px;
+  padding: 7px 10px 2px;
+}
+
+.recordLinks > span {
+  margin: 0 0 3px;
+  color: var(--cockpit-muted, #707b91);
+  font-size: 0.56rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.recordLinks a {
+  min-height: 32px;
+  display: flex;
+  align-items: center;
+  padding: 0 4px;
+  border-radius: 5px;
+  color: var(--cockpit-copy, #3f4962);
+  font-size: 0.68rem;
+  font-weight: 650;
+  text-decoration: none;
+}
+
+.recordLinks a:hover,
+.recordLinks a:focus-visible {
+  background: var(--cockpit-accent-soft, #edf4ff);
+  color: var(--cockpit-accent, #156bff);
+}
+
 .primary {
   display: grid;
   gap: 3px;

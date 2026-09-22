@@ -4451,7 +4451,7 @@ export class MediaPipelineService {
     const stream = await this.runtime.adapter.openStoredObjectReadStream(
       objectKey,
       undefined,
-      receipt.providerVersionId
+      this.runtime.adapter.kind === "ccnas" && receipt.providerVersionId
         ? {
             size: receipt.size,
             sha256: receipt.sha256,

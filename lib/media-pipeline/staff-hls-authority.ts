@@ -1,7 +1,6 @@
 import { getAssetAccess } from "@/lib/access-control";
 import { apiError, backendUnavailable } from "@/lib/api/responses";
 import { requireAuth } from "@/lib/auth";
-import { resolveTrustedSurfaceRole } from "@/lib/auth/host-surface";
 import {
   selectPublishedHlsPublication,
   type PublishedHlsPublication,
@@ -27,12 +26,8 @@ export async function authorizeStaffHlsPublication(
         response: apiError("Authentication required", "AUTH_REQUIRED", 401),
       };
     }
-    if (resolveTrustedSurfaceRole(user) !== "staff") {
-      return {
-        ok: false,
-        response: apiError("Staff access required", "STAFF_REQUIRED", 403),
-      };
-    }
+    // Proxy surface role is not playback authority. A client admitted to the
+    // exact HLS routes paints when they are an asset viewer, same as staff.
     if (!UUID_PATTERN.test(assetId) || !UUID_PATTERN.test(versionId)) {
       return {
         ok: false,

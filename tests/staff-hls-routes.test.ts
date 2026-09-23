@@ -353,7 +353,7 @@ test("staff segment streams one exact immutable receipt", async () => {
   ]);
 });
 
-test("staff routes reject unauthenticated and non-staff callers before metadata or storage", async () => {
+test("HLS routes reject signed-out callers and serve asset viewers without a staff role", async () => {
   const playlistModule = await playlistRoute();
 
   reset();
@@ -367,14 +367,21 @@ test("staff routes reject unauthenticated and non-staff callers before metadata 
   assert.deepEqual(state.__cvpStaffHlsOpenCalls, []);
 
   reset();
+  state.__cvpStaffHlsUser = {
+    id: userId,
+    app_metadata: { content_coop_role: "client" },
+  };
   state.__cvpStaffHlsRole = "client";
-  response = await playlistModule.GET(request("/ignored"), {
-    params: Promise.resolve({ id: assetId, versionId }),
-  });
-  assert.equal(response.status, 403);
-  assert.deepEqual(state.__cvpStaffHlsSupabase.lookupCalls, []);
-  assert.equal(state.__cvpStaffHlsRuntimeCalls, 0);
-  assert.deepEqual(state.__cvpStaffHlsOpenCalls, []);
+  response = await playlistModule.GET(
+    request(`/api/assets/${assetId}/versions/${versionId}/hls/playlist.m3u8`),
+    { params: Promise.resolve({ id: assetId, versionId }) },
+  );
+  assert.equal(response.status, 200);
+  assert.match(await response.text(), /#EXTM3U/);
+  assert.deepEqual(state.__cvpStaffHlsAccessCalls, [
+    { assetId, userId, minimumRole: "viewer" },
+  ]);
+  assert.equal(state.__cvpStaffHlsRuntimeCalls, 1);
 });
 
 test("staff routes fail closed for inactive assets, mismatched versions, and denied access", async () => {

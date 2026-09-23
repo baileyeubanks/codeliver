@@ -6,6 +6,7 @@ import { isBackendUnavailableError } from "@/lib/api/backend";
 import { sendEmail } from "@/lib/email";
 import { getReviewSiteUrl } from "@/lib/surface-origins";
 import { requireTeamRole } from "@/lib/middleware/rbac";
+import { getSupabase } from "@/lib/supabase";
 import { opaqueTokenLookup, persistedOpaqueTokenFields, withoutPersistedTokenSecrets } from "@/lib/security/opaque-token";
 import type { TeamRole } from "@/lib/types/codeliver";
 
@@ -21,13 +22,21 @@ function emailOf(value: unknown) { const email = typeof value === "string" ? val
 function inviteRow(row: Record<string, unknown>) { const safe = withoutPersistedTokenSecrets(row); delete safe.token; return safe; }
 function escapeHtml(value: string) { return value.replace(/[&<>"']/g, (character) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[character] ?? character); }
 
+// Invitees are not team members yet, so team_invites and team_members RLS
+// (admin rank) hides the row and refuses the membership insert. Recipient
+// token reads and accept/decline run here after the session email is bound
+// to the invite. Admin list, create, and revoke stay on the caller client.
+function recipientInviteAuthority() {
+  return getSupabase();
+}
+
 export async function GET(request: NextRequest) {
   const session = await getSession(); if ("response" in session) return session.response;
   const { supabase } = session; const user = session.user!; const token = request.nextUrl.searchParams.get("token"); const teamId = request.nextUrl.searchParams.get("team_id");
   try {
     if (token) {
       const lookup = opaqueTokenLookup(token);
-      const result = await supabase.from("team_invites").select("id, team_id, email, role, status, expires_at, teams(name)").eq(lookup.column, lookup.value).eq("status", "pending").maybeSingle();
+      const result = await recipientInviteAuthority().from("team_invites").select("id, team_id, email, role, status, expires_at, teams(name)").eq(lookup.column, lookup.value).eq("status", "pending").maybeSingle();
       if (result.error) return backendUnavailable();
       if (!result.data) return apiError("Invite not found or already processed", "INVITE_NOT_FOUND", 404);
       if (result.data.expires_at && new Date(result.data.expires_at) <= new Date()) return apiError("This invitation has expired", "INVITE_EXPIRED", 410);
@@ -74,24 +83,25 @@ export async function POST(request: NextRequest) {
 
 export async function PATCH(request: NextRequest) {
   const session = await getSession(); if ("response" in session) return session.response;
-  const { supabase } = session; const user = session.user!; const body = await bodyOf(request); if (!body) return apiError("A JSON object is required", "INVALID_REQUEST", 400);
+  const user = session.user!; const body = await bodyOf(request); if (!body) return apiError("A JSON object is required", "INVALID_REQUEST", 400);
   const token = typeof body.token === "string" ? body.token : null; const inviteId = typeof body.invite_id === "string" ? body.invite_id : null; const action = body.action;
   if ((!token && !inviteId) || (action !== "accept" && action !== "decline")) return apiError("token or invite_id and action are required", "INVALID_REQUEST", 400);
   try {
+    const authority = recipientInviteAuthority();
     const lookup = token ? opaqueTokenLookup(token) : { column: "id" as const, value: inviteId! };
-    const result = await supabase.from("team_invites").select("*").eq(lookup.column, lookup.value).eq("status", "pending").single();
+    const result = await authority.from("team_invites").select("*").eq(lookup.column, lookup.value).eq("status", "pending").single();
     if (result.error || !result.data) return result.error?.code === "PGRST116" ? apiError("Invite not found or already processed", "INVITE_NOT_FOUND", 404) : backendUnavailable();
     const invite = result.data;
-    if (invite.expires_at && new Date(invite.expires_at) < new Date()) { await supabase.from("team_invites").update({ status: "revoked" }).eq("id", invite.id); return apiError("This invitation has expired", "INVITE_EXPIRED", 410); }
+    if (invite.expires_at && new Date(invite.expires_at) < new Date()) { await authority.from("team_invites").update({ status: "revoked" }).eq("id", invite.id); return apiError("This invitation has expired", "INVITE_EXPIRED", 410); }
     if (!user.email || invite.email.toLowerCase() !== user.email.toLowerCase()) return apiError("This invitation was sent to a different email address", "FORBIDDEN", 403);
     if (action === "accept") {
-      const member = await supabase.from("team_members").insert({ team_id: invite.team_id, user_id: user.id, role: invite.role, invited_by: invite.invited_by });
+      const member = await authority.from("team_members").insert({ team_id: invite.team_id, user_id: user.id, role: invite.role, invited_by: invite.invited_by });
       if (member.error && member.error.code !== "23505") return backendUnavailable();
     }
-    const updated = await supabase.from("team_invites").update({ status: action === "accept" ? "accepted" : "declined" }).eq("id", invite.id).eq("status", "pending").select("id").maybeSingle();
+    const updated = await authority.from("team_invites").update({ status: action === "accept" ? "accepted" : "declined" }).eq("id", invite.id).eq("status", "pending").select("id").maybeSingle();
     if (updated.error) return backendUnavailable();
     if (!updated.data) return apiError("Invite was already processed", "INVITE_CONFLICT", 409);
-    await supabase.from("activity_log").insert({ actor_id: user.id, actor_name: user.email ?? "Unknown", action: action === "accept" ? "team_invite_accepted" : "team_invite_declined", details: { team_id: invite.team_id, role: invite.role } });
+    await authority.from("activity_log").insert({ actor_id: user.id, actor_name: user.email ?? "Unknown", action: action === "accept" ? "team_invite_accepted" : "team_invite_declined", details: { team_id: invite.team_id, role: invite.role } });
     return apiJson({ ok: true, status: action === "accept" ? "accepted" : "declined" });
   } catch { return backendUnavailable(); }
 }

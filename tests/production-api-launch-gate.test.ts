@@ -450,6 +450,63 @@ test("production API launch gate fails closed before public, auth, and demo bypa
       }
     });
 
+    await t.test("client workspace grant admits invite acceptance and project reads only", async () => {
+      runtimeState.__ccoLaunchGateGetUserCalls = 0;
+      runtimeState.__ccoLaunchGateUser = {
+        app_metadata: { content_coop_role: "client" },
+      };
+
+      for (const pathname of ["/api/projects", "/api/assets", "/api/teams/invites"]) {
+        const response = await proxy(request(CLIENT_HOST, pathname, { method: "GET" }));
+        assert.equal(response.status, 200, pathname);
+        assert.equal(response.headers.get("x-middleware-next"), "1", pathname);
+      }
+      const accept = await proxy(
+        request(CLIENT_HOST, "/api/teams/invites", { method: "PATCH" }),
+      );
+      assert.equal(accept.status, 200);
+      assert.equal(accept.headers.get("x-middleware-next"), "1");
+      assert.equal(runtimeState.__ccoLaunchGateGetUserCalls, 4);
+
+      runtimeState.__ccoLaunchGateUser = null;
+      const signedOutProjects = await proxy(request(CLIENT_HOST, "/api/projects"));
+      assert.equal(signedOutProjects.status, 401);
+      const signedOutInvite = await proxy(
+        request(CLIENT_HOST, "/api/teams/invites", { method: "PATCH" }),
+      );
+      assert.equal(signedOutInvite.status, 401);
+
+      runtimeState.__ccoLaunchGateUser = {
+        app_metadata: { content_coop_role: "staff" },
+      };
+      await assertSurfaceGated(
+        await proxy(request(CLIENT_HOST, "/api/projects")),
+        "staff on the client project list",
+      );
+
+      runtimeState.__ccoLaunchGateGetUserCalls = 0;
+      runtimeState.__ccoLaunchGateUser = {
+        app_metadata: { content_coop_role: "client" },
+      };
+      for (const [pathname, method] of [
+        ["/api/projects", "POST"],
+        ["/api/assets", "POST"],
+        ["/api/assets", "DELETE"],
+        ["/api/teams/invites", "POST"],
+        ["/api/teams/invites", "DELETE"],
+        ["/api/teams", "GET"],
+        [`/api/projects/${RESOURCE_ID}`, "GET"],
+        [`/api/projects/${RESOURCE_ID}/assets`, "GET"],
+        [`/api/assets/${RESOURCE_ID}`, "GET"],
+      ] as const) {
+        await assertSurfaceGated(
+          await proxy(request(CLIENT_HOST, pathname, { method })),
+          `client grant stays narrow ${method} ${pathname}`,
+        );
+      }
+      assert.equal(runtimeState.__ccoLaunchGateGetUserCalls, 0);
+    });
+
     await t.test("version endpoint is public deployment truth on both production surfaces", async () => {
       runtimeState.__ccoLaunchGateGetUserCalls = 0;
       runtimeState.__ccoLaunchGateUser = null;

@@ -64,6 +64,17 @@ const CLIENT_API_ROUTE_PATTERNS = [
   ),
 ];
 
+// Recipient workspace grant on the client host. The projects page reads these
+// two collections, and invite acceptance reads/decides /api/teams/invites.
+// Exact paths and safe methods only: project detail, asset detail, invite
+// create, and invite revoke stay closed here.
+const CLIENT_WORKSPACE_GRANT_READS = [
+  /^\/api\/projects$/,
+  /^\/api\/assets$/,
+  /^\/api\/teams\/invites$/,
+];
+const CLIENT_WORKSPACE_GRANT_DECISIONS = [/^\/api\/teams\/invites$/];
+
 const ADMIN_API_ROUTE_PATTERNS = [
   ...CLIENT_API_ROUTE_PATTERNS,
   /^\/api\/activity$/,
@@ -130,6 +141,16 @@ const SERVICE_API_ROUTES = [
 ] as const;
 
 export { buildProtectedReturnPath };
+
+function clientWorkspaceGrantAdmitted(req: NextRequest, pathname: string): boolean {
+  const patterns =
+    req.method === "GET" || req.method === "HEAD"
+      ? CLIENT_WORKSPACE_GRANT_READS
+      : req.method === "PATCH"
+        ? CLIENT_WORKSPACE_GRANT_DECISIONS
+        : null;
+  return patterns?.some((pattern) => pattern.test(pathname)) ?? false;
+}
 
 function isPathAtOrBelow(pathname: string, route: string): boolean {
   const base = route.endsWith("/") ? route.slice(0, -1) : route;
@@ -242,6 +263,10 @@ function productionApiLaunchGate(
   const allowedPatterns =
     hostSurface === "admin" ? ADMIN_API_ROUTE_PATTERNS : CLIENT_API_ROUTE_PATTERNS;
   if (allowedPatterns.some((pattern) => pattern.test(pathname))) return null;
+
+  if (hostSurface === "client" && clientWorkspaceGrantAdmitted(req, pathname)) {
+    return null;
+  }
 
   return hostSurface === "client"
     ? surfaceAccessDenied(pathname)

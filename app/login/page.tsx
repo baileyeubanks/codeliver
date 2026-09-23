@@ -130,9 +130,7 @@ export default function LoginPage() {
     <AuthShell demoMode={demoMode} loginHref={loginHref}>
       <section className={styles.panel} aria-labelledby="login-title">
         <header className={styles.heading}>
-          {demoMode ? <span className={styles.demoLabel}>Demo</span> : null}
           <h1 id="login-title">Open the cut that still needs a decision.</h1>
-          <p>Sign in with your Content Co-op account.</p>
         </header>
 
         {!demoMode ? <GoogleSignIn next={requestedPath} /> : null}
@@ -198,7 +196,6 @@ export default function LoginPage() {
           <div className={styles.field}>
             <div className={styles.fieldLabelRow}>
               <label htmlFor="login-password">Password</label>
-              {!demoMode ? <Link href={forgotPasswordHref}>Forgot password?</Link> : null}
             </div>
             <div className={styles.passwordField}>
               <input
@@ -228,18 +225,18 @@ export default function LoginPage() {
 
           <button className={styles.submit} type="submit" disabled={loading}>
             {loading ? <LoaderCircle size={17} aria-hidden="true" /> : null}
-            {loading ? "Signing in..." : demoMode ? "Open local workspace" : "Sign in"}
+            {loading ? "Signing in..." : "Sign in"}
           </button>
+          {!demoMode ? (
+            <Link className={styles.quietLink} href={forgotPasswordHref}>
+              Forgot password?
+            </Link>
+          ) : null}
         </form>
 
-        <footer className={styles.footer}>
-          <span>New to Co‑VideoPro?</span>
-          <Link href={signupHref}>Create an account</Link>
-          <span aria-hidden="true">·</span>
-          <Link href="/privacy">Privacy</Link>
-          <span aria-hidden="true">·</span>
-          <Link href="/terms">Terms</Link>
-        </footer>
+        <p className={styles.cardFoot}>
+          Need an invite? <Link href={signupHref}>Request access</Link>
+        </p>
       </section>
     </AuthShell>
   );

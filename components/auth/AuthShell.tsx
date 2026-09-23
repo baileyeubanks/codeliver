@@ -24,38 +24,21 @@ export default function AuthShell({ children, demoMode, loginHref }: AuthShellPr
       data-host-context={hostContext.kind}
     >
       <a className={styles.skipLink} href="#auth-content">
-        Skip to account access
+        Skip to sign in
       </a>
 
-      <div className={styles.stage}>
-        <section className={styles.authColumn} aria-label="Account access">
-          <div className={styles.authPane}>
-            <Link
-              className={styles.brand}
-              href={loginHref ?? (demoMode ? "/login?demo=1" : "/login")}
-              aria-label="Co‑VideoPro by Content Co-op sign in"
-            >
-              <CoProductionBrand
-                variant="compact-mark"
-                className={styles.brandLockup}
-                label="Co‑VideoPro"
-                priority
-              />
-              <span className={styles.brandWord}>Co‑VideoPro</span>
-            </Link>
+      <div className={styles.column}>
+        <Link
+          className={styles.brand}
+          href={loginHref ?? (demoMode ? "/login?demo=1" : "/login")}
+          aria-label="Co‑VideoPro by Content Co-op sign in"
+        >
+          <CoProductionBrand className={styles.brandLockup} priority />
+        </Link>
 
-            <div className={styles.formColumn} id="auth-content" tabIndex={-1}>
-              {children}
-            </div>
-          </div>
-        </section>
-
-        <aside className={styles.brandRail} aria-label="Co‑VideoPro">
-          <div className={styles.brandStory}>
-            <strong>Co‑VideoPro</strong>
-            <p>The version, the comment, and the decision stay on the cut.</p>
-          </div>
-        </aside>
+        <div className={styles.formColumn} id="auth-content" tabIndex={-1}>
+          {children}
+        </div>
       </div>
     </main>
   );

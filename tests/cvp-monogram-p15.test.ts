@@ -28,14 +28,13 @@ test("the workspace shell owns the supplied brand without duplicating it in the 
   assert.doesNotMatch(rail, /<CvpMonogram\b|<CoProductionBrand\b|styles\.brandHeader/);
 });
 
-test("the auth shell uses the supplied compact CVP mark without a pipeline crumb", () => {
+test("the auth shell shows one supplied mark and no pipeline crumb", () => {
   const authShell = source("components/auth/AuthShell.tsx");
-  assert.match(authShell, /<CoProductionBrand[\s\S]*?variant="compact-mark"/);
+  assert.match(authShell, /<CoProductionBrand\b/);
+  assert.equal(authShell.match(/<CoProductionBrand\b/g)?.length, 1);
   assert.doesNotMatch(authShell, /<CvpMonogram\b/);
-  assert.match(authShell, /brandStory/);
-  assert.doesNotMatch(authShell, /Brief/);
-  assert.doesNotMatch(authShell, /shoot/);
-  assert.doesNotMatch(authShell, /delivery/);
+  assert.doesNotMatch(authShell, /brandRail|brandStory|variant="compact-mark"/);
+  assert.doesNotMatch(authShell, /Brief|shoot|delivery/);
 });
 
 test("the application icon is the exact supplied sapphire artwork", () => {

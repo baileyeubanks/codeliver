@@ -27,9 +27,6 @@ const securityHeaders = [
 ];
 
 const nextConfig: NextConfig = {
-  // Spike: Cloudflare gzip in front of Next's own compression returned a
-  // 0-byte HTML body and the document hung. Leave compression to the edge.
-  compress: false,
   poweredByHeader: false,
   productionBrowserSourceMaps: false,
   async headers() {

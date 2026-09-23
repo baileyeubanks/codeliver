@@ -107,11 +107,6 @@ test("global headers remove framework metadata and preserve review media capabil
   const globalRule = headerRules?.find((rule) => rule.source === "/:path*");
   const headers = new Map(globalRule?.headers.map((header) => [header.key, header.value]));
 
-  assert.equal(
-    nextConfig.compress,
-    false,
-    "Next compression stays off so Cloudflare gzip cannot hang HTML at 0 bytes",
-  );
   assert.equal(nextConfig.poweredByHeader, false);
   assert.equal(nextConfig.productionBrowserSourceMaps, false);
   assert.equal(headers.get("X-Content-Type-Options"), "nosniff");

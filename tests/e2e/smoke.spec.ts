@@ -18,7 +18,7 @@ test.describe("Co‑VideoPro demo smoke", () => {
 
     await page.getByLabel("Email").fill("e2e.login@contentco-op.example");
     await page.getByLabel("Password", { exact: true }).fill("demo-password");
-    await page.getByRole("button", { name: "Open local workspace" }).click();
+    await page.getByRole("button", { name: "Sign in", exact: true }).click();
 
     await page.waitForURL((url) => !url.pathname.startsWith("/login"));
     await expect(

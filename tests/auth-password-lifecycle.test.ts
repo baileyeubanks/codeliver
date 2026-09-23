@@ -272,7 +272,7 @@ test("the branded front door exposes every standard credential lifecycle entry p
   const proxy = readFileSync(resolve(repositoryRoot, "proxy.ts"), "utf8");
 
   assert.match(login, /Forgot password\?/);
-  assert.match(login, /Create an account/);
+  assert.match(login, /Request access/);
   assert.match(signup, /Resend confirmation email/);
   for (const routePath of [
     "/forgot-password",

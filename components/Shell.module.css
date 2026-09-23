@@ -37,19 +37,8 @@
   letter-spacing: 0;
 }
 
-.searchButton::after {
-  content: "";
-  width: 6px;
-  height: 6px;
-  margin-left: auto;
-  border-radius: 50%;
-  background: var(--green, #26915b);
-  opacity: 0.8;
-}
-
-.shell[data-online="false"] .searchButton::after {
-  background: var(--orange, #c97b20);
-}
+/* VA-022: no decorative status dot on the search trigger — green is
+   status-only, and connectivity already has its own honest notice. */
 
 .main {
   position: relative;
@@ -135,10 +124,6 @@
   .offlineNotice {
     justify-content: flex-start;
     padding-inline: 14px;
-  }
-
-  .searchButton::after {
-    display: none;
   }
 }
 

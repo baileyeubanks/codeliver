@@ -53,6 +53,22 @@ That heading is only the client component’s error state. `TeamInviteAcceptance
 
 After accept, the component routes to `/projects`, which then hits the projects 403 above.
 
+## Draft already open
+
+[PR 15](https://github.com/baileyeubanks/codeliver/pull/15) (`cursor/client-api-allowlist-05ef`, CVP-CLIENT-API-ALLOWLIST-01) admits these client-host paths in `CLIENT_API_ROUTE_PATTERNS`:
+
+- `/api/projects`, `/api/projects/:id`, `/api/projects/:id/assets`
+- `/api/assets`, `/api/assets/:id`, and `/:id/(versions|comments|comments/attachments|edit-decisions|share)`
+- `/api/teams/invites`
+
+`main` does not have this yet. Until that PR merges, the 403 above is still the live gate.
+
+The new patterns match the path only. Every method on those paths clears the launch gate for a client role on the client host. The new test locks `GET` and `PATCH` on invites, and it also locks `POST /api/projects`. It does not deny `POST` or `DELETE` on `/api/teams/invites`.
+
+`POST /api/teams/invites` still calls `sendEmail` after a team-admin check. `POST /api/assets/:id/comments` imports `sendEmail` as well. A client who already has handler authority can reach those sends from `client.contentco-op.com` once PR 15 merges. That is a send. Bailey has not approved one. Latch does not fire it, and Latch does not treat a green allowlist as a yes.
+
+Follow-up still on that seat: keep invite `POST` and `DELETE` on the admin host (method check, not only the path), and confirm `POST /api/projects` plus asset `share` / `comments` are reads the projects page needs. Billing, TUS, transcode, `/api/media/stream`, `/api/teams`, and `/api/teams/audit` stay closed in that draft. That part matches the seat.
+
 ## What the handler does once the proxy admits the path
 
 `app/api/teams/invites/route.ts`, token flows only:
@@ -64,13 +80,7 @@ After accept, the component routes to `/projects`, which then hits the projects 
 
 `POST /api/teams/invites` creates an invite and calls `sendEmail`. `DELETE` revokes. The allowlist matches paths, not methods, except for a few media reads. Admitting `/api/teams/invites` admits `POST` and `DELETE` unless the new pattern or a method check keeps them on the admin host.
 
-CVP-CLIENT-API-ALLOWLIST-01 owns the code change (`bc-57f4541d-4af2-59c9-b213-ba1d63ad05ef`). Minimum client admission:
-
-- `GET`/`HEAD` `/api/projects`, `/api/projects/:id`, `/api/projects/:id/assets`
-- `GET`/`HEAD` `/api/assets` and the per-asset reads the projects page actually calls
-- `GET` and `PATCH` `/api/teams/invites` only
-
-Leave closed: billing, TUS upload, transcode worker, admin media stream, `/api/teams`, `/api/teams/audit`, invite `POST`, invite `DELETE`. Handler RBAC stays. Those tests above move with the allowlist. They are the current lock, not the product goal.
+Handler RBAC stays after the proxy. The launch-gate tests on `main` are the current lock, not the product goal. PR 15 moves `tests/production-api-launch-gate.test.ts` with the new paths. `tests/host-surface-routing.test.ts` still posts `/api/projects` as a staff identity on the client host and expects `SURFACE_FORBIDDEN`. That assertion can stay: staff on the client host fails `roleCanAccessSurface` and the API mismatch path returns the same body. It is no longer proof that a client role is denied.
 
 ## Latch’s read after the allowlist lands
 

@@ -1,7 +1,9 @@
 # CVP-PLAYER-WISTIA-01 — Player shell tear-down
 
 **Seat:** Frame (research). **Build:** Reel. **Grade:** Cut.
-**SoT for chrome geometry:** Wistia Player Controls Framework, [docs.wistia.com/docs/player-controls-framework](https://docs.wistia.com/docs/player-controls-framework) (updated 2025-04-29). Their own words: player controls are “elements over a video” — thumbnail, big play button, playbar, control bar. The bar is middleground on the picture, not a panel under it.
+**SoT:** wistia.com, gold centerpiece [wistia.com/product/player](https://wistia.com/product/player). Domain read and the Reel checklist: [WISTIA_DOMAIN_LEARNINGS_20260923](./WISTIA_DOMAIN_LEARNINGS_20260923.md), [CVP-PLAYER-REEL-IMPLEMENT](./CVP-PLAYER-REEL-IMPLEMENT.md).
+**Geometry note:** Wistia’s controls framework still describes the shell as elements over the video (thumbnail, big play, playbar, control bar). That matches the product page. It is not a second SoT.
+**Login:** not this brief. CVP login stays ACS-quiet.
 **CVP shell:** `components/review/ReviewMediaSurface.tsx` mounts `components/player/VideoPlayer.tsx`, then `components/player/PlayerControls.tsx` beneath the frame. Public review already paints the well black (`PublicReviewWorkspace.module.css`, `.media .review-video-frame`).
 
 The film is the frame. Chrome is how you touch the frame. A word on the chrome is a feature trying to introduce itself. This ticket moves the shell. It does not restyle the comment column, the multitrack, or the approval spine.

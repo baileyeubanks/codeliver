@@ -1,15 +1,17 @@
-# Reel / Cut checklist — Wistia login + player shell
+# Reel / Cut checklist — player shell
 
-**Briefs:** [CVP-LOGIN-UI-WISTIA-01](./CVP-LOGIN-UI-WISTIA-01.md) · [CVP-PLAYER-WISTIA-01](./CVP-PLAYER-WISTIA-01.md)
-**Author:** Frame. **Builder:** Reel. **Grader:** Cut. Author does not grade. A row passes only if Cut can see it on the running door or player, at desktop and at 390×844.
+**Briefs:** [CVP-PLAYER-REEL-IMPLEMENT](./CVP-PLAYER-REEL-IMPLEMENT.md) · [WISTIA_DOMAIN_LEARNINGS_20260923](./WISTIA_DOMAIN_LEARNINGS_20260923.md) · [CVP-PLAYER-WISTIA-01](./CVP-PLAYER-WISTIA-01.md)
+**Author:** Frame. **Builder:** Reel. **Grader:** Cut. Author does not grade. A row passes only if Cut can see it on the running player, at desktop and at 390×844.
+
+**Login fence.** CVP login stays ACS-quiet. Do not apply a Wistia marketing login. The L-rows below are not the login build. Reel/player grades the R, K, and C rows in the implement checklist.
 
 Mark each row `pass` or `fail`. A fail names the visible string or the node. No partial credit for “the component still has the prop.”
 
-Locked copy, both grades: headline `Open the cut that still needs a decision.` Primary button `Sign in`.
+## Login — withheld
 
-## Login — CVP-LOGIN-UI-WISTIA-01
+Do not grade or build login from the L-rows. CVP login stays ACS-quiet. Hook copy for the door is unchanged and is not specified again here.
 
-Grade `co-videopro.com/login` and `client.contentco-op.com/login` (or the local equivalents of those hosts). Same column.
+## Login capture — not a build (CVP-LOGIN-UI-WISTIA-01)
 
 | # | Pass when |
 |---|---|
@@ -50,4 +52,4 @@ Grade a review surface that mounts `ReviewMediaSurface` with a video. Cockpit an
 
 ## Grade rule
 
-Cut fails the ticket if any L-row or P-row fails. Reel does not self-grade. Frame does not patch the UI from this document.
+Reel/player is graded on the R, K, and C rows in [CVP-PLAYER-REEL-IMPLEMENT](./CVP-PLAYER-REEL-IMPLEMENT.md). P-rows are the earlier shell pass and still apply. L-rows do not. Reel does not self-grade. Frame does not patch the UI from this document.

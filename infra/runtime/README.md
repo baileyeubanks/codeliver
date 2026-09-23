@@ -149,6 +149,11 @@ that does not depend on M4 or `BLAZE-STORE-2`:
 - verified read cache: `/Users/baileyeubanks/.local/share/codeliver-failover/ccnas-read-cache`
 - origin: `127.0.0.1:4103`, with `https://co-videopro.com` for staff/admin
   and `https://client.contentco-op.com` for provisioned clients
+- HTML doors: `next.config.ts` sets `compress: false`. Both hostnames share
+  this origin, so one Next gzip setting hits both. Next's default (`true`)
+  plus Cloudflare `Accept-Encoding: gzip` returns a 0-byte HTML body: the
+  browser hangs or downloads the page. Edge compression stays on Cloudflare.
+  The check and the curl recipe are in `DEPLOY_CONTRACT.md` under "HTML doors".
 - application service: `com.contentcoop.codeliver-failover`
 - tunnel service: `com.contentcoop.codeliver-failover-cloudflared`
 

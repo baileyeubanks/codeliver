@@ -98,4 +98,8 @@ fi
 /usr/bin/grep -Fq 'x-codeliver-media-worker-token' "$WORKER_LOOP" || \
   fail_test "worker loop does not authenticate to the private endpoint"
 
+REPO_ROOT="$(cd "$RUNTIME_DIR/../.." && pwd)"
+/usr/bin/grep -Eq 'compress:[[:space:]]*false' "$REPO_ROOT/next.config.ts" || \
+  fail_test "next.config.ts must set compress: false so Cloudflare does not return a 0-byte HTML body on co-videopro.com and client.contentco-op.com"
+
 printf 'PASS: M2 CVP failover profile and deployment artifacts satisfy the fixed contract.\n'

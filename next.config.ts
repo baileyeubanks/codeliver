@@ -27,6 +27,14 @@ const securityHeaders = [
 ];
 
 const nextConfig: NextConfig = {
+  // Origin gzip stays off. Next defaults this to true, and deleting the line
+  // turns it back on. A browser Accept-Encoding: gzip is forwarded by the
+  // cco-videopro Cloudflare tunnel; Next then gzips the HTML and the tunnel
+  // delivers a 0-byte body. The page hangs, or the browser saves it as a
+  // download. Cloudflare is the only compressor. Both public doors share this
+  // process: https://co-videopro.com and https://client.contentco-op.com.
+  // Failover sha 3a87845 was patched out of band. This flag is the repo lock.
+  compress: false,
   poweredByHeader: false,
   productionBrowserSourceMaps: false,
   async headers() {

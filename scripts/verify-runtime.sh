@@ -52,6 +52,28 @@ if grep -qi '^x-powered-by:' "$tmp_dir/headers"; then
 fi
 pass "baseline security headers are present"
 
+# Next must not gzip this response. Cloudflare compresses at the edge. Origin
+# Content-Encoding: gzip on Accept-Encoding: gzip is the 0-byte HTML hang on
+# https://co-videopro.com and https://client.contentco-op.com.
+door_status="$(status_for -H 'Accept: text/html' -H 'Accept-Encoding: gzip' "$BASE_URL/login")"
+[[ "$door_status" == "200" ]] \
+  || fail "login door returned HTTP $door_status under Accept-Encoding: gzip"
+if grep -qi '^content-encoding:' "$tmp_dir/headers"; then
+  fail "login door set Content-Encoding; origin compression must stay off (compress: false)"
+fi
+if grep -qi '^content-disposition:' "$tmp_dir/headers"; then
+  fail "login door set Content-Disposition; HTML must render, not download"
+fi
+grep -qi '^content-type: text/html' "$tmp_dir/headers" \
+  || fail "login door Content-Type is not text/html"
+[[ -s "$tmp_dir/body" ]] || fail "login door body is empty under Accept-Encoding: gzip"
+if head -c 64 "$tmp_dir/body" | grep -q $'\x1f\x8b'; then
+  fail "login door body is gzip bytes; origin compression must stay off"
+fi
+head -c 256 "$tmp_dir/body" | grep -q '<' \
+  || fail "login door body is not HTML"
+pass "login door is uncompressed HTML under Accept-Encoding: gzip"
+
 status_for "$BASE_URL/api/health" >/dev/null
 if grep -Eqi '"(service|port|product|failedDependencies)"' "$tmp_dir/body"; then
   fail "public health response exposes runtime topology"

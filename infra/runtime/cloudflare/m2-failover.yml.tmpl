@@ -8,6 +8,9 @@ originRequest:
   keepAliveConnections: 100
   tcpKeepAlive: 30s
 
+# Origin HTML must be identity encoding. next.config.ts sets compress: false.
+# Cloudflare gzips at the edge. Origin gzip on Accept-Encoding: gzip makes
+# co-videopro.com and client.contentco-op.com return a 0-byte HTML body.
 ingress:
   - hostname: co-videopro.com
     service: http://127.0.0.1:4103

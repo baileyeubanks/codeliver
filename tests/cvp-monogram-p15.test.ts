@@ -28,13 +28,14 @@ test("the workspace shell owns the supplied brand without duplicating it in the 
   assert.doesNotMatch(rail, /<CvpMonogram\b|<CoProductionBrand\b|styles\.brandHeader/);
 });
 
-test("the auth shell brand hero uses the supplied compact CVP mark", () => {
+test("the auth shell uses the supplied compact CVP mark without a pipeline crumb", () => {
   const authShell = source("components/auth/AuthShell.tsx");
-  assert.match(authShell, /<CoProductionBrand variant="compact-mark"/);
+  assert.match(authShell, /<CoProductionBrand[\s\S]*?variant="compact-mark"/);
   assert.doesNotMatch(authShell, /<CvpMonogram\b/);
-  assert.match(authShell, /Brief/);
-  assert.match(authShell, /shoot/);
-  assert.match(authShell, /delivery/);
+  assert.match(authShell, /brandStory/);
+  assert.doesNotMatch(authShell, /Brief/);
+  assert.doesNotMatch(authShell, /shoot/);
+  assert.doesNotMatch(authShell, /delivery/);
 });
 
 test("the application icon is the exact supplied sapphire artwork", () => {
@@ -46,7 +47,9 @@ test("the application icon is the exact supplied sapphire artwork", () => {
 
 test("welcome keeps a branded public entry without fixture media", () => {
   const welcome = source("app/welcome/page.tsx");
-  assert.match(welcome, /<CoProductionBrand\b/);
+  const authShell = source("components/auth/AuthShell.tsx");
+  assert.match(welcome, /<AuthShell\b/);
+  assert.match(authShell, /<CoProductionBrand\b/);
   assert.doesNotMatch(welcome, /ica-ceo-preview\.mp4|ica-review-filmstrip\.jpg/);
   assert.match(welcome, /Request access/);
   assert.doesNotMatch(welcome, /demo=1/);

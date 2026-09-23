@@ -70,12 +70,23 @@ test("admin and client hosts share one Content Co-op branded login", () => {
 
   assert.deepEqual(loginPages, ["app/login/page.tsx"], "the product must keep one login page");
   assert.match(loginPage, /<AuthShell\b/);
+  assert.match(loginPage, /id="auth-form"/);
+  assert.match(loginPage, /id="login-email"/);
+  assert.match(loginPage, /id="login-password"/);
+  assert.match(loginPage, /<GoogleSignIn\b/);
+  assert.match(loginPage, /surfaceMismatch/);
+  assert.match(loginPage, /resolveSurfaceMismatchNotice/);
+  assert.match(loginPage, /withDemoMode/);
+  assert.match(loginPage, /Open the cut that still needs a decision\./);
+  assert.doesNotMatch(loginPage, /Account access/);
   assert.match(authShell, /CoProductionBrand/);
   assert.match(authShell, /aria-label="Co‑VideoPro by Content Co-op sign in"/);
   assert.match(authShell, /<strong>Co‑VideoPro<\/strong>/);
-  assert.match(authShell, /aria-label="Access readiness"/);
-  assert.match(authShell, /Sign-in required/);
-  assert.match(authShell, /Stays on this site/);
+  assert.match(authShell, /className=\{styles\.brandRail\}/);
+  assert.match(authShell, /The version, the comment, and the decision stay on the cut\./);
+  assert.doesNotMatch(authShell, /aria-label="Access readiness"/);
+  assert.doesNotMatch(authShell, /Sign-in required/);
+  assert.doesNotMatch(authShell, /Stays on this site/);
   assert.doesNotMatch(authShell, /Verified session required|Local paths only/);
   assert.doesNotMatch(frontDoorSource, /\/(?:admin|client)\/login\b/);
 
@@ -282,12 +293,16 @@ test("the branded auth, cockpit, and public review shells retain mobile and desk
   );
 
   assert.match(authStyles, /\.shell\s*\{[\s\S]*?min-height:\s*100svh/);
-  assert.match(authStyles, /\.header\s*\{[\s\S]*?grid-template-columns:\s*minmax\(0, 1fr\) auto/);
+  assert.match(authStyles, /\.brandRail\s*\{[\s\S]*?display:\s*none/);
+  assert.match(authStyles, /\.panel\s*\{[\s\S]*?border-radius:\s*12px/);
   assert.match(authStyles, /\.accessStrip\s*\{[\s\S]*?display:\s*grid/);
   assert.match(authStyles, /\.accessItem\s*\{[\s\S]*?border-radius:\s*8px/);
   assert.ok(authFormCap, "auth form must have a stable responsive width cap");
   assert.ok(Number(authFormCap[1]) >= 400 && Number(authFormCap[1]) <= 480);
-  assert.match(authStyles, /@media \(min-width:\s*761px\)[\s\S]*?grid-template-columns:\s*224px minmax\(180px, 1fr\) auto/);
+  assert.match(
+    authStyles,
+    /@media \(min-width:\s*960px\)[\s\S]*?grid-template-columns:\s*minmax\(0,\s*1fr\)\s*minmax\(380px,\s*0\.92fr\)/,
+  );
   assert.match(authStyles, /@media \(max-width:\s*360px\)[\s\S]*?padding-inline:\s*12px/);
 
   assert.match(shellStyles, /@media \(max-width:\s*760px\)[\s\S]*?env\(safe-area-inset-bottom\)/);

@@ -14,8 +14,6 @@
   --auth-positive: var(--cvp-success, #267553);
   --auth-danger: #b23a2c;
   min-height: 100svh;
-  display: grid;
-  grid-template-rows: 64px minmax(0, 1fr);
   overflow-x: hidden;
   background: var(--auth-bg);
   color: var(--auth-ink);
@@ -55,71 +53,47 @@
   transform: translateY(0);
 }
 
-.header {
-  position: relative;
-  z-index: 10;
+.stage {
+  min-height: 100svh;
+}
+
+.authColumn {
   min-width: 0;
-  height: 64px;
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  align-items: center;
-  border-bottom: 1px solid var(--auth-border);
-  background: rgba(255, 255, 255, 0.92);
+  display: flex;
+  justify-content: center;
+  padding: max(20px, env(safe-area-inset-top)) 16px 36px;
+}
+
+.authPane {
+  width: min(100%, 440px);
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
 }
 
 .brand {
-  min-width: 0;
-  height: 64px;
-  display: flex;
+  width: fit-content;
+  display: inline-flex;
   align-items: center;
-  padding: 7px 14px;
+  gap: 10px;
+  color: var(--auth-ink);
+  text-decoration: none;
 }
 
 .brandLockup {
-  --co-production-brand-width: 138px;
+  --co-production-brand-width: 42px;
 }
 
-.product {
-  display: none;
-}
-
-.securityStatus {
-  min-width: 0;
-  display: inline-flex;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 6px;
-  padding-right: 14px;
-  color: var(--auth-copy);
-  font-size: 10px;
-  font-weight: 600;
-  white-space: nowrap;
-}
-
-.securityStatus svg {
-  flex: 0 0 auto;
-  color: var(--auth-accent);
-}
-
-.securityStatus span {
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.shell[data-demo="true"] .securityStatus svg {
-  color: var(--auth-positive);
-}
-
-.workspace {
-  min-width: 0;
-  display: flex;
-  align-items: flex-start;
-  justify-content: center;
-  padding: 30px 16px 28px;
+.shell .brandWord {
+  color: var(--auth-ink);
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1;
 }
 
 .formColumn {
-  width: min(100%, 456px);
+  width: min(100%, 440px);
   scroll-margin-top: 18px;
 }
 
@@ -127,27 +101,30 @@
   outline: 0;
 }
 
-/* Brand hero above the access panel: monogram + CVP tagline.
-   `.shell .tagline` beats the `.shell *` letter-spacing reset above. */
-.brandHero {
+.brandRail {
+  display: none;
+}
+
+.brandStory {
   display: grid;
-  justify-items: center;
-  gap: 9px;
-  margin-bottom: 20px;
+  gap: 14px;
+  max-width: 22rem;
 }
 
-.shell .tagline {
-  margin: 0;
-  color: var(--auth-muted);
-  font-size: 11px;
-  font-weight: 650;
-  letter-spacing: 0.02em;
-  text-align: center;
-}
-
-.taglineDot {
+.shell .brandStory strong {
+  color: var(--cvp-copilot-ink, #eaf2ff);
+  font-size: 15px;
   font-weight: 700;
-  color: var(--auth-accent);
+  letter-spacing: -0.02em;
+}
+
+.shell .brandStory p {
+  margin: 0;
+  color: #ffffff;
+  font-size: clamp(28px, 3vw, 40px);
+  font-weight: 650;
+  letter-spacing: -0.03em;
+  line-height: 1.15;
 }
 
 .panel {
@@ -158,7 +135,7 @@
   border-radius: 12px;
   background: var(--auth-surface);
   padding: 22px 18px;
-  box-shadow: var(--cvp-shadow-popover, 0 4px 12px rgba(24, 34, 62, 0.09), 0 16px 48px rgba(24, 34, 62, 0.13));
+  box-shadow: var(--cvp-shadow-card, 0 1px 2px rgb(4 15 28 / 0.05), 0 8px 24px rgb(4 15 28 / 0.07));
 }
 
 .heading h1,
@@ -166,9 +143,14 @@
   margin: 0;
   color: var(--auth-ink);
   font-family: var(--font-body, Inter, sans-serif);
-  font-size: 22px;
-  font-weight: 700;
-  line-height: 1.25;
+  font-size: 26px;
+  font-weight: 650;
+  letter-spacing: -0.03em;
+  line-height: 1.2;
+}
+
+.heading .demoLabel {
+  margin-bottom: 12px;
 }
 
 .heading p,
@@ -626,22 +608,6 @@
   line-height: 1.4;
 }
 
-.assurance {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  margin: 16px 0 0;
-  color: var(--auth-muted);
-  font-size: 10px;
-  text-align: center;
-}
-
-.assurance svg {
-  flex: 0 0 auto;
-  color: var(--auth-positive);
-}
-
 @keyframes authSpin {
   to {
     transform: rotate(360deg);
@@ -649,8 +615,8 @@
 }
 
 @media (min-width: 520px) {
-  .workspace {
-    padding: 38px 20px 34px;
+  .authColumn {
+    padding-top: 28px;
   }
 
   .panel {
@@ -659,11 +625,6 @@
 
   .accessStrip {
     grid-template-columns: repeat(3, minmax(0, 1fr));
-  }
-
-  .heading h1,
-  .success h1 {
-    font-size: 25px;
   }
 
   .formSignup {
@@ -676,83 +637,61 @@
   }
 }
 
-@media (min-width: 761px) {
-  .shell {
-    grid-template-rows: 72px minmax(0, 1fr);
-  }
-
-  .header {
-    height: 72px;
-    grid-template-columns: 224px minmax(180px, 1fr) auto;
-  }
-
-  .brand {
-    height: 72px;
-    padding: 9px 26px;
-    border-right: 1px solid var(--auth-border);
-  }
-
-  .brandLockup {
-    --co-production-brand-width: 172px;
-  }
-
-  .product {
-    min-width: 0;
+@media (min-width: 960px) {
+  .stage {
     display: grid;
-    gap: 2px;
-    padding: 0 24px;
+    grid-template-columns: minmax(0, 1fr) minmax(380px, 0.92fr);
+    align-items: stretch;
   }
 
-  .product span {
-    color: var(--auth-muted);
-    font-size: 10px;
-  }
-
-  .product strong {
-    overflow: hidden;
-    color: var(--auth-ink);
-    font-size: 14px;
-    font-weight: 700;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-
-  .securityStatus {
-    gap: 7px;
-    padding-right: 24px;
-    font-size: 11px;
-  }
-
-  .workspace {
+  .authColumn {
     align-items: center;
-    padding: 48px 20px;
+    min-height: 100svh;
+    background: var(--auth-surface);
+    padding: 48px 56px;
+  }
+
+  .authPane {
+    width: min(100%, 420px);
+    gap: 36px;
+  }
+
+  .heading h1,
+  .success h1 {
+    font-size: 32px;
+  }
+
+  .panel {
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    padding: 0;
+    box-shadow: none;
+  }
+
+  .brandRail {
+    display: flex;
+    align-items: center;
+    position: sticky;
+    top: 0;
+    height: 100svh;
+    padding: 56px;
+    background:
+      radial-gradient(90% 70% at 100% 0%, color-mix(in srgb, var(--cvp-blue-soft, #4da3ff) 55%, transparent), transparent 62%),
+      linear-gradient(180deg, var(--cvp-blue, #0057ff) 0%, var(--cvp-deep-blue, #0033a0) 78%);
+    color: var(--cvp-copilot-ink, #eaf2ff);
   }
 }
 
-@media (min-width: 761px) and (max-height: 700px) {
-  .workspace {
+@media (min-width: 960px) and (max-height: 700px) {
+  .authColumn {
     align-items: flex-start;
-    overflow-y: auto;
-    padding-top: 34px;
+    padding-top: 28px;
   }
 }
 
 @media (max-width: 360px) {
-  .brand {
-    padding-left: 10px;
-  }
-
-  .brandLockup {
-    --co-production-brand-width: 126px;
-  }
-
-  .securityStatus {
-    max-width: 132px;
-    padding-right: 10px;
-    font-size: 9px;
-  }
-
-  .workspace {
+  .authColumn {
     padding-inline: 12px;
   }
 }

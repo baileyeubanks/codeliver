@@ -10,3 +10,7 @@ test("local media flows through the Next image optimizer", () => {
     "the July 2026 unoptimized bypass is retired: the optimizer's headerless internal fetch is admitted by the host gate, so /_next/image serves local brand and thumbnail assets again",
   );
 });
+
+test("Next compression stays off so edge gzip cannot hang HTML", () => {
+  assert.equal(nextConfig.compress, false);
+});

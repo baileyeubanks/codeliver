@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Eye, EyeOff, LoaderCircle, LogIn, ShieldCheck } from "lucide-react";
+import { Eye, EyeOff, LoaderCircle } from "lucide-react";
 import GoogleSignIn from "@/components/auth/GoogleSignIn";
 import AuthShell, { authStyles as styles } from "@/components/auth/AuthShell";
 import {
@@ -129,16 +129,10 @@ export default function LoginPage() {
   return (
     <AuthShell demoMode={demoMode} loginHref={loginHref}>
       <section className={styles.panel} aria-labelledby="login-title">
-        <div className={styles.contextRow}>
-          <span className={styles.contextLabel}>
-            <ShieldCheck size={13} aria-hidden="true" /> Account access
-          </span>
-          {demoMode ? <span className={styles.demoLabel}>Demo</span> : null}
-        </div>
-
         <header className={styles.heading}>
-          <h1 id="login-title">Sign in to Co‑VideoPro</h1>
-          <p>Review and approve work with Content Co-op.</p>
+          {demoMode ? <span className={styles.demoLabel}>Demo</span> : null}
+          <h1 id="login-title">Open the cut that still needs a decision.</h1>
+          <p>Sign in with your Content Co-op account.</p>
         </header>
 
         {!demoMode ? <GoogleSignIn next={requestedPath} /> : null}
@@ -233,7 +227,7 @@ export default function LoginPage() {
           </div>
 
           <button className={styles.submit} type="submit" disabled={loading}>
-            {loading ? <LoaderCircle size={17} aria-hidden="true" /> : <LogIn size={17} aria-hidden="true" />}
+            {loading ? <LoaderCircle size={17} aria-hidden="true" /> : null}
             {loading ? "Signing in..." : demoMode ? "Open local workspace" : "Sign in"}
           </button>
         </form>

@@ -13,10 +13,10 @@ test.describe("Co‑VideoPro demo smoke", () => {
     // Unauthenticated visits bounce to the demo login page.
     await expect(page).toHaveURL(/\/login/);
     await expect(
-      page.getByRole("heading", { name: "Sign in to Co‑VideoPro" }),
+      page.getByRole("heading", { name: "Open the cut that still needs a decision." }),
     ).toBeVisible();
 
-    await page.getByLabel("Email").fill("e2e.login@contentco-op.example");
+    await page.getByLabel("Work email").fill("e2e.login@contentco-op.example");
     await page.getByLabel("Password", { exact: true }).fill("demo-password");
     await page.getByRole("button", { name: "Open local workspace" }).click();
 

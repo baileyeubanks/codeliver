@@ -131,14 +131,14 @@ export default function LoginPage() {
       <section className={styles.panel} aria-labelledby="login-title">
         <div className={styles.contextRow}>
           <span className={styles.contextLabel}>
-            <ShieldCheck size={13} aria-hidden="true" /> Account access
+            <ShieldCheck size={13} aria-hidden="true" /> Workspace access
           </span>
           {demoMode ? <span className={styles.demoLabel}>Demo</span> : null}
         </div>
 
         <header className={styles.heading}>
-          <h1 id="login-title">Sign in to Co‑VideoPro</h1>
-          <p>Review and approve work with Content Co-op.</p>
+          <h1 id="login-title">Open the cut that still needs a decision.</h1>
+          <p>Projects, review, and delivery stay here — with Content Co-op, not scattered across inboxes.</p>
         </header>
 
         {!demoMode ? <GoogleSignIn next={requestedPath} /> : null}
@@ -184,7 +184,7 @@ export default function LoginPage() {
           aria-busy={loading}
         >
           <label className={styles.field} htmlFor="login-email">
-            <span>Email</span>
+            <span>Work email</span>
             <input
               className={styles.input}
               id="login-email"
@@ -239,8 +239,8 @@ export default function LoginPage() {
         </form>
 
         <footer className={styles.footer}>
-          <span>New to Co‑VideoPro?</span>
-          <Link href={signupHref}>Create an account</Link>
+          <span>Need an invite?</span>
+          <Link href={signupHref}>Request access</Link>
           <span aria-hidden="true">·</span>
           <Link href="/privacy">Privacy</Link>
           <span aria-hidden="true">·</span>

@@ -326,6 +326,43 @@ test("production API launch gate fails closed before public, auth, and demo bypa
       assert.equal((await proxy(request(CLIENT_HOST, `/api/media/versions/${RESOURCE_ID}`))).status, 401);
     });
 
+    await t.test("El Paso client playlist is not SURFACE_FORBIDDEN", async () => {
+      const assetId = "1ec225a9-e405-453a-9a53-d9dfa7e063a3";
+      const versionId = "bb081d37-ef8f-450f-8006-307f342d148e";
+      const playlist = `/api/assets/${assetId}/versions/${versionId}/hls/playlist.m3u8`;
+      runtimeState.__ccoLaunchGateGetUserCalls = 0;
+      runtimeState.__ccoLaunchGateUser = {
+        app_metadata: { content_coop_role: "client" },
+      };
+
+      for (const pathname of [
+        playlist,
+        `/api/assets/${assetId}/versions/${versionId}/hls/segments/0`,
+        `/api/assets/${assetId}/versions/${versionId}/hls/segments/12`,
+      ]) {
+        const response = await proxy(request(CLIENT_HOST, pathname));
+        assert.equal(response.status, 200, pathname);
+        assert.equal(response.headers.get("x-middleware-next"), "1", pathname);
+      }
+      assert.equal(runtimeState.__ccoLaunchGateGetUserCalls, 3);
+
+      for (const method of ["GET", "HEAD"]) {
+        const response = await proxy(
+          request(CLIENT_HOST, `/api/media/versions/${versionId}`, { method }),
+        );
+        assert.equal(response.status, 200, method);
+        assert.equal(response.headers.get("x-middleware-next"), "1", method);
+      }
+
+      runtimeState.__ccoLaunchGateUser = null;
+      const anonymous = await proxy(request(CLIENT_HOST, playlist));
+      assert.equal(anonymous.status, 401);
+      assert.deepEqual(await anonymous.json(), {
+        error: "Authentication required",
+        code: "AUTH_REQUIRED",
+      });
+    });
+
     await t.test("exact HLS delivery shapes reach only their intended production surface", async () => {
       runtimeState.__ccoLaunchGateGetUserCalls = 0;
       runtimeState.__ccoLaunchGateUser = {

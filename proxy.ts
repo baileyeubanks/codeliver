@@ -214,8 +214,8 @@ function productionApiLaunchGate(
 
   // Managed originals and the viewer HLS rung retain normal authentication
   // and per-asset authorization. Admit only these exact reads on both
-  // surfaces. Staff HLS stays on the admin asset route; other legacy media
-  // APIs stay gated.
+  // surfaces. Asset HLS playlist and segments are a separate client
+  // allowlist entry. Other legacy media APIs stay gated.
   if (
     (hostSurface === "admin" || hostSurface === "client") &&
     (req.method === "GET" || req.method === "HEAD") &&

@@ -62,9 +62,9 @@ const CLIENT_API_ROUTE_PATTERNS = [
   new RegExp(
     `^/api/review/media/${HLS_UUID_PATH_SEGMENT}/hls/(?:playlist\\.m3u8|segments/${HLS_SEGMENT_INDEX})$`,
   ),
-  // Client workspace reads. Membership checks stay in the route handlers.
-  // Staff-only families (billing, TUS, transcode, media stream, HLS originals,
-  // bulk/share-batch, export, analysis, transcript, deliverables) stay off this list.
+  // Client workspace paths. Methods are narrowed below: reads are GET/HEAD,
+  // and /api/teams/invites may also PATCH. Admin keeps every method via the
+  // spread. Staff-only families stay off this list.
   /^\/api\/projects$/,
   new RegExp(`^/api/projects/${UUID_PATH_SEGMENT}(?:/assets)?$`),
   /^\/api\/assets$/,
@@ -74,6 +74,27 @@ const CLIENT_API_ROUTE_PATTERNS = [
   ),
   /^\/api\/teams\/invites$/,
 ];
+
+const CLIENT_WORKSPACE_READ_PATTERNS = [
+  /^\/api\/projects$/,
+  new RegExp(`^/api/projects/${UUID_PATH_SEGMENT}(?:/assets)?$`),
+  /^\/api\/assets$/,
+  new RegExp(`^/api/assets/${UUID_PATH_SEGMENT}$`),
+  new RegExp(
+    `^/api/assets/${UUID_PATH_SEGMENT}/(?:comments(?:/attachments)?|edit-decisions|share|versions)$`,
+  ),
+];
+const CLIENT_INVITE_DECISION_PATTERN = /^\/api\/teams\/invites$/;
+
+function clientWorkspaceMethodClosed(method: string, pathname: string): boolean {
+  const invite = CLIENT_INVITE_DECISION_PATTERN.test(pathname);
+  const workspace =
+    invite || CLIENT_WORKSPACE_READ_PATTERNS.some((pattern) => pattern.test(pathname));
+  if (!workspace) return false;
+  if (method === "GET" || method === "HEAD") return false;
+  if (invite && method === "PATCH") return false;
+  return true;
+}
 
 const ADMIN_API_ROUTE_PATTERNS = [
   ...CLIENT_API_ROUTE_PATTERNS,
@@ -248,7 +269,12 @@ function productionApiLaunchGate(
 
   const allowedPatterns =
     hostSurface === "admin" ? ADMIN_API_ROUTE_PATTERNS : CLIENT_API_ROUTE_PATTERNS;
-  if (allowedPatterns.some((pattern) => pattern.test(pathname))) return null;
+  if (allowedPatterns.some((pattern) => pattern.test(pathname))) {
+    if (hostSurface === "client" && clientWorkspaceMethodClosed(req.method, pathname)) {
+      return surfaceAccessDenied(pathname);
+    }
+    return null;
+  }
 
   return hostSurface === "client"
     ? surfaceAccessDenied(pathname)

@@ -465,10 +465,12 @@ test("production API launch gate fails closed before public, auth, and demo bypa
 
       const admitted = [
         ["/api/projects", "GET"],
-        ["/api/projects", "POST"],
+        ["/api/projects", "HEAD"],
         [`/api/projects/${RESOURCE_ID}`, "GET"],
+        [`/api/projects/${RESOURCE_ID}`, "HEAD"],
         [`/api/projects/${RESOURCE_ID}/assets`, "GET"],
         ["/api/assets", "GET"],
+        ["/api/assets", "HEAD"],
         [`/api/assets/${RESOURCE_ID}`, "GET"],
         [`/api/assets/${RESOURCE_ID}/versions`, "GET"],
         [`/api/assets/${RESOURCE_ID}/comments`, "GET"],
@@ -476,6 +478,7 @@ test("production API launch gate fails closed before public, auth, and demo bypa
         [`/api/assets/${RESOURCE_ID}/edit-decisions`, "GET"],
         [`/api/assets/${RESOURCE_ID}/share`, "GET"],
         ["/api/teams/invites?token=invite-token", "GET"],
+        ["/api/teams/invites", "HEAD"],
         ["/api/teams/invites", "PATCH"],
       ] as const;
 
@@ -491,10 +494,13 @@ test("production API launch gate fails closed before public, auth, and demo bypa
       };
       for (const [pathname, method] of [
         ["/api/projects", "GET"],
-        [`/api/projects/${RESOURCE_ID}/assets`, "GET"],
+        ["/api/projects", "POST"],
+        [`/api/projects/${RESOURCE_ID}/assets`, "POST"],
         ["/api/assets", "GET"],
-        [`/api/assets/${RESOURCE_ID}`, "GET"],
+        [`/api/assets/${RESOURCE_ID}/comments`, "POST"],
         ["/api/teams/invites", "GET"],
+        ["/api/teams/invites", "POST"],
+        ["/api/teams/invites", "PATCH"],
         ["/api/billing/checkout", "POST"],
         ["/api/upload/tus", "POST"],
       ] as const) {
@@ -508,6 +514,18 @@ test("production API launch gate fails closed before public, auth, and demo bypa
         app_metadata: { content_coop_role: "client" },
       };
       for (const [pathname, method] of [
+        ["/api/projects", "POST"],
+        ["/api/projects", "PUT"],
+        ["/api/projects", "DELETE"],
+        [`/api/projects/${RESOURCE_ID}`, "POST"],
+        [`/api/projects/${RESOURCE_ID}/assets`, "POST"],
+        ["/api/assets", "POST"],
+        [`/api/assets/${RESOURCE_ID}`, "DELETE"],
+        [`/api/assets/${RESOURCE_ID}/comments`, "POST"],
+        [`/api/assets/${RESOURCE_ID}/share`, "POST"],
+        ["/api/teams/invites", "POST"],
+        ["/api/teams/invites", "PUT"],
+        ["/api/teams/invites", "DELETE"],
         ["/api/billing/checkout", "POST"],
         ["/api/upload/tus", "POST"],
         ["/api/transcode", "POST"],

@@ -103,8 +103,15 @@ export default function LoginPage() {
           required_surface: payload.required_surface,
           next: requestedPath,
         });
-        router.replace(`/login?${params.toString()}`);
+        const mismatchSearch = `?${params.toString()}`;
+        // Same-page replace does not remount this client page or fire popstate,
+        // so the notice has to be applied from the query we just built.
+        setError("");
+        setNotice("");
+        setLinkError("");
+        setSurfaceMismatch(resolveSurfaceMismatchNotice(mismatchSearch));
         setLoading(false);
+        router.replace(`/login${mismatchSearch}`);
         return;
       }
       if (!response.ok) {

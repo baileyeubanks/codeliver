@@ -22,6 +22,10 @@ test("CVP login is the ACS-quiet door: one mark, one card, Sign in", () => {
   assert.match(login, /"Sign in"/);
   assert.match(login, /Signing in…/);
   assert.doesNotMatch(login, /Request access|Create an account/);
+  assert.match(
+    login,
+    /setSurfaceMismatch\(resolveSurfaceMismatchNotice\(mismatchSearch\)\)/,
+  );
   assert.doesNotMatch(login, /Open local workspace/);
   assert.doesNotMatch(login, /Account access/);
   assert.doesNotMatch(login, /Review and approve/);

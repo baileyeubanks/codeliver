@@ -5,48 +5,34 @@ This sheet is words only. Do not rename working auth IDs.
 
 ## Login
 
+Blaze accepted HOOK-LOGIN-ENGAGEMENT-COPY-01. Both hosts use these strings. Landed in `AuthShell` and `app/login/page.tsx`.
+
 | Slot | Say |
 | --- | --- |
 | Headline (`#login-title`) | Open the cut that still needs a decision. |
-| Submit, idle | Sign in |
-| Submit, waiting | Signing in |
-| Demo submit | Sign in |
+| Sub | Projects, review, and delivery stay here — with Content Co-op, not scattered across inboxes. |
+| Badge | Workspace access |
+| Process line | Brief → cut → review → handoff |
+| Header chip | Content Co-op clients |
+| Work email | Work email |
+| Password | Password |
+| Forgot | Forgot password? |
+| Primary CTA | Sign in |
+| Secondary | Need an invite? Request access |
+| REVIEW | Approve the cut in one place |
+| HANDOFF | Brief to delivery, same room |
+| SECURE | Sign-in required · stays on this site |
+| Foot | Private workspace · Content Co-op clients |
 
-Email. Password. Forgot password? Show password. Hide password.
-Footer link: Create an account. Legal: Privacy. Terms.
+`Request access` uses the existing signup href. No `/pricing` or `/docs`.
 
-No subhead. No feature list. No second button.
-
-### Kill
-
-Do not render these. Remove the nodes; do not restyle them into quieter chips.
-
-| Kill | Where it lives now |
-| --- | --- |
-| Pipeline crumb | `AuthShell` tagline: Brief → shoot → cut → delivery |
-| Account pill | Login context row: Account access |
-| Portal · Session · Return | `accessReadiness`: Portal, Session, Return |
-
-Also drop from the auth column, same pass: “Video production workspace”, the host security pill, the Demo chip, and “Private account access” / “Demo data stays in this browser”.
-
-### Notices
-
-| Case | Say |
-| --- | --- |
-| Password updated | Password updated. |
-| Bad link | That link expired. |
-| 429 | Wait, then try again. |
-| Down | Sign-in is down. Try again. |
-| Rejected | Email or password was not accepted. |
-| Wrong surface | Use the {portal label}. |
-
-`AUTH_PORTALS` labels and origins stay. The notice wraps them. It is not a chip.
+Host context labels in `auth-context.ts` stay. The header chip does not read them.
 
 ### Auth IDs — do not touch
 
 `#login-title` `#auth-form` `#login-email` `name="email"` `#login-password` `name="password"` `aria-controls="login-password"` `POST /api/auth/login` `next` `demo=1` Google sign-in Forgot-password and signup hrefs.
 
-When the headline and demo button land, retarget only the visible-name assertions in `tests/e2e/smoke.spec.ts` and `tests/e2e/demo-auth.ts`. Geometry that requires `.accessStrip` (`tests/admin-client-front-door.test.ts`) updates with the chip removal. Latch owns the handlers.
+Visible-name assertions in `tests/e2e/smoke.spec.ts` and `tests/e2e/demo-auth.ts` follow the headline and Work email label. The demo button stays `Open local workspace`. `.accessStrip` stays; the three chips changed words, not layout. Latch owns the handlers.
 
 ## Player chrome
 

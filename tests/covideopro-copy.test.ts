@@ -20,6 +20,32 @@ const customerFacingFiles = [
   "app/api/analytics/export/pdf/route.ts",
 ];
 
+test("login twins share the locked engagement copy", () => {
+  const login = readFileSync(resolve(repositoryRoot, "app/login/page.tsx"), "utf8");
+  const shell = readFileSync(resolve(repositoryRoot, "components/auth/AuthShell.tsx"), "utf8");
+
+  assert.match(login, /Open the cut that still needs a decision\./);
+  assert.match(login, /Projects, review, and delivery stay here — with Content Co-op, not scattered across inboxes\./);
+  assert.match(login, /Workspace access/);
+  assert.match(login, /Work email/);
+  assert.match(login, /Need an invite\?/);
+  assert.match(login, /Request access/);
+  assert.match(login, /\{loading \? "Signing in\.\.\." : demoMode \? "Open local workspace" : "Sign in"\}/);
+  assert.doesNotMatch(login, /Account access/);
+  assert.doesNotMatch(login, /Create an account/);
+
+  assert.match(shell, /Content Co-op clients/);
+  assert.match(shell, /Brief[\s\S]*cut[\s\S]*review[\s\S]*handoff/);
+  assert.match(shell, /REVIEW/);
+  assert.match(shell, /Approve the cut in one place/);
+  assert.match(shell, /HANDOFF/);
+  assert.match(shell, /Brief to delivery, same room/);
+  assert.match(shell, /SECURE/);
+  assert.match(shell, /Sign-in required · stays on this site/);
+  assert.match(shell, /Private workspace · Content Co-op clients/);
+  assert.doesNotMatch(shell, /label: "Portal"|label: "Session"|label: "Return"/);
+});
+
 test("customer-facing product copy consistently names Co‑VideoPro", () => {
   for (const relativePath of customerFacingFiles) {
     const source = readFileSync(resolve(repositoryRoot, relativePath), "utf8");

@@ -30,22 +30,21 @@ export default function AuthShell({ children, demoMode, loginHref }: AuthShellPr
       : hostContext.kind === "client"
         ? Handshake
         : PanelsTopLeft;
-  const contextLabel = demoMode ? "Local demo workspace" : hostContext.label;
   const accessReadiness = [
     {
-      label: "Portal",
-      value: contextLabel,
-      icon: ContextIcon,
-    },
-    {
-      label: "Session",
-      value: demoMode ? "Saved in this browser" : "Sign-in required",
-      icon: ShieldCheck,
-    },
-    {
-      label: "Return",
-      value: "Stays on this site",
+      label: "REVIEW",
+      value: "Approve the cut in one place",
       icon: PanelsTopLeft,
+    },
+    {
+      label: "HANDOFF",
+      value: "Brief to delivery, same room",
+      icon: Handshake,
+    },
+    {
+      label: "SECURE",
+      value: "Sign-in required · stays on this site",
+      icon: ShieldCheck,
     },
   ];
 
@@ -75,22 +74,22 @@ export default function AuthShell({ children, demoMode, loginHref }: AuthShellPr
 
         <div className={styles.securityStatus}>
           <ContextIcon size={15} aria-hidden="true" />
-          <span>{contextLabel}</span>
+          <span>Content Co-op clients</span>
         </div>
       </header>
 
-      <section className={styles.workspace} aria-label="Account access">
+      <section className={styles.workspace} aria-label="Workspace access">
         <div className={styles.formColumn} id="auth-content" tabIndex={-1}>
           <div className={styles.brandHero}>
             <CoProductionBrand variant="compact-mark" label="Co‑VideoPro" priority />
             <p className={styles.tagline}>
               Brief
               <span className={styles.taglineDot} aria-hidden="true"> → </span>
-              shoot
-              <span className={styles.taglineDot} aria-hidden="true"> → </span>
               cut
               <span className={styles.taglineDot} aria-hidden="true"> → </span>
-              delivery
+              review
+              <span className={styles.taglineDot} aria-hidden="true"> → </span>
+              handoff
             </p>
           </div>
           {children}
@@ -112,7 +111,7 @@ export default function AuthShell({ children, demoMode, loginHref }: AuthShellPr
           </section>
           <p className={styles.assurance}>
             <ShieldCheck size={14} aria-hidden="true" />
-            {demoMode ? "Demo data stays in this browser" : "Private account access"}
+            Private workspace · Content Co-op clients
           </p>
         </div>
       </section>

@@ -33,8 +33,9 @@ test("the auth shell brand hero uses the supplied compact CVP mark", () => {
   assert.match(authShell, /<CoProductionBrand variant="compact-mark"/);
   assert.doesNotMatch(authShell, /<CvpMonogram\b/);
   assert.match(authShell, /Brief/);
-  assert.match(authShell, /shoot/);
-  assert.match(authShell, /delivery/);
+  assert.match(authShell, /cut/);
+  assert.match(authShell, /review/);
+  assert.match(authShell, /handoff/);
 });
 
 test("the application icon is the exact supplied sapphire artwork", () => {

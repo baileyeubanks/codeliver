@@ -49,7 +49,12 @@ test("the public review shell catches player-tree failures at the stage boundary
 test("the cockpit stage replaces its error essay with the on-stage card", () => {
   const cockpit = source("components/projects/ProjectCockpit.tsx");
 
-  assert.match(cockpit, /<FailOnStageCard clearTransport onRetry=\{retryPlaybackSource\} \/>/);
+  assert.match(
+    cockpit,
+    /<FailOnStageCard[\s\S]*?clearTransport[\s\S]*?onRetry=\{retryPlaybackSource\}[\s\S]*?\/>/,
+  );
+  // Operators get the real same-origin source path; guests never do.
+  assert.match(cockpit, /detail=\{operatorMediaSourceDetail\(activeMediaUrl\)\}/);
   assert.doesNotMatch(cockpit, /<p role="alert">[\s\S]*?Retry playback/);
 });
 

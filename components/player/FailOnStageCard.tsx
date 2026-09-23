@@ -12,6 +12,11 @@ interface FailOnStageCardProps {
    * strip (the cockpit player owns a 48px control bar at the frame bottom).
    */
   clearTransport?: boolean;
+  /**
+   * Operator-only honesty: the same-origin media path that went cold, so the
+   * storage/load dig has the real route. Never pass signed or external URLs.
+   */
+  detail?: string;
   /** Approved fallback actions (e.g. an authorized download) render quietly. */
   children?: ReactNode;
 }
@@ -24,6 +29,7 @@ interface FailOnStageCardProps {
 export default function FailOnStageCard({
   onRetry,
   clearTransport = false,
+  detail,
   children,
 }: FailOnStageCardProps) {
   return (
@@ -33,6 +39,7 @@ export default function FailOnStageCard({
     >
       <div className={styles.card} role="alert">
         <p className={styles.line}>Couldn&#8217;t load this cut.</p>
+        {detail ? <p className={styles.detail}>{detail}</p> : null}
         {onRetry || children ? (
           <div className={styles.actions}>
             {onRetry ? (

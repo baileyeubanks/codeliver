@@ -21,6 +21,13 @@ interface VideoPlayerProps {
   videoRef?: RefObject<HTMLVideoElement | null>;
 }
 
+/**
+ * VA-010: a cold source (stalled storage, hung signed URL, readyState 0)
+ * never throws an error event — it just holds a black frame. After this
+ * window without metadata, the surface fails soft onto the on-stage card.
+ */
+export const STALL_WATCHDOG_MS = 8000;
+
 export default function VideoPlayer({
   src,
   poster,
@@ -103,6 +110,20 @@ export default function VideoPlayer({
     };
     video.addEventListener("loadedmetadata", restoreTime, { once: true });
 
+    // Cold-media watchdog: no error event fires when a source stalls before
+    // metadata, so a black readyState-0 frame would otherwise persist.
+    const stallWatchdog = window.setTimeout(() => {
+      if (
+        sourceIsActive &&
+        video.readyState < HTMLMediaElement.HAVE_METADATA &&
+        !video.error
+      ) {
+        reportActiveFailure();
+      }
+    }, STALL_WATCHDOG_MS);
+    const clearStallWatchdog = () => window.clearTimeout(stallWatchdog);
+    video.addEventListener("loadedmetadata", clearStallWatchdog, { once: true });
+
     const isHls = src.split(/[?#]/, 1)[0].toLowerCase().endsWith(".m3u8");
     if (isHls && Hls.isSupported()) {
       const hls = new Hls();
@@ -117,8 +138,10 @@ export default function VideoPlayer({
       return () => {
         sourceIsActive = false;
         if (sourceGenerationRef.current === sourceGeneration) sourceGenerationRef.current += 1;
+        window.clearTimeout(stallWatchdog);
         video.removeEventListener("error", handleNativeError);
         video.removeEventListener("loadedmetadata", restoreTime);
+        video.removeEventListener("loadedmetadata", clearStallWatchdog);
         hls.off(Hls.Events.ERROR, handleHlsError);
         hls.destroy();
         if (hlsRef.current === hls) hlsRef.current = null;
@@ -131,8 +154,10 @@ export default function VideoPlayer({
     return () => {
       sourceIsActive = false;
       if (sourceGenerationRef.current === sourceGeneration) sourceGenerationRef.current += 1;
+      window.clearTimeout(stallWatchdog);
       video.removeEventListener("error", handleNativeError);
       video.removeEventListener("loadedmetadata", restoreTime);
+      video.removeEventListener("loadedmetadata", clearStallWatchdog);
     };
   }, [src, sourceNonce, resumeTime, videoRef, reportPlaybackFailure]);
 

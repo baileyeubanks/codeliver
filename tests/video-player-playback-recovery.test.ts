@@ -36,9 +36,11 @@ class FakeVideo {
   buffered = { length: 0, end: () => 0 };
   currentTime = 0;
   duration = 0;
+  error = null;
   muted = false;
   paused = true;
   playbackRate = 1;
+  readyState = 0;
   src = "";
   videoHeight = 1;
   videoWidth = 1;
@@ -132,6 +134,23 @@ function videoPlayerHarness() {
   let cursor = 0;
   const pendingEffects: Array<{ effect: Effect; index: number; dependencies: readonly unknown[] | undefined }> = [];
   const video = new FakeVideo();
+  // VA-010: the stall watchdog arms through window timers; the harness
+  // captures callbacks so tests can fire them without waiting real seconds.
+  const pendingTimers = new Map<number, () => void>();
+  let nextTimerId = 1;
+  const fakeSetTimeout = (callback: () => void) => {
+    const id = nextTimerId++;
+    pendingTimers.set(id, callback);
+    return id;
+  };
+  const fakeClearTimeout = (id: number) => {
+    pendingTimers.delete(id);
+  };
+  const fireTimers = () => {
+    const callbacks = [...pendingTimers.values()];
+    pendingTimers.clear();
+    for (const callback of callbacks) callback();
+  };
   const transport = { bufferedEnd: 20, currentTime: 7, duration: 90, playing: true };
   const resetCalls: string[] = [];
 
@@ -196,7 +215,13 @@ function videoPlayerHarness() {
     `(function(require,module,exports){${transpile(resolve(repositoryRoot, "components/player/VideoPlayer.tsx"))}\n})`,
     {
       document: { fullscreenElement: null, exitFullscreen() {} },
-      window: { addEventListener() {}, removeEventListener() {} },
+      window: {
+        addEventListener() {},
+        removeEventListener() {},
+        setTimeout: fakeSetTimeout,
+        clearTimeout: fakeClearTimeout,
+      },
+      HTMLMediaElement: { HAVE_METADATA: 1, HAVE_NOTHING: 0 },
     },
   )(imports, moduleRecord, moduleRecord.exports);
   const VideoPlayer = (moduleRecord.exports as { default: (props: Record<string, unknown>) => Element }).default;
@@ -220,6 +245,7 @@ function videoPlayerHarness() {
 
   return {
     hlsInstances: () => [...FakeHls.instances],
+    fireTimers,
     resetCalls,
     render,
     transport: () => ({ ...transport }),
@@ -422,6 +448,35 @@ test("ReviewMediaSurface clears a failed version across source changes and ignor
   assert.ok(allElements(returnedA).some((element) => element.type === "video-player"));
 });
 
+
+test("a cold source that never delivers metadata fails soft instead of holding a black frame", () => {
+  FakeHls.instances = [];
+  FakeHls.supported = false;
+  const app = videoPlayerHarness();
+  let failures = 0;
+  const onPlaybackError = () => { failures += 1; };
+
+  app.render("/media/cold.mp4", onPlaybackError);
+  // readyState stays 0 (HAVE_NOTHING): no error event ever arrives.
+  app.fireTimers();
+  assert.equal(failures, 1, "the stall watchdog reports the cold source");
+  assert.deepEqual(app.transport(), {
+    bufferedEnd: 0,
+    currentTime: 0,
+    duration: 0,
+    playing: false,
+  });
+
+  // A source that delivered metadata before the watchdog stays alive.
+  const warm = videoPlayerHarness();
+  let warmFailures = 0;
+  warm.render("/media/warm.mp4", () => { warmFailures += 1; });
+  warm.video.readyState = 2;
+  warm.fireTimers();
+  assert.equal(warmFailures, 0, "a warm source never trips the watchdog");
+  warm.unmount();
+  app.unmount();
+});
 
 test("HLS query and fragment do not change transport selection", () => {
   FakeHls.instances = [];

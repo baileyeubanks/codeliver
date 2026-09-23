@@ -39,6 +39,17 @@
   line-height: 1.45;
 }
 
+.detail {
+  max-width: 100%;
+  overflow: hidden;
+  color: rgba(245, 248, 252, 0.6);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 10px;
+  line-height: 1.4;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .actions {
   display: flex;
   flex-wrap: wrap;

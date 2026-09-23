@@ -130,7 +130,7 @@ import {
 import { formatSmpteTimecode } from "@/components/player/timecode";
 import { resolveReviewFrameRate } from "@/lib/review/frame-review";
 import { usePlayerStore } from "@/lib/stores/playerStore";
-import VideoPlayer from "@/components/player/VideoPlayer";
+import VideoPlayer, { STALL_WATCHDOG_MS } from "@/components/player/VideoPlayer";
 import InlineReviewComment from "@/components/review/InlineReviewComment";
 import AnchoredCommentCallout from "@/components/review/AnchoredCommentCallout";
 import { adjacentTimedComment, orderedTimedComments } from "@/lib/review/comment-navigation";
@@ -292,6 +292,22 @@ function avatarInitials(name: string) {
     .slice(0, 2)
     .map((part) => part[0]?.toUpperCase())
     .join("");
+}
+
+/**
+ * VA-010 operator honesty: name the same-origin media path that went cold so
+ * the storage/load dig has the real route. Blob and external URLs stay
+ * private — they say nothing useful about the storage path anyway.
+ */
+function operatorMediaSourceDetail(url: string | null): string | undefined {
+  if (!url) return undefined;
+  try {
+    const parsed = new URL(url, window.location.origin);
+    if (parsed.origin !== window.location.origin) return undefined;
+    return `Source: ${parsed.pathname}`;
+  } catch {
+    return undefined;
+  }
 }
 
 function EmptyState({ title, body }: { title: string; body: string }) {
@@ -612,6 +628,11 @@ export default function ProjectCockpit({
   const [nativeDuration, setNativeDuration] = useState(0);
   const [hlsSourceNonce, setHlsSourceNonce] = useState(0);
   const [hlsResumeTime, setHlsResumeTime] = useState<number | null>(null);
+  const [nativeSourceNonce, setNativeSourceNonce] = useState(0);
+  // VA-Wistia chrome: on-film controls recede while the film plays and the
+  // pointer sits idle; any movement, pause, or failure brings them back.
+  const [chromeIdle, setChromeIdle] = useState(false);
+  const chromeIdleTimerRef = useRef<number | null>(null);
   const [liveComments, setLiveComments] = useState<DemoReviewComment[]>([]);
   const [liveCutMarkers, setLiveCutMarkers] = useState<DemoReviewCutMarker[]>([]);
   const [liveAssetDataKey, setLiveAssetDataKey] = useState<string | null>(null);
@@ -1698,8 +1719,56 @@ export default function ProjectCockpit({
       setHlsSourceNonce((nonce) => nonce + 1);
       return;
     }
+    setNativeSourceNonce((nonce) => nonce + 1);
     videoRef.current?.load();
   }
+
+  // VA-010: the cockpit's native (non-HLS) path gets the same cold-media
+  // honesty — a source that never delivers metadata fails soft on the stage
+  // instead of holding a black readyState-0 frame.
+  useEffect(() => {
+    if (!activeMediaUrl || hlsMediaActive) return;
+    const video = videoRef.current;
+    if (!video) return;
+
+    const stallWatchdog = window.setTimeout(() => {
+      if (video.readyState < HTMLMediaElement.HAVE_METADATA && !video.error) {
+        setIsPlaying(false);
+        setPlaybackError("This video could not load. Check that the source file is available.");
+      }
+    }, STALL_WATCHDOG_MS);
+    const clearStallWatchdog = () => window.clearTimeout(stallWatchdog);
+    video.addEventListener("loadedmetadata", clearStallWatchdog, { once: true });
+
+    return () => {
+      window.clearTimeout(stallWatchdog);
+      video.removeEventListener("loadedmetadata", clearStallWatchdog);
+    };
+  }, [activeMediaUrl, hlsMediaActive, nativeSourceNonce]);
+
+  // Wistia chrome rule: while the film plays, the on-frame transport and
+  // timecode recede after a short idle window and return on any pointer
+  // movement, pause, or failure.
+  const wakeStageChrome = useCallback(() => {
+    setChromeIdle(false);
+    if (chromeIdleTimerRef.current) window.clearTimeout(chromeIdleTimerRef.current);
+    chromeIdleTimerRef.current = window.setTimeout(() => {
+      const video = videoRef.current;
+      if (video && !video.paused && !video.ended) setChromeIdle(true);
+    }, 2200);
+  }, []);
+
+  useEffect(() => {
+    if (!isPlaying) {
+      setChromeIdle(false);
+      if (chromeIdleTimerRef.current) window.clearTimeout(chromeIdleTimerRef.current);
+      return;
+    }
+    wakeStageChrome();
+    return () => {
+      if (chromeIdleTimerRef.current) window.clearTimeout(chromeIdleTimerRef.current);
+    };
+  }, [isPlaying, wakeStageChrome]);
 
   function seekTo(seconds: number) {
     if (!reviewOperationsAllowed) return;
@@ -2606,8 +2675,13 @@ export default function ProjectCockpit({
                       ref={videoFrameRef}
                       className="cockpit-video-frame"
                       data-player-root
+                      data-chrome={chromeIdle ? "hidden" : undefined}
                       tabIndex={0}
                       onKeyDown={handleReviewShortcut}
+                      onPointerMove={wakeStageChrome}
+                      onPointerLeave={(event) => {
+                        if (event.pointerType === "mouse" && isPlaying) setChromeIdle(true);
+                      }}
                       aria-label="Review player"
                     >
                       {activePosterUrl ? (
@@ -2664,7 +2738,11 @@ export default function ProjectCockpit({
                       )}
                       <time>{formatActiveTimecode(currentTime)}</time>
                       {playbackError ? (
-                        <FailOnStageCard clearTransport onRetry={retryPlaybackSource} />
+                        <FailOnStageCard
+                          clearTransport
+                          onRetry={retryPlaybackSource}
+                          detail={operatorMediaSourceDetail(activeMediaUrl)}
+                        />
                       ) : null}
                       <div
                         className={`cockpit-review-overlay ${styles.stageOverlay}`}

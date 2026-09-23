@@ -16,12 +16,18 @@ export function copilotAllowedOnPath(pathname: string): boolean {
   );
 }
 
-/** Real Copilot is confined to the internal projects workspace. */
+/**
+ * VA-043: the Copilot docks into a project workspace, where it has real
+ * media context. Hub and list surfaces (Overview, Projects index, Reviews,
+ * Requests, library, settings) never carry the always-on FAB.
+ */
+const PROJECT_WORKSPACE_PATH = /^\/projects\/(?!new$|archive$|trash$)[^/]+/;
+
 export default function CopilotMount() {
   const demoMode = useDemoMode();
   const pathname = usePathname() ?? "";
   if (!copilotAllowedOnPath(pathname)) return null;
-  if (!demoMode && pathname !== "/projects" && !pathname.startsWith("/projects/")) return null;
+  if (!PROJECT_WORKSPACE_PATH.test(pathname)) return null;
   const projectId = copilotProjectFromPath(pathname);
   return <CopilotPanel key={`${demoMode}:${projectId ?? "workspace"}`} demoMode={demoMode} projectId={projectId} />;
 }

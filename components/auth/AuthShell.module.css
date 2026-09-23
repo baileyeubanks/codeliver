@@ -346,6 +346,7 @@
 }
 
 .brand:focus-visible,
+.quietMark:focus-visible,
 .iconButton:focus-visible,
 .submit:focus-visible,
 .secondaryAction:focus-visible,
@@ -763,6 +764,57 @@
   .demoLabel {
     border-color: var(--auth-copy);
   }
+}
+
+/* ACS-quiet login: one centered mark, one card, brand blue only. */
+.shell[data-quiet="true"] {
+  display: grid;
+  grid-template-rows: minmax(0, 1fr);
+  align-items: center;
+  justify-items: center;
+  min-height: 100svh;
+  overflow-x: hidden;
+  overflow-y: auto;
+  padding: 32px 16px;
+  background: linear-gradient(
+    145deg,
+    var(--auth-accent-soft) 0%,
+    var(--auth-bg) 46%,
+    var(--auth-surface) 100%
+  );
+}
+
+.shell[data-quiet="true"] .workspace {
+  width: min(100%, 390px);
+  align-items: stretch;
+  padding: 0;
+}
+
+.shell[data-quiet="true"] .formColumn {
+  width: 100%;
+}
+
+.shell[data-quiet="true"] .brandHero {
+  margin-bottom: 20px;
+}
+
+.quietMark {
+  display: inline-flex;
+  border-radius: 8px;
+  line-height: 0;
+}
+
+.shell[data-quiet="true"] .heading {
+  text-align: center;
+}
+
+.shell[data-quiet="true"] .heading h1 {
+  font-size: 22px;
+  line-height: 1.3;
+}
+
+.shell[data-quiet="true"] .form {
+  margin-top: 20px;
 }
 
 @media (prefers-reduced-motion: reduce) {

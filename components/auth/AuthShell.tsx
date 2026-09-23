@@ -17,12 +17,46 @@ interface AuthShellProps {
   children: ReactNode;
   demoMode: boolean;
   loginHref?: string;
+  /** Login door only: centered mark and one card, matching ACS admin quietness. */
+  quiet?: boolean;
 }
 
 export { styles as authStyles };
 
-export default function AuthShell({ children, demoMode, loginHref }: AuthShellProps) {
+export default function AuthShell({ children, demoMode, loginHref, quiet = false }: AuthShellProps) {
   const hostContext = useAuthHostContext();
+  const resolvedLoginHref = loginHref ?? (demoMode ? "/login?demo=1" : "/login");
+
+  if (quiet) {
+    return (
+      <main
+        className={styles.shell}
+        data-demo={demoMode ? "true" : "false"}
+        data-host-context={hostContext.kind}
+        data-quiet="true"
+      >
+        <a className={styles.skipLink} href="#auth-content">
+          Skip to sign in
+        </a>
+
+        <section className={styles.workspace} aria-label="Sign in">
+          <div className={styles.formColumn} id="auth-content" tabIndex={-1}>
+            <div className={styles.brandHero}>
+              <Link
+                className={styles.quietMark}
+                href={resolvedLoginHref}
+                aria-label="Co‑VideoPro by Content Co-op sign in"
+              >
+                <CoProductionBrand variant="compact-mark" label="Co‑VideoPro" priority />
+              </Link>
+            </div>
+            {children}
+          </div>
+        </section>
+      </main>
+    );
+  }
+
   const ContextIcon = demoMode
     ? LockKeyhole
     : hostContext.kind === "admin"
@@ -62,7 +96,7 @@ export default function AuthShell({ children, demoMode, loginHref }: AuthShellPr
       <header className={styles.header}>
         <Link
           className={styles.brand}
-          href={loginHref ?? (demoMode ? "/login?demo=1" : "/login")}
+          href={resolvedLoginHref}
           aria-label="Co‑VideoPro by Content Co-op sign in"
         >
           <CoProductionBrand className={styles.brandLockup} priority />

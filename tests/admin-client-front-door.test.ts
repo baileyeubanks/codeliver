@@ -72,10 +72,10 @@ test("admin and client hosts share one Content Co-op branded login", () => {
   assert.match(loginPage, /<AuthShell\b/);
   assert.match(authShell, /CoProductionBrand/);
   assert.match(authShell, /aria-label="Co‑VideoPro by Content Co-op sign in"/);
-  assert.match(authShell, /<strong>Co‑VideoPro<\/strong>/);
-  assert.match(authShell, /aria-label="Access readiness"/);
-  assert.match(authShell, /Sign-in required/);
-  assert.match(authShell, /Stays on this site/);
+  assert.match(authShell, /data-quiet="true"/);
+  assert.doesNotMatch(authShell, /<strong>Co‑VideoPro<\/strong>/);
+  assert.doesNotMatch(authShell, /Access readiness|Sign-in required|Stays on this site/);
+  assert.doesNotMatch(authShell, /Video production workspace|Private account access/);
   assert.doesNotMatch(authShell, /Verified session required|Local paths only/);
   assert.doesNotMatch(frontDoorSource, /\/(?:admin|client)\/login\b/);
 
@@ -282,12 +282,13 @@ test("the branded auth, cockpit, and public review shells retain mobile and desk
   );
 
   assert.match(authStyles, /\.shell\s*\{[\s\S]*?min-height:\s*100svh/);
-  assert.match(authStyles, /\.header\s*\{[\s\S]*?grid-template-columns:\s*minmax\(0, 1fr\) auto/);
+  assert.match(authStyles, /\.column\s*\{[\s\S]*?width:\s*min\(100%,\s*400px\)/);
   assert.match(authStyles, /\.accessStrip\s*\{[\s\S]*?display:\s*grid/);
   assert.match(authStyles, /\.accessItem\s*\{[\s\S]*?border-radius:\s*8px/);
   assert.ok(authFormCap, "auth form must have a stable responsive width cap");
-  assert.ok(Number(authFormCap[1]) >= 400 && Number(authFormCap[1]) <= 480);
-  assert.match(authStyles, /@media \(min-width:\s*761px\)[\s\S]*?grid-template-columns:\s*224px minmax\(180px, 1fr\) auto/);
+  assert.ok(Number(authFormCap[1]) >= 390 && Number(authFormCap[1]) <= 420);
+  assert.doesNotMatch(authStyles, /224px minmax\(180px, 1fr\) auto/);
+  assert.doesNotMatch(authStyles, /\.header\s*\{/);
   assert.match(authStyles, /@media \(max-width:\s*360px\)[\s\S]*?padding-inline:\s*12px/);
 
   assert.match(shellStyles, /@media \(max-width:\s*760px\)[\s\S]*?env\(safe-area-inset-bottom\)/);

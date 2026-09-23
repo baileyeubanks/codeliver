@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Eye, EyeOff, LoaderCircle, LogIn } from "lucide-react";
+import { Eye, EyeOff, LoaderCircle } from "lucide-react";
 import GoogleSignIn from "@/components/auth/GoogleSignIn";
 import AuthShell, { authStyles as styles } from "@/components/auth/AuthShell";
 import {
@@ -127,7 +127,7 @@ export default function LoginPage() {
   }
 
   return (
-    <AuthShell demoMode={demoMode} loginHref={loginHref} quiet>
+    <AuthShell demoMode={demoMode} loginHref={loginHref}>
       <section className={styles.panel} aria-labelledby="login-title">
         <header className={styles.heading}>
           <h1 id="login-title">Open the cut that still needs a decision.</h1>
@@ -196,7 +196,6 @@ export default function LoginPage() {
           <div className={styles.field}>
             <div className={styles.fieldLabelRow}>
               <label htmlFor="login-password">Password</label>
-              {!demoMode ? <Link href={forgotPasswordHref}>Forgot password?</Link> : null}
             </div>
             <div className={styles.passwordField}>
               <input
@@ -225,19 +224,19 @@ export default function LoginPage() {
           </div>
 
           <button className={styles.submit} type="submit" disabled={loading}>
-            {loading ? <LoaderCircle size={17} aria-hidden="true" /> : <LogIn size={17} aria-hidden="true" />}
+            {loading ? <LoaderCircle size={17} aria-hidden="true" /> : null}
             {loading ? "Signing in…" : "Sign in"}
           </button>
+          {!demoMode ? (
+            <Link className={styles.quietLink} href={forgotPasswordHref}>
+              Forgot password?
+            </Link>
+          ) : null}
         </form>
 
-        <footer className={styles.footer}>
-          <span>New to Co‑VideoPro?</span>
-          <Link href={signupHref}>Create an account</Link>
-          <span aria-hidden="true">·</span>
-          <Link href="/privacy">Privacy</Link>
-          <span aria-hidden="true">·</span>
-          <Link href="/terms">Terms</Link>
-        </footer>
+        <p className={styles.cardFoot}>
+          Need an invite? <Link href={signupHref}>Request access</Link>
+        </p>
       </section>
     </AuthShell>
   );

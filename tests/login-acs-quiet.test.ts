@@ -13,36 +13,40 @@ function source(path: string): string {
 test("CVP login is the ACS-quiet door: one mark, one card, Sign in", () => {
   const login = source("app/login/page.tsx");
   const authShell = source("components/auth/AuthShell.tsx");
-  const quietStart = authShell.indexOf("if (quiet)");
-  const loudStart = authShell.indexOf("const ContextIcon");
-  assert.ok(quietStart !== -1 && loudStart > quietStart);
-  const quietShell = authShell.slice(quietStart, loudStart);
 
-  assert.match(login, /<AuthShell\b[^>]*\bquiet\b/);
   assert.match(login, /Open the cut that still needs a decision\./);
+  assert.match(login, /id="login-email"/);
+  assert.match(login, /id="login-password"/);
+  assert.match(login, /id="auth-form"/);
   assert.match(login, /Forgot password\?/);
   assert.match(login, /"Sign in"/);
   assert.match(login, /Signing in…/);
+  assert.match(login, /Request access/);
   assert.doesNotMatch(login, /Open local workspace/);
   assert.doesNotMatch(login, /Account access/);
   assert.doesNotMatch(login, /Review and approve/);
-  assert.doesNotMatch(login, /<p>/);
+  assert.doesNotMatch(login, /Privacy|Terms/);
 
-  assert.match(quietShell, /data-quiet="true"/);
-  assert.match(quietShell, /variant="compact-mark"/);
-  assert.equal(quietShell.match(/<CoProductionBrand\b/g)?.length, 1);
-  assert.doesNotMatch(quietShell, /Video production workspace/);
-  assert.doesNotMatch(quietShell, /Access readiness/);
-  assert.doesNotMatch(quietShell, /Private account access/);
-  assert.doesNotMatch(quietShell, /securityStatus|accessStrip|tagline|Brief/);
+  assert.match(authShell, /data-quiet="true"/);
+  assert.match(authShell, /<CoProductionBrand\b/);
+  assert.equal(authShell.match(/<CoProductionBrand\b/g)?.length, 1);
+  assert.doesNotMatch(
+    authShell,
+    /Video production workspace|Access readiness|Private account access|securityStatus|accessStrip|tagline|Brief|Portal|Session/,
+  );
 });
 
 test("quiet login chrome is brand blue; green, yellow, and red stay on status", () => {
   const authStyles = source("components/auth/AuthShell.module.css");
-  const quietCss = authStyles.slice(authStyles.indexOf(".shell[data-quiet=\"true\"]"));
-  assert.match(quietCss, /--auth-accent-soft/);
-  assert.match(quietCss, /--auth-accent/);
-  assert.doesNotMatch(quietCss, /--auth-positive|--auth-danger|#267553|#b23a2c|#f59e0b|#16a34a|#e8442e/i);
-  assert.match(authStyles, /\.alert\s*\{[\s\S]*?--auth-danger/);
+  const login = source("app/login/page.tsx");
+
+  assert.match(authStyles, /--auth-accent:\s*var\(--cvp-blue/);
+  assert.match(authStyles, /--auth-positive:\s*var\(--cvp-success/);
+  assert.match(authStyles, /--auth-warn:\s*var\(--cvp-amber/);
+  assert.match(authStyles, /--auth-danger:\s*var\(--cvp-red/);
+  assert.match(authStyles, /\.heading h1,[\s\S]*?color:\s*var\(--auth-accent\)/);
   assert.match(authStyles, /\.notice\s*\{[\s\S]*?--auth-positive/);
+  assert.match(authStyles, /\.warn\s*\{[\s\S]*?--auth-warn/);
+  assert.match(authStyles, /\.alert\s*\{[\s\S]*?--auth-danger/);
+  assert.doesNotMatch(login, /#16a34a|#f59e0b|#dc2626|#e8442e|#267553/);
 });

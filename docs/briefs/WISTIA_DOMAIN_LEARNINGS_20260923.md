@@ -8,7 +8,7 @@ Player stage rules come from the centerpiece. Other pages only lend review and p
 
 ## Login fence
 
-**CVP login stays ACS-quiet.** Do not apply the Wistia marketing login, the session page, or any wistia.com promo rail to `AuthShell`.
+**Locked.** [FRAME_CVP_SOT_SPLIT_LOCKED_20260923](./FRAME_CVP_SOT_SPLIT_LOCKED_20260923.md). CVP login stays ACS-quiet ([FRAME_CVP_LOGIN_ACS_SOT_20260923](./FRAME_CVP_LOGIN_ACS_SOT_20260923.md)). Do not apply the Wistia marketing login, the session page, or any wistia.com promo rail to `AuthShell`.
 
 `app.wistia.com/session/new` and the wistia.com “Log in / Get started / Start a free trial” chrome are not the CVP door. The door reference is the live ACS admin sign-in: centered mark, one card, one primary path, email, password, forgot. No pipeline crumb, no PORTAL / SESSION / RETURN chips, no app header or rail, no right promo. This file does not specify that door. Reel/player does not build it from here.
 

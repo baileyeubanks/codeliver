@@ -3,7 +3,7 @@
 **For:** Reel/player. **Grade:** Cut. **Author:** Frame. Frame does not grade.
 **Learnings:** [WISTIA_DOMAIN_LEARNINGS_20260923](./WISTIA_DOMAIN_LEARNINGS_20260923.md). Gold page: [wistia.com/product/player](https://wistia.com/product/player).
 **Code:** `components/review/ReviewMediaSurface.tsx`, `components/player/VideoPlayer.tsx`, `components/player/PlayerControls.tsx`, `components/player/PlayerControls.module.css`.
-**Login:** not this checklist. CVP login stays ACS-quiet. Do not apply a Wistia marketing login.
+**Lock:** [FRAME_CVP_SOT_SPLIT_LOCKED_20260923](./FRAME_CVP_SOT_SPLIT_LOCKED_20260923.md). Player SoT is the Wistia stage. Login is ACS and is not this checklist. Land implementation on M2 Content-Co-op-9.
 
 Pass a row only on a running review player, desktop and 390×844. A fail names the visible string or the node.
 

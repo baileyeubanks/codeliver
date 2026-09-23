@@ -3,7 +3,7 @@
 **Seat:** Frame (research). **Build:** Reel. **Grade:** Cut.
 **SoT:** wistia.com, gold centerpiece [wistia.com/product/player](https://wistia.com/product/player). Domain read and the Reel checklist: [WISTIA_DOMAIN_LEARNINGS_20260923](./WISTIA_DOMAIN_LEARNINGS_20260923.md), [CVP-PLAYER-REEL-IMPLEMENT](./CVP-PLAYER-REEL-IMPLEMENT.md).
 **Geometry note:** Wistia’s controls framework still describes the shell as elements over the video (thumbnail, big play, playbar, control bar). That matches the product page. It is not a second SoT.
-**Login:** not this brief. CVP login stays ACS-quiet.
+**Lock:** [FRAME_CVP_SOT_SPLIT_LOCKED_20260923](./FRAME_CVP_SOT_SPLIT_LOCKED_20260923.md). Stage spec: [FRAME_CVP_PLAYER_WISTIA_01](./FRAME_CVP_PLAYER_WISTIA_01.md). Login is ACS. Land implementation on M2 Content-Co-op-9.
 **CVP shell:** `components/review/ReviewMediaSurface.tsx` mounts `components/player/VideoPlayer.tsx`, then `components/player/PlayerControls.tsx` beneath the frame. Public review already paints the well black (`PublicReviewWorkspace.module.css`, `.media .review-video-frame`).
 
 The film is the frame. Chrome is how you touch the frame. A word on the chrome is a feature trying to introduce itself. This ticket moves the shell. It does not restyle the comment column, the multitrack, or the approval spine.

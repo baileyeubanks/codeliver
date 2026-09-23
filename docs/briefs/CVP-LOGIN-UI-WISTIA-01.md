@@ -1,6 +1,6 @@
 # CVP-LOGIN-UI-WISTIA-01 — Quiet auth column
 
-**Do not build the CVP door from this file.** Bailey, 2026-09-23: CVP login stays ACS-quiet. Do not apply the Wistia marketing login or `app.wistia.com/session/new` to `AuthShell`. The notes below are a Wistia session capture only. They are not the CVP login spec.
+**Do not build the CVP door from this file.** Locked split: login is ACS, spec [FRAME_CVP_LOGIN_ACS_SOT_20260923](./FRAME_CVP_LOGIN_ACS_SOT_20260923.md). Do not apply the Wistia marketing login or `app.wistia.com/session/new` to `AuthShell`. The notes below are a Wistia session capture only.
 
 **Seat:** Frame (research). **Build:** Reel. **Grade:** Cut.
 **SoT:** [app.wistia.com/session/new](https://app.wistia.com/session/new), fetched 2026-09-23 (HTML + `authRedesign` CSS).

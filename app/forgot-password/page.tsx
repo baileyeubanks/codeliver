@@ -2,7 +2,7 @@
 
 import { useRef, useState, type FormEvent } from "react";
 import Link from "next/link";
-import { ArrowLeft, CheckCircle2, KeyRound, LoaderCircle } from "lucide-react";
+import { ArrowLeft, CheckCircle2, LoaderCircle } from "lucide-react";
 import AuthShell, { authStyles as styles } from "@/components/auth/AuthShell";
 import {
   buildAuthPageHref,
@@ -74,7 +74,6 @@ export default function ForgotPasswordPage() {
             </Link>
             <header className={styles.heading}>
               <h1 id="forgot-password-title">Reset your password</h1>
-              <p>Enter your account email and we’ll send a secure recovery link.</p>
             </header>
 
             {error ? (
@@ -111,7 +110,7 @@ export default function ForgotPasswordPage() {
                 />
               </label>
               <button className={styles.submit} type="submit" disabled={loading}>
-                {loading ? <LoaderCircle size={17} aria-hidden="true" /> : <KeyRound size={17} aria-hidden="true" />}
+                {loading ? <LoaderCircle size={17} aria-hidden="true" /> : null}
                 {loading ? "Sending..." : "Send recovery link"}
               </button>
             </form>

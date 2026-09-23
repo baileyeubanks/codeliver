@@ -70,11 +70,19 @@ test("forgot and create use the quiet shell with no portal chips or private foot
   const stripped = /Video production workspace|Private account access|Account access|Access readiness|Brief[\s\S]{0,80}delivery/;
 
   assert.match(forgot, /<AuthShell\b/);
+  assert.match(forgot, /Back to sign in/);
+  assert.match(forgot, /Reset your password/);
+  assert.match(forgot, /Send recovery link/);
+  assert.doesNotMatch(forgot, /Enter your account email/);
   assert.match(signup, /<AuthShell\b/);
+  assert.match(signup, /Create your account/);
+  assert.match(signup, /Create account/);
+  assert.doesNotMatch(signup, /Use one identity/);
   assert.doesNotMatch(authShell, stripped);
   assert.doesNotMatch(forgot, stripped);
   assert.doesNotMatch(signup, stripped);
   assert.doesNotMatch(authShell, />\s*Portal\s*</);
   assert.doesNotMatch(authShell, />\s*Session\s*</);
   assert.doesNotMatch(authShell, />\s*Return\s*</);
+  assert.doesNotMatch(authShell, /assurance|Private account access/);
 });

@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, CheckCircle2, Eye, EyeOff, LoaderCircle, UserPlus } from "lucide-react";
+import { ArrowLeft, CheckCircle2, Eye, EyeOff, LoaderCircle } from "lucide-react";
 import { resolveReviewAuthReturn } from "@/lib/auth/review-return";
 import GoogleSignIn from "@/components/auth/GoogleSignIn";
 import AuthShell, { authStyles as styles } from "@/components/auth/AuthShell";
@@ -196,7 +196,6 @@ export default function SignupPage() {
 
             <header className={styles.heading}>
               <h1 id="signup-title">Create your account</h1>
-              <p>Use one identity for comments, approvals, and delivery activity.</p>
             </header>
 
         {!demoMode ? <GoogleSignIn next={returnTarget} /> : null}
@@ -306,7 +305,7 @@ export default function SignupPage() {
               </label>
 
               <button className={styles.submit} type="submit" disabled={loading}>
-                {loading ? <LoaderCircle size={17} aria-hidden="true" /> : <UserPlus size={17} aria-hidden="true" />}
+                {loading ? <LoaderCircle size={17} aria-hidden="true" /> : null}
                 {loading ? "Creating account..." : "Create account"}
               </button>
             </form>

@@ -16,12 +16,14 @@ export { styles as authStyles };
 
 export default function AuthShell({ children, demoMode, loginHref }: AuthShellProps) {
   const hostContext = useAuthHostContext();
+  const resolvedLoginHref = loginHref ?? (demoMode ? "/login?demo=1" : "/login");
 
   return (
     <main
       className={styles.shell}
       data-demo={demoMode ? "true" : "false"}
       data-host-context={hostContext.kind}
+      data-quiet="true"
     >
       <a className={styles.skipLink} href="#auth-content">
         Skip to sign in
@@ -30,7 +32,7 @@ export default function AuthShell({ children, demoMode, loginHref }: AuthShellPr
       <div className={styles.column}>
         <Link
           className={styles.brand}
-          href={loginHref ?? (demoMode ? "/login?demo=1" : "/login")}
+          href={resolvedLoginHref}
           aria-label="Co‑VideoPro by Content Co-op sign in"
         >
           <CoProductionBrand className={styles.brandLockup} priority />

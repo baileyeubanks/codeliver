@@ -78,9 +78,11 @@ test("admin and client hosts share one Content Co-op branded login", () => {
   assert.match(loginPage, /resolveSurfaceMismatchNotice/);
   assert.match(loginPage, /withDemoMode/);
   assert.match(loginPage, /Open the cut that still needs a decision\./);
-  assert.match(loginPage, /Signing in\.\.\." : "Sign in"/);
+  assert.match(loginPage, /Signing in…" : "Sign in"/);
   assert.doesNotMatch(loginPage, /Account access/);
   assert.doesNotMatch(loginPage, /Open local workspace/);
+  assert.doesNotMatch(loginPage, /Request access|Create an account/);
+  assert.match(authShell, /data-quiet="true"/);
   assert.match(authShell, /CoProductionBrand/);
   assert.match(authShell, /aria-label="Co‑VideoPro by Content Co-op sign in"/);
   assert.doesNotMatch(authShell, /brandRail|brandStory|accessStrip|accessReadiness/);
@@ -294,7 +296,7 @@ test("the branded auth, cockpit, and public review shells retain mobile and desk
   assert.match(authStyles, /\.shell\s*\{[\s\S]*?display:\s*flex/);
   assert.match(authStyles, /\.shell\s*\{[\s\S]*?align-items:\s*center/);
   assert.doesNotMatch(authStyles, /\.brandRail\b/);
-  assert.match(authStyles, /\.panel\s*\{[\s\S]*?border-radius:\s*16px/);
+  assert.match(authStyles, /\.panel\s*\{[\s\S]*?border-radius:\s*20px/);
   assert.match(authStyles, /\.accessStrip\s*\{[\s\S]*?display:\s*grid/);
   assert.match(authStyles, /\.accessItem\s*\{[\s\S]*?border-radius:\s*8px/);
   assert.ok(authFormCap, "auth form must have a stable responsive width cap");

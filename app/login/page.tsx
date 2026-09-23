@@ -32,7 +32,6 @@ export default function LoginPage() {
   const returnTarget = useAuthReturnTarget();
   const requestedPath = resolveSafeReturnPath(returnTarget, "/projects");
   const loginHref = buildAuthPageHref("/login", returnTarget, demoMode);
-  const signupHref = buildAuthPageHref("/signup", returnTarget, demoMode);
   const forgotPasswordHref = buildAuthPageHref("/forgot-password", returnTarget, demoMode);
 
   useEffect(() => {
@@ -104,8 +103,14 @@ export default function LoginPage() {
           required_surface: payload.required_surface,
           next: requestedPath,
         });
-        router.replace(`/login?${params.toString()}`);
+        const mismatchSearch = `?${params.toString()}`;
+        // Same-page replace does not remount this page or fire popstate.
+        setError("");
+        setNotice("");
+        setLinkError("");
+        setSurfaceMismatch(resolveSurfaceMismatchNotice(mismatchSearch));
         setLoading(false);
+        router.replace(`/login${mismatchSearch}`);
         return;
       }
       if (!response.ok) {
@@ -225,7 +230,7 @@ export default function LoginPage() {
 
           <button className={styles.submit} type="submit" disabled={loading}>
             {loading ? <LoaderCircle size={17} aria-hidden="true" /> : null}
-            {loading ? "Signing in..." : "Sign in"}
+            {loading ? "Signing in…" : "Sign in"}
           </button>
           {!demoMode ? (
             <Link className={styles.quietLink} href={forgotPasswordHref}>
@@ -233,10 +238,6 @@ export default function LoginPage() {
             </Link>
           ) : null}
         </form>
-
-        <p className={styles.cardFoot}>
-          Need an invite? <Link href={signupHref}>Request access</Link>
-        </p>
       </section>
     </AuthShell>
   );

@@ -3,7 +3,7 @@ import AuthShell, { authStyles as auth } from "@/components/auth/AuthShell";
 import styles from "./welcome.module.css";
 
 /**
- * Public product door. Same quiet auth column and sapphire brand rail as sign-in.
+ * Public product door. Same quiet auth column as sign-in.
  */
 export default function WelcomePage() {
   return (
@@ -15,10 +15,8 @@ export default function WelcomePage() {
         aria-labelledby="welcome-title"
       >
         <header className={auth.heading}>
-          <h1 id="welcome-title">A clear workspace for video production.</h1>
-          <p>
-            Keep projects, review, and delivery connected from the first brief to the final handoff.
-          </p>
+          <h1 id="welcome-title">Co‑VideoPro</h1>
+          <p>Sign in to your workspace.</p>
         </header>
         <div className={styles.actions}>
           <Link href="/login" className={auth.submit}>

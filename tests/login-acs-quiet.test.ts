@@ -37,19 +37,37 @@ test("CVP login passes the ACS quiet door grade", () => {
   );
 });
 
-test("quiet login chrome is brand blue; green, yellow, and red stay on status", () => {
+test("A9 brand chrome is blue, status color stays on status, type stays plain", () => {
   const authStyles = source("components/auth/AuthShell.module.css");
   const login = source("app/login/page.tsx");
+  const resting = authStyles
+    .replace(/--auth-(?:positive|warn|danger):[^;]+;/g, "")
+    .replace(/\.notice\s*\{[\s\S]*?\n\}/g, "")
+    .replace(/\.warn\s*\{[\s\S]*?\n\}/g, "")
+    .replace(/\.alert\s*\{[\s\S]*?\n\}/g, "")
+    .replace(/\.input\[aria-invalid="true"\]\s*\{[\s\S]*?\n\}/g, "")
+    .replace(/\.successIcon\s*\{[\s\S]*?\n\}/g, "")
+    .replace(/\.successKicker\s*\{[\s\S]*?\n\}/g, "")
+    .replace(/\[data-state="complete"\][\s\S]*?\n\}/g, "");
 
   assert.match(authStyles, /background:\s*var\(--auth-bg\)/);
   assert.doesNotMatch(authStyles, /linear-gradient/);
+  assert.match(authStyles, /font-family:\s*var\(--font-body,\s*Inter/);
+  assert.doesNotMatch(authStyles, /font-display|Playfair|Georgia|cursive|fantasy/);
   assert.match(authStyles, /--auth-accent:\s*var\(--cvp-blue/);
   assert.match(authStyles, /--auth-positive:\s*var\(--cvp-success/);
   assert.match(authStyles, /--auth-warn:\s*var\(--cvp-amber/);
   assert.match(authStyles, /--auth-danger:\s*var\(--cvp-red/);
   assert.match(authStyles, /\.heading h1,[\s\S]*?color:\s*var\(--auth-accent\)/);
+  assert.match(authStyles, /\.submit\s*\{[\s\S]*?background:\s*var\(--auth-accent\)/);
+  assert.match(authStyles, /\.quietLink\s*\{[\s\S]*?color:\s*var\(--auth-accent\)/);
   assert.match(authStyles, /\.notice\s*\{[\s\S]*?--auth-positive/);
   assert.match(authStyles, /\.warn\s*\{[\s\S]*?--auth-warn/);
   assert.match(authStyles, /\.alert\s*\{[\s\S]*?--auth-danger/);
+  assert.doesNotMatch(
+    resting,
+    /--auth-positive|--auth-warn|--auth-danger|--cvp-success|--cvp-amber|--cvp-red|#16a34a|#f59e0b|#dc2626|#22c55e|#ecfdf5|#fffbeb|#fef2f2|#e5f6ec|#92400e/,
+  );
   assert.doesNotMatch(login, /#16a34a|#f59e0b|#dc2626|#e8442e|#267553/);
+  assert.doesNotMatch(login, /Start a free trial|Get started|logo wall|Captions/);
 });

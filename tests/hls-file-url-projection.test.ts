@@ -92,6 +92,7 @@ function metadata() {
 
 const state = globalThis as typeof globalThis & {
   __cvpHlsProjectionSupabase: FakeSupabase;
+  __cvpHlsProjectionUser: { id: string; app_metadata?: Record<string, unknown> } | null;
   __cvpHlsProjectionAccessCalls: Array<{
     assetId: string;
     userId: string;
@@ -102,8 +103,14 @@ function dataModule(source: string) {
   return `data:text/javascript,${encodeURIComponent(source)}`;
 }
 const authStub = dataModule(`
-  export async function requireAuth() { return { id: ${JSON.stringify(userId)} }; }
+  export async function requireAuth() { return globalThis.__cvpHlsProjectionUser; }
 `);
+function asStaff() {
+  state.__cvpHlsProjectionUser = { id: userId, app_metadata: { content_coop_role: "staff" } };
+}
+function asClient() {
+  state.__cvpHlsProjectionUser = { id: userId, app_metadata: { content_coop_role: "client" } };
+}
 const accessStub = dataModule(`
   export const PROJECT_ROLE_RANK = { producer: 70 };
   export async function getAssetAccess(assetId, userId, minimumRole) {
@@ -227,6 +234,7 @@ class FakeSupabase {
 test("staff version payload projects published HLS while preserving source fallback", async () => {
   state.__cvpHlsProjectionSupabase = new FakeSupabase();
   state.__cvpHlsProjectionAccessCalls = [];
+  asStaff();
   const { GET } = await import(pathToFileURL(routePath).href);
   const response = await GET(new Request("https://admin.contentco-op.com/ignored"), {
     params: Promise.resolve({ id: assetId }),
@@ -251,6 +259,7 @@ test("staff version payload projects published HLS while preserving source fallb
 test("staff asset payload projects HLS for the asset and current version without leaking metadata", async () => {
   state.__cvpHlsProjectionSupabase = new FakeSupabase();
   state.__cvpHlsProjectionAccessCalls = [];
+  asStaff();
   const { GET } = await import(pathToFileURL(assetRoutePath).href);
   const response = await GET(new Request("https://admin.contentco-op.com/ignored"), {
     params: Promise.resolve({ id: assetId }),
@@ -265,4 +274,35 @@ test("staff asset payload projects HLS for the asset and current version without
   assert.equal(payload.version_count, 2);
   assert.equal(JSON.stringify(payload).includes("media_pipeline"), false);
   assert.equal(JSON.stringify(payload).includes("private/staff-playlist"), false);
+});
+
+// Latch-proved live failure (a0580c0e): a client-role session that received a
+// staff-only playlist URL got 403 STAFF_REQUIRED and a readyState-0 black
+// stage. Client sessions must never see the staff projection at all.
+test("client-role sessions never receive staff-only playlist URLs", async () => {
+  state.__cvpHlsProjectionSupabase = new FakeSupabase();
+  state.__cvpHlsProjectionAccessCalls = [];
+  asClient();
+
+  const { GET: getVersions } = await import(pathToFileURL(routePath).href);
+  const versionsResponse = await getVersions(new Request("https://client.contentco-op.com/ignored"), {
+    params: Promise.resolve({ id: assetId }),
+  });
+  assert.equal(versionsResponse.status, 200);
+  const versionsPayload = await versionsResponse.json();
+  assert.equal(
+    JSON.stringify(versionsPayload).includes("/hls/playlist.m3u8"),
+    false,
+    "client sessions keep the plain managed version URL — never the staff playlist",
+  );
+  assert.equal(versionsPayload.items[0].file_url, "/api/media/versions/private-source-a");
+
+  const { GET: getAsset } = await import(pathToFileURL(assetRoutePath).href);
+  const assetResponse = await getAsset(new Request("https://client.contentco-op.com/ignored"), {
+    params: Promise.resolve({ id: assetId }),
+  });
+  assert.equal(assetResponse.status, 200);
+  const assetPayload = await assetResponse.json();
+  assert.equal(JSON.stringify(assetPayload).includes("/hls/playlist.m3u8"), false);
+  assert.equal(assetPayload.file_url, "/api/media/versions/private-source-a");
 });

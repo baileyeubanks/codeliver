@@ -64,13 +64,39 @@ export default function CommentList({
   canReact = true,
 }: CommentListProps) {
   const [filter, setFilter] = useState<CommentThreadFilter>("all");
+  const [query, setQuery] = useState("");
 
   const threads = buildThreads(comments);
   const counts = countThreadsByStatus(threads);
-  const visible = filterThreads(threads, filter);
+  const statusFiltered = filterThreads(threads, filter);
+  // VA-019 R-W3: the side panel searches bodies, authors, and replies.
+  const normalizedQuery = query.trim().toLowerCase();
+  const visible = normalizedQuery
+    ? statusFiltered.filter((thread) =>
+        thread.comment.body.toLowerCase().includes(normalizedQuery) ||
+        (thread.comment.author_name ?? "").toLowerCase().includes(normalizedQuery) ||
+        thread.replies.some((reply) => reply.body.toLowerCase().includes(normalizedQuery)),
+      )
+    : statusFiltered;
 
   return (
     <div className="min-w-0">
+      {threads.length > 0 ? (
+        <div className="mb-3">
+          <label htmlFor="comment-list-search" className="sr-only">
+            Search comments
+          </label>
+          <input
+            id="comment-list-search"
+            type="search"
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+            placeholder="Search comments"
+            className="min-h-[44px] w-full rounded-full border border-[var(--border)] bg-[var(--surface)] px-3 text-xs text-[var(--ink)] outline-none transition-colors placeholder:text-[var(--dim)] focus:border-[var(--accent)] sm:min-h-0 sm:py-1.5"
+          />
+        </div>
+      ) : null}
+
       {/* Filter chips */}
       <div
         role="group"
@@ -100,7 +126,9 @@ export default function CommentList({
       {/* Threads */}
       {visible.length === 0 ? (
         <p className="border-y border-[var(--border)] px-3 py-4 text-center text-sm text-[var(--dim)]">
-          No {filter === "all" ? "" : `${filter} `}comments yet.
+          {normalizedQuery
+            ? `No comments match "${query.trim()}".`
+            : `No ${filter === "all" ? "" : `${filter} `}comments yet.`}
         </p>
       ) : (
         <div>

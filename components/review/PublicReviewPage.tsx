@@ -20,7 +20,6 @@ import FrameIndicator from "@/components/player/FrameIndicator";
 import ReviewMediaSurface from "@/components/review/ReviewMediaSurface";
 import ReviewWorkspace from "@/components/review/PublicReviewWorkspace";
 import PublicReviewComposer from "@/components/review/PublicReviewComposer";
-import InlineReviewComment from "@/components/review/InlineReviewComment";
 import AnnotationCanvas from "@/components/review/annotation/AnnotationCanvas";
 import AnnotationThumbnail from "@/components/review/annotation/AnnotationThumbnail";
 import AnnotationToolbar from "@/components/review/annotation/AnnotationToolbar";
@@ -244,7 +243,6 @@ export default function PublicReviewPage({
   const [shareSettingsRevision, setShareSettingsRevision] = useState(0);
   const [currentVersionOnly, setCurrentVersionOnly] = useState(false);
   const [watermarkTimestamp] = useState(() => new Date());
-  const [pinMode, setPinMode] = useState(false);
   const [drawMode, setDrawMode] = useState(false);
   const [drawTool, setDrawTool] = useState<AnnotationTool>("arrow");
   const [draftStrokes, setDraftStrokes] = useState<AnnotationData[]>([]);
@@ -875,46 +873,54 @@ export default function PublicReviewPage({
   const shareMeta = isSourcePreview
     ? { ...formatShareIntentMeta(shareIntent), label: "Source preview", permissionsLabel: "Local notes" }
     : formatShareIntentMeta(shareIntent);
-  const stageTitle = isSourcePreview ? "Source player" : shareIntent === "final_delivery" ? "Delivery player" : "Review player";
+  const stageTitle = isSourcePreview ? "Source player" : shareIntent === "final_delivery" ? "Delivery player" : shareIntent === "preview" ? "Preview player" : "Review player";
   const stageDescription = compareMode
     ? "A/B compare — linked playback, no pins or drawings"
     : drawMode
     ? "Draw mode active — Esc to cancel"
-    : pinMode
-    ? "Pin mode active"
     : cutMarkers.length > 0
       ? `${cutMarkers.length} cut ${cutMarkers.length === 1 ? "decision" : "decisions"} marked`
     : isSourcePreview ? "Imported file"
     : shareIntent === "final_delivery"
       ? "Approved version and delivery history"
-      : `Version ${activeVersion?.version_number ?? version?.version_number ?? 1} · Client review`;
+      : shareIntent === "preview"
+        ? "View-only preview of the pinned version"
+        : `Version ${activeVersion?.version_number ?? version?.version_number ?? 1} · Client review`;
   const railTitle =
-    shareIntent === "final_delivery" ? "Delivery" : "Review";
+    shareIntent === "final_delivery" ? "Delivery" : shareIntent === "preview" ? "Preview" : "Review";
   const railHeading =
     shareIntent === "final_delivery"
       ? "Final delivery"
-      : shareIntent === "approval_needed"
-        ? "Comments and approval"
-        : "Comments";
+      : shareIntent === "preview"
+        ? "Preview"
+        : shareIntent === "approval_needed"
+          ? "Comments and approval"
+          : "Comments";
   const railDescription =
     shareIntent === "final_delivery"
       ? `${rootComments.length} notes in the review history.`
-      : permissions === "approve"
-        ? `${openThreads} open notes before sign-off.`
-        : canComment
-          ? `${openThreads} open notes on this version.`
-          : `${rootComments.length} notes on this version.`;
-  const commentsTitle = shareIntent === "final_delivery" ? "Review history" : "Comments";
+      : shareIntent === "preview"
+        ? "Watch only — feedback and approval stay off this link."
+        : permissions === "approve"
+          ? `${openThreads} open notes before sign-off.`
+          : canComment
+            ? `${openThreads} open notes on this version.`
+            : `${rootComments.length} notes on this version.`;
+  const commentsTitle = shareIntent === "final_delivery" ? "Review history" : shareIntent === "preview" ? "Review notes" : "Comments";
   const commentsDescription =
     shareIntent === "final_delivery"
       ? "These notes show the review context that led to this handoff."
-      : "Select a thread to jump the player to that exact moment.";
+      : shareIntent === "preview"
+        ? "These notes are the review context on this version. This link is watch only."
+        : "Select a thread to jump the player to that exact moment.";
   const emptyCommentsDescription =
     shareIntent === "final_delivery"
       ? "No review notes were captured before this delivery was handed off."
-      : canComment
-        ? "Leave the first note from the player to start the review."
-        : "There is no feedback to show for this filter yet.";
+      : shareIntent === "preview"
+        ? "This watch-only preview has no review notes to show."
+        : canComment
+          ? "Leave the first note from the player to start the review."
+          : "There is no feedback to show for this filter yet.";
 
   function seekTo(seconds: number) {
     if (!videoRef.current) return;
@@ -952,7 +958,6 @@ export default function PublicReviewPage({
     setFrameRate(resolveReviewFrameRate(asset?.frame_rate));
     setSelectedCommentId(null);
     setCommentPin(null);
-    setPinMode(false);
     setDrawMode(false);
     setDraftStrokes([]);
     if (typeof window !== "undefined") {
@@ -1096,10 +1101,12 @@ export default function PublicReviewPage({
     setReplyError("");
   }
 
+  // VA-019: tapping the film is the comment gesture — the player has already
+  // paused on the exact frame, so the pin carries that playhead and the rail
+  // composer opens on it. No pin-mode arming step, no under-frame deck.
   function handleFramePin(x: number, y: number, timeSeconds: number) {
     if (!canComment) return;
     setCommentPin({ x, y, timeSeconds });
-    setPinMode(false);
   }
 
   function toggleDrawMode() {
@@ -1111,7 +1118,6 @@ export default function PublicReviewPage({
 
     // Entering draw mode freezes the frame so strokes land on a still image.
     videoRef.current?.pause();
-    setPinMode(false);
     setCommentPin(null);
     setDrawMode(true);
   }
@@ -1142,34 +1148,22 @@ export default function PublicReviewPage({
     });
   }
 
+  // VA-019: images take the same tap-to-pin grammar as film — one tap drops
+  // the pin and opens the rail composer.
   function handleImagePin(event: React.MouseEvent<HTMLDivElement>) {
-    if (!canComment || !pinMode) return;
+    if (!canComment) return;
 
     const rect = event.currentTarget.getBoundingClientRect();
     const x = ((event.clientX - rect.left) / rect.width) * 100;
     const y = ((event.clientY - rect.top) / rect.height) * 100;
 
     setCommentPin({ x, y, timeSeconds: null });
-    setPinMode(false);
-  }
-
-  function togglePinMode() {
-    // Pin mode and draw mode are mutually exclusive ways to start a note.
-    setDrawMode(false);
-    setDraftStrokes([]);
-
-    if (commentPin) {
-      setCommentPin(null);
-      setPinMode(true);
-      return;
-    }
-
-    setPinMode((current) => !current);
   }
 
   function clearPin() {
     setCommentPin(null);
-    setPinMode(false);
+    setDrawMode(false);
+    setDraftStrokes([]);
   }
 
   function handleCommentCreated(comment: ReviewComment) {
@@ -1186,7 +1180,6 @@ export default function PublicReviewPage({
     // available in the timeline but does not obscure playback until selected.
     setSelectedCommentId(null);
     setCommentPin(null);
-    setPinMode(false);
     setDrawMode(false);
     setDraftStrokes([]);
 
@@ -1427,14 +1420,6 @@ export default function PublicReviewPage({
 
         {asset?.file_type === "video" ? <FrameIndicator /> : null}
 
-        {pinMode ? (
-          <div className="pointer-events-none absolute inset-x-0 top-4 flex justify-center">
-            <div className="rounded-full bg-black/70 px-3 py-1 text-xs font-medium text-white">
-              Click the frame to place your pin.
-            </div>
-          </div>
-        ) : null}
-
           {pins.map((comment) => {
           const number = threadNumberById.get(comment.id) ?? 0;
             return (
@@ -1471,26 +1456,6 @@ export default function PublicReviewPage({
             className="review-pending-pin pointer-events-none absolute"
             style={{ left: `${commentPin.x}%`, top: `${commentPin.y}%` }}
             aria-hidden="true"
-          />
-        ) : null}
-
-        {asset && commentPin && canComment && (asset.file_type === "video" || drawMode) ? (
-          <InlineReviewComment
-            token={token}
-            demoMode={demoMode}
-            assetId={asset.id}
-            assetType={asset.file_type}
-            versionId={activeVersion?.id ?? null}
-            reviewInviteId={invite?.id ?? null}
-            reviewerName={reviewerName}
-            onReviewerNameChange={setReviewerName}
-            timecode={commentPin.timeSeconds ?? currentTime}
-            pin={commentPin}
-            annotations={draftStrokes.length > 0 ? draftStrokes : undefined}
-            rasterSize={drawingRasterSize}
-            onCancel={clearPin}
-            onCommentCreated={handleCommentCreated}
-            attachmentEndpoint={!demoMode ? `/api/review/${token}/comments/attachments` : undefined}
           />
         ) : null}
 
@@ -1767,7 +1732,7 @@ export default function PublicReviewPage({
                 }
                 videoRef={videoRef}
                 imageRef={imageRef}
-                pinMode={canComment && pinMode}
+                pinMode={canComment && asset?.file_type === "image"}
                 annotationEnabled={canComment && asset?.file_type === "video"}
                 overlay={renderPins()}
                 onFramePin={handleFramePin}
@@ -1981,8 +1946,8 @@ export default function PublicReviewPage({
             onReviewerNameChange={setReviewerName}
             timecode={commentPin?.timeSeconds ?? currentTime}
             pin={commentPin}
-            pinMode={pinMode}
-            onTogglePinMode={togglePinMode}
+            annotations={draftStrokes.length > 0 ? draftStrokes : undefined}
+            rasterSize={drawingRasterSize}
             onClearPin={clearPin}
             onCommentCreated={handleCommentCreated}
           />

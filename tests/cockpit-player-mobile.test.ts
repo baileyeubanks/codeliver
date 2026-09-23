@@ -40,17 +40,19 @@ test("desktop single-stage playbar stays a full-width seek row inside the frame"
   );
 });
 
-test("phone controls are one overlay row at most 52px with a 3px scrubber", () => {
+test("phone controls are one 44px overlay row with the scrubber inline", () => {
   const phone = phonePlayerCss(cockpitStyles);
+  assert.match(phone, /position:\s*absolute;/);
   assert.match(phone, /flex-wrap:\s*nowrap;/);
-  assert.match(phone, /height:\s*48px;/);
-  assert.match(phone, /max-height:\s*52px;/);
-  assert.match(phone, /\.playerSeekTrack\s*\{[^}]*position:\s*absolute;/);
-  assert.match(phone, /\.playerSeekTrack\s*\{[^}]*height:\s*16px;/);
+  assert.match(phone, /height:\s*44px;/);
+  assert.match(phone, /max-height:\s*44px;/);
+  assert.match(phone, /\.playerSeekTrack\s*\{[^}]*order:\s*2;/);
+  assert.match(phone, /\.playerSeekTrack\s*\{[^}]*position:\s*relative;/);
+  assert.match(phone, /\.playerSeekTrack\s*\{[^}]*flex:\s*1 1 auto;/);
+  assert.doesNotMatch(phone, /\.playerSeekTrack\s*\{[^}]*flex:\s*0 0 100%;/);
   assert.match(phone, /::-webkit-slider-runnable-track\s*\{[^}]*height:\s*3px;/);
   assert.match(phone, /::-webkit-slider-thumb\s*\{[^}]*width:\s*12px;[^}]*height:\s*12px;/);
-  assert.match(phone, /min-height:\s*0;/);
-  assert.match(phone, /button\[aria-label="Previous comment"\]/);
+  assert.match(phone, /> select,[\s\S]*?display:\s*none;/);
   assert.match(phone, /button\[aria-label="Mute"\][\s\S]*display:\s*none;/);
   assert.match(phone, /\.playerDownload\s*\{[^}]*display:\s*inline-flex;/);
 });

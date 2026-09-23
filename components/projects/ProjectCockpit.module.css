@@ -706,30 +706,42 @@
    inside the frame overlay) stays on the rules above. */
 @media (max-width: 767px), (orientation: landscape) and (max-height: 520px) {
   .playerControls:global(.cockpit-video-controls) {
+    position: absolute;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    z-index: 6;
     flex-wrap: nowrap;
-    align-items: flex-end;
-    gap: 2px;
+    align-items: center;
+    gap: 6px;
     box-sizing: border-box;
-    height: 48px;
-    min-height: 48px;
-    max-height: 52px;
-    padding: 0 8px 4px;
+    height: 44px;
+    min-height: 0;
+    max-height: 44px;
+    padding: 0 8px;
     overflow: hidden;
-    background: linear-gradient(180deg, rgba(5, 17, 37, 0) 0%, rgba(5, 17, 37, 0.2) 36%, rgba(5, 17, 37, 0.86) 100%);
+    background: linear-gradient(180deg, rgba(5, 17, 37, 0) 0%, rgba(5, 17, 37, 0.78) 100%);
+    backdrop-filter: none;
   }
+  .playerControls:global(.cockpit-video-controls) > button[aria-label="Play"],
+  .playerControls:global(.cockpit-video-controls) > button[aria-label="Pause"] { order: 1; }
+  .playerControls:global(.cockpit-video-controls) > button[aria-label="Enter fullscreen"] { order: 5; }
   .playerControls:global(.cockpit-video-controls) button,
   .playerControls:global(.cockpit-video-controls) .playerDownload {
-    width: 36px;
-    height: 36px;
-    min-width: 36px;
-    min-height: 36px;
+    width: 32px;
+    height: 32px;
+    min-width: 32px;
+    min-height: 0;
+    flex: 0 0 32px;
   }
   .playerControls:global(.cockpit-video-controls) > .playerTime { display: none; }
   .playerControls:global(.cockpit-video-controls) > .playerTimeCompact {
+    order: 3;
     display: inline;
-    margin-right: auto;
+    flex: 0 0 auto;
+    margin-right: 0;
     color: #f5f8fc;
-    font: 600 12px/1 ui-monospace, SFMono-Regular, Menlo, monospace;
+    font: 600 11px/1 ui-monospace, SFMono-Regular, Menlo, monospace;
     font-variant-numeric: tabular-nums;
     white-space: nowrap;
   }
@@ -740,14 +752,12 @@
   .playerControls:global(.cockpit-video-controls) > select,
   .playerControls:global(.cockpit-video-controls) .volumeSlider { display: none; }
   .playerSeekTrack {
-    position: absolute;
-    top: 0;
-    right: 8px;
-    left: 8px;
-    z-index: 2;
-    flex: none;
+    order: 2;
+    position: relative;
+    flex: 1 1 auto;
     width: auto;
-    height: 16px;
+    min-width: 64px;
+    height: 20px;
     min-height: 0;
   }
   .playerControls:global(.cockpit-video-controls) .playerSeek {
@@ -796,6 +806,7 @@
   .playerCommentMarker { min-width: 20px; min-height: 16px; }
   .playerCommentMarkerDot { width: 6px; height: 6px; }
   .playerControls:global(.cockpit-video-controls) .playerDownload {
+    order: 4;
     display: inline-flex;
     align-items: center;
     justify-content: center;

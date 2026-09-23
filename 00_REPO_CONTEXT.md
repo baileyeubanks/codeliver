@@ -58,7 +58,7 @@ runtime proof and current blockers are separated in `STATUS.md` and
   unavailable responses without leaking provider text. API-wide runtime
   coverage remains unknown pending CCO-C7 (`lib/api/backend.ts`,
   `lib/api/responses.ts`).
-- Central security headers in `next.config.ts`: CSP with `frame-ancestors 'none'`, `X-Frame-Options: DENY`, `X-Content-Type-Options: nosniff`, strict referrer policy, `poweredByHeader: false`, `productionBrowserSourceMaps: false`, and a global `/api/:path*` `Cache-Control: no-store` rule.
+- Central security headers in `next.config.ts`: CSP with `frame-ancestors 'none'`, `X-Frame-Options: DENY`, `X-Content-Type-Options: nosniff`, strict referrer policy, `poweredByHeader: false`, `productionBrowserSourceMaps: false`, and a global `/api/:path*` `Cache-Control: no-store` rule. `compress: false` is required: Next's default gzip plus the Cloudflare tunnel's forwarded `Accept-Encoding: gzip` returns a 0-byte HTML body on `https://co-videopro.com` and `https://client.contentco-op.com`.
 - Public health probes `/api/health` and `/api/health/live` return only `{"status":"ok"}`; detailed readiness/dependency data is staff-gated (`app/api/health/_lib/access.ts`).
 - Stripe access is server-only (`lib/covideopro/payments.server.ts`, `lib/covideopro/checkout.server.ts`) behind authenticated `POST /api/billing/checkout` with server-authoritative amounts, project-admin check, durable rate limit, and idempotency.
 - Webhook management (`app/api/webhooks/**`) authenticates, validates `team_id`, requires team admin, and reserves a durable rate slot before reading any request body; persisted secret fields are sanitized and a signing secret is returned only once at creation.

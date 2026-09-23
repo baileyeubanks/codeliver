@@ -179,8 +179,79 @@ BASE_URL=http://127.0.0.1:4103 ./scripts/verify-runtime.sh
   The verifier checks the demo-query auth boundary, structured session JSON,
   security headers, minimal health, no launch-editor/RSC leak surfaces, absence
   of Stripe server strings in browser chunks, and that served JS source maps are
-  404/410. With a valid session cookie supplied out-of-band as `AUTH_COOKIE` it
-  additionally proves the authenticated unknown-project 404.
+  404/410. It also requests `/login` with `Accept-Encoding: gzip` and requires
+  a non-empty `text/html` body with no `Content-Encoding` and no
+  `Content-Disposition`. With a valid session cookie supplied out-of-band as
+  `AUTH_COOKIE` it additionally proves the authenticated unknown-project 404.
+
+## HTML doors
+
+Both public HTML doors are one Next process (`next start` on port 4103)
+behind the `cco-videopro` Cloudflare Tunnel (`infra/runtime/cloudflare/m2-failover.yml.tmpl`):
+
+| Door | URL | Origin `Host` |
+| --- | --- | --- |
+| Staff / admin | `https://co-videopro.com/login` | `co-videopro.com` |
+| Staff alias | `https://www.co-videopro.com/login` | rewritten to `co-videopro.com` |
+| Client | `https://client.contentco-op.com/login` | `client.contentco-op.com` |
+
+`next.config.ts` sets `compress: false`. Next's default is `true`, and
+deleting the line restores that default. With the default, Cloudflare
+forwards `Accept-Encoding: gzip`, Next gzips the HTML, and the tunnel
+returns a 0-byte body. The browser hangs, or it saves the page as a
+download. Failover commit `3a87845` does not contain this flag; that host
+was patched out of band. This repo flag is the permanent lock. Cloudflare
+stays the only compressor, so a public response may still advertise
+`Content-Encoding: gzip` or `br`. That edge encoding is expected. An
+origin `Content-Encoding` is not.
+
+`npm test` runs `tests/html-door-compression.test.ts`, which fails if the
+imported config is anything other than `false` or if the literal
+`compress: false` disappears from `next.config.ts`. The M2 failover
+contract test greps the same literal. Neither test watches Cloudflare.
+
+Regression that this commit does not close:
+
+- Rebuilding the failover from a tree without `compress: false` puts the
+  hang back on both doors at once. They share `127.0.0.1:4103`.
+- A Cloudflare Worker, Transform Rule, or a second proxy that gzips before
+  Cloudflare can empty the body again while this flag stays false.
+- Do not replace the literal with an environment toggle. Production would
+  be able to turn origin gzip back on without a source diff.
+
+Verify each door is HTML, not a download and not a blank page. `--compressed`
+inflates Cloudflare's edge encoding so the saved file is the document the
+browser paints:
+
+```bash
+for url in https://co-videopro.com/login https://client.contentco-op.com/login; do
+  echo "=== $url ==="
+  curl -sS -D - --compressed -o /tmp/cvp-door.html \
+    -H 'Accept-Encoding: gzip' \
+    -H 'Cache-Control: no-cache' \
+    "$url"
+  echo "bytes=$(wc -c < /tmp/cvp-door.html)"
+  head -c 120 /tmp/cvp-door.html
+  echo
+done
+```
+
+Pass: HTTP 200, `Content-Type: text/html`, no `Content-Disposition`, and a
+body that starts with `<` and is more than a few hundred bytes. Public
+`Content-Encoding: gzip` is Cloudflare and is fine when `--compressed`
+yields HTML.
+
+Fail: `Content-Length: 0` or an empty file (the hang), a body that still
+starts with gzip magic `1f 8b` after `--compressed` (double gzip, which the
+browser downloads or paints blank), or `Content-Disposition: attachment`.
+
+Loopback, after a production build of a tree that contains this flag:
+
+```bash
+curl -sSI -H 'Accept-Encoding: gzip' http://127.0.0.1:4103/login
+```
+
+Pass: `content-type: text/html` and no `content-encoding` line.
 
 ## Declared Docker Contract
 

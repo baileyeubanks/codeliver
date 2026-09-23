@@ -8,7 +8,10 @@ import { PROJECT_STAGE_META, PROJECT_STAGES, type ProjectStage } from "@/lib/cov
 import { deriveExceptions, type RecordException } from "@/lib/covideopro/exceptions.ts";
 import { useDemoMode } from "@/lib/demo/mode";
 import { useDemoWorkspace } from "@/lib/demo/workspace-store";
-import { withWorkspaceQuery } from "@/components/navigation/navigation-model";
+import {
+  roleCan,
+  withWorkspaceQuery,
+} from "@/components/navigation/navigation-model";
 
 const EXCEPTION_KIND_LABEL: Record<RecordException["kind"], string> = {
   release_unsigned: "Release",
@@ -69,8 +72,8 @@ export default function HomePage() {
     return (
       <div className="projects-content flex-1 overflow-y-auto px-6 py-4">
         <div className="empty-state" style={{ minHeight: 320 }}>
-          <h3 className="empty-state-title">Home works with the local workspace</h3>
-          <p className="empty-state-text">The exception rail reads the local Project Operating Record. Connect this environment to your organization workspace, or open a project to continue.</p>
+          <h3 className="empty-state-title">Home is quiet</h3>
+          <p className="empty-state-text">Open a project to continue.</p>
           <div className="flex gap-3 mt-4 justify-center">
             <Link href="/projects" className="btn btn-primary">Open projects <ArrowRight size={15} /></Link>
           </div>
@@ -80,6 +83,10 @@ export default function HomePage() {
   }
 
   const firstName = workspace.settings.profile.firstName || "there";
+  // VA-044: quick actions stay honest about the workspace role.
+  const workspaceRole = workspace.session.role ?? "owner";
+  const canCreateProject = roleCan(workspaceRole, "projects:create");
+  const canWriteOpportunity = roleCan(workspaceRole, "opportunities:write");
 
   return (
     <div className="projects-content flex-1 overflow-y-auto px-6 py-5">
@@ -91,8 +98,12 @@ export default function HomePage() {
           </p>
         </div>
         <div className="flex gap-2">
-          <Link href={withWorkspaceQuery("/opportunities?compose=inquiry", demoSuffix)} className="btn btn-ghost"><Plus size={15} /> Inquiry</Link>
-          <Link href={withWorkspaceQuery("/projects/new", demoSuffix)} className="btn btn-ghost"><Plus size={15} /> Project</Link>
+          {canWriteOpportunity ? (
+            <Link href={withWorkspaceQuery("/opportunities?compose=inquiry", demoSuffix)} className="btn btn-ghost"><Plus size={15} /> Inquiry</Link>
+          ) : null}
+          {canCreateProject ? (
+            <Link href={withWorkspaceQuery("/projects/new", demoSuffix)} className="btn btn-ghost"><Plus size={15} /> Project</Link>
+          ) : null}
         </div>
       </header>
 

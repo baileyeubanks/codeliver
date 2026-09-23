@@ -62,6 +62,17 @@ const CLIENT_API_ROUTE_PATTERNS = [
   new RegExp(
     `^/api/review/media/${HLS_UUID_PATH_SEGMENT}/hls/(?:playlist\\.m3u8|segments/${HLS_SEGMENT_INDEX})$`,
   ),
+  // Client workspace reads. Membership checks stay in the route handlers.
+  // Staff-only families (billing, TUS, transcode, media stream, HLS originals,
+  // bulk/share-batch, export, analysis, transcript, deliverables) stay off this list.
+  /^\/api\/projects$/,
+  new RegExp(`^/api/projects/${UUID_PATH_SEGMENT}(?:/assets)?$`),
+  /^\/api\/assets$/,
+  new RegExp(`^/api/assets/${UUID_PATH_SEGMENT}$`),
+  new RegExp(
+    `^/api/assets/${UUID_PATH_SEGMENT}/(?:comments(?:/attachments)?|edit-decisions|share|versions)$`,
+  ),
+  /^\/api\/teams\/invites$/,
 ];
 
 const ADMIN_API_ROUTE_PATTERNS = [
@@ -71,10 +82,8 @@ const ADMIN_API_ROUTE_PATTERNS = [
   /^\/api\/ai\/summarize$/,
   /^\/api\/analytics\/(?:project|export(?:\/pdf)?)$/,
   /^\/api\/approvals\/(?:notify|workflow)$/,
-  /^\/api\/assets$/,
   /^\/api\/assets\/(?:batch-share|bulk)$/,
   /^\/api\/billing\/checkout$/,
-  new RegExp(`^/api/assets/${UUID_PATH_SEGMENT}$`),
   new RegExp(
     `^/api/assets/${UUID_PATH_SEGMENT}/(?:approvals|comments(?:/attachments)?|edit-decisions|export|share|versions)$`,
   ),
@@ -93,8 +102,6 @@ const ADMIN_API_ROUTE_PATTERNS = [
   /^\/api\/notifications(?:\/(?:preferences|send))?$/,
   /^\/api\/organizations$/,
   new RegExp(`^/api/organizations/${UUID_PATH_SEGMENT}$`),
-  /^\/api\/projects$/,
-  new RegExp(`^/api/projects/${UUID_PATH_SEGMENT}(?:/assets)?$`),
   /^\/api\/sharing\/analytics$/,
   /^\/api\/storage\/readiness$/,
   /^\/api\/teams(?:\/(?:audit|invites))?$/,

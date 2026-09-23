@@ -17,6 +17,10 @@ const reviewUrl = `/api/review/media/${admissionId}/hls/playlist.m3u8`;
 test("client and guest playback never receive a staff HLS playlist", () => {
   assert.equal(isStaffHlsPlaylistUrl(staffUrl), true);
   assert.equal(isStaffHlsPlaylistUrl(`${staffUrl}?download=1`), true);
+  assert.equal(
+    isStaffHlsPlaylistUrl(`/api/assets/${assetId}/hls/playlist.m3u8`),
+    true,
+  );
   assert.equal(isStaffHlsPlaylistUrl(viewerUrl), false);
 
   assert.equal(

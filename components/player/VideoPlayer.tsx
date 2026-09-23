@@ -6,6 +6,13 @@ import { normalizeReviewShortcutKey, projectPointIntoMedia, shouldIgnoreReviewSh
 import { nextShuttleRate, stepFrames } from "@/lib/review/frame-review";
 import { usePlayerStore } from "@/lib/stores/playerStore";
 
+/**
+ * A staff-only or cold playlist can stall before metadata and never fire
+ * an error event, which holds a black readyState-0 frame. Past the paint
+ * budget the stage fails soft instead of waiting.
+ */
+export const STALL_WATCHDOG_MS = 2_000;
+
 interface VideoPlayerProps {
   src: string;
   poster?: string;
@@ -103,11 +110,24 @@ export default function VideoPlayer({
     };
     video.addEventListener("loadedmetadata", restoreTime, { once: true });
 
+    const stallWatchdog = window.setTimeout(() => {
+      if (
+        sourceIsActive &&
+        video.readyState < HTMLMediaElement.HAVE_METADATA &&
+        !video.error
+      ) {
+        reportActiveFailure();
+      }
+    }, STALL_WATCHDOG_MS);
+    const clearStallWatchdog = () => window.clearTimeout(stallWatchdog);
+    video.addEventListener("loadedmetadata", clearStallWatchdog, { once: true });
+
     const isHls = src.split(/[?#]/, 1)[0].toLowerCase().endsWith(".m3u8");
     if (isHls && Hls.isSupported()) {
       const hls = new Hls();
       const handleHlsError = (_event: Events.ERROR, data: ErrorData) => {
-        if (data.fatal) reportActiveFailure();
+        const status = data.response?.code;
+        if (data.fatal || status === 401 || status === 403) reportActiveFailure();
       };
       hls.on(Hls.Events.ERROR, handleHlsError);
       hls.loadSource(src);
@@ -117,8 +137,10 @@ export default function VideoPlayer({
       return () => {
         sourceIsActive = false;
         if (sourceGenerationRef.current === sourceGeneration) sourceGenerationRef.current += 1;
+        window.clearTimeout(stallWatchdog);
         video.removeEventListener("error", handleNativeError);
         video.removeEventListener("loadedmetadata", restoreTime);
+        video.removeEventListener("loadedmetadata", clearStallWatchdog);
         hls.off(Hls.Events.ERROR, handleHlsError);
         hls.destroy();
         if (hlsRef.current === hls) hlsRef.current = null;
@@ -131,8 +153,10 @@ export default function VideoPlayer({
     return () => {
       sourceIsActive = false;
       if (sourceGenerationRef.current === sourceGeneration) sourceGenerationRef.current += 1;
+      window.clearTimeout(stallWatchdog);
       video.removeEventListener("error", handleNativeError);
       video.removeEventListener("loadedmetadata", restoreTime);
+      video.removeEventListener("loadedmetadata", clearStallWatchdog);
     };
   }, [src, sourceNonce, resumeTime, videoRef, reportPlaybackFailure]);
 

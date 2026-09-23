@@ -1,5 +1,12 @@
-const STAFF_HLS_PLAYLIST_PATH =
-  /^\/api\/assets\/[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\/versions\/[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\/hls\/playlist\.m3u8$/i;
+const UUID =
+  "[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}";
+// Confirmed projection is /api/assets/{asset}/versions/{version}/hls/playlist.m3u8.
+// The shorter /api/assets/{asset}/hls/playlist.m3u8 form is the same staff ladder
+// if a caller omits the version segment, and it is staff-only too.
+const STAFF_HLS_PLAYLIST_PATH = new RegExp(
+  `^/api/assets/${UUID}(?:/versions/${UUID})?/hls/playlist\\.m3u8$`,
+  "i",
+);
 
 export function isStaffHlsPlaylistUrl(value: string | null | undefined): boolean {
   if (!value) return false;

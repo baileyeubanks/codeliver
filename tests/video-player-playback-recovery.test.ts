@@ -32,9 +32,11 @@ class FakeVideo {
   buffered = { length: 0, end: () => 0 };
   currentTime = 0;
   duration = 0;
+  error: MediaError | null = null;
   muted = false;
   paused = true;
   playbackRate = 1;
+  readyState = 0;
   src = "";
   videoHeight = 1;
   videoWidth = 1;
@@ -67,7 +69,10 @@ class FakeVideo {
   }
 }
 
-type HlsHandler = (event: string, data: { fatal?: boolean }) => void;
+type HlsHandler = (
+  event: string,
+  data: { fatal?: boolean; response?: { code?: number } },
+) => void;
 
 class FakeHls {
   static instances: FakeHls[] = [];
@@ -91,7 +96,7 @@ class FakeHls {
     this.destroyed += 1;
   }
 
-  emit(name: string, data: { fatal?: boolean }) {
+  emit(name: string, data: { fatal?: boolean; response?: { code?: number } }) {
     for (const handler of this.handlers.get(name) ?? []) handler(name, data);
   }
 
@@ -128,6 +133,8 @@ function videoPlayerHarness() {
   let cursor = 0;
   const pendingEffects: Array<{ effect: Effect; index: number; dependencies: readonly unknown[] | undefined }> = [];
   const video = new FakeVideo();
+  const pendingTimers = new Map<number, () => void>();
+  let nextTimerId = 1;
   const transport = { bufferedEnd: 20, currentTime: 7, duration: 90, playing: true };
   const resetCalls: string[] = [];
 
@@ -192,7 +199,19 @@ function videoPlayerHarness() {
     `(function(require,module,exports){${transpile(resolve(repositoryRoot, "components/player/VideoPlayer.tsx"))}\n})`,
     {
       document: { fullscreenElement: null, exitFullscreen() {} },
-      window: { addEventListener() {}, removeEventListener() {} },
+      HTMLMediaElement: { HAVE_METADATA: 1 },
+      window: {
+        addEventListener() {},
+        removeEventListener() {},
+        setTimeout(callback: () => void) {
+          const id = nextTimerId++;
+          pendingTimers.set(id, callback);
+          return id;
+        },
+        clearTimeout(id: number) {
+          pendingTimers.delete(id);
+        },
+      },
     },
   )(imports, moduleRecord, moduleRecord.exports);
   const VideoPlayer = (moduleRecord.exports as { default: (props: Record<string, unknown>) => Element }).default;
@@ -215,6 +234,11 @@ function videoPlayerHarness() {
   }
 
   return {
+    fireTimers() {
+      const callbacks = [...pendingTimers.values()];
+      pendingTimers.clear();
+      for (const callback of callbacks) callback();
+    },
     hlsInstances: () => [...FakeHls.instances],
     resetCalls,
     render,
@@ -334,6 +358,42 @@ test("VideoPlayer reports fatal HLS failures and ignores a stale transport after
   assert.equal(hls.destroyed, 1, "source replacement destroys the old HLS transport");
   hls.emit(FakeHls.Events.ERROR, { fatal: true });
   assert.equal(failures, 1, "a stale HLS transport cannot fail the replacement source");
+});
+
+test("an unauthorized playlist fails soft without waiting on a black frame", () => {
+  FakeHls.instances = [];
+  FakeHls.supported = true;
+  const app = videoPlayerHarness();
+  let failures = 0;
+  app.render("/api/assets/asset/versions/version/hls/playlist.m3u8", () => { failures += 1; });
+  app.hlsInstances()[0]?.emit(FakeHls.Events.ERROR, { fatal: false, response: { code: 403 } });
+  assert.equal(failures, 1);
+  app.unmount();
+});
+
+test("a cold source that never delivers metadata fails soft instead of holding a black frame", () => {
+  FakeHls.instances = [];
+  FakeHls.supported = false;
+  const app = videoPlayerHarness();
+  let failures = 0;
+  app.render("/media/cold.mp4", () => { failures += 1; });
+  app.fireTimers();
+  assert.equal(failures, 1);
+  assert.deepEqual(app.transport(), {
+    bufferedEnd: 0,
+    currentTime: 0,
+    duration: 0,
+    playing: false,
+  });
+
+  const warm = videoPlayerHarness();
+  let warmFailures = 0;
+  warm.render("/media/warm.mp4", () => { warmFailures += 1; });
+  warm.video.readyState = 2;
+  warm.fireTimers();
+  assert.equal(warmFailures, 0);
+  warm.unmount();
+  app.unmount();
 });
 
 test("ReviewMediaSurface exposes retry after playback failure and only renders an approved fallback", () => {

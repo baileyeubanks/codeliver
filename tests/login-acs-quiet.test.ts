@@ -21,7 +21,7 @@ test("CVP login is the ACS-quiet door: one mark, one card, Sign in", () => {
   assert.match(login, /Forgot password\?/);
   assert.match(login, /"Sign in"/);
   assert.match(login, /Signing in…/);
-  assert.match(login, /Request access/);
+  assert.doesNotMatch(login, /Request access|Create an account/);
   assert.doesNotMatch(login, /Open local workspace/);
   assert.doesNotMatch(login, /Account access/);
   assert.doesNotMatch(login, /Review and approve/);

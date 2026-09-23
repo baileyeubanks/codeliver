@@ -32,7 +32,6 @@ export default function LoginPage() {
   const returnTarget = useAuthReturnTarget();
   const requestedPath = resolveSafeReturnPath(returnTarget, "/projects");
   const loginHref = buildAuthPageHref("/login", returnTarget, demoMode);
-  const signupHref = buildAuthPageHref("/signup", returnTarget, demoMode);
   const forgotPasswordHref = buildAuthPageHref("/forgot-password", returnTarget, demoMode);
 
   useEffect(() => {
@@ -233,10 +232,6 @@ export default function LoginPage() {
             </Link>
           ) : null}
         </form>
-
-        <p className={styles.cardFoot}>
-          Need an invite? <Link href={signupHref}>Request access</Link>
-        </p>
       </section>
     </AuthShell>
   );

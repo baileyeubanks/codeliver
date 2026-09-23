@@ -5,6 +5,8 @@ import {
   selectPublishedHlsPublication,
   selectPublishedProbeFrameRate,
 } from "@/lib/media-pipeline/hls-delivery";
+import { projectPlaybackFileUrl } from "@/lib/media-pipeline/hls-playback-url";
+import { staffHlsProjectionAllowed } from "@/lib/media-pipeline/staff-hls-authority";
 import { getSupabase } from "@/lib/supabase";
 import { versionUploadRetiredResponse } from "@/lib/versions/retirement";
 import { withAssetRouteBoundary } from "../../asset-route-boundary";
@@ -41,6 +43,7 @@ async function GETHandler(_req: Request, { params }: { params: Promise<{ id: str
     .order("version_number", { ascending: false });
 
   if (error) return apiError("Asset versions are unavailable", "BACKEND_UNAVAILABLE", 503);
+  const audience = staffHlsProjectionAllowed(user) ? "staff" : "client";
   const items = (data ?? []).map((version) => {
     const pipelineInput = assetResult.data
       ? {
@@ -52,13 +55,19 @@ async function GETHandler(_req: Request, { params }: { params: Promise<{ id: str
       : null;
     const publication = pipelineInput ? selectPublishedHlsPublication(pipelineInput) : null;
     const frameRate = pipelineInput ? selectPublishedProbeFrameRate(pipelineInput) : null;
-    return publication
-      ? {
-          ...version,
-          file_url: `/api/assets/${id}/versions/${version.id}/hls/playlist.m3u8`,
-          frame_rate: frameRate,
-        }
-      : { ...version, frame_rate: null };
+    const storedFileUrl = typeof version.file_url === "string" ? version.file_url : null;
+    const fileUrl = projectPlaybackFileUrl({
+      audience,
+      published: Boolean(publication),
+      assetId: id,
+      versionId: version.id,
+      storedFileUrl,
+    });
+    return {
+      ...version,
+      ...(fileUrl ? { file_url: fileUrl } : {}),
+      frame_rate: publication ? frameRate : null,
+    };
   });
   return NextResponse.json({ items });
 }

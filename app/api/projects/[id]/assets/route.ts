@@ -1,7 +1,9 @@
 import { requireAuthWithClient } from "@/lib/auth-client";
+import { resolveTrustedSurfaceRole } from "@/lib/auth/host-surface";
 import { getProjectAccess } from "@/lib/access-control";
 import { apiError, apiJson, backendUnavailable } from "@/lib/api/responses";
 import { selectPublishedHlsPublication } from "@/lib/media-pipeline/hls-delivery";
+import { projectPlaybackFileUrl } from "@/lib/media-pipeline/hls-playback-url";
 import { getSupabase } from "@/lib/supabase";
 import { legacyUploadRetiredResponse } from "@/lib/tus/legacy-retirement";
 
@@ -63,6 +65,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
     const metadataByAssetId = new Map(
       (metadataResult.data ?? []).map((row) => [row.id, row.metadata]),
     );
+    const audience = resolveTrustedSurfaceRole(user) === "staff" ? "staff" : "client";
     const items = assets.map((asset) => {
       const metadata = metadataByAssetId.get(asset.id);
       const pipeline =
@@ -82,11 +85,19 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
               versionAssetId: asset.id,
             })
           : null;
-      return publication
-        ? {
-            ...asset,
-            file_url: `/api/assets/${asset.id}/versions/${currentVersionId}/hls/playlist.m3u8`,
-          }
+      const storedFileUrl = typeof asset.file_url === "string" ? asset.file_url : null;
+      const fileUrl =
+        typeof currentVersionId === "string"
+          ? projectPlaybackFileUrl({
+              audience,
+              published: Boolean(publication),
+              assetId: asset.id,
+              versionId: currentVersionId,
+              storedFileUrl,
+            })
+          : null;
+      return fileUrl && fileUrl !== asset.file_url
+        ? { ...asset, file_url: fileUrl }
         : asset;
     });
     return apiJson({ items });

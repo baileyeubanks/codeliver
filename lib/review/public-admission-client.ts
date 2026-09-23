@@ -107,7 +107,7 @@ export async function loadAdmittedPublicReview(
   token: string,
   options: ReviewFetchOptions = {},
 ): Promise<Record<string, unknown>> {
-  await renewPublicReviewAdmission(token, options);
+  const admission = await renewPublicReviewAdmission(token, options);
   const response = await fetch(reviewPath(token), {
     credentials: "same-origin",
     cache: "no-store",
@@ -119,5 +119,8 @@ export async function loadAdmittedPublicReview(
     throw reviewRequestError(payload, "Invalid or expired review link.");
   }
   if (!payload) throw new Error("Review response is unavailable.");
-  return payload;
+  const admissionId = admission.admission_id;
+  return typeof payload.admission_id === "string"
+    ? payload
+    : { ...payload, admission_id: admissionId };
 }

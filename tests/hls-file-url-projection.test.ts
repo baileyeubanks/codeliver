@@ -97,12 +97,21 @@ const state = globalThis as typeof globalThis & {
     userId: string;
     minimumRole: string;
   }>;
+  __cvpHlsProjectionUser?: {
+    id: string;
+    app_metadata: { content_coop_role: "staff" | "client" };
+  };
 };
 function dataModule(source: string) {
   return `data:text/javascript,${encodeURIComponent(source)}`;
 }
 const authStub = dataModule(`
-  export async function requireAuth() { return { id: ${JSON.stringify(userId)} }; }
+  export async function requireAuth() {
+    return globalThis.__cvpHlsProjectionUser ?? {
+      id: ${JSON.stringify(userId)},
+      app_metadata: { content_coop_role: "staff" },
+    };
+  }
 `);
 const accessStub = dataModule(`
   export const PROJECT_ROLE_RANK = { producer: 70 };
@@ -265,4 +274,39 @@ test("staff asset payload projects HLS for the asset and current version without
   assert.equal(payload.version_count, 2);
   assert.equal(JSON.stringify(payload).includes("media_pipeline"), false);
   assert.equal(JSON.stringify(payload).includes("private/staff-playlist"), false);
+});
+
+test("client payloads project viewer HLS and never the staff ladder", async () => {
+  state.__cvpHlsProjectionSupabase = new FakeSupabase();
+  state.__cvpHlsProjectionAccessCalls = [];
+  state.__cvpHlsProjectionUser = {
+    id: userId,
+    app_metadata: { content_coop_role: "client" },
+  };
+  try {
+    const versionsRoute = await import(pathToFileURL(routePath).href);
+    const versionsResponse = await versionsRoute.GET(
+      new Request("https://client.contentco-op.com/ignored"),
+      { params: Promise.resolve({ id: assetId }) },
+    );
+    assert.equal(versionsResponse.status, 200);
+    const versionsPayload = await versionsResponse.json();
+    const viewerUrl = `/api/media/versions/${publishedVersionId}/hls/playlist.m3u8`;
+    assert.equal(versionsPayload.items[0].file_url, viewerUrl);
+    assert.equal(versionsPayload.items[1].file_url, "/api/media/versions/private-source-b");
+    assert.equal(JSON.stringify(versionsPayload).includes("/api/assets/"), false);
+
+    const assetRoute = await import(pathToFileURL(assetRoutePath).href);
+    const assetResponse = await assetRoute.GET(
+      new Request("https://client.contentco-op.com/ignored"),
+      { params: Promise.resolve({ id: assetId }) },
+    );
+    assert.equal(assetResponse.status, 200);
+    const assetPayload = await assetResponse.json();
+    assert.equal(assetPayload.file_url, viewerUrl);
+    assert.equal(assetPayload.current_version.file_url, viewerUrl);
+    assert.equal(JSON.stringify(assetPayload).includes("/api/assets/"), false);
+  } finally {
+    delete state.__cvpHlsProjectionUser;
+  }
 });

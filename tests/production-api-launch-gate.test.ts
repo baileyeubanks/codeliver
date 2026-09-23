@@ -301,7 +301,7 @@ test("production API launch gate fails closed before public, auth, and demo bypa
       assert.equal(runtimeState.__ccoLaunchGateGetUserCalls, 1);
     });
 
-    await t.test("managed version reads require staff authentication and exact route", async () => {
+    await t.test("managed version reads require authentication and the exact route on both surfaces", async () => {
       runtimeState.__ccoLaunchGateUser = { app_metadata: { content_coop_role: "staff" } };
       for (const method of ["GET", "HEAD"]) {
         const response = await proxy(request(ADMIN_HOST, `/api/media/versions/${RESOURCE_ID}`, { method }));
@@ -312,8 +312,55 @@ test("production API launch gate fails closed before public, auth, and demo bypa
       await assertLaunchGated(await proxy(request(ADMIN_HOST, "/api/media/versions/not-a-uuid")), "invalid version");
       runtimeState.__ccoLaunchGateUser = null;
       assert.equal((await proxy(request(ADMIN_HOST, `/api/media/versions/${RESOURCE_ID}`))).status, 401);
+
       runtimeState.__ccoLaunchGateUser = { app_metadata: { content_coop_role: "client" } };
-      await assertLaunchGated(await proxy(request(CLIENT_HOST, `/api/media/versions/${RESOURCE_ID}`)), "client managed original");
+      for (const method of ["GET", "HEAD"]) {
+        const response = await proxy(request(CLIENT_HOST, `/api/media/versions/${RESOURCE_ID}`, { method }));
+        assert.equal(response.status, 200, `client managed original ${method}`);
+        assert.equal(response.headers.get("x-middleware-next"), "1", `client managed original ${method}`);
+      }
+      await assertLaunchGated(await proxy(request(CLIENT_HOST, `/api/media/versions/${RESOURCE_ID}`, { method: "POST" })), "client managed write");
+      await assertLaunchGated(await proxy(request(CLIENT_HOST, `/api/media/versions/${RESOURCE_ID}/extra`)), "client managed alias");
+      await assertLaunchGated(await proxy(request(CLIENT_HOST, "/api/media/versions/not-a-uuid")), "client invalid version");
+      runtimeState.__ccoLaunchGateUser = null;
+      assert.equal((await proxy(request(CLIENT_HOST, `/api/media/versions/${RESOURCE_ID}`))).status, 401);
+    });
+
+    await t.test("El Paso client playlist is not SURFACE_FORBIDDEN", async () => {
+      const assetId = "1ec225a9-e405-453a-9a53-d9dfa7e063a3";
+      const versionId = "bb081d37-ef8f-450f-8006-307f342d148e";
+      const playlist = `/api/assets/${assetId}/versions/${versionId}/hls/playlist.m3u8`;
+      runtimeState.__ccoLaunchGateGetUserCalls = 0;
+      runtimeState.__ccoLaunchGateUser = {
+        app_metadata: { content_coop_role: "client" },
+      };
+
+      for (const pathname of [
+        playlist,
+        `/api/assets/${assetId}/versions/${versionId}/hls/segments/0`,
+        `/api/assets/${assetId}/versions/${versionId}/hls/segments/12`,
+      ]) {
+        const response = await proxy(request(CLIENT_HOST, pathname));
+        assert.equal(response.status, 200, pathname);
+        assert.equal(response.headers.get("x-middleware-next"), "1", pathname);
+      }
+      assert.equal(runtimeState.__ccoLaunchGateGetUserCalls, 3);
+
+      for (const method of ["GET", "HEAD"]) {
+        const response = await proxy(
+          request(CLIENT_HOST, `/api/media/versions/${versionId}`, { method }),
+        );
+        assert.equal(response.status, 200, method);
+        assert.equal(response.headers.get("x-middleware-next"), "1", method);
+      }
+
+      runtimeState.__ccoLaunchGateUser = null;
+      const anonymous = await proxy(request(CLIENT_HOST, playlist));
+      assert.equal(anonymous.status, 401);
+      assert.deepEqual(await anonymous.json(), {
+        error: "Authentication required",
+        code: "AUTH_REQUIRED",
+      });
     });
 
     await t.test("exact HLS delivery shapes reach only their intended production surface", async () => {
@@ -334,16 +381,15 @@ test("production API launch gate fails closed before public, auth, and demo bypa
       runtimeState.__ccoLaunchGateUser = {
         app_metadata: { content_coop_role: "client" },
       };
-      await assertSurfaceGated(
-        await proxy(
-          request(
-            CLIENT_HOST,
-            `/api/assets/${RESOURCE_ID}/versions/${RESOURCE_ID}/hls/playlist.m3u8`,
-          ),
-        ),
-        "client staff HLS route",
-      );
-      assert.equal(runtimeState.__ccoLaunchGateGetUserCalls, 2);
+      for (const pathname of [
+        `/api/assets/${RESOURCE_ID}/versions/${RESOURCE_ID}/hls/playlist.m3u8`,
+        `/api/assets/${RESOURCE_ID}/versions/${RESOURCE_ID}/hls/segments/0`,
+      ]) {
+        const response = await proxy(request(CLIENT_HOST, pathname));
+        assert.equal(response.status, 200, pathname);
+        assert.equal(response.headers.get("x-middleware-next"), "1", pathname);
+      }
+      assert.equal(runtimeState.__ccoLaunchGateGetUserCalls, 4);
 
       for (const pathname of [
         `/api/review/media/${RESOURCE_ID}/hls/playlist.m3u8`,
@@ -353,7 +399,45 @@ test("production API launch gate fails closed before public, auth, and demo bypa
         assert.equal(response.status, 200, pathname);
         assert.equal(response.headers.get("x-middleware-next"), "1", pathname);
       }
-      assert.equal(runtimeState.__ccoLaunchGateGetUserCalls, 2);
+      assert.equal(runtimeState.__ccoLaunchGateGetUserCalls, 4);
+
+      runtimeState.__ccoLaunchGateUser = {
+        app_metadata: { content_coop_role: "staff" },
+      };
+      for (const pathname of [
+        `/api/media/versions/${RESOURCE_ID}/hls/playlist.m3u8`,
+        `/api/media/versions/${RESOURCE_ID}/hls/segments/0`,
+      ]) {
+        const response = await proxy(request(ADMIN_HOST, pathname));
+        assert.equal(response.status, 200, pathname);
+        assert.equal(response.headers.get("x-middleware-next"), "1", pathname);
+      }
+      runtimeState.__ccoLaunchGateUser = {
+        app_metadata: { content_coop_role: "client" },
+      };
+      for (const pathname of [
+        `/api/media/versions/${RESOURCE_ID}/hls/playlist.m3u8`,
+        `/api/media/versions/${RESOURCE_ID}/hls/segments/0`,
+      ]) {
+        const response = await proxy(request(CLIENT_HOST, pathname));
+        assert.equal(response.status, 200, pathname);
+        assert.equal(response.headers.get("x-middleware-next"), "1", pathname);
+      }
+      await assertLaunchGated(
+        await proxy(request(
+          CLIENT_HOST,
+          `/api/media/versions/${RESOURCE_ID}/hls/playlist.m3u8`,
+          { method: "POST" },
+        )),
+        "client viewer HLS write",
+      );
+      await assertLaunchGated(
+        await proxy(request(
+          CLIENT_HOST,
+          `/api/media/versions/${RESOURCE_ID}/hls/playlist.m3u8/extra`,
+        )),
+        "client viewer HLS alias",
+      );
     });
 
     await t.test("client API access is limited to auth, health, and token review", async () => {

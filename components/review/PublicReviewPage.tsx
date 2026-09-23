@@ -98,6 +98,7 @@ import type {
 } from "@/lib/types/codeliver";
 import PlayerTimeline from "@/components/player/PlayerTimeline";
 import { useDemoMediaObjectUrl } from "@/lib/demo/media-blob-store";
+import { clientReviewFileUrl } from "@/lib/media-pipeline/hls-playback-url";
 
 interface Asset {
   id: string;
@@ -609,15 +610,35 @@ export default function PublicReviewPage({
         if (cancelled) return;
 
         const review = payload as unknown as ReviewPayload;
-        setAsset(review.asset);
-        setVersion(review.version ?? null);
+        const admissionId =
+          typeof payload.admission_id === "string" ? payload.admission_id : null;
+        const reviewAsset = review.asset
+          ? {
+              ...review.asset,
+              file_url: clientReviewFileUrl(review.asset.file_url, admissionId),
+            }
+          : review.asset;
+        const reviewVersion = review.version
+          ? {
+              ...review.version,
+              file_url:
+                clientReviewFileUrl(review.version.file_url, admissionId) ??
+                review.version.file_url,
+            }
+          : null;
+        setAsset(reviewAsset);
+        setVersion(reviewVersion);
         // The production payload carries one version today; if it grows a
         // versions array the switcher picks it up without further changes.
         const payloadVersions = (review as ReviewPayload & { versions?: Version[] }).versions;
-        const remoteVersions = payloadVersions?.length
-          ? sortVersions(payloadVersions)
-          : review.version
-            ? [review.version]
+        const scrubbedVersions = (payloadVersions ?? []).map((item) => ({
+          ...item,
+          file_url: clientReviewFileUrl(item.file_url, admissionId) ?? item.file_url,
+        }));
+        const remoteVersions = scrubbedVersions.length
+          ? sortVersions(scrubbedVersions)
+          : reviewVersion
+            ? [reviewVersion]
             : [];
         setVersions(remoteVersions);
         setActiveVersionId(

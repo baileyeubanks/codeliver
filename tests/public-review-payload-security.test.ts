@@ -270,6 +270,14 @@ registerHooks({
         context,
       );
     }
+    if (specifier === "@/lib/media-pipeline/hls-playback-url") {
+      return nextResolve(
+        pathToFileURL(
+          resolve(repositoryRoot, "lib/media-pipeline/hls-playback-url.ts"),
+        ).href,
+        context,
+      );
+    }
     if (specifier === "@/lib/review/admission-authority") {
       return nextResolve(admissionAuthorityStub, context);
     }
@@ -411,7 +419,7 @@ test("anonymous review payload exposes only the external-safe asset projection",
   }]);
   assert.doesNotMatch(
     JSON.stringify(payload),
-    /nas_path|metadata|storage_provider|private-hls|private-user-id|private-resolver-id|private-request-id|review-private|invite-private|reviewer-private@example\.test|INTERNAL EDITORIAL NOTE|uploaded_by|author_email|author_id|resolved_by|resolved_at|review_invite_id|client_request_id|rich_body|mentions|storedReviewXss|onerror|private-provider\.example|\/api\/media\/versions/,
+    /nas_path|metadata|storage_provider|private-hls|private-user-id|private-resolver-id|private-request-id|review-private|invite-private|reviewer-private@example\.test|INTERNAL EDITORIAL NOTE|uploaded_by|author_email|author_id|resolved_by|resolved_at|review_invite_id|client_request_id|rich_body|mentions|storedReviewXss|onerror|private-provider\.example|\/api\/media\/versions|\/api\/assets\//,
   );
   assert.equal(
     payload.download_url,

@@ -3,6 +3,11 @@
 import Image from "next/image";
 import Link from "next/link";
 import { sourceCatalog } from "@/lib/demo/source-catalog";
+import { CLIENT_SURFACE_HOST } from "@/lib/auth/host-surface";
+import {
+  isStaffHlsPlaylistUrl,
+  viewerHlsPlaylistUrl,
+} from "@/lib/media-pipeline/hls-playback-url";
 import ProjectSourceArchive from "./ProjectSourceArchive";
 
 import { useRouter, useSearchParams } from "next/navigation";
@@ -12,6 +17,7 @@ import {
   useMemo,
   useRef,
   useState,
+  useSyncExternalStore,
   type KeyboardEvent as ReactKeyboardEvent,
   type MouseEvent as ReactMouseEvent,
 } from "react";
@@ -127,7 +133,7 @@ import {
 import { formatSmpteTimecode } from "@/components/player/timecode";
 import { resolveReviewFrameRate } from "@/lib/review/frame-review";
 import { usePlayerStore } from "@/lib/stores/playerStore";
-import VideoPlayer from "@/components/player/VideoPlayer";
+import VideoPlayer, { STALL_WATCHDOG_MS } from "@/components/player/VideoPlayer";
 import InlineReviewComment from "@/components/review/InlineReviewComment";
 import AnchoredCommentCallout from "@/components/review/AnchoredCommentCallout";
 import { adjacentTimedComment, orderedTimedComments } from "@/lib/review/comment-navigation";
@@ -607,6 +613,7 @@ export default function ProjectCockpit({
   const [commentSubmitting, setCommentSubmitting] = useState(false);
   const [nativeDuration, setNativeDuration] = useState(0);
   const [hlsSourceNonce, setHlsSourceNonce] = useState(0);
+  const [nativeSourceNonce, setNativeSourceNonce] = useState(0);
   const [hlsResumeTime, setHlsResumeTime] = useState<number | null>(null);
   const [liveComments, setLiveComments] = useState<DemoReviewComment[]>([]);
   const [liveCutMarkers, setLiveCutMarkers] = useState<DemoReviewCutMarker[]>([]);
@@ -725,11 +732,19 @@ export default function ProjectCockpit({
     assetId: activeAsset?.id ?? null,
     versionId: activeLiveVersion?.id ?? null,
   };
-  const activeLiveMediaUrl = activeLiveVersion
-    ? activeLiveVersion.file_url.startsWith("/api/assets/")
-      ? activeLiveVersion.file_url
-      : `/api/media/versions/${encodeURIComponent(activeLiveVersion.id)}`
-    : null;
+  const clientSurface = useSyncExternalStore(
+    () => () => {},
+    () => window.location.hostname === CLIENT_SURFACE_HOST,
+    () => false,
+  );
+  const activeLivePath = activeLiveVersion?.file_url.split(/[?#]/, 1)[0] ?? "";
+  const activeLiveMediaUrl = !activeLiveVersion
+    ? null
+    : clientSurface && isStaffHlsPlaylistUrl(activeLiveVersion.file_url)
+      ? viewerHlsPlaylistUrl(activeLiveVersion.id)
+      : activeLivePath.toLowerCase().endsWith(".m3u8") || activeLivePath.startsWith("/api/assets/")
+        ? activeLiveVersion.file_url
+        : `/api/media/versions/${encodeURIComponent(activeLiveVersion.id)}`;
   const activeCommentDraftKey = activeAsset
     ? reviewCommentDraftKey(activeAsset.id, demoMode ? activeDemoVersionId : activeLiveVersion?.id ?? null)
     : null;
@@ -845,6 +860,23 @@ export default function ProjectCockpit({
       video.removeEventListener("ended", handleEnded);
     };
   }, [activeMediaUrl, hlsMediaActive, isMuted, volume]);
+  useEffect(() => {
+    if (hlsMediaActive || !activeMediaUrl) return;
+    const video = videoRef.current;
+    if (!video) return;
+    const stallWatchdog = window.setTimeout(() => {
+      if (video.readyState < HTMLMediaElement.HAVE_METADATA && !video.error) {
+        setIsPlaying(false);
+        setPlaybackError("This video could not load. Check that the source file is available.");
+      }
+    }, STALL_WATCHDOG_MS);
+    const clearStallWatchdog = () => window.clearTimeout(stallWatchdog);
+    video.addEventListener("loadedmetadata", clearStallWatchdog, { once: true });
+    return () => {
+      window.clearTimeout(stallWatchdog);
+      video.removeEventListener("loadedmetadata", clearStallWatchdog);
+    };
+  }, [activeMediaUrl, hlsMediaActive, nativeSourceNonce]);
   const duration = Math.max(1, nativeDuration || (demoMode ? activeAsset?.duration_seconds : activeLiveVersion?.duration_seconds) || (demoMode ? 5 : 1));
   const previewDuration = demoMode && !sourceCatalog && !localUploadActive
     ? activeAsset?.id === "denie-mcdonald-v4"
@@ -1151,9 +1183,14 @@ export default function ProjectCockpit({
         activeAssetId: activeAsset.id,
       })) return;
       const items = Array.isArray(payload.items) ? payload.items : [];
+      const clientSurface = window.location.hostname === CLIENT_SURFACE_HOST;
       setLiveVersions(items.flatMap((item: Record<string, unknown>) => {
         const version = normalizeLiveReviewVersion(item);
-        return version ? [version] : [];
+        if (!version) return [];
+        if (clientSurface && isStaffHlsPlaylistUrl(version.file_url)) {
+          return [{ ...version, file_url: viewerHlsPlaylistUrl(version.id) }];
+        }
+        return [version];
       }));
       setLiveVersionAssetId(assetId);
       setLiveVersionsError(!response.ok);
@@ -1694,6 +1731,7 @@ export default function ProjectCockpit({
       setHlsSourceNonce((nonce) => nonce + 1);
       return;
     }
+    setNativeSourceNonce((nonce) => nonce + 1);
     videoRef.current?.load();
   }
 

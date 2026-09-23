@@ -225,6 +225,29 @@
   box-shadow: 0 1px 2px rgb(4 15 28 / 0.035);
 }
 
+/* VA-046: the whole row opens the project. */
+.scope :global(.project-card-link) {
+  color: inherit;
+  cursor: pointer;
+  text-decoration: none;
+  transition: border-color 150ms cubic-bezier(0.4, 0, 0.2, 1), box-shadow 150ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.scope :global(.project-card-link:hover) {
+  border-color: var(--cvp-blue);
+  box-shadow: 0 4px 14px rgb(4 15 28 / 0.07);
+}
+
+.scope :global(.project-card-link:focus-visible) {
+  outline: 2px solid var(--cvp-blue);
+  outline-offset: 2px;
+}
+
+.scope :global(.project-card-link:hover .project-open-action) {
+  border-color: var(--cvp-blue);
+  color: var(--cvp-blue);
+}
+
 .scope :global(.project-card-mark),
 .scope :global(.projects-state-icon) {
   display: inline-flex;

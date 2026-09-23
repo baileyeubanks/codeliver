@@ -31,11 +31,14 @@ test("review links filters, empty state, and details dialog stay honest and acce
   assert.match(reviewsPage, /aria-selected=\{tab === "mine"\}/);
   assert.doesNotMatch(reviewsPage, /aria-pressed=\{tab ===/);
   assert.match(reviewsPage, /No review links yet/);
-  assert.match(reviewsPage, /No delivery or notification is implied until a link is created/);
+  // VA-045: one quiet line — no implied-liability manifesto sentence.
+  assert.match(reviewsPage, /Review links appear after a project asset is shared from the cockpit\./);
+  assert.doesNotMatch(reviewsPage, /No delivery or notification is implied/);
   assert.match(reviewsPage, /role="dialog"/);
   assert.match(reviewsPage, /aria-modal="true"/);
   assert.match(reviewsPage, /Close review link details/);
-  assert.match(reviewsPage, /Notification status is controlled by share settings and provider readiness/);
+  assert.match(reviewsPage, /Notifications follow the link(?:&#8217;|’)s share settings\./);
+  assert.doesNotMatch(reviewsPage, /provider readiness/);
   assert.doesNotMatch(reviewsPage, /✕/);
   assert.doesNotMatch(reviewsPage, /notification sent/i);
 });

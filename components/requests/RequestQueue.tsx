@@ -368,8 +368,7 @@ export default function RequestQueue() {
         <p className="mb-1 text-[10px] font-bold uppercase text-[var(--dim)]">Client intake</p>
         <h1 className="text-[22px] font-bold leading-tight text-[var(--ink)]">Request center</h1>
         <p className="mt-1 max-w-2xl text-sm text-[var(--muted)]">
-          Triage client requests, convert the accepted ones into scoped work orders, and keep the
-          per-request conversation in one thread.
+          Triage client requests and keep every conversation in one thread.
         </p>
       </div>
 

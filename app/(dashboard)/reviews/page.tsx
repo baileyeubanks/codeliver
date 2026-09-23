@@ -197,7 +197,7 @@ export default function ReviewsPage() {
             <Link2 size={30} className="mx-auto mb-3 text-[var(--accent)]" />
             <h2 className="text-base font-semibold text-[var(--ink)]">No review links yet</h2>
             <p className="mx-auto mt-1 max-w-md text-sm text-[var(--muted)]">
-              Review links appear after a project asset is shared from the cockpit. No delivery or notification is implied until a link is created.
+              Review links appear after a project asset is shared from the cockpit.
             </p>
             <Link
               href={reviewHref}
@@ -394,7 +394,7 @@ export default function ReviewsPage() {
                   )}
                   <div className="flex items-center gap-2">
                     <Send size={14} className="text-[var(--dim)]" />
-                    Notification status is controlled by share settings and provider readiness.
+                    Notifications follow the link&#8217;s share settings.
                   </div>
                 </div>
               </div>

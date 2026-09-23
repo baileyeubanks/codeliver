@@ -3,14 +3,6 @@ import test from "node:test";
 
 import nextConfig from "../next.config.ts";
 
-test("origin compression stays off so edge gzip does not hang the HTML door", () => {
-  assert.equal(
-    nextConfig.compress,
-    false,
-    "Next must serve identity bytes. Cloudflare already compresses, and a gzip origin response hung the HTML door as a 0-byte body.",
-  );
-});
-
 test("local media flows through the Next image optimizer", () => {
   assert.notEqual(
     nextConfig.images?.unoptimized,

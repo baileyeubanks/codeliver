@@ -27,10 +27,6 @@ const securityHeaders = [
 ];
 
 const nextConfig: NextConfig = {
-  // Origin gzip fights the edge. Cloudflare forwards Accept-Encoding: gzip and
-  // a compressed Next response hung the HTML door as a 0-byte body. Compression
-  // stays at the edge; this process serves identity bytes.
-  compress: false,
   poweredByHeader: false,
   productionBrowserSourceMaps: false,
   async headers() {

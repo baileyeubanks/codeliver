@@ -4088,6 +4088,45 @@ a { color: inherit; text-decoration: none; }
   .cockpit-upload-overlay section > h2 { font-size: 19px; }
 }
 
+/* Phone film: edge-to-edge stage. The control chrome itself is sized in
+   ProjectCockpit.module.css so this does not touch the desktop single-stage. */
+@media (max-width: 767px), (orientation: landscape) and (max-height: 520px) {
+  .cockpit-review-stage {
+    border: 0;
+    border-radius: 0;
+    margin-inline: -16px;
+  }
+  .cockpit-video-frame > time { display: none; }
+  .cockpit-review-overlay,
+  .cockpit-review-canvas { inset: 0 0 48px; }
+  .cockpit-video-controls input[type="range"] {
+    min-height: 0;
+    max-height: 16px;
+  }
+  .cockpit-video-frame:fullscreen,
+  .cockpit-video-frame:-webkit-full-screen {
+    aspect-ratio: auto;
+    width: 100%;
+    height: 100%;
+    max-height: none;
+    border-radius: 0;
+    background: #000;
+  }
+}
+
+@media (max-width: 640px) {
+  .cockpit-review-stage { margin-inline: -12px; }
+}
+
+@media (orientation: landscape) and (max-height: 520px) {
+  .cockpit-video-frame {
+    width: min(100%, calc((100dvh - 140px) * 16 / 9));
+    aspect-ratio: 16 / 9;
+    max-height: calc(100dvh - 140px);
+    margin-inline: auto;
+  }
+}
+
 /* Auth surfaces share the graphite editorial world — the discreet
    private client entrance (Co‑VideoPro design bible, tranche 4). */
 .auth-shell {

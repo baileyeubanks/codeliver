@@ -31,6 +31,7 @@ import {
   Info,
   Link2,
   LoaderCircle,
+  Download,
   Maximize2,
   Menu,
   MapPin,
@@ -215,6 +216,20 @@ const formatClock = formatSmpteTimecode;
 function formatShortClock(seconds: number) {
   const whole = Math.max(0, Math.floor(seconds));
   return `${String(Math.floor(whole / 60)).padStart(2, "0")}:${String(whole % 60).padStart(2, "0")}`;
+}
+
+/** Progressive file URL for the phone player download control. Playlists stay put. */
+function reviewPlayerDownloadHref(url: string | null, streamPlaylist: boolean): string | null {
+  if (!url || streamPlaylist) return null;
+  if (/^(blob:|data:)/.test(url)) return url;
+  const bare = url.split("#", 1)[0];
+  const queryAt = bare.indexOf("?");
+  const path = queryAt === -1 ? bare : bare.slice(0, queryAt);
+  const query = queryAt === -1 ? "" : bare.slice(queryAt + 1);
+  if (!path.startsWith("/api/")) return path;
+  const params = new URLSearchParams(query);
+  params.set("download", "1");
+  return `${path}?${params.toString()}`;
 }
 
 function formatActivity(action: string) {
@@ -805,6 +820,7 @@ export default function ProjectCockpit({
           : activeAsset?.thumbnail_url ?? (sourceCatalog ? null : "/demo/ceraweek-speaker.jpg")
     : activeLiveVersion?.thumbnail_url ?? activeAsset?.thumbnail_url ?? null;
   const hlsMediaActive = activeMediaUrl?.split(/[?#]/, 1)[0].toLowerCase().endsWith(".m3u8") ?? false;
+  const playerDownloadHref = reviewPlayerDownloadHref(activeMediaUrl, hlsMediaActive);
   const activeFrameRate = demoMode
     ? sourceCatalog?.assets.find((source) => source.id === activeAsset?.id)?.frame_rate
     : activeLiveVersion?.frame_rate;
@@ -2755,7 +2771,10 @@ export default function ProjectCockpit({
                         <button type="button" onClick={() => selectAdjacentReviewComment(1)} disabled={orderedRootReviewComments.length === 0} aria-label="Next comment" title="Next comment">
                           <ChevronRight size={18} />
                         </button>
-                        <span data-transport-time>{formatActiveTimecode(currentTime)} / {formatActiveTimecode(previewDuration)}</span>
+                        <span data-transport-time className={styles.playerTime}>{formatActiveTimecode(currentTime)} / {formatActiveTimecode(previewDuration)}</span>
+                        <span className={styles.playerTimeCompact} data-transport-time-compact>
+                          {formatShortClock(currentTime)} / {formatShortClock(previewDuration)}
+                        </span>
                         <div className={styles.playerSeekTrack}>
                           <input
                             type="range"
@@ -2766,6 +2785,7 @@ export default function ProjectCockpit({
                             onChange={(event) => seekTo(Number(event.target.value))}
                             className={styles.playerSeek}
                             aria-label="Review playback position"
+                            style={{ ["--seek-progress" as string]: `${previewDuration > 0 ? (Math.min(currentTime, previewDuration) / previewDuration) * 100 : 0}%` }}
                           />
                           {primaryPlaybarComments.map((comment) => (
                             <button
@@ -2823,13 +2843,41 @@ export default function ProjectCockpit({
                           }}>
                           {[0.5, 0.75, 1, 1.25, 1.5, 2].map((rate) => <option key={rate} value={rate}>{rate}×</option>)}
                         </select>
+                        {playerDownloadHref ? (
+                          <a
+                            className={styles.playerDownload}
+                            href={playerDownloadHref}
+                            download
+                            aria-label="Download video"
+                            title="Download"
+                          >
+                            <Download size={16} aria-hidden="true" />
+                          </a>
+                        ) : (
+                          <button
+                            type="button"
+                            className={styles.playerDownload}
+                            aria-label="Download video"
+                            title="Download isn't available for this cut"
+                            disabled
+                          >
+                            <Download size={16} aria-hidden="true" />
+                          </button>
+                        )}
                         <button
                           type="button"
                           onClick={() => {
                             const video = videoRef.current as (HTMLVideoElement & { webkitEnterFullscreen?: () => void }) | null;
                             const nativeFullscreen = () => { try { video?.webkitEnterFullscreen?.(); } catch { /* Browser may require a new gesture. */ } };
+                            const phoneStage = window.matchMedia("(max-width: 767px), (orientation: landscape) and (max-height: 520px)").matches;
+                            const stage = phoneStage ? videoFrameRef.current : null;
                             if (document.fullscreenElement) void document.exitFullscreen().catch(() => undefined);
-                            else if (video?.requestFullscreen) void video.requestFullscreen().catch(nativeFullscreen);
+                            else if (stage?.requestFullscreen) {
+                              void stage.requestFullscreen().catch(() => {
+                                if (video?.requestFullscreen) void video.requestFullscreen().catch(nativeFullscreen);
+                                else nativeFullscreen();
+                              });
+                            } else if (video?.requestFullscreen) void video.requestFullscreen().catch(nativeFullscreen);
                             else nativeFullscreen();
                           }}
                           aria-label="Enter fullscreen"

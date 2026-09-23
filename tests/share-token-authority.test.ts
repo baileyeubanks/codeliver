@@ -73,7 +73,11 @@ test("team invitations use opaque credentials and never list stored bearer mater
   assert.match(teamInviteRoute, /const lookup = token[\s\S]*opaqueTokenLookup\(token\)/);
   assert.match(teamInviteRoute, /delete safe\.token/);
   assert.doesNotMatch(teamInviteRoute, /\.eq\(["']user_id["'],\s*email\)/);
-  assert.match(teamInviteRoute, /invite\.email\.toLowerCase\(\)[\s\S]*user\.email\.toLowerCase\(\)/);
+  assert.match(teamInviteRoute, /emailsMatch\(invite\.email,\s*user\.email\)/);
+  assert.match(teamInviteRoute, /inviteEmail\.toLowerCase\(\) === userEmail\.toLowerCase\(\)/);
+  assert.match(teamInviteRoute, /readPendingInvite\(lookup\)/);
+  assert.match(teamInviteRoute, /getSupabase\(\)\.from\("team_members"\)\.insert/);
+  assert.doesNotMatch(teamInviteRoute, /getReviewSiteUrl\(\)/);
 });
 
 test("team invitation links have a complete authenticated acceptance surface", () => {

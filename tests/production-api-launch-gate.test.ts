@@ -356,7 +356,7 @@ test("production API launch gate fails closed before public, auth, and demo bypa
       assert.equal(runtimeState.__ccoLaunchGateGetUserCalls, 2);
     });
 
-    await t.test("client API access is limited to auth, health, and token review", async () => {
+    await t.test("client API access admits auth, health, token review, and granted account reads", async () => {
       runtimeState.__ccoLaunchGateGetUserCalls = 0;
       runtimeState.__ccoLaunchGateUser = {
         app_metadata: { content_coop_role: "client" },
@@ -434,6 +434,63 @@ test("production API launch gate fails closed before public, auth, and demo bypa
         );
       }
       assert.equal(runtimeState.__ccoLaunchGateGetUserCalls, 0);
+
+      runtimeState.__ccoLaunchGateGetUserCalls = 0;
+      runtimeState.__ccoLaunchGateUser = null;
+      for (const pathname of [
+        "/api/projects",
+        `/api/projects/${RESOURCE_ID}`,
+        `/api/projects/${RESOURCE_ID}/assets`,
+        "/api/assets",
+        "/api/teams/invites",
+      ]) {
+        const response = await proxy(request(CLIENT_HOST, pathname));
+        assert.equal(response.status, 401, `unsigned client read ${pathname}`);
+        assert.equal(response.headers.get("x-middleware-next"), null, pathname);
+      }
+      const unsignedAccept = await proxy(
+        request(CLIENT_HOST, "/api/teams/invites", { method: "PATCH" }),
+      );
+      assert.equal(unsignedAccept.status, 401, "unsigned client invite accept");
+      assert.equal(runtimeState.__ccoLaunchGateGetUserCalls, 6);
+
+      runtimeState.__ccoLaunchGateGetUserCalls = 0;
+      runtimeState.__ccoLaunchGateUser = {
+        app_metadata: { content_coop_role: "client" },
+      };
+      for (const pathname of [
+        "/api/projects",
+        `/api/projects/${RESOURCE_ID}`,
+        `/api/projects/${RESOURCE_ID}/assets`,
+        "/api/assets",
+        "/api/teams/invites",
+      ]) {
+        const response = await proxy(request(CLIENT_HOST, pathname));
+        assert.equal(response.status, 200, `client read ${pathname}`);
+        assert.equal(response.headers.get("x-middleware-next"), "1", pathname);
+      }
+      const acceptInvite = await proxy(
+        request(CLIENT_HOST, "/api/teams/invites", { method: "PATCH" }),
+      );
+      assert.equal(acceptInvite.status, 200, "client invite accept");
+      assert.equal(acceptInvite.headers.get("x-middleware-next"), "1");
+
+      for (const [method, pathname] of [
+        ["POST", "/api/projects"],
+        ["POST", `/api/projects/${RESOURCE_ID}/assets`],
+        ["PATCH", `/api/projects/${RESOURCE_ID}`],
+        ["DELETE", `/api/projects/${RESOURCE_ID}`],
+        ["POST", "/api/assets"],
+        ["POST", "/api/teams/invites"],
+        ["DELETE", "/api/teams/invites"],
+        ["GET", "/api/teams"],
+        ["GET", `/api/projects/${RESOURCE_ID}/deliverables`],
+      ] as const) {
+        await assertSurfaceGated(
+          await proxy(request(CLIENT_HOST, pathname, { method })),
+          `client mutation stays gated ${method} ${pathname}`,
+        );
+      }
 
       for (const pathname of [
         "/login",

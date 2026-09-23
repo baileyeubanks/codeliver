@@ -199,6 +199,27 @@ function isApiLikePath(pathname: string): boolean {
   return /^\/api(?:\/|$)/i.test(decoded);
 }
 
+const CLIENT_PROJECT_READ = new RegExp(
+  `^/api/projects(?:/${UUID_PATH_SEGMENT}(?:/assets)?)?$`,
+);
+
+// Client-portal account reads. The launch gate runs before the session and
+// before project_members / team_members are consulted, so a granted client
+// still receives SURFACE_FORBIDDEN unless these exact reads are admitted.
+// Mutations stay on the admin allowlist. Invite accept/decline is the one
+// client mutation: the handler checks the signed-in email against the invite.
+function clientAccountRouteAllowed(req: NextRequest): boolean {
+  const { pathname } = req.nextUrl;
+  if (req.method === "GET" || req.method === "HEAD") {
+    return (
+      CLIENT_PROJECT_READ.test(pathname) ||
+      pathname === "/api/assets" ||
+      pathname === "/api/teams/invites"
+    );
+  }
+  return req.method === "PATCH" && pathname === "/api/teams/invites";
+}
+
 function productionApiLaunchGate(
   req: NextRequest,
   hostSurface: NonNullable<ReturnType<typeof resolveHostSurface>>,
@@ -242,6 +263,7 @@ function productionApiLaunchGate(
   const allowedPatterns =
     hostSurface === "admin" ? ADMIN_API_ROUTE_PATTERNS : CLIENT_API_ROUTE_PATTERNS;
   if (allowedPatterns.some((pattern) => pattern.test(pathname))) return null;
+  if (hostSurface === "client" && clientAccountRouteAllowed(req)) return null;
 
   return hostSurface === "client"
     ? surfaceAccessDenied(pathname)

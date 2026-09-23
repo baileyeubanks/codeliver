@@ -78,9 +78,11 @@ test("admin and client hosts share one Content Co-op branded login", () => {
   assert.match(loginPage, /resolveSurfaceMismatchNotice/);
   assert.match(loginPage, /withDemoMode/);
   assert.match(loginPage, /Open the cut that still needs a decision\./);
-  assert.match(loginPage, /Signing in\.\.\." : "Sign in"/);
+  assert.match(loginPage, /Signing in…" : "Sign in"/);
   assert.doesNotMatch(loginPage, /Account access/);
   assert.doesNotMatch(loginPage, /Open local workspace/);
+  assert.doesNotMatch(loginPage, /Request access|Create an account/);
+  assert.match(authShell, /data-quiet="true"/);
   assert.match(authShell, /CoProductionBrand/);
   assert.match(authShell, /aria-label="Co‑VideoPro by Content Co-op sign in"/);
   assert.doesNotMatch(authShell, /brandRail|brandStory|accessStrip|accessReadiness/);

@@ -40,21 +40,43 @@ test("desktop single-stage playbar stays a full-width seek row inside the frame"
   );
 });
 
-test("phone controls are one 44px overlay row with the scrubber inline", () => {
+test("phone controls are a 6% absolute overlay, not a deck under the film", () => {
   const phone = phonePlayerCss(cockpitStyles);
   assert.match(phone, /position:\s*absolute;/);
+  assert.match(phone, /top:\s*auto;/);
+  assert.match(phone, /bottom:\s*0;/);
+  assert.match(phone, /height:\s*6%;/);
+  assert.match(phone, /max-height:\s*6%;/);
+  assert.match(phone, /min-height:\s*0;/);
   assert.match(phone, /flex-wrap:\s*nowrap;/);
-  assert.match(phone, /height:\s*44px;/);
-  assert.match(phone, /max-height:\s*44px;/);
-  assert.match(phone, /\.playerSeekTrack\s*\{[^}]*order:\s*2;/);
-  assert.match(phone, /\.playerSeekTrack\s*\{[^}]*position:\s*relative;/);
+  assert.doesNotMatch(phone, /height:\s*44px/);
+  assert.doesNotMatch(phone, /min-height:\s*4[248]px/);
   assert.match(phone, /\.playerSeekTrack\s*\{[^}]*flex:\s*1 1 auto;/);
   assert.doesNotMatch(phone, /\.playerSeekTrack\s*\{[^}]*flex:\s*0 0 100%;/);
-  assert.match(phone, /::-webkit-slider-runnable-track\s*\{[^}]*height:\s*3px;/);
-  assert.match(phone, /::-webkit-slider-thumb\s*\{[^}]*width:\s*12px;[^}]*height:\s*12px;/);
+  assert.match(phone, /::-webkit-slider-runnable-track\s*\{[^}]*height:\s*2px;/);
   assert.match(phone, /> select,[\s\S]*?display:\s*none;/);
-  assert.match(phone, /button\[aria-label="Mute"\][\s\S]*display:\s*none;/);
   assert.match(phone, /\.playerDownload\s*\{[^}]*display:\s*inline-flex;/);
+  const phoneGlobals = globalStyles.slice(
+    globalStyles.indexOf("/* Phone film:"),
+  );
+  assert.match(
+    phoneGlobals,
+    /\.cockpit-video-frame > video,[\s\S]*?position:\s*absolute;[\s\S]*?inset:\s*0;/,
+  );
+  assert.match(
+    phoneGlobals,
+    /\.cockpit-video-frame > \.cockpit-video-controls\s*\{[^}]*position:\s*absolute;[^}]*height:\s*6%;[^}]*max-height:\s*6%;/,
+  );
+  assert.match(phoneGlobals, /\.cockpit-video-frame > \* \{\s*position:\s*absolute;\s*\}/);
+  assert.doesNotMatch(
+    globalStyles,
+    /@media \(max-width: 640px\) \{[\s\S]*?\.cockpit-video-controls \{[^}]*min-height:\s*42px/,
+  );
+  assert.doesNotMatch(
+    globalStyles,
+    /@media \(max-width: 640px\) \{[\s\S]*?\.cockpit-video-controls button \{[^}]*height:\s*28px/,
+  );
+  assert.match(phone, /\.playerDownload\s*\{[^}]*order:\s*4;/);
 });
 
 test("download stays out of the desktop bar and the phone stage is full-bleed", () => {

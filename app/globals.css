@@ -4026,9 +4026,9 @@ a { color: inherit; text-decoration: none; }
   .cockpit-avatar { width: 30px; height: 30px; }
   .cockpit-timecode { grid-column: 1 / 2; }
   .cockpit-add-comment { grid-column: 2 / 3; }
-  .cockpit-video-controls { min-height: 42px; padding: 6px 8px; gap: 5px; }
+  .cockpit-video-controls { min-height: 0; padding: 0; gap: 4px; }
   .cockpit-video-controls > span { display: none; }
-  .cockpit-video-controls button { width: 28px; height: 28px; }
+  .cockpit-video-controls button { width: auto; height: auto; min-height: 0; }
   .cockpit-track-row { grid-template-columns: 68px minmax(0, 1fr); }
   .cockpit-track-row > label { padding: 0 7px; gap: 5px; font-size: 8px; }
   .cockpit-ruler { margin-left: 68px; font-size: 7px; }
@@ -4096,18 +4096,47 @@ a { color: inherit; text-decoration: none; }
     border-radius: 0;
     margin-inline: -16px;
   }
+  .cockpit-video-frame {
+    position: relative;
+    display: block;
+    width: 100%;
+    height: auto;
+    aspect-ratio: 16 / 9;
+    overflow: hidden;
+  }
+  /* Nothing inside the frame is in document flow, so chrome cannot
+     lengthen the stage into a second panel under the film. */
+  .cockpit-video-frame > * {
+    position: absolute;
+  }
+  .cockpit-video-frame > video,
+  .cockpit-video-frame > [data-player-root],
+  .cockpit-video-frame > .cockpit-video-poster {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    margin: 0;
+  }
   .cockpit-video-frame > time { display: none; }
   .cockpit-review-overlay,
-  .cockpit-review-canvas { inset: 0 0 44px; }
-  .cockpit-video-controls {
-    flex-wrap: nowrap;
-    height: 44px;
+  .cockpit-review-canvas { inset: 0 0 6%; }
+  .cockpit-video-frame > .cockpit-video-controls {
+    position: absolute;
+    top: auto;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    width: auto;
+    height: 6%;
     min-height: 0;
-    max-height: 44px;
+    max-height: 6%;
+    margin: 0;
+    flex-wrap: nowrap;
   }
   .cockpit-video-controls input[type="range"] {
     min-height: 0;
-    max-height: 16px;
+    max-height: 100%;
   }
   .cockpit-video-frame:fullscreen,
   .cockpit-video-frame:-webkit-full-screen {

@@ -223,6 +223,14 @@ registerHooks({
         context,
       );
     }
+    if (specifier === "@/lib/media-pipeline/hls-playback-url") {
+      return nextResolve(
+        pathToFileURL(
+          resolve(repositoryRoot, "lib/media-pipeline/hls-playback-url.ts"),
+        ).href,
+        context,
+      );
+    }
     if (specifier === "@/lib/review/admission-authority") {
       return nextResolve(admissionAuthorityStub, context);
     }

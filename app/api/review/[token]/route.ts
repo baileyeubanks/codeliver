@@ -3,6 +3,7 @@ import {
   selectPublishedHlsPublication,
   selectPublishedProbeFrameRate,
 } from "@/lib/media-pipeline/hls-delivery";
+import { projectPlaybackFileUrl } from "@/lib/media-pipeline/hls-playback-url";
 import { authorizeAdmittedReviewInvite } from "@/lib/review/admission-authority";
 import {
   EXTERNAL_COMMENT_COLUMNS,
@@ -247,9 +248,15 @@ async function getReview(_req: Request, { params }: { params: Promise<{ token: s
   }
 
   const sourceMediaUrl = `/api/review/media/${authority.claims.admissionId}`;
-  const mediaUrl = hlsPublication
-    ? `${sourceMediaUrl}/hls/playlist.m3u8`
-    : sourceMediaUrl;
+  const mediaUrl =
+    projectPlaybackFileUrl({
+      audience: "client",
+      published: Boolean(hlsPublication),
+      assetId: authority.claims.assetId,
+      versionId: authority.claims.versionId,
+      storedFileUrl: sourceMediaUrl,
+      admissionId: authority.claims.admissionId,
+    }) ?? sourceMediaUrl;
 
   return reviewJson({
     asset: invite.assets

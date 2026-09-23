@@ -27,8 +27,7 @@ function runNext() {
       method: "POST",
       headers: {
         Host: host,
-        "content-type": "application/json",
-        "content-length": "2",
+        "content-length": "0",
         "x-codeliver-media-worker-token": token,
       },
       timeout: 30 * 60 * 1000,
@@ -41,7 +40,7 @@ function runNext() {
     });
     request.once("timeout", () => request.destroy(new Error("timeout")));
     request.once("error", reject);
-    request.end("{}");
+    request.end();
   });
 }
 
@@ -49,8 +48,11 @@ while (!stopping) {
   try {
     await runNext();
     if (!stopping) await sleep(2_000);
-  } catch {
-    process.stderr.write("media-worker: recover-and-run-next request failed; retrying\n");
+  } catch (error) {
+    const detail = error instanceof Error ? error.message : "unknown error";
+    process.stderr.write(
+      `media-worker: recover-and-run-next request failed (${detail}); retrying\n`,
+    );
     if (!stopping) await sleep(10_000);
   }
 }

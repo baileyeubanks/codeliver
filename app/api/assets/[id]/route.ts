@@ -8,7 +8,9 @@ import {
   isAssetDeliveryLockedError,
 } from "@/lib/delivery/lock";
 import { getSupabase } from "@/lib/supabase";
+import { resolveTrustedSurfaceRole } from "@/lib/auth/host-surface";
 import { selectPublishedHlsPublication } from "@/lib/media-pipeline/hls-delivery";
+import { projectPlaybackFileUrl } from "@/lib/media-pipeline/hls-playback-url";
 import { apiError, apiJson, backendUnavailable } from "@/lib/api/responses";
 
 const SAFE_ASSET_COLUMNS =
@@ -85,6 +87,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
     return apiError("Asset versions could not be loaded", "BACKEND_UNAVAILABLE", 503);
   }
 
+  const audience = resolveTrustedSurfaceRole(user) === "staff" ? "staff" : "client";
   const projectedVersions = (versions.data ?? []).map((version) => {
     const publication = metadataResult.data
       ? selectPublishedHlsPublication({
@@ -94,11 +97,16 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
           versionAssetId: version.asset_id,
         })
       : null;
-    return publication
-      ? {
-          ...version,
-          file_url: `/api/assets/${id}/versions/${version.id}/hls/playlist.m3u8`,
-        }
+    const storedFileUrl = typeof version.file_url === "string" ? version.file_url : null;
+    const fileUrl = projectPlaybackFileUrl({
+      audience,
+      published: Boolean(publication),
+      assetId: id,
+      versionId: version.id,
+      storedFileUrl,
+    });
+    return fileUrl && fileUrl !== version.file_url
+      ? { ...version, file_url: fileUrl }
       : version;
   });
   const currentVersion = projectedVersions[0] ?? null;

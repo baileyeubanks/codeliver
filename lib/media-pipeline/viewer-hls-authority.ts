@@ -1,7 +1,6 @@
 import { getAssetAccess } from "@/lib/access-control";
 import { apiError, backendUnavailable } from "@/lib/api/responses";
 import { requireAuth } from "@/lib/auth";
-import { resolveTrustedSurfaceRole } from "@/lib/auth/host-surface";
 import {
   selectPublishedHlsPublication,
   type PublishedHlsPublication,
@@ -11,14 +10,17 @@ import { getSupabase } from "@/lib/supabase";
 const UUID_PATTERN =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
-export type StaffHlsAuthorityResult =
+export type ViewerHlsAuthorityResult =
   | { ok: true; publication: PublishedHlsPublication }
   | { ok: false; response: Response };
 
-export async function authorizeStaffHlsPublication(
-  assetId: string,
+/**
+ * Signed-in asset viewers may play a published HLS ladder. This is not the
+ * staff route: callers are not required to be staff.
+ */
+export async function authorizeViewerHlsPublication(
   versionId: string,
-): Promise<StaffHlsAuthorityResult> {
+): Promise<ViewerHlsAuthorityResult> {
   try {
     const user = await requireAuth();
     if (!user) {
@@ -27,13 +29,7 @@ export async function authorizeStaffHlsPublication(
         response: apiError("Authentication required", "AUTH_REQUIRED", 401),
       };
     }
-    if (resolveTrustedSurfaceRole(user) !== "staff") {
-      return {
-        ok: false,
-        response: apiError("Staff access required", "STAFF_REQUIRED", 403),
-      };
-    }
-    if (!UUID_PATTERN.test(assetId) || !UUID_PATTERN.test(versionId)) {
+    if (!UUID_PATTERN.test(versionId)) {
       return {
         ok: false,
         response: apiError("Media not found", "HLS_MEDIA_NOT_FOUND", 404),
@@ -41,6 +37,27 @@ export async function authorizeStaffHlsPublication(
     }
 
     const supabase = getSupabase();
+    const versionResult = await supabase
+      .from("versions")
+      .select("id, asset_id")
+      .eq("id", versionId)
+      .maybeSingle();
+    if (versionResult.error) return { ok: false, response: backendUnavailable() };
+    if (!versionResult.data || versionResult.data.id !== versionId) {
+      return {
+        ok: false,
+        response: apiError("Media not found", "HLS_MEDIA_NOT_FOUND", 404),
+      };
+    }
+
+    const assetId = versionResult.data.asset_id;
+    if (typeof assetId !== "string" || !UUID_PATTERN.test(assetId)) {
+      return {
+        ok: false,
+        response: apiError("Media not found", "HLS_MEDIA_NOT_FOUND", 404),
+      };
+    }
+
     const assetResult = await supabase
       .from("assets")
       .select("id, metadata")
@@ -49,20 +66,6 @@ export async function authorizeStaffHlsPublication(
       .maybeSingle();
     if (assetResult.error) return { ok: false, response: backendUnavailable() };
     if (!assetResult.data) {
-      return {
-        ok: false,
-        response: apiError("Media not found", "HLS_MEDIA_NOT_FOUND", 404),
-      };
-    }
-
-    const versionResult = await supabase
-      .from("versions")
-      .select("id, asset_id")
-      .eq("id", versionId)
-      .eq("asset_id", assetId)
-      .maybeSingle();
-    if (versionResult.error) return { ok: false, response: backendUnavailable() };
-    if (!versionResult.data) {
       return {
         ok: false,
         response: apiError("Media not found", "HLS_MEDIA_NOT_FOUND", 404),
@@ -84,7 +87,7 @@ export async function authorizeStaffHlsPublication(
       assetId,
       assetMetadata: assetResult.data.metadata,
       versionId,
-      versionAssetId: versionResult.data.asset_id,
+      versionAssetId: assetId,
     });
     if (!publication) {
       return {

@@ -3,6 +3,11 @@
 import Image from "next/image";
 import Link from "next/link";
 import { sourceCatalog } from "@/lib/demo/source-catalog";
+import { CLIENT_SURFACE_HOST } from "@/lib/auth/host-surface";
+import {
+  isStaffHlsPlaylistUrl,
+  viewerHlsPlaylistUrl,
+} from "@/lib/media-pipeline/hls-playback-url";
 import ProjectSourceArchive from "./ProjectSourceArchive";
 
 import { useRouter, useSearchParams } from "next/navigation";
@@ -725,8 +730,9 @@ export default function ProjectCockpit({
     assetId: activeAsset?.id ?? null,
     versionId: activeLiveVersion?.id ?? null,
   };
+  const activeLivePath = activeLiveVersion?.file_url.split(/[?#]/, 1)[0] ?? "";
   const activeLiveMediaUrl = activeLiveVersion
-    ? activeLiveVersion.file_url.startsWith("/api/assets/")
+    ? activeLivePath.toLowerCase().endsWith(".m3u8") || activeLivePath.startsWith("/api/assets/")
       ? activeLiveVersion.file_url
       : `/api/media/versions/${encodeURIComponent(activeLiveVersion.id)}`
     : null;
@@ -1151,9 +1157,14 @@ export default function ProjectCockpit({
         activeAssetId: activeAsset.id,
       })) return;
       const items = Array.isArray(payload.items) ? payload.items : [];
+      const clientSurface = window.location.hostname === CLIENT_SURFACE_HOST;
       setLiveVersions(items.flatMap((item: Record<string, unknown>) => {
         const version = normalizeLiveReviewVersion(item);
-        return version ? [version] : [];
+        if (!version) return [];
+        if (clientSurface && isStaffHlsPlaylistUrl(version.file_url)) {
+          return [{ ...version, file_url: viewerHlsPlaylistUrl(version.id) }];
+        }
+        return [version];
       }));
       setLiveVersionAssetId(assetId);
       setLiveVersionsError(!response.ok);

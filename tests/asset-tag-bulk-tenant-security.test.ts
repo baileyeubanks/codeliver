@@ -74,6 +74,20 @@ registerHooks({
         context,
       );
     }
+    if (specifier === "@/lib/media-pipeline/hls-playback-url") {
+      return nextResolve(
+        pathToFileURL(
+          resolve(repositoryRoot, "lib/media-pipeline/hls-playback-url.ts"),
+        ).href,
+        context,
+      );
+    }
+    if (specifier === "@/lib/auth/host-surface") {
+      return nextResolve(
+        pathToFileURL(resolve(repositoryRoot, "lib/auth/host-surface.ts")).href,
+        context,
+      );
+    }
     if (specifier === "@/lib/api/backend") {
       return nextResolve(
         pathToFileURL(resolve(repositoryRoot, "lib/api/backend.ts")).href,

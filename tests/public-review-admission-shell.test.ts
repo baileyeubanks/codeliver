@@ -31,7 +31,10 @@ test("production review opens admission before payload and preserves browser pri
     );
     const payload = await loadAdmittedPublicReview("opaque-token");
 
-    assert.deepEqual(payload, { asset: { id: "asset-a" } });
+    assert.deepEqual(payload, {
+      asset: { id: "asset-a" },
+      admission_id: "11111111-1111-4111-8111-111111111111",
+    });
     assert.equal(calls.length, 2);
     assert.equal(calls[0]?.input, "/api/review/opaque-token/admission");
     assert.equal(calls[0]?.init?.method, "POST");

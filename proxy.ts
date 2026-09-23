@@ -62,11 +62,6 @@ const CLIENT_API_ROUTE_PATTERNS = [
   new RegExp(
     `^/api/review/media/${HLS_UUID_PATH_SEGMENT}/hls/(?:playlist\\.m3u8|segments/${HLS_SEGMENT_INDEX})$`,
   ),
-  // Published review ladders. The route handler authorizes asset viewers;
-  // this admission only stops the client surface from answering 403 first.
-  new RegExp(
-    `^/api/assets/${HLS_UUID_PATH_SEGMENT}/versions/${HLS_UUID_PATH_SEGMENT}/hls/(?:playlist\\.m3u8|segments/${HLS_SEGMENT_INDEX})$`,
-  ),
 ];
 
 const ADMIN_API_ROUTE_PATTERNS = [
@@ -82,6 +77,9 @@ const ADMIN_API_ROUTE_PATTERNS = [
   new RegExp(`^/api/assets/${UUID_PATH_SEGMENT}$`),
   new RegExp(
     `^/api/assets/${UUID_PATH_SEGMENT}/(?:approvals|comments(?:/attachments)?|edit-decisions|export|share|versions)$`,
+  ),
+  new RegExp(
+    `^/api/assets/${HLS_UUID_PATH_SEGMENT}/versions/${HLS_UUID_PATH_SEGMENT}/hls/(?:playlist\\.m3u8|segments/${HLS_SEGMENT_INDEX})$`,
   ),
   new RegExp(
     `^/api/assets/${UUID_PATH_SEGMENT}/analysis(?:/(?:batch|composition|decisions))?$`,
@@ -214,12 +212,19 @@ function productionApiLaunchGate(
     return null;
   }
 
-  // Managed originals retain normal authentication and per-asset authorization.
-  // Admit only this exact read on both surfaces; legacy media APIs stay gated.
+  // Managed originals and the viewer HLS rung retain normal authentication
+  // and per-asset authorization. Admit only these exact reads on both
+  // surfaces. Staff HLS stays on the admin asset route; other legacy media
+  // APIs stay gated.
   if (
     (hostSurface === "admin" || hostSurface === "client") &&
-    new RegExp(`^/api/media/versions/${UUID_PATH_SEGMENT}$`).test(pathname) &&
-    (req.method === "GET" || req.method === "HEAD")
+    (req.method === "GET" || req.method === "HEAD") &&
+    (
+      new RegExp(`^/api/media/versions/${UUID_PATH_SEGMENT}$`).test(pathname) ||
+      new RegExp(
+        `^/api/media/versions/${HLS_UUID_PATH_SEGMENT}/hls/(?:playlist\\.m3u8|segments/${HLS_SEGMENT_INDEX})$`,
+      ).test(pathname)
+    )
   ) {
     return null;
   }

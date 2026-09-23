@@ -4,7 +4,8 @@ import { requireAuthWithClient } from "@/lib/auth-client";
 import { apiError, apiJson, backendUnavailable } from "@/lib/api/responses";
 import { isBackendUnavailableError } from "@/lib/api/backend";
 import { sendEmail } from "@/lib/email";
-import { getReviewSiteUrl } from "@/lib/surface-origins";
+import { getSupabase } from "@/lib/supabase";
+import { CLIENT_PRODUCTION_ORIGIN, getBrowserClientSiteUrl } from "@/lib/surface-origins";
 import { requireTeamRole } from "@/lib/middleware/rbac";
 import { opaqueTokenLookup, persistedOpaqueTokenFields, withoutPersistedTokenSecrets } from "@/lib/security/opaque-token";
 import type { TeamRole } from "@/lib/types/codeliver";
@@ -18,6 +19,22 @@ async function getSession() {
 }
 async function bodyOf(request: Request) { const body = await request.json().catch(() => null); return body && typeof body === "object" && !Array.isArray(body) ? body as Record<string, unknown> : null; }
 function emailOf(value: unknown) { const email = typeof value === "string" ? value.trim().toLowerCase() : ""; return EMAIL_PATTERN.test(email) ? email : null; }
+function emailsMatch(inviteEmail: unknown, userEmail: string | null | undefined) {
+  return typeof inviteEmail === "string" && typeof userEmail === "string" && inviteEmail.toLowerCase() === userEmail.toLowerCase();
+}
+// co-videopro.com is the admin surface. A client role there is surface_mismatch.
+// Production invites always use the client portal, even if the client-site env
+// is pointed at the legacy admin host. Local dev keeps the loopback origin.
+function teamInviteAcceptOrigin() {
+  return process.env.NODE_ENV === "production" ? CLIENT_PRODUCTION_ORIGIN : getBrowserClientSiteUrl();
+}
+// team_invites_select/update and team_members_insert require team rank 80.
+// The invitee is not a member yet, so the user-scoped client cannot see or
+// accept the row. Recipient token reads run on the service client only after
+// the session email is compared to the invite.
+async function readPendingInvite(lookup: { column: "id" | "token" | "token_hash"; value: string }) {
+  return getSupabase().from("team_invites").select("id, team_id, email, role, status, expires_at, invited_by, teams(name)").eq(lookup.column, lookup.value).eq("status", "pending").maybeSingle();
+}
 function inviteRow(row: Record<string, unknown>) { const safe = withoutPersistedTokenSecrets(row); delete safe.token; return safe; }
 function escapeHtml(value: string) { return value.replace(/[&<>"']/g, (character) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[character] ?? character); }
 
@@ -27,11 +44,11 @@ export async function GET(request: NextRequest) {
   try {
     if (token) {
       const lookup = opaqueTokenLookup(token);
-      const result = await supabase.from("team_invites").select("id, team_id, email, role, status, expires_at, teams(name)").eq(lookup.column, lookup.value).eq("status", "pending").maybeSingle();
+      const result = await readPendingInvite(lookup);
       if (result.error) return backendUnavailable();
       if (!result.data) return apiError("Invite not found or already processed", "INVITE_NOT_FOUND", 404);
       if (result.data.expires_at && new Date(result.data.expires_at) <= new Date()) return apiError("This invitation has expired", "INVITE_EXPIRED", 410);
-      if (!user.email || result.data.email.toLowerCase() !== user.email.toLowerCase()) return apiError("This invitation was sent to a different email address", "FORBIDDEN", 403);
+      if (!emailsMatch(result.data.email, user.email)) return apiError("This invitation was sent to a different email address", "FORBIDDEN", 403);
       const team = Array.isArray(result.data.teams) ? result.data.teams[0] : result.data.teams;
       return apiJson({ invite: { id: result.data.id, email: result.data.email, role: result.data.role, expires_at: result.data.expires_at, team: { id: result.data.team_id, name: team?.name ?? "Content Co-op team" } } });
     }
@@ -64,7 +81,7 @@ export async function POST(request: NextRequest) {
     if (inserted.error || !inserted.data) return backendUnavailable();
     const team = await supabase.from("teams").select("name").eq("id", teamId).single();
     if (team.error) return backendUnavailable();
-    const acceptUrl = `${getReviewSiteUrl()}/invite/${token}`; const teamName = team.data?.name ?? "a team"; const senderName = user.email ?? "A Content Co-op producer";
+    const acceptUrl = `${teamInviteAcceptOrigin()}/invite/${token}`; const teamName = team.data?.name ?? "a team"; const senderName = user.email ?? "A Content Co-op producer";
     let delivered = false;
     try { delivered = Boolean(await sendEmail({ to: email, subject: `You're invited to join ${teamName} on Co‑VideoPro`, html: `<p>${escapeHtml(senderName)} invited you to join <strong>${escapeHtml(teamName)}</strong> as ${escapeHtml(role)}.</p><p><a href="${acceptUrl}">Accept Invitation</a></p>` })); } catch { delivered = false; }
     await supabase.from("activity_log").insert({ actor_id: user.id, actor_name: user.email ?? "Unknown", action: "team_invite_sent", details: { team_id: teamId, email, role, delivery_status: delivered ? "sent" : "not_sent" } });
@@ -74,24 +91,30 @@ export async function POST(request: NextRequest) {
 
 export async function PATCH(request: NextRequest) {
   const session = await getSession(); if ("response" in session) return session.response;
-  const { supabase } = session; const user = session.user!; const body = await bodyOf(request); if (!body) return apiError("A JSON object is required", "INVALID_REQUEST", 400);
+  const user = session.user!; const body = await bodyOf(request); if (!body) return apiError("A JSON object is required", "INVALID_REQUEST", 400);
   const token = typeof body.token === "string" ? body.token : null; const inviteId = typeof body.invite_id === "string" ? body.invite_id : null; const action = body.action;
   if ((!token && !inviteId) || (action !== "accept" && action !== "decline")) return apiError("token or invite_id and action are required", "INVALID_REQUEST", 400);
   try {
     const lookup = token ? opaqueTokenLookup(token) : { column: "id" as const, value: inviteId! };
-    const result = await supabase.from("team_invites").select("*").eq(lookup.column, lookup.value).eq("status", "pending").single();
-    if (result.error || !result.data) return result.error?.code === "PGRST116" ? apiError("Invite not found or already processed", "INVITE_NOT_FOUND", 404) : backendUnavailable();
+    const result = await readPendingInvite(lookup);
+    if (result.error) return backendUnavailable();
+    if (!result.data) return apiError("Invite not found or already processed", "INVITE_NOT_FOUND", 404);
     const invite = result.data;
-    if (invite.expires_at && new Date(invite.expires_at) < new Date()) { await supabase.from("team_invites").update({ status: "revoked" }).eq("id", invite.id); return apiError("This invitation has expired", "INVITE_EXPIRED", 410); }
-    if (!user.email || invite.email.toLowerCase() !== user.email.toLowerCase()) return apiError("This invitation was sent to a different email address", "FORBIDDEN", 403);
+    if (invite.expires_at && new Date(invite.expires_at) < new Date()) {
+      const revoked = await getSupabase().from("team_invites").update({ status: "revoked" }).eq("id", invite.id).eq("status", "pending");
+      if (revoked.error) return backendUnavailable();
+      return apiError("This invitation has expired", "INVITE_EXPIRED", 410);
+    }
+    if (!emailsMatch(invite.email, user.email)) return apiError("This invitation was sent to a different email address", "FORBIDDEN", 403);
     if (action === "accept") {
-      const member = await supabase.from("team_members").insert({ team_id: invite.team_id, user_id: user.id, role: invite.role, invited_by: invite.invited_by });
+      if (!validRole(invite.role)) return apiError("Invalid role. Must be admin, member, or viewer.", "INVALID_REQUEST", 400);
+      const member = await getSupabase().from("team_members").insert({ team_id: invite.team_id, user_id: user.id, role: invite.role, invited_by: invite.invited_by });
       if (member.error && member.error.code !== "23505") return backendUnavailable();
     }
-    const updated = await supabase.from("team_invites").update({ status: action === "accept" ? "accepted" : "declined" }).eq("id", invite.id).eq("status", "pending").select("id").maybeSingle();
+    const updated = await getSupabase().from("team_invites").update({ status: action === "accept" ? "accepted" : "declined" }).eq("id", invite.id).eq("status", "pending").select("id").maybeSingle();
     if (updated.error) return backendUnavailable();
     if (!updated.data) return apiError("Invite was already processed", "INVITE_CONFLICT", 409);
-    await supabase.from("activity_log").insert({ actor_id: user.id, actor_name: user.email ?? "Unknown", action: action === "accept" ? "team_invite_accepted" : "team_invite_declined", details: { team_id: invite.team_id, role: invite.role } });
+    await getSupabase().from("activity_log").insert({ actor_id: user.id, actor_name: user.email ?? "Unknown", action: action === "accept" ? "team_invite_accepted" : "team_invite_declined", details: { team_id: invite.team_id, role: invite.role } });
     return apiJson({ ok: true, status: action === "accept" ? "accepted" : "declined" });
   } catch { return backendUnavailable(); }
 }

@@ -7,16 +7,18 @@ import { fileURLToPath } from "node:url";
 /**
  * Regression guard for the dead-share-link defect (2026-09-09).
  *
- * `https://client.contentco-op.com` has no DNS record. The `/review/[token]`
- * route is served from `https://co-videopro.com`. Any code that MINTS a
- * review/share URL must therefore go through `getReviewSiteUrl()` /
- * `toReviewSiteUrl()` in `lib/surface-origins.ts` — never through the
- * client-origin helpers (`getBrowserClientSiteUrl`, `toClientSiteUrl`,
- * `getBaseUrl`) and never through a hard-coded client host.
+ * The `/review/[token]` route is served from `https://co-videopro.com`.
+ * Any code that MINTS a review/share URL must therefore go through
+ * `getReviewSiteUrl()` / `toReviewSiteUrl()` in `lib/surface-origins.ts` —
+ * never through the client-origin helpers (`getBrowserClientSiteUrl`,
+ * `toClientSiteUrl`, `getBaseUrl`) and never through a hard-coded client host.
  *
  * Legitimate remaining uses of the client origin — the auth/login portal,
- * Host-header derivation, the env-var registry, and the single canonical
- * constant — are allow-listed by exact file path below.
+ * Host-header derivation, the env-var registry, the single canonical
+ * constant, and team-invite acceptance — are allow-listed by exact file path
+ * below. Public review links stay on co-videopro.com. Invite acceptance is an
+ * account action: that host is the admin surface, and a client role there is
+ * surface_mismatch.
  */
 
 const repositoryRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
@@ -32,6 +34,10 @@ const CLIENT_ORIGIN_ALLOWLIST = new Map<string, string>([
   ["components/auth/auth-context.ts", "client-portal host detection for the login surface"],
   ["components/auth/auth-policy.ts", "auth portal origin policy"],
   ["lib/email.ts", "getBaseUrl() is the account-portal base; review links use publicReviewUrl()"],
+  [
+    "app/api/teams/invites/route.ts",
+    "team invite acceptance is an account action on the client portal; co-videopro.com is the admin surface",
+  ],
 ]);
 
 /**
@@ -105,8 +111,8 @@ test("no source file outside the allow-list references a client-origin link help
   assert.deepEqual(
     offenders,
     [],
-    `Client-origin link helpers escaped the allow-list. https://client.contentco-op.com has no DNS; ` +
-      `mint review/share URLs with getReviewSiteUrl()/toReviewSiteUrl() instead.\n${offenders.join("\n")}`,
+    `Client-origin link helpers escaped the allow-list. ` +
+      `Mint review/share URLs with getReviewSiteUrl()/toReviewSiteUrl().\n${offenders.join("\n")}`,
   );
 });
 
@@ -156,10 +162,6 @@ const ORIGIN_CAPTURES: Array<{ pattern: RegExp; requiresReviewHint: boolean }> =
   { pattern: /buildSurfaceUrl\(\s*([^,\n]+?)\s*,/g, requiresReviewHint: true },
   // { baseUrl: origin } handed to the share-notification builder
   { pattern: /\bbaseUrl:\s*([^,;\n]+?)\s*,?\s*$/g, requiresReviewHint: false },
-  // `${origin}/invite/<token>` — team invites are served by /invite/[token] in THIS app.
-  { pattern: /\$\{([^}]+)\}\/invite\//g, requiresReviewHint: false },
-  // origin + "/invite/..."
-  { pattern: /([A-Za-z_$][\w$.]*(?:\([^()]*\))?)\s*\+\s*["'`]\/invite\//g, requiresReviewHint: false },
 ];
 
 /** Captures gated on RELATIVE_DESTINATION_HINT rather than REVIEW_LINK_HINT. */
@@ -295,8 +297,10 @@ test("every previously-broken call site uses the review-site helper", () => {
     ["components/projects/ProjectCockpit.tsx", /getReviewSiteUrl\(window\.location\.origin\)/],
     ["app/(dashboard)/reviews/page.tsx", /toReviewSiteUrl\(value, runtimeOrigin\)/],
     ["app/api/approvals/notify/route.ts", /\$\{getReviewSiteUrl\(\)\}\/review\//],
-    // 2026-09-09: team invite acceptance links pointed at the dead client host.
-    ["app/api/teams/invites/route.ts", /\$\{getReviewSiteUrl\(\)\}\/invite\//],
+    // 2026-09-09 pinned invites to the review host while the client portal had no DNS.
+    // The client portal is the live account door. co-videopro.com is the admin surface,
+    // so a client role there is surface_mismatch. Acceptance links use the client origin.
+    ["app/api/teams/invites/route.ts", /\$\{teamInviteAcceptOrigin\(\)\}\/invite\//],
     // 2026-09-09: notification emails prefixed relative action URLs with the dead client host.
     ["lib/notifications/adapters.ts", /\$\{getReviewSiteUrl\(\)\}\$\{actionUrl\}/],
   ];

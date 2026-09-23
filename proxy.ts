@@ -62,6 +62,9 @@ const CLIENT_API_ROUTE_PATTERNS = [
   new RegExp(
     `^/api/review/media/${HLS_UUID_PATH_SEGMENT}/hls/(?:playlist\\.m3u8|segments/${HLS_SEGMENT_INDEX})$`,
   ),
+  new RegExp(
+    `^/api/assets/${HLS_UUID_PATH_SEGMENT}/versions/${HLS_UUID_PATH_SEGMENT}/hls/(?:playlist\\.m3u8|segments/${HLS_SEGMENT_INDEX})$`,
+  ),
 ];
 
 const ADMIN_API_ROUTE_PATTERNS = [
@@ -77,9 +80,6 @@ const ADMIN_API_ROUTE_PATTERNS = [
   new RegExp(`^/api/assets/${UUID_PATH_SEGMENT}$`),
   new RegExp(
     `^/api/assets/${UUID_PATH_SEGMENT}/(?:approvals|comments(?:/attachments)?|edit-decisions|export|share|versions)$`,
-  ),
-  new RegExp(
-    `^/api/assets/${HLS_UUID_PATH_SEGMENT}/versions/${HLS_UUID_PATH_SEGMENT}/hls/(?:playlist\\.m3u8|segments/${HLS_SEGMENT_INDEX})$`,
   ),
   new RegExp(
     `^/api/assets/${UUID_PATH_SEGMENT}/analysis(?:/(?:batch|composition|decisions))?$`,

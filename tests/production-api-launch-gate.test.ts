@@ -344,16 +344,15 @@ test("production API launch gate fails closed before public, auth, and demo bypa
       runtimeState.__ccoLaunchGateUser = {
         app_metadata: { content_coop_role: "client" },
       };
-      await assertSurfaceGated(
-        await proxy(
-          request(
-            CLIENT_HOST,
-            `/api/assets/${RESOURCE_ID}/versions/${RESOURCE_ID}/hls/playlist.m3u8`,
-          ),
-        ),
-        "client staff HLS route",
-      );
-      assert.equal(runtimeState.__ccoLaunchGateGetUserCalls, 2);
+      for (const pathname of [
+        `/api/assets/${RESOURCE_ID}/versions/${RESOURCE_ID}/hls/playlist.m3u8`,
+        `/api/assets/${RESOURCE_ID}/versions/${RESOURCE_ID}/hls/segments/0`,
+      ]) {
+        const response = await proxy(request(CLIENT_HOST, pathname));
+        assert.equal(response.status, 200, pathname);
+        assert.equal(response.headers.get("x-middleware-next"), "1", pathname);
+      }
+      assert.equal(runtimeState.__ccoLaunchGateGetUserCalls, 4);
 
       for (const pathname of [
         `/api/review/media/${RESOURCE_ID}/hls/playlist.m3u8`,
@@ -363,7 +362,7 @@ test("production API launch gate fails closed before public, auth, and demo bypa
         assert.equal(response.status, 200, pathname);
         assert.equal(response.headers.get("x-middleware-next"), "1", pathname);
       }
-      assert.equal(runtimeState.__ccoLaunchGateGetUserCalls, 2);
+      assert.equal(runtimeState.__ccoLaunchGateGetUserCalls, 4);
 
       runtimeState.__ccoLaunchGateUser = {
         app_metadata: { content_coop_role: "staff" },

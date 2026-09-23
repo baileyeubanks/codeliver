@@ -3,7 +3,7 @@ import {
   parseHlsSegmentIndex,
   publishedHlsSegmentResponse,
 } from "@/lib/media-pipeline/hls-http";
-import { authorizeStaffHlsPublication } from "@/lib/media-pipeline/staff-hls-authority";
+import { authorizeAssetHlsRead } from "@/lib/media-pipeline/staff-hls-authority";
 import { createStorageRuntime } from "@/lib/storage/runtime";
 
 export const runtime = "nodejs";
@@ -18,7 +18,7 @@ export async function GET(
   },
 ) {
   const { id, versionId, index: rawIndex } = await params;
-  const authority = await authorizeStaffHlsPublication(id, versionId);
+  const authority = await authorizeAssetHlsRead(id, versionId);
   if (!authority.ok) return authority.response;
   const index = parseHlsSegmentIndex(rawIndex);
   if (index === null || !authority.publication.segments[index]) {

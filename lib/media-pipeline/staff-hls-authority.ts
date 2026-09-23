@@ -1,7 +1,10 @@
 import { getAssetAccess } from "@/lib/access-control";
 import { apiError, backendUnavailable } from "@/lib/api/responses";
 import { requireAuth } from "@/lib/auth";
-import { resolveTrustedSurfaceRole } from "@/lib/auth/host-surface";
+import {
+  resolveTrustedSurfaceRole,
+  type ServerIdentity,
+} from "@/lib/auth/host-surface";
 import {
   selectPublishedHlsPublication,
   type PublishedHlsPublication,
@@ -13,30 +16,29 @@ const UUID_PATTERN =
 
 export type StaffHlsAuthorityResult =
   | { ok: true; publication: PublishedHlsPublication }
-  | { ok: false; response: Response };
+  | { ok: false; response: Response; code: string };
 
-export async function authorizeStaffHlsPublication(
+/**
+ * Only staff sessions may be given the staff playlist URL. Client and
+ * legacy null-role sessions keep a client-authorized playback URL.
+ */
+export function staffHlsProjectionAllowed(
+  identity: ServerIdentity | null | undefined,
+): boolean {
+  return resolveTrustedSurfaceRole(identity) === "staff";
+}
+
+async function authorizePublishedAssetHls(
+  user: { id: string },
   assetId: string,
   versionId: string,
 ): Promise<StaffHlsAuthorityResult> {
   try {
-    const user = await requireAuth();
-    if (!user) {
-      return {
-        ok: false,
-        response: apiError("Authentication required", "AUTH_REQUIRED", 401),
-      };
-    }
-    if (resolveTrustedSurfaceRole(user) !== "staff") {
-      return {
-        ok: false,
-        response: apiError("Staff access required", "STAFF_REQUIRED", 403),
-      };
-    }
     if (!UUID_PATTERN.test(assetId) || !UUID_PATTERN.test(versionId)) {
       return {
         ok: false,
         response: apiError("Media not found", "HLS_MEDIA_NOT_FOUND", 404),
+        code: "HLS_MEDIA_NOT_FOUND",
       };
     }
 
@@ -47,11 +49,14 @@ export async function authorizeStaffHlsPublication(
       .eq("id", assetId)
       .is("deleted_at", null)
       .maybeSingle();
-    if (assetResult.error) return { ok: false, response: backendUnavailable() };
+    if (assetResult.error) {
+      return { ok: false, response: backendUnavailable(), code: "BACKEND_UNAVAILABLE" };
+    }
     if (!assetResult.data) {
       return {
         ok: false,
         response: apiError("Media not found", "HLS_MEDIA_NOT_FOUND", 404),
+        code: "HLS_MEDIA_NOT_FOUND",
       };
     }
 
@@ -61,11 +66,14 @@ export async function authorizeStaffHlsPublication(
       .eq("id", versionId)
       .eq("asset_id", assetId)
       .maybeSingle();
-    if (versionResult.error) return { ok: false, response: backendUnavailable() };
+    if (versionResult.error) {
+      return { ok: false, response: backendUnavailable(), code: "BACKEND_UNAVAILABLE" };
+    }
     if (!versionResult.data) {
       return {
         ok: false,
         response: apiError("Media not found", "HLS_MEDIA_NOT_FOUND", 404),
+        code: "HLS_MEDIA_NOT_FOUND",
       };
     }
 
@@ -77,6 +85,7 @@ export async function authorizeStaffHlsPublication(
           access.status >= 500
             ? backendUnavailable()
             : apiError("Media not found", "HLS_MEDIA_NOT_FOUND", 404),
+        code: access.status >= 500 ? "BACKEND_UNAVAILABLE" : "HLS_MEDIA_NOT_FOUND",
       };
     }
 
@@ -90,10 +99,71 @@ export async function authorizeStaffHlsPublication(
       return {
         ok: false,
         response: apiError("Media not found", "HLS_MEDIA_NOT_FOUND", 404),
+        code: "HLS_MEDIA_NOT_FOUND",
       };
     }
     return { ok: true, publication };
   } catch {
-    return { ok: false, response: backendUnavailable() };
+    return { ok: false, response: backendUnavailable(), code: "BACKEND_UNAVAILABLE" };
   }
+}
+
+export async function authorizeStaffHlsPublication(
+  assetId: string,
+  versionId: string,
+): Promise<StaffHlsAuthorityResult> {
+  try {
+    const user = await requireAuth();
+    if (!user) {
+      return {
+        ok: false,
+        response: apiError("Authentication required", "AUTH_REQUIRED", 401),
+        code: "AUTH_REQUIRED",
+      };
+    }
+    if (!staffHlsProjectionAllowed(user)) {
+      return {
+        ok: false,
+        response: apiError("Staff access required", "STAFF_REQUIRED", 403),
+        code: "STAFF_REQUIRED",
+      };
+    }
+    return authorizePublishedAssetHls(user, assetId, versionId);
+  } catch {
+    return { ok: false, response: backendUnavailable(), code: "BACKEND_UNAVAILABLE" };
+  }
+}
+
+/**
+ * Asset-id parallel of authorizeStaffHlsPublication for a signed-in viewer.
+ * Guest review keeps authorizeReviewerHlsPublication on the admission route.
+ * This path has no staff role check; asset viewer access is the gate.
+ */
+export async function authorizeReviewerAssetHlsPublication(
+  assetId: string,
+  versionId: string,
+): Promise<StaffHlsAuthorityResult> {
+  try {
+    const user = await requireAuth();
+    if (!user) {
+      return {
+        ok: false,
+        response: apiError("Authentication required", "AUTH_REQUIRED", 401),
+        code: "AUTH_REQUIRED",
+      };
+    }
+    return authorizePublishedAssetHls(user, assetId, versionId);
+  } catch {
+    return { ok: false, response: backendUnavailable(), code: "BACKEND_UNAVAILABLE" };
+  }
+}
+
+/** Staff playback, or the reviewer/viewer parallel when the only miss is role. */
+export async function authorizeAssetHlsRead(
+  assetId: string,
+  versionId: string,
+): Promise<StaffHlsAuthorityResult> {
+  const staff = await authorizeStaffHlsPublication(assetId, versionId);
+  if (staff.ok || staff.code !== "STAFF_REQUIRED") return staff;
+  return authorizeReviewerAssetHlsPublication(assetId, versionId);
 }

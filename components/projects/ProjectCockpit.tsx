@@ -17,6 +17,7 @@ import {
   useMemo,
   useRef,
   useState,
+  useSyncExternalStore,
   type KeyboardEvent as ReactKeyboardEvent,
   type MouseEvent as ReactMouseEvent,
 } from "react";
@@ -731,12 +732,19 @@ export default function ProjectCockpit({
     assetId: activeAsset?.id ?? null,
     versionId: activeLiveVersion?.id ?? null,
   };
+  const clientSurface = useSyncExternalStore(
+    () => () => {},
+    () => window.location.hostname === CLIENT_SURFACE_HOST,
+    () => false,
+  );
   const activeLivePath = activeLiveVersion?.file_url.split(/[?#]/, 1)[0] ?? "";
-  const activeLiveMediaUrl = activeLiveVersion
-    ? activeLivePath.toLowerCase().endsWith(".m3u8") || activeLivePath.startsWith("/api/assets/")
-      ? activeLiveVersion.file_url
-      : `/api/media/versions/${encodeURIComponent(activeLiveVersion.id)}`
-    : null;
+  const activeLiveMediaUrl = !activeLiveVersion
+    ? null
+    : clientSurface && isStaffHlsPlaylistUrl(activeLiveVersion.file_url)
+      ? viewerHlsPlaylistUrl(activeLiveVersion.id)
+      : activeLivePath.toLowerCase().endsWith(".m3u8") || activeLivePath.startsWith("/api/assets/")
+        ? activeLiveVersion.file_url
+        : `/api/media/versions/${encodeURIComponent(activeLiveVersion.id)}`;
   const activeCommentDraftKey = activeAsset
     ? reviewCommentDraftKey(activeAsset.id, demoMode ? activeDemoVersionId : activeLiveVersion?.id ?? null)
     : null;

@@ -353,30 +353,34 @@ test("staff segment streams one exact immutable receipt", async () => {
   ]);
 });
 
-test("staff routes reject unauthenticated and non-staff callers before metadata or storage", async () => {
+test("staff routes reject unauthenticated callers before metadata or storage", async () => {
   const playlistModule = await playlistRoute();
 
   reset();
   state.__cvpStaffHlsUser = null;
-  let response = await playlistModule.GET(request("/ignored"), {
+  const response = await playlistModule.GET(request("/ignored"), {
     params: Promise.resolve({ id: assetId, versionId }),
   });
   assert.equal(response.status, 401);
   assert.deepEqual(state.__cvpStaffHlsSupabase.lookupCalls, []);
   assert.equal(state.__cvpStaffHlsRuntimeCalls, 0);
   assert.deepEqual(state.__cvpStaffHlsOpenCalls, []);
+});
 
+test("a client asset viewer can read the asset HLS ladder without STAFF_REQUIRED", async () => {
+  const playlistModule = await playlistRoute();
   reset();
+  state.__cvpStaffHlsUser = { id: userId, app_metadata: { content_coop_role: "client" } };
   state.__cvpStaffHlsRole = "client";
-  response = await playlistModule.GET(request("/ignored"), {
+  const response = await playlistModule.GET(request("/ignored"), {
     params: Promise.resolve({ id: assetId, versionId }),
   });
-  assert.equal(response.status, 403);
-  const body = await response.json() as { code?: string };
-  assert.equal(body.code, "STAFF_REQUIRED");
-  assert.deepEqual(state.__cvpStaffHlsSupabase.lookupCalls, []);
-  assert.equal(state.__cvpStaffHlsRuntimeCalls, 0);
-  assert.deepEqual(state.__cvpStaffHlsOpenCalls, []);
+  assert.equal(response.status, 200);
+  assert.equal(response.headers.get("content-type"), "application/vnd.apple.mpegurl; charset=utf-8");
+  const body = await response.text();
+  assert.equal(body.includes("STAFF_REQUIRED"), false);
+  assert.match(body, /segments\/0/);
+  assert.equal(state.__cvpStaffHlsRuntimeCalls, 1);
 });
 
 test("staff routes fail closed for inactive assets, mismatched versions, and denied access", async () => {

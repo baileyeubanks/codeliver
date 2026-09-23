@@ -109,13 +109,17 @@ export const emailTemplates = {
         ? "Open Delivery"
         : shareIntent === "approval_needed"
           ? "Open Review and Approve"
-          : "Open Review";
+          : shareIntent === "preview"
+            ? "Watch Preview"
+            : "Open Review";
     const intro =
       shareIntent === "final_delivery"
         ? "A final asset has been handed off to you in Co‑VideoPro."
         : shareIntent === "approval_needed"
           ? "Your approval is needed on an asset in Co‑VideoPro."
-          : `You have been invited into a ${meta.label.toLowerCase()} in Co‑VideoPro.`;
+          : shareIntent === "preview"
+            ? "A view-only preview is ready for you in Co‑VideoPro. No account is needed."
+            : `You have been invited into a ${meta.label.toLowerCase()} in Co‑VideoPro.`;
 
     return {
       subject: `${meta.label}: ${assetTitle}`,

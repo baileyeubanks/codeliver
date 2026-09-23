@@ -27,6 +27,7 @@ import {
   Circle,
   Compass,
   Clock3,
+  Eye,
   History,
   Info,
   Link2,
@@ -52,6 +53,8 @@ import {
 } from "lucide-react";
 import DemoShareModal from "@/components/demo/DemoShareModal";
 import CoProductionBrand from "@/components/brand/CoProductionBrand";
+import FailOnStageCard from "@/components/player/FailOnStageCard";
+import ReviewShareMenu, { type ReviewShareMode } from "@/components/sharing/ReviewShareMenu";
 import ShareModal from "@/components/sharing/ShareModal";
 import CommandPalette, { type CommandPaletteItem } from "@/components/navigation/CommandPalette";
 import { useOverlay } from "@/components/overlay/useOverlay";
@@ -63,6 +66,7 @@ import CoProduceLifecycleDrawer, {
   type CoProduceLifecycleDestination,
 } from "@/components/cockpit/CoProduceLifecycleDrawer";
 import CockpitReviewTimeline from "@/components/cockpit/CockpitReviewTimeline";
+import VersionSwitcher from "@/components/review/VersionSwitcher";
 import {
   CockpitMobileNavigation,
   CockpitProjectNavigation,
@@ -99,6 +103,7 @@ import type {
   DemoShareLink,
 } from "@/lib/demo/workspace-store";
 import type { DemoProject } from "@/lib/demo/workspace";
+import type { ShareIntent } from "@/lib/sharing/share-intent";
 import { PROJECT_STAGE_META, PROJECT_STAGES, type ProjectStage } from "@/lib/covideopro/record.ts";
 import {
   CreativeSection,
@@ -116,6 +121,7 @@ import {
   isRevisionableDemoMedia,
   resolvePinnedDemoMediaVersion,
   sortDemoMediaVersions,
+  toDemoReviewVersion,
 } from "@/lib/demo/media-version-authority";
 import {
   canOperateExactInternalReviewVersion,
@@ -127,13 +133,13 @@ import {
 import { formatSmpteTimecode } from "@/components/player/timecode";
 import { resolveReviewFrameRate } from "@/lib/review/frame-review";
 import { usePlayerStore } from "@/lib/stores/playerStore";
-import VideoPlayer from "@/components/player/VideoPlayer";
+import VideoPlayer, { STALL_WATCHDOG_MS } from "@/components/player/VideoPlayer";
 import InlineReviewComment from "@/components/review/InlineReviewComment";
 import AnchoredCommentCallout from "@/components/review/AnchoredCommentCallout";
 import { adjacentTimedComment, orderedTimedComments } from "@/lib/review/comment-navigation";
 import { refreshReviewImageAttachments } from "@/lib/review/image-attachments-client";
 import { normalizeReviewSeekStep, normalizeReviewShortcutKey, projectPointIntoMedia, shouldIgnoreReviewShortcut } from "@/lib/review/player-policy";
-import { buildSurfaceUrl, getReviewSiteUrl } from "@/lib/surface-origins";
+import { buildSurfaceUrl, getReviewSiteUrl, toDemoSiteUrl } from "@/lib/surface-origins";
 import { mayOpenRevisionUploader } from "@/lib/uploads/revision-upload";
 import type { CommentAttachment, EditDecision, Version } from "@/lib/types/codeliver";
 import styles from "./ProjectCockpit.module.css";
@@ -289,6 +295,32 @@ function avatarInitials(name: string) {
     .slice(0, 2)
     .map((part) => part[0]?.toUpperCase())
     .join("");
+}
+
+/**
+ * VA-024: the status dot reports state — green only for approved/final,
+ * red for needs-changes, neutral otherwise. Never decorative green.
+ */
+function assetStatusTone(status?: string | null): "green" | "red" | "neutral" {
+  if (status === "approved" || status === "final") return "green";
+  if (status === "needs_changes") return "red";
+  return "neutral";
+}
+
+/**
+ * VA-010 operator honesty: name the same-origin media path that went cold so
+ * the storage/load dig has the real route. Blob and external URLs stay
+ * private — they say nothing useful about the storage path anyway.
+ */
+function operatorMediaSourceDetail(url: string | null): string | undefined {
+  if (!url) return undefined;
+  try {
+    const parsed = new URL(url, window.location.origin);
+    if (parsed.origin !== window.location.origin) return undefined;
+    return `Source: ${parsed.pathname}`;
+  } catch {
+    return undefined;
+  }
 }
 
 function EmptyState({ title, body }: { title: string; body: string }) {
@@ -578,6 +610,7 @@ export default function ProjectCockpit({
   const [expandedCommentIds, setExpandedCommentIds] = useState<ReadonlySet<string>>(new Set());
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [mobileDockOpen, setMobileDockOpen] = useState(false);
+  const [dockComposerOpen, setDockComposerOpen] = useState(false);
   const [reviewDetailsOpen, setReviewDetailsOpen] = useState(false);
   const [timelineOpen, setTimelineOpen] = useState(false);
   const [commandOpen, setCommandOpen] = useState(false);
@@ -608,6 +641,17 @@ export default function ProjectCockpit({
   const [nativeDuration, setNativeDuration] = useState(0);
   const [hlsSourceNonce, setHlsSourceNonce] = useState(0);
   const [hlsResumeTime, setHlsResumeTime] = useState<number | null>(null);
+  const [nativeSourceNonce, setNativeSourceNonce] = useState(0);
+  // VA-Wistia chrome: on-film controls recede while the film plays and the
+  // pointer sits idle; any movement, pause, or failure brings them back.
+  const [chromeIdle, setChromeIdle] = useState(false);
+  const chromeIdleTimerRef = useRef<number | null>(null);
+  // The idle timer reads the cockpit's own playing state (which also covers
+  // simulated demo playback) rather than sniffing the media element.
+  const isPlayingRef = useRef(isPlaying);
+  useEffect(() => {
+    isPlayingRef.current = isPlaying;
+  }, [isPlaying]);
   const [liveComments, setLiveComments] = useState<DemoReviewComment[]>([]);
   const [liveCutMarkers, setLiveCutMarkers] = useState<DemoReviewCutMarker[]>([]);
   const [liveAssetDataKey, setLiveAssetDataKey] = useState<string | null>(null);
@@ -625,8 +669,8 @@ export default function ProjectCockpit({
   const [approvalSetupError, setApprovalSetupError] = useState("");
   const [approvalSetupSubmitting, setApprovalSetupSubmitting] = useState(false);
   const [approvalShareDefaults, setApprovalShareDefaults] = useState<{
-    intent: "approval_needed";
-    reviewerEmail: string;
+    intent: ShareIntent;
+    reviewerEmail?: string;
   } | null>(null);
   const [systemsReadiness, setSystemsReadiness] = useState<CockpitReadinessState>(DEFAULT_COCKPIT_READINESS);
   const handleHlsPlaybackError = useCallback(() => {
@@ -717,6 +761,40 @@ export default function ProjectCockpit({
   const activeLiveReviewKey = activeAsset && activeLiveVersion
     ? `${activeAsset.id}:${activeLiveVersion.id}`
     : null;
+  // VA-023: the same version control lives on the internal stage bar — the
+  // shared switcher, driving ?version= navigation on the canonical route.
+  const stageVersions: Version[] = activeAsset
+    ? demoMode
+      ? sortDemoMediaVersions(
+          workspace.mediaVersions.filter((version) => version.asset_id === activeAsset.id),
+        ).map((version) => toDemoReviewVersion(version, "", null))
+      : liveVersions
+    : [];
+  const activeStageVersionId = (demoMode ? activeDemoVersionId : activeLiveVersion?.id) ?? null;
+  // VA-021: Preview opens the real guest door for the current cut — the most
+  // recent active link bound to this version, never a mock. A live cut with
+  // no link yet stays disabled; the demo workspace always has its plain
+  // local preview.
+  const guestPreviewHref = (() => {
+    if (!activeAsset || !reviewViewActive || typeof window === "undefined") return null;
+    const candidateLinks = (demoMode ? workspace.shareLinks : liveShareLinks)
+      .filter((link) =>
+        link.is_active !== false &&
+        link.asset_ids.includes(activeAsset.id) &&
+        (!activeStageVersionId || !link.version_id || link.version_id === activeStageVersionId),
+      )
+      .sort((a, b) => (b.created_at ?? "").localeCompare(a.created_at ?? ""));
+    const latest = candidateLinks[0];
+    if (latest) {
+      if (!demoMode) return latest.public_url;
+      try {
+        return toDemoSiteUrl(latest.public_url, window.location.origin);
+      } catch {
+        return null;
+      }
+    }
+    return demoMode ? `/review/demo?demo=1&asset=${encodeURIComponent(activeAsset.id)}` : null;
+  })();
   const activeReviewTargetRef = useRef({
     assetId: activeAsset?.id ?? null,
     versionId: activeLiveVersion?.id ?? null,
@@ -1582,6 +1660,38 @@ export default function ProjectCockpit({
     if (typeof videoRef.current?.load === "function") videoRef.current.load();
   }
 
+  // VA-023: stage-bar version switching on the internal review stage, both
+  // demo and live, through the canonical ?version= route.
+  function selectStageReviewVersion(versionId: string) {
+    if (!activeAsset) return;
+    const available = demoMode
+      ? workspace.mediaVersions.some(
+          (candidate) => candidate.id === versionId && candidate.asset_id === activeAsset.id,
+        )
+      : liveVersions.some(
+          (candidate) => candidate.id === versionId && candidate.asset_id === activeAsset.id,
+        );
+    if (!available) {
+      setToast("Requested media version unavailable.");
+      return;
+    }
+    const params = new URLSearchParams(searchParams.toString());
+    if (demoMode) params.set("demo", "1");
+    params.set("asset", activeAsset.id);
+    params.set("version", versionId);
+    params.set("view", "review");
+    router.replace(`/projects/${project.id}?${params.toString()}`);
+    setCurrentTime(0);
+    setNativeDuration(0);
+    setIsPlaying(false);
+    setHasEnded(false);
+    setPendingPin(null);
+    setSelectedCommentId(null);
+    setResumeAfterComment(false);
+    if (typeof videoRef.current?.pause === "function") videoRef.current.pause();
+    if (typeof videoRef.current?.load === "function") videoRef.current.load();
+  }
+
   function selectLiveReviewVersion(versionId: string) {
     if (demoMode || !activeAsset) return;
     const version = liveVersions.find(
@@ -1694,8 +1804,55 @@ export default function ProjectCockpit({
       setHlsSourceNonce((nonce) => nonce + 1);
       return;
     }
+    setNativeSourceNonce((nonce) => nonce + 1);
     videoRef.current?.load();
   }
+
+  // VA-010: the cockpit's native (non-HLS) path gets the same cold-media
+  // honesty — a source that never delivers metadata fails soft on the stage
+  // instead of holding a black readyState-0 frame.
+  useEffect(() => {
+    if (!activeMediaUrl || hlsMediaActive) return;
+    const video = videoRef.current;
+    if (!video) return;
+
+    const stallWatchdog = window.setTimeout(() => {
+      if (video.readyState < HTMLMediaElement.HAVE_METADATA && !video.error) {
+        setIsPlaying(false);
+        setPlaybackError("This video could not load. Check that the source file is available.");
+      }
+    }, STALL_WATCHDOG_MS);
+    const clearStallWatchdog = () => window.clearTimeout(stallWatchdog);
+    video.addEventListener("loadedmetadata", clearStallWatchdog, { once: true });
+
+    return () => {
+      window.clearTimeout(stallWatchdog);
+      video.removeEventListener("loadedmetadata", clearStallWatchdog);
+    };
+  }, [activeMediaUrl, hlsMediaActive, nativeSourceNonce]);
+
+  // Wistia chrome rule: while the film plays, the on-frame transport and
+  // timecode recede after a short idle window and return on any pointer
+  // movement, pause, or failure.
+  const wakeStageChrome = useCallback(() => {
+    setChromeIdle(false);
+    if (chromeIdleTimerRef.current) window.clearTimeout(chromeIdleTimerRef.current);
+    chromeIdleTimerRef.current = window.setTimeout(() => {
+      if (isPlayingRef.current) setChromeIdle(true);
+    }, 2200);
+  }, []);
+
+  useEffect(() => {
+    if (!isPlaying) {
+      setChromeIdle(false);
+      if (chromeIdleTimerRef.current) window.clearTimeout(chromeIdleTimerRef.current);
+      return;
+    }
+    wakeStageChrome();
+    return () => {
+      if (chromeIdleTimerRef.current) window.clearTimeout(chromeIdleTimerRef.current);
+    };
+  }, [isPlaying, wakeStageChrome]);
 
   function seekTo(seconds: number) {
     if (!reviewOperationsAllowed) return;
@@ -1943,6 +2100,7 @@ export default function ProjectCockpit({
     setSelectedCommentId(null);
     setResumeAfterComment(false);
     setCommentStatus("open");
+    setDockComposerOpen(false);
     setToast("Timecoded comment added");
     videoFrameRef.current?.focus({ preventScroll: true });
     if (shouldResume) {
@@ -1969,6 +2127,14 @@ export default function ProjectCockpit({
         }
       });
     }
+  }
+
+  // VA-018: the three named share modes are the primary client handoff. Each
+  // opens the share sheet with its intent preselected and the current version
+  // pinned; approval links keep their workflow requirement server-side.
+  function openShareWithIntent(intent: ReviewShareMode, reviewerEmail?: string) {
+    setApprovalShareDefaults(reviewerEmail ? { intent, reviewerEmail } : { intent });
+    setShareOpen(true);
   }
 
   async function createApprovalWorkflow() {
@@ -2044,8 +2210,7 @@ export default function ProjectCockpit({
         return;
       }
 
-      setApprovalShareDefaults({ intent: "approval_needed", reviewerEmail: recipientEmail });
-      setShareOpen(true);
+      openShareWithIntent("approval_needed", recipientEmail);
     } catch {
       setApprovalSetupError(
         postAccepted
@@ -2281,18 +2446,14 @@ export default function ProjectCockpit({
         </div>
 
         <div className="cockpit-header-actions">
-          <button
-            className="cockpit-action-secondary"
-            type="button"
-            onClick={() => {
-              setLifecycleOpen(false);
-              setShareOpen(true);
-            }}
+          <ReviewShareMenu
+            triggerClassName="cockpit-action-secondary"
             disabled={!canShare || !activeAsset}
-            aria-label="Share project"
-          >
-            <Share2 size={17} /> <span>Share</span>
-          </button>
+            onSelect={(intent) => {
+              setLifecycleOpen(false);
+              openShareWithIntent(intent);
+            }}
+          />
           <button
             className="cockpit-action-primary"
             type="button"
@@ -2502,7 +2663,7 @@ export default function ProjectCockpit({
                       >
                         {assets.map((asset) => <option key={asset.id} value={asset.id}>{asset.title}</option>)}
                       </select>
-                      {demoMode && activeDemoVersions.length > 0 && !requestedReviewVersionUnavailable ? (
+                      {demoMode && !reviewViewActive && activeDemoVersions.length > 0 && !requestedReviewVersionUnavailable ? (
                         <select
                           value={activeDemoVersionId ?? ""}
                           onChange={(event) => selectDemoReviewVersion(event.target.value)}
@@ -2514,7 +2675,7 @@ export default function ProjectCockpit({
                             </option>
                           ))}
                         </select>
-                      ) : !demoMode && liveVersionAssetId === activeAsset.id && liveVersions.length > 0 && activeLiveVersion ? (
+                      ) : !demoMode && !reviewViewActive && liveVersionAssetId === activeAsset.id && liveVersions.length > 0 && activeLiveVersion ? (
                         <select
                           value={activeLiveVersion.id}
                           onChange={(event) => selectLiveReviewVersion(event.target.value)}
@@ -2554,6 +2715,28 @@ export default function ProjectCockpit({
                           </Link>
                         ) : null}
                       </p>
+                      {guestPreviewHref ? (
+                        <a
+                          className={styles.reviewDetailsToggle}
+                          href={guestPreviewHref}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          title="Open this cut exactly as the guest sees it"
+                        >
+                          <Eye size={15} aria-hidden="true" />
+                          Preview as guest
+                        </a>
+                      ) : (
+                        <span
+                          className={styles.reviewDetailsToggle}
+                          data-disabled="true"
+                          title="Share this cut first — Preview opens the guest link"
+                          aria-disabled="true"
+                        >
+                          <Eye size={15} aria-hidden="true" />
+                          Preview as guest
+                        </span>
+                      )}
                       <button
                         className={styles.reviewDetailsToggle}
                         type="button"
@@ -2594,12 +2777,26 @@ export default function ProjectCockpit({
                   </section>
                 ) : activeAsset ? (
                   <section className="cockpit-review-stage" aria-label={`Review ${activeAsset.title}`}>
+                    {reviewViewActive && stageVersions.length >= 2 ? (
+                      <div className="cockpit-stage-versions">
+                        <VersionSwitcher
+                          versions={stageVersions}
+                          activeVersionId={demoMode ? activeDemoVersionId : activeLiveVersion?.id ?? null}
+                          onSelect={(version) => selectStageReviewVersion(version.id)}
+                        />
+                      </div>
+                    ) : null}
                     <div
                       ref={videoFrameRef}
                       className="cockpit-video-frame"
                       data-player-root
+                      data-chrome={chromeIdle ? "hidden" : undefined}
                       tabIndex={0}
                       onKeyDown={handleReviewShortcut}
+                      onPointerMove={wakeStageChrome}
+                      onPointerLeave={(event) => {
+                        if (event.pointerType === "mouse" && isPlaying) setChromeIdle(true);
+                      }}
                       aria-label="Review player"
                     >
                       {activePosterUrl ? (
@@ -2656,9 +2853,11 @@ export default function ProjectCockpit({
                       )}
                       <time>{formatActiveTimecode(currentTime)}</time>
                       {playbackError ? (
-                        <p role="alert">
-                          {playbackError} <button type="button" onClick={retryPlaybackSource}>Retry playback</button>
-                        </p>
+                        <FailOnStageCard
+                          clearTransport
+                          onRetry={retryPlaybackSource}
+                          detail={operatorMediaSourceDetail(activeMediaUrl)}
+                        />
                       ) : null}
                       <div
                         className={`cockpit-review-overlay ${styles.stageOverlay}`}
@@ -2838,34 +3037,9 @@ export default function ProjectCockpit({
                         </button>
                       </div>
                     </div>
-
-                    {!pendingPin ? <div className="cockpit-comment-composer">
-                      <span className="cockpit-avatar">{avatarInitials(viewerName) || "CC"}</span>
-                      <div className="cockpit-comment-field">
-                        {pendingPin ? (
-                          <span className="cockpit-pin-chip">
-                            <MapPin size={13} fill="currentColor" />
-                            Frame pin
-                          </span>
-                        ) : null}
-                        <input
-                          ref={commentInputRef}
-                          value={commentBody}
-                          onChange={(event) => setCommentBody(event.target.value)}
-                          onKeyDown={(event) => {
-                            if (event.key === "Enter") void submitComment();
-                          }}
-                          placeholder="Add a timecoded comment"
-                          aria-label="Comment"
-                        />
-                      </div>
-                      <button className="cockpit-timecode" type="button" onClick={() => seekTo(currentTime)}>
-                        {formatActiveTimecode(currentTime)}
-                      </button>
-                      <button className="cockpit-add-comment" type="button" onClick={() => void submitComment()} disabled={!commentBody.trim() || commentSubmitting}>
-                        {commentSubmitting ? "Saving" : "Add comment"}
-                      </button>
-                    </div> : null}
+                    {/* VA-019: no permanent compose deck under the frame. Tap the
+                        film to pause + pin + compose on the spot; the dock
+                        Comments tab owns text-first notes at the playhead. */}
                   </section>
                 ) : (
                   <EmptyState title="No review media" body="Upload a video to begin the review." />
@@ -2942,10 +3116,11 @@ export default function ProjectCockpit({
                       <span>Comments</span>
                     </button>
                     {contextualShareAllowed ? (
-                      <button type="button" onClick={() => setShareOpen(true)} disabled={!canShare}>
-                        <Share2 size={15} />
-                        <span>Share</span>
-                      </button>
+                      <ReviewShareMenu
+                        compact
+                        disabled={!canShare}
+                        onSelect={(intent) => openShareWithIntent(intent)}
+                      />
                     ) : null}
                   </div>
                 ) : null}
@@ -2982,14 +3157,14 @@ export default function ProjectCockpit({
                           <h2>{versionScopedReview ? "Review context" : "Review status"}</h2>
                           {versionScopedReview ? (
                             <>
-                              <p className="cockpit-review-status"><i /> {requestedReviewVersionUnavailable ? "Version unavailable" : historicalReviewLabel}</p>
+                              <p className="cockpit-review-status"><i data-tone={requestedReviewVersionUnavailable ? "red" : "neutral"} /> {requestedReviewVersionUnavailable ? "Version unavailable" : historicalReviewLabel}</p>
                               <p className="cockpit-rail-empty">
                                 This cut keeps its own notes and markers. Current approval and share state are not applied here; new share links use the latest cut.
                               </p>
                             </>
                           ) : (
                             <>
-                              <p className="cockpit-review-status"><i /> {formatAssetStatus(activeAsset.status)}</p>
+                              <p className="cockpit-review-status"><i data-tone={assetStatusTone(activeAsset.status)} /> {formatAssetStatus(activeAsset.status)}</p>
                               {approvalStages.length > 0 ? (
                             <>
                               <div className="cockpit-progress">
@@ -3026,8 +3201,16 @@ export default function ProjectCockpit({
                               ) : (
                             <>
                               <p className="cockpit-rail-empty">No approval workflow has been requested.</p>
+                              <button
+                                className="cockpit-rail-primary"
+                                type="button"
+                                onClick={() => openShareWithIntent("approval_needed")}
+                                disabled={!canShare}
+                              >
+                                Share for Approval
+                              </button>
                               <button className="cockpit-rail-secondary" type="button" onClick={() => selectSection("approvals")} disabled={!canUpload}>
-                                Set up approval
+                                Manage approval workflow
                               </button>
                             </>
                               )}
@@ -3041,6 +3224,30 @@ export default function ProjectCockpit({
                             <button type="button" className={commentStatus === "open" ? "active" : ""} onClick={() => setCommentStatus("open")}>Open ({comments.filter((comment) => comment.status === "open").length})</button>
                             <button type="button" className={commentStatus === "resolved" ? "active" : ""} onClick={() => setCommentStatus("resolved")}>Resolved ({comments.filter((comment) => comment.status === "resolved").length})</button>
                           </div>
+                          {dockComposerOpen ? (
+                            <div className="cockpit-comment-composer" data-dock-composer>
+                              <span className="cockpit-avatar">{avatarInitials(viewerName) || "CC"}</span>
+                              <div className="cockpit-comment-field">
+                                <input
+                                  ref={commentInputRef}
+                                  value={commentBody}
+                                  onChange={(event) => setCommentBody(event.target.value)}
+                                  onKeyDown={(event) => {
+                                    if (event.key === "Enter") void submitComment();
+                                    if (event.key === "Escape") setDockComposerOpen(false);
+                                  }}
+                                  placeholder="Add a note at the playhead"
+                                  aria-label="Comment"
+                                />
+                              </div>
+                              <button className="cockpit-timecode" type="button" onClick={() => seekTo(currentTime)}>
+                                {formatActiveTimecode(currentTime)}
+                              </button>
+                              <button className="cockpit-add-comment" type="button" onClick={() => void submitComment()} disabled={!commentBody.trim() || commentSubmitting}>
+                                {commentSubmitting ? "Saving" : "Add comment"}
+                              </button>
+                            </div>
+                          ) : null}
                           <div className="cockpit-comment-list">
                             {visibleComments.slice(0, 4).map((comment) => {
                               const expanded = expandedCommentIds.has(comment.id);
@@ -3086,9 +3293,10 @@ export default function ProjectCockpit({
                           <button
                             className="cockpit-rail-secondary"
                             type="button"
+                            aria-expanded={dockComposerOpen}
                             onClick={() => {
-                              setMobileDockOpen(false);
-                              window.requestAnimationFrame(() => document.querySelector<HTMLInputElement>(".cockpit-comment-composer input")?.focus());
+                              setDockComposerOpen((open) => !open);
+                              window.requestAnimationFrame(() => commentInputRef.current?.focus());
                             }}
                           >
                             Add comment
@@ -3443,7 +3651,11 @@ export default function ProjectCockpit({
           <DemoShareModal
             assets={assets}
             initialSelectedAssetIds={[activeAsset.id]}
-            onClose={() => setShareOpen(false)}
+            initialShareIntent={approvalShareDefaults?.intent}
+            onClose={() => {
+              setShareOpen(false);
+              setApprovalShareDefaults(null);
+            }}
             onShared={(input) => {
               const links = createDemoShareLinks(input);
               setToast(`${links.length} review ${links.length === 1 ? "link" : "links"} created in Reviews`);

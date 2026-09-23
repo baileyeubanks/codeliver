@@ -25,6 +25,10 @@ function allElements(node: unknown): Element[] {
   if (!node || typeof node !== "object") return [];
   if (Array.isArray(node)) return node.flatMap(allElements);
   const element = node as Element;
+  // Function components render inline so their host output stays visible.
+  if (typeof element.type === "function") {
+    return [element, ...allElements((element.type as (props: unknown) => unknown)(element.props))];
+  }
   return [element, ...allElements(element.props?.children)];
 }
 
@@ -32,9 +36,11 @@ class FakeVideo {
   buffered = { length: 0, end: () => 0 };
   currentTime = 0;
   duration = 0;
+  error = null;
   muted = false;
   paused = true;
   playbackRate = 1;
+  readyState = 0;
   src = "";
   videoHeight = 1;
   videoWidth = 1;
@@ -128,6 +134,23 @@ function videoPlayerHarness() {
   let cursor = 0;
   const pendingEffects: Array<{ effect: Effect; index: number; dependencies: readonly unknown[] | undefined }> = [];
   const video = new FakeVideo();
+  // VA-010: the stall watchdog arms through window timers; the harness
+  // captures callbacks so tests can fire them without waiting real seconds.
+  const pendingTimers = new Map<number, () => void>();
+  let nextTimerId = 1;
+  const fakeSetTimeout = (callback: () => void) => {
+    const id = nextTimerId++;
+    pendingTimers.set(id, callback);
+    return id;
+  };
+  const fakeClearTimeout = (id: number) => {
+    pendingTimers.delete(id);
+  };
+  const fireTimers = () => {
+    const callbacks = [...pendingTimers.values()];
+    pendingTimers.clear();
+    for (const callback of callbacks) callback();
+  };
   const transport = { bufferedEnd: 20, currentTime: 7, duration: 90, playing: true };
   const resetCalls: string[] = [];
 
@@ -192,7 +215,13 @@ function videoPlayerHarness() {
     `(function(require,module,exports){${transpile(resolve(repositoryRoot, "components/player/VideoPlayer.tsx"))}\n})`,
     {
       document: { fullscreenElement: null, exitFullscreen() {} },
-      window: { addEventListener() {}, removeEventListener() {} },
+      window: {
+        addEventListener() {},
+        removeEventListener() {},
+        setTimeout: fakeSetTimeout,
+        clearTimeout: fakeClearTimeout,
+      },
+      HTMLMediaElement: { HAVE_METADATA: 1, HAVE_NOTHING: 0 },
     },
   )(imports, moduleRecord, moduleRecord.exports);
   const VideoPlayer = (moduleRecord.exports as { default: (props: Record<string, unknown>) => Element }).default;
@@ -216,6 +245,7 @@ function videoPlayerHarness() {
 
   return {
     hlsInstances: () => [...FakeHls.instances],
+    fireTimers,
     resetCalls,
     render,
     transport: () => ({ ...transport }),
@@ -251,8 +281,24 @@ function reviewMediaSurfaceHarness() {
   function MockLayers3() {
     return React.createElement("svg");
   }
-  function MockPlayerControls() {
-    return React.createElement("player-controls");
+  // VA-010: the fail card is a real component; the harness renders its
+  // essential contract (alert role, single retry, approved fallback actions).
+  function MockFailOnStageCard(props: {
+    onRetry?: () => void;
+    children?: React.ReactNode;
+  }) {
+    return React.createElement("div", { role: "alert" }, [
+      React.createElement("p", { key: "line" }, "Couldn’t load this cut."),
+      props.onRetry
+        ? React.createElement("button", {
+            key: "retry",
+            type: "button",
+            "aria-label": "Retry playback",
+            onClick: props.onRetry,
+          })
+        : null,
+      props.children,
+    ]);
   }
   const moduleRecord = { exports: {} as Record<string, unknown> };
   function imports(specifier: string): unknown {
@@ -260,7 +306,8 @@ function reviewMediaSurfaceHarness() {
     if (specifier === "react/jsx-runtime") return require(specifier);
     if (specifier === "lucide-react") return { Layers3: MockLayers3 };
     if (specifier === "@/components/player/VideoPlayer") return "video-player";
-    if (specifier === "@/components/player/PlayerControls") return MockPlayerControls;
+    if (specifier === "@/components/player/PlayerControls") return "player-controls";
+    if (specifier === "@/components/player/FailOnStageCard") return MockFailOnStageCard;
     throw new Error(`Unexpected ReviewMediaSurface import ${specifier}`);
   }
   runInNewContext(
@@ -348,6 +395,14 @@ test("ReviewMediaSurface exposes retry after playback failure and only renders a
   const failed = app.render("/media/first.mp4", fallback);
   assert.equal(allElements(failed).some((element) => element.props.role === "alert"), true);
   assert.equal(allElements(failed).some((element) => element.type === "a"), true, "an allowed fallback remains available");
+  assert.ok(
+    allElements(failed).some((element) => element.type === "video-player"),
+    "VA-010: the stage stays mounted while the fail card rides on it",
+  );
+  assert.ok(
+    allElements(failed).some((element) => element.type === "player-controls"),
+    "VA-010: the transport rail stays mounted under a failed stage",
+  );
   const retry = allElements(failed).find((element) => element.props["aria-label"] === "Retry playback");
   assert.ok(retry, "the failed player offers an explicit retry");
   retry.props.onClick();
@@ -393,6 +448,35 @@ test("ReviewMediaSurface clears a failed version across source changes and ignor
   assert.ok(allElements(returnedA).some((element) => element.type === "video-player"));
 });
 
+
+test("a cold source that never delivers metadata fails soft instead of holding a black frame", () => {
+  FakeHls.instances = [];
+  FakeHls.supported = false;
+  const app = videoPlayerHarness();
+  let failures = 0;
+  const onPlaybackError = () => { failures += 1; };
+
+  app.render("/media/cold.mp4", onPlaybackError);
+  // readyState stays 0 (HAVE_NOTHING): no error event ever arrives.
+  app.fireTimers();
+  assert.equal(failures, 1, "the stall watchdog reports the cold source");
+  assert.deepEqual(app.transport(), {
+    bufferedEnd: 0,
+    currentTime: 0,
+    duration: 0,
+    playing: false,
+  });
+
+  // A source that delivered metadata before the watchdog stays alive.
+  const warm = videoPlayerHarness();
+  let warmFailures = 0;
+  warm.render("/media/warm.mp4", () => { warmFailures += 1; });
+  warm.video.readyState = 2;
+  warm.fireTimers();
+  assert.equal(warmFailures, 0, "a warm source never trips the watchdog");
+  warm.unmount();
+  app.unmount();
+});
 
 test("HLS query and fragment do not change transport selection", () => {
   FakeHls.instances = [];

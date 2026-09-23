@@ -2,6 +2,7 @@ import { requireAuthWithClient } from "@/lib/auth-client";
 import { getProjectAccess } from "@/lib/access-control";
 import { apiError, apiJson, backendUnavailable } from "@/lib/api/responses";
 import { selectPublishedHlsPublication } from "@/lib/media-pipeline/hls-delivery";
+import { staffHlsProjectionAllowed } from "@/lib/media-pipeline/staff-hls-authority";
 import { getSupabase } from "@/lib/supabase";
 import { legacyUploadRetiredResponse } from "@/lib/tus/legacy-retirement";
 
@@ -63,6 +64,8 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
     const metadataByAssetId = new Map(
       (metadataResult.data ?? []).map((row) => [row.id, row.metadata]),
     );
+    // Staff-only playlist URLs are never projected into non-staff sessions.
+    const projectStaffHls = staffHlsProjectionAllowed(user);
     const items = assets.map((asset) => {
       const metadata = metadataByAssetId.get(asset.id);
       const pipeline =
@@ -74,7 +77,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
           ? (pipeline as Record<string, unknown>).currentVersionId
           : null;
       const publication =
-        typeof currentVersionId === "string"
+        projectStaffHls && typeof currentVersionId === "string"
           ? selectPublishedHlsPublication({
               assetId: asset.id,
               assetMetadata: metadata,

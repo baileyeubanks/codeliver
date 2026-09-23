@@ -1,7 +1,10 @@
 import { getAssetAccess } from "@/lib/access-control";
 import { apiError, backendUnavailable } from "@/lib/api/responses";
 import { requireAuth } from "@/lib/auth";
-import { resolveTrustedSurfaceRole } from "@/lib/auth/host-surface";
+import {
+  resolveTrustedSurfaceRole,
+  type ServerIdentity,
+} from "@/lib/auth/host-surface";
 import {
   selectPublishedHlsPublication,
   type PublishedHlsPublication,
@@ -14,6 +17,20 @@ const UUID_PATTERN =
 export type StaffHlsAuthorityResult =
   | { ok: true; publication: PublishedHlsPublication }
   | { ok: false; response: Response };
+
+/**
+ * The staff HLS playlist route answers 403 STAFF_REQUIRED for anyone whose
+ * trusted surface role is not staff, so a payload must never project that
+ * URL into a non-staff session — a client (or legacy null-role) session
+ * would hold a dead readyState-0 frame. Non-staff callers keep the version's
+ * plain managed file_url; client paint flows through the admission-bound
+ * review media path (`/api/review/media/[admissionId]/hls/...`).
+ */
+export function staffHlsProjectionAllowed(
+  identity: ServerIdentity | null | undefined,
+): boolean {
+  return resolveTrustedSurfaceRole(identity) === "staff";
+}
 
 export async function authorizeStaffHlsPublication(
   assetId: string,

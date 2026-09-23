@@ -258,9 +258,11 @@ export default function ShareLinkList({ assetId, refreshKey = 0 }: ShareLinkList
                         ? "bg-[var(--green)]/12 text-[var(--green)]"
                         : shareIntent === "final_delivery"
                           ? "bg-[var(--accent)]/12 text-[var(--accent)]"
-                          : shareIntent === "internal_review"
-                            ? "bg-[var(--orange)]/12 text-[var(--orange)]"
-                            : "bg-[var(--surface-2)] text-[var(--muted)]"
+                          : shareIntent === "preview"
+                            ? "bg-[var(--blue-dim)] text-[var(--blue)]"
+                            : shareIntent === "internal_review"
+                              ? "bg-[var(--orange)]/12 text-[var(--orange)]"
+                              : "bg-[var(--surface-2)] text-[var(--muted)]"
                     }`}
                   >
                     {meta.label}

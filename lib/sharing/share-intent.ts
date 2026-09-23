@@ -4,6 +4,7 @@ export type ShareIntent =
   | "internal_review"
   | "client_review"
   | "approval_needed"
+  | "preview"
   | "final_delivery";
 
 interface ShareIntentDefinition {
@@ -99,6 +100,28 @@ export const SHARE_INTENT_DEFINITIONS: Record<ShareIntent, ShareIntentDefinition
       requiresReviewerEmail: true,
     },
   },
+  preview: {
+    value: "preview",
+    label: "Preview",
+    shortLabel: "Preview",
+    dashboardTitle: "Share a clean view-only preview",
+    dashboardDescription:
+      "Use this when someone should watch the pinned cut right away without leaving feedback, recording a decision, or downloading the file.",
+    recipientTitle: "Preview link",
+    recipientDescription:
+      "Recipients open the link and watch the pinned version — no account, no feedback deck, no download.",
+    nextStepLabel: "Watch the preview",
+    nextStepDescription:
+      "The recipient watches the pinned cut. Feedback and approval stay on their own review links.",
+    permissionsLabel: "View-only access",
+    defaults: {
+      permissions: "view",
+      watermarkEnabled: false,
+      downloadEnabled: false,
+      expiresInDays: 7,
+      requiresReviewerEmail: false,
+    },
+  },
   final_delivery: {
     value: "final_delivery",
     label: "Final delivery handoff",
@@ -127,6 +150,7 @@ export const SHARE_INTENTS = [
   SHARE_INTENT_DEFINITIONS.internal_review,
   SHARE_INTENT_DEFINITIONS.client_review,
   SHARE_INTENT_DEFINITIONS.approval_needed,
+  SHARE_INTENT_DEFINITIONS.preview,
   SHARE_INTENT_DEFINITIONS.final_delivery,
 ];
 
@@ -144,7 +168,9 @@ export function deriveShareIntent({
   }
 
   if (permissions === "view") {
-    return "final_delivery";
+    // A view link with downloads disabled is a watch-only preview; with the
+    // file attached it is a final delivery handoff.
+    return downloadEnabled === false ? "preview" : "final_delivery";
   }
 
   if (watermarkEnabled && downloadEnabled === false) {
@@ -159,6 +185,7 @@ export function normalizeShareIntent(value: unknown): ShareIntent | null {
     value === "internal_review" ||
     value === "client_review" ||
     value === "approval_needed" ||
+    value === "preview" ||
     value === "final_delivery"
   ) {
     return value;

@@ -316,6 +316,19 @@ async function getReview(_req: Request, { params }: { params: Promise<{ token: s
     download_url: invite.download_enabled
       ? `${sourceMediaUrl}?download=1`
       : null,
+    // VA-025: the guest download ladder is a server projection — Original
+    // (exact bytes) only, until derivative renditions are queryable. Links
+    // without download authority project an empty ladder, never a teaser.
+    downloads: invite.download_enabled
+      ? [
+          {
+            label: "Original",
+            url: `${sourceMediaUrl}?download=1`,
+            bytes: versionLookup.version.file_size ?? null,
+            resolution: versionLookup.version.resolution ?? null,
+          },
+        ]
+      : [],
     watermark_enabled: invite.watermark_enabled ?? true,
     watermark_text: invite.watermark_text,
     workflow_mode: workflowResult.data?.mode ?? null,

@@ -6,6 +6,7 @@ import {
   Copy,
   Download,
   Droplets,
+  Eye,
   Link2,
   MessageSquare,
   Shield,
@@ -55,6 +56,7 @@ const INTENT_ICONS: Record<ShareIntent, ReactNode> = {
   internal_review: <Users size={16} />,
   client_review: <MessageSquare size={16} />,
   approval_needed: <Shield size={16} />,
+  preview: <Eye size={16} />,
   final_delivery: <Download size={16} />,
 };
 
@@ -483,7 +485,7 @@ function ShareModalContent({
             <div className={styles.intents} role="group" aria-label="Review purpose">
               {SHARE_INTENTS.map((intent) => <button key={intent.value} type="button"
                 aria-pressed={shareIntent === intent.value} onClick={() => selectShareIntent(intent.value)}>
-                {INTENT_ICONS[intent.value]}<span>{{ internal_review: "Internal", client_review: "Review", approval_needed: "Approval", final_delivery: "Delivery" }[intent.value]}</span>
+                {INTENT_ICONS[intent.value]}<span>{{ internal_review: "Internal", client_review: "Review", approval_needed: "Approval", preview: "Preview", final_delivery: "Delivery" }[intent.value]}</span>
               </button>)}
             </div>
             <p className={styles.summary}>{intentDefinition.permissionsLabel}</p>

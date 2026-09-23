@@ -57,21 +57,44 @@ test("explicit review starts with secondary details closed and keeps the review 
   );
 });
 
-test("the player and primary comment composer precede collapsed secondary material", () => {
+test("the player stays film-first with no permanent compose deck under the frame", () => {
   const renderedOverview = cockpitSource.slice(
     cockpitSource.indexOf('<main id="cockpit-workspace-content"'),
     cockpitSource.indexOf("{pipelineStages.length > 0"),
   );
   const stageIndex = renderedOverview.indexOf('className="cockpit-review-stage"');
-  const composerIndex = renderedOverview.indexOf('className="cockpit-comment-composer"');
   const timelineToggleIndex = renderedOverview.indexOf("className={styles.timelineToggle}");
   const reviewArchiveIndex = renderedOverview.indexOf("className={styles.reviewArchive}");
 
   assert.ok(stageIndex >= 0, "review player is missing");
-  assert.ok(composerIndex > stageIndex, "primary comment composer must stay with the player");
-  assert.ok(timelineToggleIndex > composerIndex, "timeline disclosure belongs after the composer");
+  assert.ok(timelineToggleIndex > stageIndex, "timeline disclosure follows the player");
   assert.ok(reviewArchiveIndex > timelineToggleIndex, "source archive belongs below the player controls");
-  assert.match(renderedOverview, /aria-label="Comment"/);
+
+  // VA-019: between the stage and the timeline disclosure there is no
+  // permanent compose deck — the composer lives in the dock Comments tab.
+  const stageToTimeline = cockpitSource.slice(
+    cockpitSource.indexOf('className="cockpit-review-stage"'),
+    cockpitSource.indexOf("className={styles.timelineToggle}"),
+  );
+  assert.doesNotMatch(stageToTimeline, /cockpit-comment-composer/);
+  assert.doesNotMatch(stageToTimeline, /Add a timecoded comment/);
+});
+
+test("tap-frame drops a paused pin and the dock comments tab owns text-first notes", () => {
+  // VA-019: the film is the comment surface — one tap pauses and pins.
+  assert.match(cockpitSource, /onClick=\{handleReviewFrameClick\}/);
+  const frameClick = cockpitSource.match(
+    /function handleReviewFrameClick\(event: ReactMouseEvent<HTMLDivElement>\) \{([\s\S]*?)\n  \}/,
+  )?.[1] ?? "";
+  assert.match(frameClick, /videoRef\.current\?\.pause|videoRef\.current\.pause/);
+  assert.match(frameClick, /setPendingPin\(\{ x: point\.x, y: point\.y, timeSeconds:/);
+
+  // The text-first composer lives in the dock Comments section, on demand.
+  assert.match(cockpitSource, /const \[dockComposerOpen, setDockComposerOpen\] = useState\(false\)/);
+  assert.match(
+    cockpitSource,
+    /\{dockComposerOpen \? \([\s\S]*?className="cockpit-comment-composer"[\s\S]*?aria-label="Comment"[\s\S]*?\) : null\}/,
+  );
 });
 
 test("focused review keeps the large player and composer within a standard desktop viewport", () => {

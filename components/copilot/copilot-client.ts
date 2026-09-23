@@ -10,6 +10,28 @@ export interface CopilotAnswer {
   read_only: true;
 }
 
+/* Internal tooling: never on auth pages or public client review surfaces. */
+const EXCLUDED_PATHS = new Set(["/login", "/signup"]);
+const EXCLUDED_PREFIXES = ["/review"];
+
+/**
+ * Pure mount gate for the Copilot. The internal review stage is a query
+ * state (`?view=review`) — the film-first stage never carries the panel
+ * (VA-022). Kept synchronous and hook-free for node tests.
+ */
+export function copilotAllowedOnPath(pathname: string, search?: string): boolean {
+  if (EXCLUDED_PATHS.has(pathname)) return false;
+  if (
+    EXCLUDED_PREFIXES.some(
+      (prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`),
+    )
+  ) {
+    return false;
+  }
+  if (search && new URLSearchParams(search).get("view") === "review") return false;
+  return true;
+}
+
 export function copilotProjectFromPath(pathname: string): string | null {
   const match = /^\/projects\/([^/]+)(?:\/|$)/.exec(pathname);
   if (!match || ["new", "archive", "trash"].includes(match[1])) return null;

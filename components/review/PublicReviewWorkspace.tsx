@@ -8,6 +8,7 @@ import {
 } from "lucide-react";
 import React, { useState, type CSSProperties } from "react";
 import { CoProductionBrand } from "@/components/brand/CoProductionBrand";
+import StageErrorBoundary from "@/components/review/StageErrorBoundary";
 import styles from "./PublicReviewWorkspace.module.css";
 
 interface Filter {
@@ -184,7 +185,11 @@ export default function PublicReviewWorkspace({
             </button>
           </div>
 
-          <div className={styles.media}>{stage.media}</div>
+          <div className={styles.media}>
+            {/* VA-010: a player-tree failure degrades to an on-stage card,
+                never to a full-page boundary or a white document. */}
+            <StageErrorBoundary>{stage.media}</StageErrorBoundary>
+          </div>
           {stage.context ? (
             <section className={styles.context} aria-label="Selected comment" aria-live="polite">
               {stage.context}

@@ -37,6 +37,9 @@ import { useDialogFocus } from "@/components/navigation/useDialogFocus";
 interface DemoShareModalProps {
   assets: MediaAsset[];
   initialSelectedAssetIds?: string[];
+  /** VA-018: a named share action (Review / Approval / Preview) preselects the
+   * handoff intent instead of landing on a generic default. */
+  initialShareIntent?: ShareIntent;
   onClose: () => void;
   onShared: (input: CreateDemoShareInput) => DemoShareLink[];
 }
@@ -47,6 +50,7 @@ const INTENT_ICONS: Record<ShareIntent, IconComponent> = {
   internal_review: Users,
   client_review: MessageSquare,
   approval_needed: ShieldCheck,
+  preview: Eye,
   final_delivery: Download,
 };
 
@@ -77,6 +81,7 @@ function resolveDemoLink(destination: string): string | null {
 export default function DemoShareModal({
   assets,
   initialSelectedAssetIds,
+  initialShareIntent,
   onClose,
   onShared,
 }: DemoShareModalProps) {
@@ -90,9 +95,10 @@ export default function DemoShareModal({
           : [],
     [assets, initialSelectedAssetIds],
   );
-  const initialDefaults = resolveShareIntentDefaults("client_review");
+  const requestedShareIntent = initialShareIntent ?? "client_review";
+  const initialDefaults = resolveShareIntentDefaults(requestedShareIntent);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(() => new Set(initialIds));
-  const [shareIntent, setShareIntent] = useState<ShareIntent>("client_review");
+  const [shareIntent, setShareIntent] = useState<ShareIntent>(requestedShareIntent);
   const [reviewerName, setReviewerName] = useState("");
   const [reviewerEmail, setReviewerEmail] = useState("");
   const [requireName, setRequireName] = useState(true);

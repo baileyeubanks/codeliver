@@ -5,6 +5,7 @@ import {
   selectPublishedHlsPublication,
   selectPublishedProbeFrameRate,
 } from "@/lib/media-pipeline/hls-delivery";
+import { staffHlsProjectionAllowed } from "@/lib/media-pipeline/staff-hls-authority";
 import { getSupabase } from "@/lib/supabase";
 import { versionUploadRetiredResponse } from "@/lib/versions/retirement";
 import { withAssetRouteBoundary } from "../../asset-route-boundary";
@@ -41,8 +42,10 @@ async function GETHandler(_req: Request, { params }: { params: Promise<{ id: str
     .order("version_number", { ascending: false });
 
   if (error) return apiError("Asset versions are unavailable", "BACKEND_UNAVAILABLE", 503);
+  // Staff-only playlist URLs are never projected into non-staff sessions.
+  const projectStaffHls = staffHlsProjectionAllowed(user);
   const items = (data ?? []).map((version) => {
-    const pipelineInput = assetResult.data
+    const pipelineInput = projectStaffHls && assetResult.data
       ? {
           assetId: id,
           assetMetadata: assetResult.data.metadata,

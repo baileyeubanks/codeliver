@@ -9,6 +9,7 @@ import {
 } from "@/lib/delivery/lock";
 import { getSupabase } from "@/lib/supabase";
 import { selectPublishedHlsPublication } from "@/lib/media-pipeline/hls-delivery";
+import { staffHlsProjectionAllowed } from "@/lib/media-pipeline/staff-hls-authority";
 import { apiError, apiJson, backendUnavailable } from "@/lib/api/responses";
 
 const SAFE_ASSET_COLUMNS =
@@ -85,9 +86,13 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
     return apiError("Asset versions could not be loaded", "BACKEND_UNAVAILABLE", 503);
   }
 
+  // Staff-only playlist URLs are never projected into non-staff sessions —
+  // they would 403 on playback and hold a dead frame (client paint uses the
+  // admission-bound review media path).
+  const projectStaffHls = staffHlsProjectionAllowed(user);
   const projectedVersions = (versions.data ?? []).map((version) => {
-    const publication = metadataResult.data
-      ? selectPublishedHlsPublication({
+    const publication = projectStaffHls && metadataResult.data
+    ? selectPublishedHlsPublication({
           assetId: id,
           assetMetadata: metadataResult.data.metadata,
           versionId: version.id,

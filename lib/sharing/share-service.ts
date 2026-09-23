@@ -722,7 +722,11 @@ export function deriveShareIntentFromRow(row: {
   watermark_enabled?: boolean | null;
 }): ShareManifestIntent {
   if (row.permissions === "approve") return "approval_needed";
-  if (row.permissions === "view") return "final_delivery";
+  // View-only rows split by delivery authority: with the file attached the
+  // link is a final delivery; without it the link is a watch-only preview.
+  if (row.permissions === "view") {
+    return row.download_enabled === false ? "preview" : "final_delivery";
+  }
   if (row.watermark_enabled && row.download_enabled === false) return "internal_review";
   return "client_review";
 }

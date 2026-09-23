@@ -53,9 +53,8 @@
   --cvp-phase-post: var(--cvp-blue-soft);
   --cvp-phase-delivery: var(--cvp-ink-soft);
 
-  /* Logo / premium accent only — never large UI chrome fills.
-     Solid sapphire replaces the retired four-stop phase ribbon. */
-  --cvp-gradient-ribbon: var(--cvp-blue);
+  /* VA-024: the sapphire header hairline is retired with its token — blue is
+     the action color, never a large chrome fill. */
   --cvp-copilot-bg: #0033a0;
   --cvp-copilot-ink: #eaf2ff;
   --cvp-copilot-border: #ffffff1a;

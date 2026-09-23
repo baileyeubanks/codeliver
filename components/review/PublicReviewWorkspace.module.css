@@ -263,10 +263,36 @@
 }
 
 .meta :global(.client-review-status-badge) {
-  border: 1px solid color-mix(in srgb, var(--accent) 24%, var(--border));
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  color: var(--muted);
+  text-transform: capitalize;
+}
+
+/* VA-024: status-only color inside the review shell — green is reserved for
+   approved/locked-final states. */
+.meta :global(.client-review-status-badge[data-tone="green"]) {
+  border-color: color-mix(in srgb, var(--green) 34%, var(--border));
+  background: color-mix(in srgb, var(--green) 10%, transparent);
+  color: var(--green);
+}
+
+.meta :global(.client-review-status-badge[data-tone="orange"]) {
+  border-color: color-mix(in srgb, var(--orange) 34%, var(--border));
+  background: color-mix(in srgb, var(--orange) 12%, transparent);
+  color: var(--orange);
+}
+
+.meta :global(.client-review-status-badge[data-tone="red"]) {
+  border-color: color-mix(in srgb, var(--red) 34%, var(--border));
+  background: color-mix(in srgb, var(--red) 10%, transparent);
+  color: var(--red);
+}
+
+.meta :global(.client-review-status-badge[data-tone="accent"]) {
+  border-color: color-mix(in srgb, var(--accent) 24%, var(--border));
   background: var(--accent-dim);
   color: var(--accent);
-  text-transform: capitalize;
 }
 
 .meta :global(.client-review-header-summary) {

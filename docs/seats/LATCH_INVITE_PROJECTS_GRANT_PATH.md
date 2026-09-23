@@ -1,8 +1,20 @@
 # Latch — invite accept and `/projects` 403
 
 Date: 2026-09-23
-Seat: Latch (auth). Code change: CVP-CLIENT-API-ALLOWLIST-01.
+Seat: Latch (auth). Code change: the narrow client grant.
 Repo: `baileyeubanks/codeliver` on `main` at `4a68788`.
+
+## Sequence
+
+Commander order, this seat only. Bailey stays quiet. A live tip waits on M2 or M4 proof.
+
+1. Spike lands [PR 13](https://github.com/baileyeubanks/codeliver/pull/13) on M2 first. That is the only `compress: false` land.
+2. Grant is next. [PR 19](https://github.com/baileyeubanks/codeliver/pull/19) is the method gate Latch owns: `GET`/`HEAD` for the project list, project detail, project assets, `/api/assets`, and `/api/teams/invites`, plus `PATCH` accept/decline, and the service-client read after the email matches. [PR 18](https://github.com/baileyeubanks/codeliver/pull/18) is the same narrow idea with `compress: false` bundled in. Leave that flag in PR 13. [PR 15](https://github.com/baileyeubanks/codeliver/pull/15) stays held. Its path match admits `POST`, and invite `POST` sends mail.
+3. Login follows, from [PR 14](https://github.com/baileyeubanks/codeliver/pull/14) and [PR 12](https://github.com/baileyeubanks/codeliver/pull/12). [PR 16](https://github.com/baileyeubanks/codeliver/pull/16) still has `compress: false`, the brand rail, the subhead “Sign in with your Content Co-op account.”, and the demo label “Open local workspace”. Strip the flag. Remove the rail and the subhead. Demo says Sign in.
+4. Hook [PR 12](https://github.com/baileyeubanks/codeliver/pull/12) lands with that door.
+5. Cut grades after the doors are live.
+
+Probe at 2026-09-23 20:17 UTC: `https://co-videopro.com/login` and `https://client.contentco-op.com/login` both returned Cloudflare `502` (error page, about 6.4 KB). This seat has no M2 worker and no path to the failover Mac. PR 13 is mergeable on GitHub. It is not running on M2.
 
 Login form fill on `https://client.contentco-op.com` already reaches `/projects`. This note is the next fetch. A resend waits on Bailey. No client or crew send is approved from this note.
 

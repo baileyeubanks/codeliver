@@ -296,7 +296,7 @@ test("the branded auth, cockpit, and public review shells retain mobile and desk
   assert.match(authStyles, /\.shell\s*\{[\s\S]*?display:\s*flex/);
   assert.match(authStyles, /\.shell\s*\{[\s\S]*?align-items:\s*center/);
   assert.doesNotMatch(authStyles, /\.brandRail\b/);
-  assert.match(authStyles, /\.panel\s*\{[\s\S]*?border-radius:\s*16px/);
+  assert.match(authStyles, /\.panel\s*\{[\s\S]*?border-radius:\s*20px/);
   assert.match(authStyles, /\.accessStrip\s*\{[\s\S]*?display:\s*grid/);
   assert.match(authStyles, /\.accessItem\s*\{[\s\S]*?border-radius:\s*8px/);
   assert.ok(authFormCap, "auth form must have a stable responsive width cap");

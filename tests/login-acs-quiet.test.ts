@@ -41,6 +41,8 @@ test("quiet login chrome is brand blue; green, yellow, and red stay on status", 
   const authStyles = source("components/auth/AuthShell.module.css");
   const login = source("app/login/page.tsx");
 
+  assert.match(authStyles, /background:\s*var\(--auth-bg\)/);
+  assert.doesNotMatch(authStyles, /linear-gradient/);
   assert.match(authStyles, /--auth-accent:\s*var\(--cvp-blue/);
   assert.match(authStyles, /--auth-positive:\s*var\(--cvp-success/);
   assert.match(authStyles, /--auth-warn:\s*var\(--cvp-amber/);

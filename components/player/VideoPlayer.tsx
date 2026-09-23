@@ -12,7 +12,8 @@ interface VideoPlayerProps {
   onTimeUpdate?: (time: number) => void;
   onPlaybackStart?: () => void;
   onPlaybackError?: () => void;
-  onFrameClick?: (x: number, y: number, timeSeconds: number) => void;
+  /** wasPlaying is captured before the tap pauses the frame. */
+  onFrameClick?: (x: number, y: number, timeSeconds: number, wasPlaying: boolean) => void;
   onCutMarker?: (time: number) => void;
   sourceNonce?: number;
   resumeTime?: number | null;
@@ -269,8 +270,11 @@ export default function VideoPlayer({
 
     if (!point) return;
 
+    // Capture playback intent before pausing so the review surface can resume
+    // only a film that was actually playing when the reviewer tapped.
+    const wasPlaying = !video.paused && !video.ended;
     video.pause();
-    onFrameClick(point.x, point.y, video.currentTime);
+    onFrameClick(point.x, point.y, video.currentTime, wasPlaying);
   }
 
   // Keyboard shortcuts

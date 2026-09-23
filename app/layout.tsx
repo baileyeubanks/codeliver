@@ -1,6 +1,7 @@
 import "./globals.css";
 import type { Metadata } from "next";
 import { headers } from "next/headers";
+import { Suspense } from "react";
 import { DemoCapabilityProvider } from "@/lib/demo/capability-context";
 import CopilotMount from "@/components/copilot/CopilotMount";
 
@@ -27,7 +28,10 @@ export default async function RootLayout({ children }: { children: React.ReactNo
       <body className="min-h-screen bg-[var(--bg)]">
         <DemoCapabilityProvider enabled={demoCapability}>
           {children}
-          <CopilotMount />
+          {/* useSearchParams inside CopilotMount requires a boundary. */}
+          <Suspense fallback={null}>
+            <CopilotMount />
+          </Suspense>
         </DemoCapabilityProvider>
       </body>
     </html>

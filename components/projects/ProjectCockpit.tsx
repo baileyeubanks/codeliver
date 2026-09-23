@@ -27,6 +27,7 @@ import {
   Circle,
   Compass,
   Clock3,
+  Eye,
   History,
   Info,
   Link2,
@@ -65,6 +66,7 @@ import CoProduceLifecycleDrawer, {
   type CoProduceLifecycleDestination,
 } from "@/components/cockpit/CoProduceLifecycleDrawer";
 import CockpitReviewTimeline from "@/components/cockpit/CockpitReviewTimeline";
+import VersionSwitcher from "@/components/review/VersionSwitcher";
 import {
   CockpitMobileNavigation,
   CockpitProjectNavigation,
@@ -119,6 +121,7 @@ import {
   isRevisionableDemoMedia,
   resolvePinnedDemoMediaVersion,
   sortDemoMediaVersions,
+  toDemoReviewVersion,
 } from "@/lib/demo/media-version-authority";
 import {
   canOperateExactInternalReviewVersion,
@@ -136,7 +139,7 @@ import AnchoredCommentCallout from "@/components/review/AnchoredCommentCallout";
 import { adjacentTimedComment, orderedTimedComments } from "@/lib/review/comment-navigation";
 import { refreshReviewImageAttachments } from "@/lib/review/image-attachments-client";
 import { normalizeReviewSeekStep, normalizeReviewShortcutKey, projectPointIntoMedia, shouldIgnoreReviewShortcut } from "@/lib/review/player-policy";
-import { buildSurfaceUrl, getReviewSiteUrl } from "@/lib/surface-origins";
+import { buildSurfaceUrl, getReviewSiteUrl, toDemoSiteUrl } from "@/lib/surface-origins";
 import { mayOpenRevisionUploader } from "@/lib/uploads/revision-upload";
 import type { CommentAttachment, EditDecision, Version } from "@/lib/types/codeliver";
 import styles from "./ProjectCockpit.module.css";
@@ -292,6 +295,16 @@ function avatarInitials(name: string) {
     .slice(0, 2)
     .map((part) => part[0]?.toUpperCase())
     .join("");
+}
+
+/**
+ * VA-024: the status dot reports state — green only for approved/final,
+ * red for needs-changes, neutral otherwise. Never decorative green.
+ */
+function assetStatusTone(status?: string | null): "green" | "red" | "neutral" {
+  if (status === "approved" || status === "final") return "green";
+  if (status === "needs_changes") return "red";
+  return "neutral";
 }
 
 /**
@@ -742,6 +755,40 @@ export default function ProjectCockpit({
   const activeLiveReviewKey = activeAsset && activeLiveVersion
     ? `${activeAsset.id}:${activeLiveVersion.id}`
     : null;
+  // VA-023: the same version control lives on the internal stage bar — the
+  // shared switcher, driving ?version= navigation on the canonical route.
+  const stageVersions: Version[] = activeAsset
+    ? demoMode
+      ? sortDemoMediaVersions(
+          workspace.mediaVersions.filter((version) => version.asset_id === activeAsset.id),
+        ).map((version) => toDemoReviewVersion(version, "", null))
+      : liveVersions
+    : [];
+  const activeStageVersionId = (demoMode ? activeDemoVersionId : activeLiveVersion?.id) ?? null;
+  // VA-021: Preview opens the real guest door for the current cut — the most
+  // recent active link bound to this version, never a mock. A live cut with
+  // no link yet stays disabled; the demo workspace always has its plain
+  // local preview.
+  const guestPreviewHref = (() => {
+    if (!activeAsset || !reviewViewActive || typeof window === "undefined") return null;
+    const candidateLinks = (demoMode ? workspace.shareLinks : liveShareLinks)
+      .filter((link) =>
+        link.is_active !== false &&
+        link.asset_ids.includes(activeAsset.id) &&
+        (!activeStageVersionId || !link.version_id || link.version_id === activeStageVersionId),
+      )
+      .sort((a, b) => (b.created_at ?? "").localeCompare(a.created_at ?? ""));
+    const latest = candidateLinks[0];
+    if (latest) {
+      if (!demoMode) return latest.public_url;
+      try {
+        return toDemoSiteUrl(latest.public_url, window.location.origin);
+      } catch {
+        return null;
+      }
+    }
+    return demoMode ? `/review/demo?demo=1&asset=${encodeURIComponent(activeAsset.id)}` : null;
+  })();
   const activeReviewTargetRef = useRef({
     assetId: activeAsset?.id ?? null,
     versionId: activeLiveVersion?.id ?? null,
@@ -1595,6 +1642,38 @@ export default function ProjectCockpit({
     params.set("demo", "1");
     params.set("asset", activeAsset.id);
     params.set("version", version.id);
+    router.replace(`/projects/${project.id}?${params.toString()}`);
+    setCurrentTime(0);
+    setNativeDuration(0);
+    setIsPlaying(false);
+    setHasEnded(false);
+    setPendingPin(null);
+    setSelectedCommentId(null);
+    setResumeAfterComment(false);
+    if (typeof videoRef.current?.pause === "function") videoRef.current.pause();
+    if (typeof videoRef.current?.load === "function") videoRef.current.load();
+  }
+
+  // VA-023: stage-bar version switching on the internal review stage, both
+  // demo and live, through the canonical ?version= route.
+  function selectStageReviewVersion(versionId: string) {
+    if (!activeAsset) return;
+    const available = demoMode
+      ? workspace.mediaVersions.some(
+          (candidate) => candidate.id === versionId && candidate.asset_id === activeAsset.id,
+        )
+      : liveVersions.some(
+          (candidate) => candidate.id === versionId && candidate.asset_id === activeAsset.id,
+        );
+    if (!available) {
+      setToast("Requested media version unavailable.");
+      return;
+    }
+    const params = new URLSearchParams(searchParams.toString());
+    if (demoMode) params.set("demo", "1");
+    params.set("asset", activeAsset.id);
+    params.set("version", versionId);
+    params.set("view", "review");
     router.replace(`/projects/${project.id}?${params.toString()}`);
     setCurrentTime(0);
     setNativeDuration(0);
@@ -2579,7 +2658,7 @@ export default function ProjectCockpit({
                       >
                         {assets.map((asset) => <option key={asset.id} value={asset.id}>{asset.title}</option>)}
                       </select>
-                      {demoMode && activeDemoVersions.length > 0 && !requestedReviewVersionUnavailable ? (
+                      {demoMode && !reviewViewActive && activeDemoVersions.length > 0 && !requestedReviewVersionUnavailable ? (
                         <select
                           value={activeDemoVersionId ?? ""}
                           onChange={(event) => selectDemoReviewVersion(event.target.value)}
@@ -2591,7 +2670,7 @@ export default function ProjectCockpit({
                             </option>
                           ))}
                         </select>
-                      ) : !demoMode && liveVersionAssetId === activeAsset.id && liveVersions.length > 0 && activeLiveVersion ? (
+                      ) : !demoMode && !reviewViewActive && liveVersionAssetId === activeAsset.id && liveVersions.length > 0 && activeLiveVersion ? (
                         <select
                           value={activeLiveVersion.id}
                           onChange={(event) => selectLiveReviewVersion(event.target.value)}
@@ -2631,6 +2710,28 @@ export default function ProjectCockpit({
                           </Link>
                         ) : null}
                       </p>
+                      {guestPreviewHref ? (
+                        <a
+                          className={styles.reviewDetailsToggle}
+                          href={guestPreviewHref}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          title="Open this cut exactly as the guest sees it"
+                        >
+                          <Eye size={15} aria-hidden="true" />
+                          Preview as guest
+                        </a>
+                      ) : (
+                        <span
+                          className={styles.reviewDetailsToggle}
+                          data-disabled="true"
+                          title="Share this cut first — Preview opens the guest link"
+                          aria-disabled="true"
+                        >
+                          <Eye size={15} aria-hidden="true" />
+                          Preview as guest
+                        </span>
+                      )}
                       <button
                         className={styles.reviewDetailsToggle}
                         type="button"
@@ -2671,6 +2772,15 @@ export default function ProjectCockpit({
                   </section>
                 ) : activeAsset ? (
                   <section className="cockpit-review-stage" aria-label={`Review ${activeAsset.title}`}>
+                    {reviewViewActive && stageVersions.length >= 2 ? (
+                      <div className="cockpit-stage-versions">
+                        <VersionSwitcher
+                          versions={stageVersions}
+                          activeVersionId={demoMode ? activeDemoVersionId : activeLiveVersion?.id ?? null}
+                          onSelect={(version) => selectStageReviewVersion(version.id)}
+                        />
+                      </div>
+                    ) : null}
                     <div
                       ref={videoFrameRef}
                       className="cockpit-video-frame"
@@ -3042,14 +3152,14 @@ export default function ProjectCockpit({
                           <h2>{versionScopedReview ? "Review context" : "Review status"}</h2>
                           {versionScopedReview ? (
                             <>
-                              <p className="cockpit-review-status"><i /> {requestedReviewVersionUnavailable ? "Version unavailable" : historicalReviewLabel}</p>
+                              <p className="cockpit-review-status"><i data-tone={requestedReviewVersionUnavailable ? "red" : "neutral"} /> {requestedReviewVersionUnavailable ? "Version unavailable" : historicalReviewLabel}</p>
                               <p className="cockpit-rail-empty">
                                 This cut keeps its own notes and markers. Current approval and share state are not applied here; new share links use the latest cut.
                               </p>
                             </>
                           ) : (
                             <>
-                              <p className="cockpit-review-status"><i /> {formatAssetStatus(activeAsset.status)}</p>
+                              <p className="cockpit-review-status"><i data-tone={assetStatusTone(activeAsset.status)} /> {formatAssetStatus(activeAsset.status)}</p>
                               {approvalStages.length > 0 ? (
                             <>
                               <div className="cockpit-progress">

@@ -1,12 +1,30 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { copilotHistory, copilotProjectFromPath, requestCopilotReply } from "../components/copilot/copilot-client.ts";
+import { copilotAllowedOnPath, copilotHistory, copilotProjectFromPath, requestCopilotReply } from "../components/copilot/copilot-client.ts";
 
 test("project selection follows project navigation, never public review or another route", () => {
   assert.equal(copilotProjectFromPath("/projects/project-a/whiteboard"), "project-a");
   for (const path of ["/projects", "/projects/new", "/projects/archive", "/projects/trash", "/review/project-a", "/projects/%2Fadmin", "/projects/%ZZ"]) {
     assert.equal(copilotProjectFromPath(path), null);
   }
+});
+
+test("VA-022: the Copilot never mounts on the film-first review stage", () => {
+  // The review stage is a query state on the project workspace path.
+  assert.equal(copilotAllowedOnPath("/projects/p1", "view=review"), false);
+  assert.equal(copilotAllowedOnPath("/projects/p1", "asset=a1&view=review"), false);
+  assert.equal(copilotAllowedOnPath("/projects/p1", "view=review&asset=a1"), false);
+  // The same workspace outside the review view keeps the Copilot.
+  assert.equal(copilotAllowedOnPath("/projects/p1", ""), true);
+  assert.equal(copilotAllowedOnPath("/projects/p1", "asset=a1"), true);
+  assert.equal(copilotAllowedOnPath("/projects/p1"), true);
+  // Auth pages and the public review door stay excluded.
+  assert.equal(copilotAllowedOnPath("/login"), false);
+  assert.equal(copilotAllowedOnPath("/signup"), false);
+  assert.equal(copilotAllowedOnPath("/review/token-1"), false);
+  assert.equal(copilotAllowedOnPath("/review/token-1", "view=review"), false);
+  // A forged or repeated view parameter cannot smuggle the stage past the gate.
+  assert.equal(copilotAllowedOnPath("/projects/p1", "view=review&view=list"), false);
 });
 
 test("history is bounded to the latest exchange context and excludes labels/sources", () => {

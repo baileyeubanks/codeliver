@@ -28,6 +28,7 @@ import { adjacentTimedComment, orderedTimedComments } from "@/lib/review/comment
 import { refreshReviewImageAttachments } from "@/lib/review/image-attachments-client";
 import VersionCompare from "@/components/review/VersionCompare";
 import VersionSwitcher from "@/components/review/VersionSwitcher";
+import DownloadMenu from "@/components/review/DownloadMenu";
 import ShareLinkAccessGate from "@/components/sharing/ShareLinkAccessGate";
 import ShareSettingsDialog from "@/components/sharing/ShareSettingsDialog";
 import ShareWatermark from "@/components/sharing/ShareWatermark";
@@ -135,6 +136,13 @@ interface ReviewPayload {
   expires_at: string | null;
   download_enabled: boolean;
   download_url: string | null;
+  /** VA-025: server-projected download ladder (Original + ready renditions). */
+  downloads?: Array<{
+    label: string;
+    url: string;
+    bytes?: number | null;
+    resolution?: string | null;
+  }>;
   watermark_enabled: boolean;
   watermark_text: string | null;
   workflow_mode: WorkflowMode | null;
@@ -227,6 +235,7 @@ export default function PublicReviewPage({
   const [workflowMode, setWorkflowMode] = useState<WorkflowMode | null>(null);
   const [delivery, setDelivery] = useState<ReviewPayload["delivery"]>(null);
   const [downloadUrl, setDownloadUrl] = useState<string | null>(null);
+  const [downloadLadder, setDownloadLadder] = useState<NonNullable<ReviewPayload["downloads"]>>([]);
   const [reviewerName, setReviewerName] = useState("");
   const [reviewerEmail, setReviewerEmail] = useState<string | null>(null);
   const [selectedCommentId, setSelectedCommentId] = useState<string | null>(null);
@@ -251,6 +260,9 @@ export default function PublicReviewPage({
     y: number;
     timeSeconds: number | null;
   } | null>(null);
+  // VA-020 one-tap contract: playback resumes after a submitted note only
+  // when the film was actually playing at tap time.
+  const [resumeAfterComment, setResumeAfterComment] = useState(false);
   const [cutMarkers, setCutMarkers] = useState<CutMarker[]>([]);
   const [cutMarkerError, setCutMarkerError] = useState("");
   const [loading, setLoading] = useState(true);
@@ -572,6 +584,16 @@ export default function PublicReviewPage({
           setDownloadUrl(
             review.download_enabled ? initialVersion.file_url : null,
           );
+          setDownloadLadder(
+            review.download_enabled && initialVersion.file_url
+              ? [{
+                  label: "Original",
+                  url: initialVersion.file_url,
+                  bytes: initialVersion.file_size ?? null,
+                  resolution: initialVersion.resolution ?? null,
+                }]
+              : [],
+          );
           setInvite({
             id: review.invite.id,
             reviewer_name: persistedApprovalState?.reviewer_name ?? review.reviewer_name,
@@ -630,6 +652,17 @@ export default function PublicReviewPage({
           (review as ReviewPayload & { reviewer_email?: string | null }).reviewer_email ?? null,
         );
         setDownloadUrl(review.download_url);
+        // VA-025: the ladder is the server projection — never synthesized
+        // from arbitrary payload fields beyond shape validation.
+        setDownloadLadder(
+          (review.downloads ?? []).filter(
+            (item) =>
+              item &&
+              typeof item.label === "string" &&
+              typeof item.url === "string" &&
+              item.url.startsWith("/api/review/media/"),
+          ),
+        );
         setInvite({
           id: review.invite.id,
           reviewer_name: review.reviewer_name,
@@ -953,11 +986,22 @@ export default function PublicReviewPage({
     setActiveVersionId(next.id);
     if (demoMode && invite?.download_enabled) {
       setDownloadUrl(next.file_url);
+      setDownloadLadder(
+        next.file_url
+          ? [{
+              label: "Original",
+              url: next.file_url,
+              bytes: next.file_size ?? null,
+              resolution: next.resolution ?? null,
+            }]
+          : [],
+      );
     }
     resetPlayer();
     setFrameRate(resolveReviewFrameRate(asset?.frame_rate));
     setSelectedCommentId(null);
     setCommentPin(null);
+    setResumeAfterComment(false);
     setDrawMode(false);
     setDraftStrokes([]);
     if (typeof window !== "undefined") {
@@ -972,6 +1016,12 @@ export default function PublicReviewPage({
     // playhead belongs to a different surface.
     if (!compareMode) resetPlayer();
     setCompareMode(!compareMode);
+  }
+
+  // VA-023: one compact action returns an older-cut view to the current version.
+  function handleBackToCurrentVersion() {
+    const current = currentVersion(versions);
+    if (current) handleVersionSelect(current);
   }
 
   function closeShareSettings() {
@@ -1104,9 +1154,10 @@ export default function PublicReviewPage({
   // VA-019: tapping the film is the comment gesture — the player has already
   // paused on the exact frame, so the pin carries that playhead and the rail
   // composer opens on it. No pin-mode arming step, no under-frame deck.
-  function handleFramePin(x: number, y: number, timeSeconds: number) {
+  function handleFramePin(x: number, y: number, timeSeconds: number, wasPlaying = false) {
     if (!canComment) return;
     setCommentPin({ x, y, timeSeconds });
+    setResumeAfterComment(wasPlaying);
   }
 
   function toggleDrawMode() {
@@ -1158,10 +1209,12 @@ export default function PublicReviewPage({
     const y = ((event.clientY - rect.top) / rect.height) * 100;
 
     setCommentPin({ x, y, timeSeconds: null });
+    setResumeAfterComment(false);
   }
 
   function clearPin() {
     setCommentPin(null);
+    setResumeAfterComment(false);
     setDrawMode(false);
     setDraftStrokes([]);
   }
@@ -1186,11 +1239,15 @@ export default function PublicReviewPage({
     if (asset?.file_type === "video" && videoRef.current) {
       const video = videoRef.current;
       (video.closest("[data-player-root]") as HTMLElement | null)?.focus({ preventScroll: true });
-      void video.play().catch(() => {
-        video.muted = true;
-        usePlayerStore.getState().setMuted(true);
-        void video.play().catch(() => undefined);
-      });
+      // VA-020: resume only a film that was playing when the reviewer tapped.
+      if (resumeAfterComment) {
+        setResumeAfterComment(false);
+        void video.play().catch(() => {
+          video.muted = true;
+          usePlayerStore.getState().setMuted(true);
+          void video.play().catch(() => undefined);
+        });
+      }
     }
   }
 
@@ -1515,7 +1572,10 @@ export default function PublicReviewPage({
               <h1 className="review-display">
                 {asset?.title ?? "Review"}
               </h1>
-              <span className="client-review-status-badge">
+              <span
+                className="client-review-status-badge"
+                data-tone={delivery?.locked ? "green" : isSourcePreview ? "slate" : reviewState.tone}
+              >
                 {delivery?.locked ? "Locked final delivery" : isSourcePreview ? "Source file" : reviewState.label}
               </span>
             </div>
@@ -1564,16 +1624,6 @@ export default function PublicReviewPage({
                   ) : null}
                 </div>
                 <div className="client-review-tool-actions">
-                  {invite?.download_enabled && downloadUrl ? (
-                    <a
-                      href={downloadUrl ?? undefined}
-                      download
-                      className="client-review-download"
-                    >
-                      <Download size={13} />
-                      Download
-                    </a>
-                  ) : null}
                   {asset && activeVersion && !isSourcePreview ? (
                     <button
                       type="button"
@@ -1676,9 +1726,17 @@ export default function PublicReviewPage({
                   />
                 )}
                 {viewingOlderVersion ? (
-                  <span className="text-[11px] text-amber-300/90">
-                    Viewing an older version — notes and approvals belong to
-                    V{currentVersionNumber ?? "?"} (Current).
+                  <span className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] text-white/75">
+                    <span>
+                      Viewing V{activeVersion?.version_number ?? "?"} — notes and approvals stay on this cut.
+                    </span>
+                    <button
+                      type="button"
+                      onClick={handleBackToCurrentVersion}
+                      className="rounded-full border border-[var(--accent)]/60 px-2 py-0.5 font-medium text-white transition-colors hover:bg-[var(--accent)]/25"
+                    >
+                      Back to current (V{currentVersionNumber ?? "?"})
+                    </button>
                   </span>
                 ) : null}
                 {linkVersions.length >= 2 ? (
@@ -1696,6 +1754,9 @@ export default function PublicReviewPage({
                     {compareMode ? "Single view" : "Compare A/B"}
                   </button>
                 ) : null}
+                {/* VA-025: the download ladder lives on the stage bar — no
+                    disclosure dive, no disabled teaser when downloads are off. */}
+                <DownloadMenu items={downloadLadder} />
               </div>
             ) : null}
 

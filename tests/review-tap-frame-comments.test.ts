@@ -14,7 +14,7 @@ test("the public review drops the on-frame compose dialog for the rail composer"
   const page = source("components/review/PublicReviewPage.tsx");
 
   assert.doesNotMatch(page, /InlineReviewComment/);
-  assert.match(page, /function handleFramePin\(x: number, y: number, timeSeconds: number\)/);
+  assert.match(page, /function handleFramePin\(x: number, y: number, timeSeconds: number, wasPlaying = false\)/);
   assert.match(page, /pin=\{commentPin\}/);
   assert.match(page, /annotations=\{draftStrokes\.length > 0 \? draftStrokes : undefined\}/);
   assert.match(page, /rasterSize=\{drawingRasterSize\}/);
@@ -23,10 +23,11 @@ test("the public review drops the on-frame compose dialog for the rail composer"
 test("frame taps pin the exact playhead without a pin-mode arming step", () => {
   const page = source("components/review/PublicReviewPage.tsx");
   const framePin = page.match(
-    /function handleFramePin\(x: number, y: number, timeSeconds: number\) \{([\s\S]*?)\n  \}/,
+    /function handleFramePin\(x: number, y: number, timeSeconds: number, wasPlaying = false\) \{([\s\S]*?)\n  \}/,
   )?.[1] ?? "";
   assert.match(framePin, /if \(!canComment\) return;/);
   assert.match(framePin, /setCommentPin\(\{ x, y, timeSeconds \}\);/);
+  assert.match(framePin, /setResumeAfterComment\(wasPlaying\);/);
   assert.doesNotMatch(framePin, /pinMode/i);
 
   // Images take the same direct tap — no arming toggle.

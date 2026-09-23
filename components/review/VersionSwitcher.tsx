@@ -63,7 +63,7 @@ export default function VersionSwitcher({
               data-current={isCurrent || undefined}
               className={`flex min-h-8 items-center gap-1.5 rounded-full border px-3 text-xs font-medium transition-colors ${
                 active
-                  ? "border-[var(--accent)] bg-[var(--accent)] text-[#18223e]"
+                  ? "border-[var(--accent)] bg-white/10 text-white"
                   : isCurrent
                     ? "border-[var(--accent)]/50 bg-white/5 text-white hover:border-[var(--accent)]"
                     : "border-white/25 bg-white/5 text-white/85 hover:border-white/50 hover:text-white"

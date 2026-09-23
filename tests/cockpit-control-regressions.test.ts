@@ -147,9 +147,11 @@ test("mobile review tools keep only distinct primary actions", () => {
   );
   const mobileStrip = cockpitSource.slice(stripStart, stripEnd);
 
-  assert.equal(mobileStrip.match(/<button/g)?.length, 2);
+  assert.equal(mobileStrip.match(/<button/g)?.length, 1);
   assert.match(mobileStrip, />Comments</);
-  assert.match(mobileStrip, />Share</);
+  // VA-018: the share action is the three-mode ReviewShareMenu, not a lone
+  // generic Share button.
+  assert.match(mobileStrip, /<ReviewShareMenu\b/);
   assert.doesNotMatch(mobileStrip, />Transcript</);
   assert.match(
     globalStyles,
@@ -366,8 +368,7 @@ test("a producer can explicitly configure the first approval step before opening
   assert.match(setupHandler, /await loadLiveApprovalWorkflow\(target\.assetId, target\.versionId\)/);
   assert.match(setupHandler, /await onRefreshAssets\?\.\(\)/);
   assert.match(setupHandler, /activeReviewTargetRef\.current/);
-  assert.match(setupHandler, /setApprovalShareDefaults\(/);
-  assert.match(setupHandler, /setShareOpen\(true\);/);
+  assert.match(setupHandler, /openShareWithIntent\("approval_needed", recipientEmail\)/);
   assert.doesNotMatch(setupHandler, /setShareLinkActive|notification|send/);
   assert.doesNotMatch(cockpitSource, /createdApprovalStages/);
   assert.match(cockpitSource, /aria-label="Approval recipient email"/);

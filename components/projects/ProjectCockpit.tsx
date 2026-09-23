@@ -52,6 +52,8 @@ import {
 } from "lucide-react";
 import DemoShareModal from "@/components/demo/DemoShareModal";
 import CoProductionBrand from "@/components/brand/CoProductionBrand";
+import FailOnStageCard from "@/components/player/FailOnStageCard";
+import ReviewShareMenu, { type ReviewShareMode } from "@/components/sharing/ReviewShareMenu";
 import ShareModal from "@/components/sharing/ShareModal";
 import CommandPalette, { type CommandPaletteItem } from "@/components/navigation/CommandPalette";
 import { useOverlay } from "@/components/overlay/useOverlay";
@@ -99,6 +101,7 @@ import type {
   DemoShareLink,
 } from "@/lib/demo/workspace-store";
 import type { DemoProject } from "@/lib/demo/workspace";
+import type { ShareIntent } from "@/lib/sharing/share-intent";
 import { PROJECT_STAGE_META, PROJECT_STAGES, type ProjectStage } from "@/lib/covideopro/record.ts";
 import {
   CreativeSection,
@@ -578,6 +581,7 @@ export default function ProjectCockpit({
   const [expandedCommentIds, setExpandedCommentIds] = useState<ReadonlySet<string>>(new Set());
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [mobileDockOpen, setMobileDockOpen] = useState(false);
+  const [dockComposerOpen, setDockComposerOpen] = useState(false);
   const [reviewDetailsOpen, setReviewDetailsOpen] = useState(false);
   const [timelineOpen, setTimelineOpen] = useState(false);
   const [commandOpen, setCommandOpen] = useState(false);
@@ -625,8 +629,8 @@ export default function ProjectCockpit({
   const [approvalSetupError, setApprovalSetupError] = useState("");
   const [approvalSetupSubmitting, setApprovalSetupSubmitting] = useState(false);
   const [approvalShareDefaults, setApprovalShareDefaults] = useState<{
-    intent: "approval_needed";
-    reviewerEmail: string;
+    intent: ShareIntent;
+    reviewerEmail?: string;
   } | null>(null);
   const [systemsReadiness, setSystemsReadiness] = useState<CockpitReadinessState>(DEFAULT_COCKPIT_READINESS);
   const handleHlsPlaybackError = useCallback(() => {
@@ -1943,6 +1947,7 @@ export default function ProjectCockpit({
     setSelectedCommentId(null);
     setResumeAfterComment(false);
     setCommentStatus("open");
+    setDockComposerOpen(false);
     setToast("Timecoded comment added");
     videoFrameRef.current?.focus({ preventScroll: true });
     if (shouldResume) {
@@ -1969,6 +1974,14 @@ export default function ProjectCockpit({
         }
       });
     }
+  }
+
+  // VA-018: the three named share modes are the primary client handoff. Each
+  // opens the share sheet with its intent preselected and the current version
+  // pinned; approval links keep their workflow requirement server-side.
+  function openShareWithIntent(intent: ReviewShareMode, reviewerEmail?: string) {
+    setApprovalShareDefaults(reviewerEmail ? { intent, reviewerEmail } : { intent });
+    setShareOpen(true);
   }
 
   async function createApprovalWorkflow() {
@@ -2044,8 +2057,7 @@ export default function ProjectCockpit({
         return;
       }
 
-      setApprovalShareDefaults({ intent: "approval_needed", reviewerEmail: recipientEmail });
-      setShareOpen(true);
+      openShareWithIntent("approval_needed", recipientEmail);
     } catch {
       setApprovalSetupError(
         postAccepted
@@ -2281,18 +2293,14 @@ export default function ProjectCockpit({
         </div>
 
         <div className="cockpit-header-actions">
-          <button
-            className="cockpit-action-secondary"
-            type="button"
-            onClick={() => {
-              setLifecycleOpen(false);
-              setShareOpen(true);
-            }}
+          <ReviewShareMenu
+            triggerClassName="cockpit-action-secondary"
             disabled={!canShare || !activeAsset}
-            aria-label="Share project"
-          >
-            <Share2 size={17} /> <span>Share</span>
-          </button>
+            onSelect={(intent) => {
+              setLifecycleOpen(false);
+              openShareWithIntent(intent);
+            }}
+          />
           <button
             className="cockpit-action-primary"
             type="button"
@@ -2656,9 +2664,7 @@ export default function ProjectCockpit({
                       )}
                       <time>{formatActiveTimecode(currentTime)}</time>
                       {playbackError ? (
-                        <p role="alert">
-                          {playbackError} <button type="button" onClick={retryPlaybackSource}>Retry playback</button>
-                        </p>
+                        <FailOnStageCard clearTransport onRetry={retryPlaybackSource} />
                       ) : null}
                       <div
                         className={`cockpit-review-overlay ${styles.stageOverlay}`}
@@ -2838,34 +2844,9 @@ export default function ProjectCockpit({
                         </button>
                       </div>
                     </div>
-
-                    {!pendingPin ? <div className="cockpit-comment-composer">
-                      <span className="cockpit-avatar">{avatarInitials(viewerName) || "CC"}</span>
-                      <div className="cockpit-comment-field">
-                        {pendingPin ? (
-                          <span className="cockpit-pin-chip">
-                            <MapPin size={13} fill="currentColor" />
-                            Frame pin
-                          </span>
-                        ) : null}
-                        <input
-                          ref={commentInputRef}
-                          value={commentBody}
-                          onChange={(event) => setCommentBody(event.target.value)}
-                          onKeyDown={(event) => {
-                            if (event.key === "Enter") void submitComment();
-                          }}
-                          placeholder="Add a timecoded comment"
-                          aria-label="Comment"
-                        />
-                      </div>
-                      <button className="cockpit-timecode" type="button" onClick={() => seekTo(currentTime)}>
-                        {formatActiveTimecode(currentTime)}
-                      </button>
-                      <button className="cockpit-add-comment" type="button" onClick={() => void submitComment()} disabled={!commentBody.trim() || commentSubmitting}>
-                        {commentSubmitting ? "Saving" : "Add comment"}
-                      </button>
-                    </div> : null}
+                    {/* VA-019: no permanent compose deck under the frame. Tap the
+                        film to pause + pin + compose on the spot; the dock
+                        Comments tab owns text-first notes at the playhead. */}
                   </section>
                 ) : (
                   <EmptyState title="No review media" body="Upload a video to begin the review." />
@@ -2942,10 +2923,11 @@ export default function ProjectCockpit({
                       <span>Comments</span>
                     </button>
                     {contextualShareAllowed ? (
-                      <button type="button" onClick={() => setShareOpen(true)} disabled={!canShare}>
-                        <Share2 size={15} />
-                        <span>Share</span>
-                      </button>
+                      <ReviewShareMenu
+                        compact
+                        disabled={!canShare}
+                        onSelect={(intent) => openShareWithIntent(intent)}
+                      />
                     ) : null}
                   </div>
                 ) : null}
@@ -3026,8 +3008,16 @@ export default function ProjectCockpit({
                               ) : (
                             <>
                               <p className="cockpit-rail-empty">No approval workflow has been requested.</p>
+                              <button
+                                className="cockpit-rail-primary"
+                                type="button"
+                                onClick={() => openShareWithIntent("approval_needed")}
+                                disabled={!canShare}
+                              >
+                                Share for Approval
+                              </button>
                               <button className="cockpit-rail-secondary" type="button" onClick={() => selectSection("approvals")} disabled={!canUpload}>
-                                Set up approval
+                                Manage approval workflow
                               </button>
                             </>
                               )}
@@ -3041,6 +3031,30 @@ export default function ProjectCockpit({
                             <button type="button" className={commentStatus === "open" ? "active" : ""} onClick={() => setCommentStatus("open")}>Open ({comments.filter((comment) => comment.status === "open").length})</button>
                             <button type="button" className={commentStatus === "resolved" ? "active" : ""} onClick={() => setCommentStatus("resolved")}>Resolved ({comments.filter((comment) => comment.status === "resolved").length})</button>
                           </div>
+                          {dockComposerOpen ? (
+                            <div className="cockpit-comment-composer" data-dock-composer>
+                              <span className="cockpit-avatar">{avatarInitials(viewerName) || "CC"}</span>
+                              <div className="cockpit-comment-field">
+                                <input
+                                  ref={commentInputRef}
+                                  value={commentBody}
+                                  onChange={(event) => setCommentBody(event.target.value)}
+                                  onKeyDown={(event) => {
+                                    if (event.key === "Enter") void submitComment();
+                                    if (event.key === "Escape") setDockComposerOpen(false);
+                                  }}
+                                  placeholder="Add a note at the playhead"
+                                  aria-label="Comment"
+                                />
+                              </div>
+                              <button className="cockpit-timecode" type="button" onClick={() => seekTo(currentTime)}>
+                                {formatActiveTimecode(currentTime)}
+                              </button>
+                              <button className="cockpit-add-comment" type="button" onClick={() => void submitComment()} disabled={!commentBody.trim() || commentSubmitting}>
+                                {commentSubmitting ? "Saving" : "Add comment"}
+                              </button>
+                            </div>
+                          ) : null}
                           <div className="cockpit-comment-list">
                             {visibleComments.slice(0, 4).map((comment) => {
                               const expanded = expandedCommentIds.has(comment.id);
@@ -3086,9 +3100,10 @@ export default function ProjectCockpit({
                           <button
                             className="cockpit-rail-secondary"
                             type="button"
+                            aria-expanded={dockComposerOpen}
                             onClick={() => {
-                              setMobileDockOpen(false);
-                              window.requestAnimationFrame(() => document.querySelector<HTMLInputElement>(".cockpit-comment-composer input")?.focus());
+                              setDockComposerOpen((open) => !open);
+                              window.requestAnimationFrame(() => commentInputRef.current?.focus());
                             }}
                           >
                             Add comment
@@ -3443,7 +3458,11 @@ export default function ProjectCockpit({
           <DemoShareModal
             assets={assets}
             initialSelectedAssetIds={[activeAsset.id]}
-            onClose={() => setShareOpen(false)}
+            initialShareIntent={approvalShareDefaults?.intent}
+            onClose={() => {
+              setShareOpen(false);
+              setApprovalShareDefaults(null);
+            }}
             onShared={(input) => {
               const links = createDemoShareLinks(input);
               setToast(`${links.length} review ${links.length === 1 ? "link" : "links"} created in Reviews`);

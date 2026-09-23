@@ -56,10 +56,12 @@ function resolvePublicLink(value: string, demoMode: boolean, runtimeOrigin?: str
   }
 }
 
-function permissionLabel(permission?: ShareLink["permission"]) {
+// VA-018: the hub mirrors the three named share states. A view-only link
+// without the delivery file attached is a Preview; with it, a Delivery.
+function permissionLabel(permission?: ShareLink["permission"], allowDownloads?: boolean) {
   if (permission === "approve") return "Approval";
   if (permission === "comment") return "Review";
-  return "View";
+  return allowDownloads ? "Delivery" : "Preview";
 }
 
 export default function ReviewsPage() {
@@ -238,7 +240,7 @@ export default function ReviewsPage() {
                       <span className="reviews-type-value">
                         <Link2 size={15} className="text-[var(--accent)]" />
                         <span className="reviews-type-label">
-                          {permissionLabel(link.permission)} link
+                          {permissionLabel(link.permission, link.allow_downloads)} link
                         </span>
                       </span>
                     </td>
@@ -269,7 +271,7 @@ export default function ReviewsPage() {
                           </span>
                         ) : (
                           <span className="badge badge-working">
-                            <Eye size={10} className="mr-1" /> View
+                            <Eye size={10} className="mr-1" /> {link.allow_downloads ? "Delivery" : "Preview"}
                           </span>
                         )}
                         {link.allow_downloads && (
@@ -350,7 +352,7 @@ export default function ReviewsPage() {
               <div className="flex items-center justify-between">
                 <span className="kicker">Authority</span>
                 <span className="flex items-center gap-2 text-sm">
-                  <Shield size={14} /> {permissionLabel(detail.permission)}
+                  <Shield size={14} /> {permissionLabel(detail.permission, detail.allow_downloads)}
                 </span>
               </div>
               <div className="flex items-center justify-between">

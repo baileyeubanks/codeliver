@@ -8,6 +8,7 @@ export type ShareManifestIntent =
   | "internal_review"
   | "client_review"
   | "approval_needed"
+  | "preview"
   | "final_delivery";
 export type ShareManifestPermission = "view" | "comment" | "approve";
 export type SharePolicyTemplateId =
@@ -122,7 +123,7 @@ export const SHARE_POLICY_TEMPLATES: Record<SharePolicyTemplateId, SharePolicyTe
   "standard-review": {
     id: "standard-review",
     label: "Standard review",
-    intents: ["internal_review", "client_review"],
+    intents: ["internal_review", "client_review", "preview"],
     allowedPermissions: ["view", "comment"],
     maxExpiryDays: 30,
     maxItems: SHARE_MANIFEST_MAX_ITEMS,
@@ -200,6 +201,13 @@ const INTENT_DEFAULTS: Record<
     downloadEnabled: false,
     templateId: "approval-route",
   },
+  preview: {
+    permission: "view",
+    expiresInDays: 7,
+    watermarkEnabled: false,
+    downloadEnabled: false,
+    templateId: "standard-review",
+  },
   final_delivery: {
     permission: "view",
     expiresInDays: 14,
@@ -230,6 +238,7 @@ function normalizeIntent(value: unknown): ShareManifestIntent | null {
   return value === "internal_review" ||
     value === "client_review" ||
     value === "approval_needed" ||
+    value === "preview" ||
     value === "final_delivery"
     ? value
     : null;

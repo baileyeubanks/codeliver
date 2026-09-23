@@ -53,7 +53,23 @@ That heading is only the client component’s error state. `TeamInviteAcceptance
 
 After accept, the component routes to `/projects`, which then hits the projects 403 above.
 
-## Draft already open
+## Second gate, after the proxy
+
+The invite page and the invite API do not use the same client.
+
+`app/invite/[token]/page.tsx` reads with `getSupabase()`, the service-role client, then checks the session email. A match renders `TeamInviteAcceptance`.
+
+`GET` and `PATCH` in `app/api/teams/invites/route.ts` then read and write with the caller session from `requireAuthWithClient`. Policies in `supabase/migrations/010_teams_security.sql` and `supabase/migrations/20260715093300_fail_closed_co_production_authority.sql` show `team_invites` to team admins and insert `team_members` at admin rank. The invitee is not a member yet, so the caller client does not see the row and cannot insert the membership. The API answers 404 `INVITE_NOT_FOUND` (or a failed insert). The same heading, “Invitation unavailable”, covers that result.
+
+Opening the allowlist alone leaves this gate. [PR 18](https://github.com/baileyeubanks/codeliver/pull/18) is the narrow land: `GET`/`HEAD` on `/api/projects`, `/api/assets`, and `/api/teams/invites`, plus `PATCH` on `/api/teams/invites`, and the recipient read/accept uses the service client only after the session email matches. Invite create and revoke stay on the caller client. That draft does not send mail.
+
+[PR 15](https://github.com/baileyeubanks/codeliver/pull/15) opens the paths and also every method on them, including `POST /api/projects` and `POST /api/teams/invites`. It does not move the recipient read off the caller client. Latch grades PR 18 for this bug. PR 15 stays the wider workspace list, and its invite `POST` stays a send Bailey has not approved.
+
+## Drafts already open
+
+Two drafts touch this gate. They conflict if both merge.
+
+[PR 18](https://github.com/baileyeubanks/codeliver/pull/18) (`cursor/reel-compress-invite-grant-7436`) is the grant Latch needs. It admits `GET`/`HEAD` for the project list, the asset list, and `/api/teams/invites`, and `PATCH` for accept/decline. It keeps invite `POST` and `DELETE` on the admin host. It reads and writes the recipient row with the service client after the email check.
 
 [PR 15](https://github.com/baileyeubanks/codeliver/pull/15) (`cursor/client-api-allowlist-05ef`, CVP-CLIENT-API-ALLOWLIST-01) admits these client-host paths in `CLIENT_API_ROUTE_PATTERNS`:
 
@@ -61,17 +77,17 @@ After accept, the component routes to `/projects`, which then hits the projects 
 - `/api/assets`, `/api/assets/:id`, and `/:id/(versions|comments|comments/attachments|edit-decisions|share)`
 - `/api/teams/invites`
 
-`main` does not have this yet. Until that PR merges, the 403 above is still the live gate.
+`main` has neither draft. Until one of them merges, the 403 above is still the live gate.
 
 The new patterns match the path only. Every method on those paths clears the launch gate for a client role on the client host. The new test locks `GET` and `PATCH` on invites, and it also locks `POST /api/projects`. It does not deny `POST` or `DELETE` on `/api/teams/invites`.
 
 `POST /api/teams/invites` still calls `sendEmail` after a team-admin check. `POST /api/assets/:id/comments` imports `sendEmail` as well. A client who already has handler authority can reach those sends from `client.contentco-op.com` once PR 15 merges. That is a send. Bailey has not approved one. Latch does not fire it, and Latch does not treat a green allowlist as a yes.
 
-Follow-up still on that seat: keep invite `POST` and `DELETE` on the admin host (method check, not only the path), and confirm `POST /api/projects` plus asset `share` / `comments` are reads the projects page needs. Billing, TUS, transcode, `/api/media/stream`, `/api/teams`, and `/api/teams/audit` stay closed in that draft. That part matches the seat.
+PR 18 already keeps invite `POST` and `DELETE` on the admin host. If PR 15 lands on its own, it still needs that method check, and it still needs the service-role recipient read. Billing, TUS, transcode, `/api/media/stream`, `/api/teams`, and `/api/teams/audit` stay closed in PR 15. That part matches the seat.
 
 ## What the handler does once the proxy admits the path
 
-`app/api/teams/invites/route.ts`, token flows only:
+On `main`, the caller client hits the admin-only policies first, so a matching invitee gets 404 before this table can succeed. After PR 18, this is the handler Latch grades:
 
 | Method | Result Latch should trust |
 | --- | --- |

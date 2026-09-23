@@ -23,6 +23,8 @@ import {
   normalizeProjectsFixture,
   useReportProjectsAvailability,
 } from "@/lib/api/projects-availability";
+import { roleCan } from "@/components/navigation/navigation-model";
+import { useWorkspaceRole } from "@/components/navigation/useWorkspaceRole";
 import styles from "./projects.module.css";
 
 type ProjectsLoadState =
@@ -43,6 +45,9 @@ export default function ProjectsPage() {
   const demoSuffix = useDemoSuffix();
   const searchParams = useSearchParams();
   const demoWorkspace = useDemoWorkspace();
+  // VA-044: a viewer never sees a create CTA it cannot use.
+  const workspaceRole = useWorkspaceRole();
+  const canCreateProject = roleCan(workspaceRole, "projects:create");
   const remoteLoadEpoch = useRef(0);
   const [demoRetrying, setDemoRetrying] = useState(false);
   const [remoteState, setRemoteState] = useState<ProjectsRemoteState>({
@@ -131,7 +136,7 @@ export default function ProjectsPage() {
           <div>
             <h1>Projects</h1>
           </div>
-          {loadState.status === "success" ? (
+          {loadState.status === "success" && canCreateProject ? (
             <div className="projects-header-actions">
               <Link
                 href={`/projects/new${demoSuffix}`}
@@ -202,17 +207,28 @@ export default function ProjectsPage() {
               <FolderPlus size={22} />
             </span>
             <div>
-              <h2>Create your first project</h2>
-              <p>Start with the production workspace.</p>
+              {canCreateProject ? (
+                <>
+                  <h2>Create your first project</h2>
+                  <p>Start with the production workspace.</p>
+                </>
+              ) : (
+                <>
+                  <h2>No projects yet</h2>
+                  <p>Projects appear here when your team shares them with you.</p>
+                </>
+              )}
             </div>
-            <Link
-              href={`/projects/new${demoSuffix}`}
-              className="projects-action projects-primary-action"
-              data-projects-action="true"
-            >
-              <Plus size={18} />
-              New project
-            </Link>
+            {canCreateProject ? (
+              <Link
+                href={`/projects/new${demoSuffix}`}
+                className="projects-action projects-primary-action"
+                data-projects-action="true"
+              >
+                <Plus size={18} />
+                New project
+              </Link>
+            ) : null}
           </section>
         ) : null}
 
@@ -232,10 +248,13 @@ export default function ProjectsPage() {
 
               <div className="project-list" data-testid="project-list">
                 {projectCards.map((project) => (
-                  <article
-                    className="project-card"
+                  <Link
+                    href={`/projects/${encodeURIComponent(project.id)}${demoSuffix}`}
+                    className="project-card project-card-link"
                     data-testid="project-card"
+                    data-projects-action="true"
                     key={project.id}
+                    aria-label={`Open project ${project.name}`}
                   >
                     <span className="project-card-mark" aria-hidden="true">
                       <BriefcaseBusiness size={20} />
@@ -259,16 +278,11 @@ export default function ProjectsPage() {
                         </span>
                       </div>
                     </div>
-                    <Link
-                      href={`/projects/${encodeURIComponent(project.id)}${demoSuffix}`}
-                      className="projects-action project-open-action"
-                      data-projects-action="true"
-                      aria-label={`Open project ${project.name}`}
-                    >
+                    <span className="projects-action project-open-action" aria-hidden="true">
                       <span>Open project</span>
                       <ArrowRight size={18} />
-                    </Link>
-                  </article>
+                    </span>
+                  </Link>
                 ))}
               </div>
             </section>

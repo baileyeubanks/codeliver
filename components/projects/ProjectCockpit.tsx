@@ -646,6 +646,12 @@ export default function ProjectCockpit({
   // pointer sits idle; any movement, pause, or failure brings them back.
   const [chromeIdle, setChromeIdle] = useState(false);
   const chromeIdleTimerRef = useRef<number | null>(null);
+  // The idle timer reads the cockpit's own playing state (which also covers
+  // simulated demo playback) rather than sniffing the media element.
+  const isPlayingRef = useRef(isPlaying);
+  useEffect(() => {
+    isPlayingRef.current = isPlaying;
+  }, [isPlaying]);
   const [liveComments, setLiveComments] = useState<DemoReviewComment[]>([]);
   const [liveCutMarkers, setLiveCutMarkers] = useState<DemoReviewCutMarker[]>([]);
   const [liveAssetDataKey, setLiveAssetDataKey] = useState<string | null>(null);
@@ -1832,8 +1838,7 @@ export default function ProjectCockpit({
     setChromeIdle(false);
     if (chromeIdleTimerRef.current) window.clearTimeout(chromeIdleTimerRef.current);
     chromeIdleTimerRef.current = window.setTimeout(() => {
-      const video = videoRef.current;
-      if (video && !video.paused && !video.ended) setChromeIdle(true);
+      if (isPlayingRef.current) setChromeIdle(true);
     }, 2200);
   }, []);
 

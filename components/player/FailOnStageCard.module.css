@@ -1,0 +1,86 @@
+/* VA-010: the fail card lives on the mounted stage, never in a white void. */
+.overlay {
+  position: absolute;
+  inset: 0;
+  /* Above anchored comment callouts (z-40): a failed stage owns the frame. */
+  z-index: 45;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  border-radius: inherit;
+  background: rgba(4, 8, 14, 0.52);
+  pointer-events: auto;
+}
+
+.clearTransport {
+  inset: 0 0 48px;
+  border-radius: 0;
+}
+
+.card {
+  display: grid;
+  justify-items: center;
+  gap: 12px;
+  max-width: min(280px, 100%);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 10px;
+  padding: 16px 20px;
+  background: rgba(13, 20, 30, 0.84);
+  color: #f5f8fc;
+  text-align: center;
+  box-shadow: 0 14px 34px rgba(0, 0, 0, 0.38);
+  backdrop-filter: blur(6px);
+}
+
+.line {
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.45;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.retry {
+  min-height: 34px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: 0;
+  border-radius: 7px;
+  padding: 0 14px;
+  background: var(--accent, #0057ff);
+  color: #fff;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 650;
+  cursor: pointer;
+  transition: background 150ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.retry:hover {
+  background: var(--accent-hover, #0046cc);
+}
+
+.retry:focus-visible {
+  outline: 2px solid #fff;
+  outline-offset: 2px;
+}
+
+/* Approved fallback actions (download) quiet down inside the dark card. */
+.actions :global(a),
+.actions :global(button) {
+  font-size: 12px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .retry {
+    transition-duration: 0.001ms;
+  }
+}

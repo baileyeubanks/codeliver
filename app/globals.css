@@ -2397,6 +2397,22 @@ a { color: inherit; text-decoration: none; }
   object-fit: contain;
 }
 
+/* VA-010: the stage stays mounted on a media failure — the poster/last frame
+   dims under the on-stage card instead of opening a white void. */
+.review-video-surface[data-stage-state="failed"] video {
+  opacity: 0.42;
+}
+
+.review-stage-shell {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  max-height: calc(100dvh - 315px);
+  overflow: hidden;
+  border-radius: var(--radius, 8px);
+  background: #050505;
+}
+
 .review-video-timeline {
   background: var(--surface);
 }

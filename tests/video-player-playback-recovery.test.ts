@@ -25,6 +25,10 @@ function allElements(node: unknown): Element[] {
   if (!node || typeof node !== "object") return [];
   if (Array.isArray(node)) return node.flatMap(allElements);
   const element = node as Element;
+  // Function components render inline so their host output stays visible.
+  if (typeof element.type === "function") {
+    return [element, ...allElements((element.type as (props: unknown) => unknown)(element.props))];
+  }
   return [element, ...allElements(element.props?.children)];
 }
 
@@ -251,8 +255,24 @@ function reviewMediaSurfaceHarness() {
   function MockLayers3() {
     return React.createElement("svg");
   }
-  function MockPlayerControls() {
-    return React.createElement("player-controls");
+  // VA-010: the fail card is a real component; the harness renders its
+  // essential contract (alert role, single retry, approved fallback actions).
+  function MockFailOnStageCard(props: {
+    onRetry?: () => void;
+    children?: React.ReactNode;
+  }) {
+    return React.createElement("div", { role: "alert" }, [
+      React.createElement("p", { key: "line" }, "Couldn’t load this cut."),
+      props.onRetry
+        ? React.createElement("button", {
+            key: "retry",
+            type: "button",
+            "aria-label": "Retry playback",
+            onClick: props.onRetry,
+          })
+        : null,
+      props.children,
+    ]);
   }
   const moduleRecord = { exports: {} as Record<string, unknown> };
   function imports(specifier: string): unknown {
@@ -260,7 +280,8 @@ function reviewMediaSurfaceHarness() {
     if (specifier === "react/jsx-runtime") return require(specifier);
     if (specifier === "lucide-react") return { Layers3: MockLayers3 };
     if (specifier === "@/components/player/VideoPlayer") return "video-player";
-    if (specifier === "@/components/player/PlayerControls") return MockPlayerControls;
+    if (specifier === "@/components/player/PlayerControls") return "player-controls";
+    if (specifier === "@/components/player/FailOnStageCard") return MockFailOnStageCard;
     throw new Error(`Unexpected ReviewMediaSurface import ${specifier}`);
   }
   runInNewContext(
@@ -348,6 +369,14 @@ test("ReviewMediaSurface exposes retry after playback failure and only renders a
   const failed = app.render("/media/first.mp4", fallback);
   assert.equal(allElements(failed).some((element) => element.props.role === "alert"), true);
   assert.equal(allElements(failed).some((element) => element.type === "a"), true, "an allowed fallback remains available");
+  assert.ok(
+    allElements(failed).some((element) => element.type === "video-player"),
+    "VA-010: the stage stays mounted while the fail card rides on it",
+  );
+  assert.ok(
+    allElements(failed).some((element) => element.type === "player-controls"),
+    "VA-010: the transport rail stays mounted under a failed stage",
+  );
   const retry = allElements(failed).find((element) => element.props["aria-label"] === "Retry playback");
   assert.ok(retry, "the failed player offers an explicit retry");
   retry.props.onClick();

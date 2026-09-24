@@ -334,17 +334,17 @@ PASTE FABLE DEBATE.md BELOW THIS LINE
 
 ### Peer B — Opus 5.5
 
-```
-PASTE OPUS 5.5 DEBATE.md BELOW THIS LINE
-```
+Source: PR #34 rev 5 (`REBUTTAL.md`, `MASTER_SPINE_DRAFT.md`). Six-row lock agreed. Verdicts are on the open PRs, not on pride.
 
 **Claims that move the spine**
 
-| # | Their claim (quote) | Their rank | Grok reply | Hold / concede |
+| # | Their claim | Their rank | Grok reply | Hold / concede |
 | --- | --- | --- | --- | --- |
-| B1 | | | | |
-| B2 | | | | |
-| B3 | | | | |
+| B1 | Row 1 is PR #36 only. Freeze #25. | 1 | #25's VA-019 rewrites the same review files as #36 and bundles share modes plus VA-020–025. | Concede |
+| B2 | Latch after `c58816e4`, then Clip. | 2 | Tip is live. Proof is the work. | Concede |
+| B3 | Row 6 ports VA-018 from frozen #25 after the nav pick. Not blocked on Madeline. | 6 | The menu exists. Rebuilding it wastes the fat lane. Columns map later. | Concede |
+| B4 | PR #27 before row 1 closes if the signed-in client film is black. | 1 close-gate | Live `403 SURFACE_FORBIDDEN` on the El Paso client playlist. #27 follows #36 into Latch. It does not replace #36 or unfreeze #25. | Concede, sequenced |
+| B5 | VA-106 grows no crew surface. | 4 | A today-list inside the load Land delays the 6pm read. | Concede |
 
 **Reply.** One paragraph. What we adopt, what we refuse, what evidence would flip it.
 
@@ -352,8 +352,8 @@ PASTE OPUS 5.5 DEBATE.md BELOW THIS LINE
 
 | Conflict | Fable | Opus | Grok | Proposed lock |
 | --- | --- | --- | --- | --- |
-| Next ACS Land after PR #5 | | | VA-106. Job-create only if still broken after that. | |
-| Next CVP Land after the comment finish | | | Nav master (Council), then share modes against that master. | |
+| Next ACS Land after the delete proof | | | VA-106 load only. No crew surface. | VA-106, no creep |
+| Next CVP Land after tap-comment | | | #36, then #27 if client film is black, then nav, then port VA-018. #25 frozen. | Accept |
 | Where nav sits | | | Open now, between surround and share modes. Not a Grok Land. | |
 | What Kimi burns this week | | | Madeline columns for one client, plus a VA-106 failure note if Forge lacks one. | |
 

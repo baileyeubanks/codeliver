@@ -131,7 +131,7 @@ Content Co-op is a video production company. Work arrives as a project with N de
 
 | Stage | What happens in the business | What the OS must hold |
 |---|---|---|
-| Inquiry → Proposal | Client asks; Bailey scopes; proposal with estimate lines; approval | Project + Proposal (versioned) + approval identity. *Already modeled in `lib/covideopro` and verified on the demo runtime; not yet on the remote runtime (R2).* |
+| Inquiry → Proposal | Client asks; Bailey scopes; proposal with estimate lines; approval | **CCO OS owns this** and hands the accepted, frozen commercial package to CVP (`20260812000000_commercial_handoff_fields.sql`). CVP shows it on the job; it never mutates price. *(My first draft cited the July demo-store proposal model; that is browser-local and superseded by the CCO handoff.)* |
 | Brief | Objectives, audience, message, deliverables list | Brief (versioned) → **Deliverables** enumerated from the brief |
 | Shoot | Production days, crew, locations, releases, call sheets | El Paso five entities; "who films tomorrow and hasn't signed" |
 | Cut | Editor produces v1 per deliverable | Version attached to Deliverable |
@@ -250,7 +250,7 @@ Legend: **G** = Grok 4.7 Land (scarce) · **K** = Kimi pack (abundant) · **C** 
 | **P1** | Deliverable object + per-deliverable status (transitions + tests + minimal surface in existing cockpit) | Kills Excel at the data layer; status derives from Version/approval state | G (Reel), K pack (contract) |
 | **P1** | Projects home + shell nav Land — after Bailey picks the master; renders the Deliverable data | The client's front door; honest only once the data exists (D8) | G (Reel/Cut/Latch) |
 | **P2** | Versioning vs brief: what changed vs previous / vs brief; comment carry-over (R5) | Second half of NS2; needs Deliverable + review shell | G (Reel), K pack |
-| **P2** | Proposals/invoice on job objects — promote existing demo-runtime proposal model to remote; attach invoice state | Model exists (WORKFLOWS Slice A); this is a runtime promotion, not a design job | G (Reel), K/Scout audit of what already exists |
+| **P2** | Money on the job — **CCO OS stays the commercial authority** (Aug 12 handoff migration: frozen estimate ↔ deliverable, "Co-VideoPro never mutates them"); CVP shows proposal + invoice state on the job and marks invoice-ready on lock | *Corrected after Opus:* promoting the July demo proposal model would create two price authorities and hand reconciliation | K (CCO seam) → G (Reel) |
 | **P2** | Sandcastles scripting assistant as FORM drafter (interview Qs, shot list, fact register) with operator approval | Real time-saver in Brief; not blocking revenue; must follow the five-agents frame not a chatbot | K pack (Frame), G later (Cut) |
 | **P3** | Multi-client multi-stakeholder event orchestration (WEFTEC) | Needs everything above; spec only until a real event is booked ("let a real shoot break it") | K spec (Scout) |
 
@@ -290,12 +290,12 @@ Legend: **G** = Grok 4.7 Land (scarce) · **K** = Kimi pack (abundant) · **C** 
 
 ### 7.1 Rules
 
-1. **No Grok Land without a Kimi pack.** The pack names: exact files, acceptance test (the ritual it moves), **the surface PASS it must hold or close (from the ledger)**, don't-break checks, rollback. Grok reads and cuts; it does not explore.
+1. **No Grok Land without named inputs.** A Kimi pack exists when the input is *outside the repo* (Madeline's sheet, a field failure note, the CCO seam, Lupe fields, Bailey's answers); when the input is inside the repo, Grok's own preflight is the pack (Opus's N1–N4 came from reading open PRs directly). Either way the Land names: exact files, acceptance test (the ritual it moves), **the surface PASS it must hold or close (from the ledger)**, don't-break checks, rollback. Grok reads and cuts; it does not explore.
 2. **One open Land per product at a time.** Never two half-landed CVP branches; never switch products with a Land open.
 3. **Alternate by slice, not by day.** Finish CVP P0 → finish ACS P0 → ACS Dispatch (small) → CVP Review shell (medium) → ACS Caio loop → CVP Deliverable status → …
 4. **Council spends once per master.** Nav master, this spine, the definitions of complete. No re-litigation without new evidence from a Land.
 5. **Kimi runs ahead of Grok by exactly one slice.** While Grok Lands item N, Kimi packs item N+1 and audits the reality of N+2. That is how "don't stop" is honored without the fat bucket idling.
-6. **Reality refresh is a Kimi job and it is overdue.** `STATUS.md`/`BLOCKERS.md` in the CVP repo are dated 2026-07-26 and say the media/approval spine is unproved; the September commit train (CCNAS publication, version-bound approval rounds, comments on the seek bar, approval setup) says otherwise. A one-pass reality map prevents Grok re-solving solved problems.
+6. ~~Reality refresh as a Kimi pack~~ **Dropped after Opus.** The July `STATUS.md`/`BLOCKERS.md` are stale, but Grok and Opus both established the September reality by reading commits and open PRs in preflight. Packs that restate the repo burn the research pool; the correction is to treat the July ledger as historical, not to commission a pack.
 
 ### 7.2 Where each bucket goes
 
@@ -348,22 +348,22 @@ Kimi packs should cite the sibling pattern when it exists; Grok should not be as
 
 Template lives in `REBUTTAL_TEMPLATE.md`. Two slots are pre-cut below. Order of fields is deliberate: **what I adopt comes before what I contest.**
 
-### 9.1 Rebuttal → Opus 5.5 DEBATE.md
+### 9.1 Rebuttal → Opus 5.5 — **filed**: `REBUTTAL_TO_OPUS.md`
 
-- **Peer's core claim:** _(paste)_
-- **Adopted as-is (peer right on operations):** _(…)_ → spine edits: _(#, action)_
-- **Adopted with modification:** _(…)_ → spine edits: _(#, action)_
-- **Contested — operating reason only:** _(…)_
-- **Surface ledger impact (PASS/OPEN rows touched):** _(…)_
-- **Credit impact (G / K / C):** _(…)_
-- **Open question only Bailey can answer (one pick for Blaze):** _(…)_
+Summary: all six of Blaze's listed claims adopted (PR #36 only / #25 frozen; #6 = reconcile #25's share code onto the pick, finish writes the version review outcome so #6 no longer waits on Madeline's sheet; signed-in client in #1's negative proof with PR #27 as standing contingency; VA-106 stays the named fix; **money = CCO OS authority — my demo-proposal promotion was wrong, verified in `20260812000000_commercial_handoff_fields.sql`**; one merged Bailey question on the crew surface with minimal Caio states by default). Six further Opus points adopted (cross-client "waiting on whom" home is where the Excel dies; no outbound CS drafts; ROUTINE lane; share modes as a ledger row; packs are inputs only — my reality-refresh pack dropped; nav master forged from mocks #30/#31/#32). Two held: no Council round on #7; ACS FORM drafts need not wait for CVP's finished round.
 
 ### 9.2 Rebuttal → Grok 4.7 DEBATE.md — **filed**: `REBUTTAL_TO_GROK.md`
 
 Summary: 11 points adopted as-is (unbundle VA-106; Madeline column harvest as its own row; finish-reviewing writes the status; share modes wait on the nav pick; proof text with the negative; Auth quiet PASS; migration is a Bailey gate; El Paso is past so creative AI starts with QC-vs-brief/chase list; cycle acceptance; "Bailey says bill" gate). 4 adopted with modification (enrichment is human, close/notes/invoice is the Land; one-client status first; Projects home P1→P2 with owner kept; VA-106 failure note yes, "KIMI-01 only" no). 4 held with operating evidence (Caio write-back as Job state; crew surface; Copilot-in-ACS as named intent; Kimi one slice ahead). Spine renumbered; see change log.
 
-### 9.3 Where Opus and Grok disagree with each other
+### 9.3 Where Opus and Grok disagree with each other — **ruled** in `REBUTTAL_TO_OPUS.md`
 
-- **Point of disagreement:** _(…)_
-- **Operating consequence that decides it:** _(…)_
-- **My ruling and spine edit, or Bailey pick:** _(…)_
+Caio write-back (Opus; minimal states), share modes ↔ Madeline's sheet (Opus; not blocked), where the Excel dies (Opus; cross-client home), money (both merged: CCO authority, shown on the job, Bailey says bill), Projects home label (P1 next cycle), Kimi scope (Opus's inputs-only rule, Grok's list this cycle).
+
+### 9.4 Consolidated asks for Bailey (one message from Blaze)
+
+1. Pick the nav master from #30 / #31 / #32.
+2. Share Madeline's sheet for one live client.
+3. Does Caio (or the crew) open the crew surface in the van? (decides full vs minimal Caio states on #7)
+4. "Leave Wipster hosting" = old archives stay on Wipster, new rounds run in CVP?
+5. Does Madeline's sheet carry money as a core column?

@@ -544,7 +544,7 @@ function ShareModalContent({
           <a
             className={styles.openLink}
             data-guest-preview
-            href={link || KNOWN_GUEST_FILM_URL}
+            href={KNOWN_GUEST_FILM_URL}
             target="_blank"
             rel="noopener noreferrer"
           >

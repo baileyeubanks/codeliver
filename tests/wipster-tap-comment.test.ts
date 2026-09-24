@@ -26,7 +26,9 @@ test("C1 the permanent under-stage comment row is gone", () => {
   assert.doesNotMatch(cockpit, /Add a timecoded comment|cockpit-comment-composer/);
   assert.doesNotMatch(globals, /cockpit-comment-composer|client-review-composer|cockpit-add-comment/);
   assert.doesNotMatch(cockpitStyles, /cockpit-comment-composer|cockpit-add-comment|cockpit-timecode/);
-  assert.match(page, /composer:\s*null/);
+  assert.doesNotMatch(page, /composer:/);
+  assert.doesNotMatch(workspace, /rail\.composer/);
+  assert.match(page, /guestFilmAllowsComments\(token, permissions\)/);
 });
 
 test("C2 a film tap pauses and opens a playhead composer with a marker", () => {
@@ -34,13 +36,14 @@ test("C2 a film tap pauses and opens a playhead composer with a marker", () => {
   assert.match(page, /function handleFramePin\(x: number, y: number, timeSeconds: number\)/);
   assert.match(page, /<InlineReviewComment\b/);
   assert.match(page, /id: "playhead-draft"/);
-  assert.match(globals, /@media \(max-width: 640px\)[\s\S]*?\.review-inline-comment\[data-horizontal\]\[data-vertical\] \.review-inline-comment-card[\s\S]*?position: fixed/);
-  assert.match(globals, /inset: auto 8px 12px 8px/);
-  assert.match(globals, /left: 8px;\s*right: 8px;/);
+  assert.match(globals, /\.review-phone-comment-sheet[\s\S]*?left: max\(8px, env\(safe-area-inset-left\)\)/);
+  assert.match(globals, /right: max\(8px, env\(safe-area-inset-right\)\)/);
+  assert.match(globals, /bottom: max\(8px, env\(safe-area-inset-bottom\)\)/);
+  assert.match(inlineComment, /max-width: 900px/);
   assert.match(inlineComment, /data-phone-sheet/);
   assert.match(inlineComment, /createPortal\(commentCard, document\.body\)/);
-  assert.match(inlineComment, /left: 8, right: 8/);
-  assert.match(inlineComment, /calc\(100vw - 16px\)/);
+  assert.match(inlineComment, /review-phone-comment-sheet/);
+  assert.match(inlineComment, /width - 16/);
   assert.match(cockpit, /data-guest-preview/);
   assert.doesNotMatch(cockpit, /className="cockpit-comment-composer"/);
   assert.match(page, /timecode_seconds: commentPin\.timeSeconds/);
@@ -59,7 +62,10 @@ test("C3 the guest review shell is film and comments, without operator chrome", 
 test("share UI exposes a Guest Preview link to the guest film", () => {
   assert.match(share, /data-guest-preview/);
   assert.match(share, /Guest Preview/);
-  assert.match(share, /link \|\| KNOWN_GUEST_FILM_URL/);
+  assert.match(share, /href=\{KNOWN_GUEST_FILM_URL\}/);
+  assert.doesNotMatch(share, /link \|\| KNOWN_GUEST_FILM_URL/);
+  assert.match(source("proxy.ts"), /\/api\/assets\/\$\{UUID_PATH_SEGMENT\}\/share/);
+  assert.match(source("lib/sharing/guest-film.ts"), /guestFilmAllowsComments/);
   assert.match(source("lib/sharing/guest-film.ts"), /https:\/\/co-videopro.com\/review\/0238db512c3960bc59c8ea7f0676bdbe806b15043bd61b52050a314b93a08af1/);
   assert.match(source("components/sharing/ShareLinkList.tsx"), /data-guest-preview/);
   assert.match(cockpit, /0238db512c3960bc59c8ea7f0676bdbe806b15043bd61b52050a314b93a08af1/);

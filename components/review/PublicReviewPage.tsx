@@ -25,6 +25,7 @@ import AnnotationThumbnail from "@/components/review/annotation/AnnotationThumbn
 import AnnotationToolbar from "@/components/review/annotation/AnnotationToolbar";
 import AnchoredCommentCallout from "@/components/review/AnchoredCommentCallout";
 import { adjacentTimedComment, orderedTimedComments } from "@/lib/review/comment-navigation";
+import { guestFilmAllowsComments } from "@/lib/sharing/guest-film";
 import { refreshReviewImageAttachments } from "@/lib/review/image-attachments-client";
 import VersionCompare from "@/components/review/VersionCompare";
 import VersionSwitcher from "@/components/review/VersionSwitcher";
@@ -745,7 +746,7 @@ export default function PublicReviewPage({
     };
   }, [demoMode, token]);
 
-  const canComment = permissions === "comment" || permissions === "approve";
+  const canComment = guestFilmAllowsComments(token, permissions);
   const rootComments = comments.filter((comment) => !comment.parent_id);
   const repliesByParent = new Map<string, ReviewComment[]>();
   const threadNumberById = new Map<string, number>();
@@ -1955,7 +1956,6 @@ export default function PublicReviewPage({
             </div>
           ),
         },
-        composer: null,
       }}
     />
   );

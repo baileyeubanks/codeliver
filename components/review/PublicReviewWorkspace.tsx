@@ -49,7 +49,6 @@ interface RailSection {
     emptyDescription: string;
     content: React.ReactNode;
   };
-  composer: React.ReactNode;
 }
 
 export interface ReviewWorkspaceProps {
@@ -214,8 +213,6 @@ export default function PublicReviewWorkspace({
               <div className={styles.guideContent}>{rail.intro}</div>
             </section>
           ) : null}
-
-          {rail.composer ? <div className={styles.composer}>{rail.composer}</div> : null}
 
           {rail.approval ? (
             <section className={styles.approval} aria-label="Approval">

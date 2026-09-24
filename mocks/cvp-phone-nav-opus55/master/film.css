@@ -1,0 +1,246 @@
+/* MASTER phone film route. Loaded after phone.css.
+   No app rail and no comment dock: the film and its overlay own the screen,
+   comments open at the playhead, notes open on demand. */
+
+.film-page { background: var(--surface); }
+
+.film-bar {
+  height: 52px;
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 0 10px 0 4px;
+}
+.film-title { flex: 1; min-width: 0; line-height: 1.25; }
+.film-title strong {
+  display: block;
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.film-title span { display: block; font-size: 12px; color: var(--ink-faint); }
+.film-title span b { color: var(--deep-blue); font-weight: 600; }
+.guest-brand { display: flex; align-items: center; gap: 10px; padding-left: 10px; }
+.guest-brand .logo-mark { width: 28px; height: 28px; border-radius: 8px; }
+
+.notes-pill {
+  height: 32px;
+  padding: 0 11px 0 9px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink-soft);
+}
+.notes-pill .n { color: var(--deep-blue); }
+
+.stage { position: relative; flex: none; }
+
+/* 16:9 edge to edge; every child is absolute so chrome can't grow the stage */
+.film {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  overflow: hidden;
+  background:
+    radial-gradient(circle at 28% 34%, #9cc2ff 0 9%, transparent 9.5%),
+    radial-gradient(ellipse at 72% 80%, rgb(255 255 255 / 0.08) 0 30%, transparent 31%),
+    linear-gradient(135deg, #1e3a6e, #0b1a33 70%);
+}
+.pin {
+  position: absolute;
+  width: 22px;
+  height: 22px;
+  margin: -22px 0 0 -2px;
+  border-radius: 999px 999px 999px 4px;
+  background: var(--blue);
+  color: #fff;
+  font-size: 10.5px;
+  font-weight: 700;
+  display: grid;
+  place-items: center;
+  box-shadow: 0 0 0 2.5px rgb(255 255 255 / 0.9), 0 4px 10px rgb(4 15 28 / 0.4);
+}
+.pin.faint { background: rgb(255 255 255 / 0.25); box-shadow: 0 0 0 1.5px rgb(255 255 255 / 0.6); backdrop-filter: blur(4px); }
+.pin.new { background: #fff; color: var(--blue); box-shadow: 0 0 0 3px var(--blue), 0 6px 16px rgb(4 15 28 / 0.45); }
+
+/* Live phone player: ~6% of the frame, laid over the film. Drawn, not redesigned. */
+.overlay {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 6%;
+  min-height: 13px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 8px;
+  background: linear-gradient(180deg, transparent, rgb(4 15 28 / 0.55));
+  color: #fff;
+  font-size: 9px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+.overlay .scrub { position: relative; flex: 1; height: 2px; border-radius: 1px; background: rgb(255 255 255 / 0.35); }
+.overlay .scrub .played { position: absolute; inset: 0 64% 0 0; background: #fff; border-radius: 1px; }
+.overlay .scrub .thumb-dot { position: absolute; left: 36%; top: 50%; width: 8px; height: 8px; margin: -4px 0 0 -4px; border-radius: 999px; background: #fff; }
+.overlay .scrub .mark { position: absolute; top: -3px; width: 4px; height: 4px; margin-left: -2px; border-radius: 999px; background: var(--blue-soft); }
+
+/* Tap-the-film comment dialog, anchored to the new pin */
+.comment-dialog {
+  position: absolute;
+  z-index: 5;
+  left: 14px;
+  right: 14px;
+  background: var(--surface);
+  border-radius: 14px;
+  box-shadow: 0 2px 6px rgb(4 15 28 / 0.12), 0 18px 48px rgb(4 15 28 / 0.28);
+  padding: 12px 12px 10px;
+}
+.comment-dialog::before {
+  content: "";
+  position: absolute;
+  top: -7px;
+  left: var(--caret, 50%);
+  width: 14px;
+  height: 14px;
+  margin-left: -7px;
+  background: var(--surface);
+  border-radius: 3px;
+  transform: rotate(45deg);
+}
+.cd-head { display: flex; align-items: center; gap: 8px; font-size: 12.5px; color: var(--ink-faint); }
+.tc {
+  padding: 1px 6px;
+  border-radius: 5px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--deep-blue);
+  font-variant-numeric: tabular-nums;
+}
+.cd-input {
+  margin-top: 8px;
+  min-height: 58px;
+  padding: 9px 11px;
+  border-radius: 10px;
+  border: 1px solid var(--blue);
+  box-shadow: 0 0 0 3px var(--blue-tint);
+  font-size: 14.5px;
+  color: var(--ink);
+}
+.cd-input .caret { display: inline-block; width: 1.5px; height: 17px; background: var(--blue); vertical-align: -3px; margin-left: 1px; }
+.cd-foot { display: flex; align-items: center; gap: 8px; margin-top: 10px; }
+.cd-foot span { font-size: 12px; color: var(--ink-faint); margin-right: auto; }
+.cd-foot button { height: 34px; padding: 0 14px; border-radius: 999px; font-size: 13.5px; font-weight: 600; }
+.cd-cancel { color: var(--ink-soft); }
+.cd-post { background: var(--blue); color: #fff; }
+
+/* Quiet, aligned information around the player */
+.film-info { flex: 1; padding: 14px 16px 0; }
+.film-info h2 { font-size: 17px; font-weight: 650; letter-spacing: -0.015em; }
+.film-info .sub { font-size: 13px; color: var(--ink-faint); margin-top: 3px; display: flex; align-items: center; gap: 6px; }
+.info-row { display: flex; gap: 8px; margin-top: 12px; }
+.pill {
+  height: 30px;
+  padding: 0 10px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink-soft);
+  background: var(--surface);
+}
+.info-actions { display: flex; gap: 8px; margin-top: 18px; }
+.info-actions button { flex: 1; height: 44px; border-radius: 12px; font-size: 15px; font-weight: 600; }
+.btn-primary { background: var(--blue); color: #fff; }
+.btn-quiet { border: 1px solid var(--border); color: var(--ink); background: var(--surface); }
+.hint {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 18px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: var(--canvas);
+  font-size: 12.5px;
+  color: var(--ink-faint);
+}
+
+/* Notes sheet: opened from the Notes pill or a scrubber marker, gone when closed */
+.sheet-scrim {
+  position: absolute; inset: 0; z-index: 8;
+  background: rgb(4 15 28 / 0.28);
+  opacity: 0; pointer-events: none;
+}
+.sheet {
+  position: absolute; z-index: 9; left: 0; right: 0; bottom: 0;
+  height: 520px;
+  background: var(--surface);
+  border-radius: 18px 18px 0 0;
+  box-shadow: 0 -12px 40px rgb(4 15 28 / 0.18);
+  transform: translateY(105%);
+  display: flex; flex-direction: column;
+}
+.show-notes .sheet-scrim { opacity: 1; pointer-events: auto; }
+.show-notes .sheet { transform: none; }
+.grab { width: 36px; height: 5px; border-radius: 999px; background: var(--border-strong); margin: 8px auto 4px; }
+.sheet-head { display: flex; align-items: center; gap: 8px; padding: 8px 16px 10px; }
+.sheet-head strong { font-size: 16px; font-weight: 650; }
+.sheet-head .count { font-size: 13px; color: var(--ink-faint); font-weight: 600; }
+.seg { margin-left: auto; display: flex; padding: 2px; background: var(--surface-alt); border-radius: 8px; }
+.seg button { height: 26px; padding: 0 10px; border-radius: 6px; font-size: 12.5px; font-weight: 500; color: var(--ink-faint); }
+.seg button[aria-pressed="true"] { background: var(--surface); color: var(--ink); box-shadow: 0 1px 2px rgb(4 15 28 / 0.08); }
+.sheet-list { flex: 1; overflow-y: auto; padding: 0 8px 30px; }
+.note { display: flex; gap: 10px; padding: 12px 8px; }
+.note + .note { border-top: 1px solid var(--border); }
+.note.selected { background: var(--blue-tint); border-radius: 10px; }
+.note.selected + .note { border-top-color: transparent; }
+.note .who {
+  width: 28px; height: 28px; flex: none; border-radius: 999px;
+  display: grid; place-items: center; font-size: 10.5px; font-weight: 700;
+  background: var(--surface-alt); color: var(--ink-soft);
+}
+.note.selected .who { background: var(--blue); color: #fff; }
+.note-body { flex: 1; min-width: 0; }
+.note-line { display: flex; align-items: center; gap: 6px; font-size: 13px; }
+.note-line strong { font-weight: 600; }
+.note-line .ago { font-size: 12px; color: var(--ink-faint); }
+.note-line .tc { margin-left: auto; }
+.note p { font-size: 13.5px; line-height: 1.45; color: var(--ink-soft); margin-top: 3px; }
+.note-actions { display: flex; gap: 14px; margin-top: 6px; font-size: 12.5px; font-weight: 600; }
+.note-actions a { color: var(--deep-blue); }
+.note-actions a + a { color: var(--ink-faint); }
+
+/* Team vs guest */
+html.guest .team-only { display: none !important; }
+html:not(.guest) .guest-only { display: none !important; }
+html:not(.show-dialog) .comment-dialog, html:not(.show-dialog) .pin.new { display: none; }
+
+/* Dark review stage (from Grok): the film is the brightest thing on the route */
+.phone:has(.film-page) { background: #0a0d12; }
+.film-page { background: #0a0d12; color: #e8edf5; }
+.film-page .status-bar { color: #fff; }
+.film-page .icon-btn { color: #cbd5e1; }
+.film-title span { color: #8a97ab; }
+.film-title span b { color: var(--blue-soft); }
+.notes-pill { border-color: rgb(255 255 255 / 0.14); color: #e8edf5; }
+.notes-pill .n { color: var(--blue-soft); }
+.film-info .sub { color: #8a97ab; }
+.film-page .pill { background: rgb(255 255 255 / 0.06); border-color: rgb(255 255 255 / 0.12); color: #e8edf5; }
+.film-page .btn-quiet { background: transparent; border-color: rgb(255 255 255 / 0.2); color: #fff; }
+.hint { background: rgb(255 255 255 / 0.05); color: #8a97ab; }
+.phone:has(.film-page) .home-indicator { background: #fff; }
+.comment-dialog { color: var(--ink); }

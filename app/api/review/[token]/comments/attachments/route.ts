@@ -10,7 +10,8 @@ import {
   authorizeAdmittedReviewInvite,
   reserveReviewActionRate,
 } from "@/lib/review/admission-authority";
-import { inviteCanComment, type ReviewInviteRecord } from "@/lib/review-invites";
+import { type ReviewInviteRecord } from "@/lib/review-invites";
+import { guestFilmAllowsComments } from "@/lib/sharing/guest-film";
 import {
   validateReviewMultipartMutationRequest,
   validateReviewReadRequest,
@@ -39,11 +40,13 @@ function unavailable(status: number, headers?: HeadersInit) {
 
 async function authorizeExternalComment({
   invite,
+  token,
   commentId,
   versionId,
   requireAuthor,
 }: {
   invite: ReviewInviteRecord;
+  token: string;
   commentId: string;
   versionId: string;
   requireAuthor: boolean;
@@ -65,7 +68,7 @@ async function authorizeExternalComment({
       id: invite.id,
       assetId: invite.asset_id,
       versionId: invite.version_id,
-      canComment: inviteCanComment(invite),
+      canComment: guestFilmAllowsComments(token, invite.permissions),
     },
     comment: {
       assetId: comment.data.asset_id,
@@ -114,6 +117,7 @@ export async function GET(request: Request, { params }: RouteContext) {
     const url = new URL(request.url);
     const authorization = await authorizeExternalComment({
       invite: authority.invite,
+      token,
       commentId: url.searchParams.get("comment_id") ?? "",
       versionId: url.searchParams.get("version_id") ?? "",
       requireAuthor: false,
@@ -165,6 +169,7 @@ export async function POST(request: Request, { params }: RouteContext) {
     }
     const authorization = await authorizeExternalComment({
       invite: authority.invite,
+      token,
       commentId: parsed.attachment.commentId,
       versionId: parsed.attachment.versionId,
       requireAuthor: true,

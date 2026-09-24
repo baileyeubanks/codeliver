@@ -20,7 +20,7 @@ test("public recipient shell remains a slot-only presentation boundary", () => {
   assert.match(workspaceSource, /rail\.intro/);
   assert.match(workspaceSource, /rail\.approval/);
   assert.match(workspaceSource, /rail\.comments\.content/);
-  assert.match(workspaceSource, /rail\.composer/);
+  assert.doesNotMatch(workspaceSource, /rail\.composer/);
 
   assert.doesNotMatch(workspaceSource, /ProjectCockpit/);
   assert.doesNotMatch(workspaceSource, /useRouter|useParams|useSearchParams/);

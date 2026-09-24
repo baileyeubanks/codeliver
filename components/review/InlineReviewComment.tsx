@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useRef, useState, type CSSProperties } from "react";
+import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties } from "react";
+import { createPortal } from "react-dom";
 import { AlertCircle, GripVertical, ImagePlus, LoaderCircle, PenLine, Send, X } from "lucide-react";
 import { submitReviewComment } from "@/lib/review/submit-review-comment";
 import { formatTimeLong } from "@/lib/stores/playerStore";
@@ -68,6 +69,9 @@ export default function InlineReviewComment({
   const attachmentKey = useRef<string | null>(null);
   const attachmentInput = useRef<HTMLInputElement>(null);
   const composing = useRef(false);
+  const [phoneSheet, setPhoneSheet] = useState(() =>
+    typeof window !== "undefined" && window.matchMedia("(max-width: 900px)").matches,
+  );
   const anchorRef = useRef<HTMLDivElement>(null);
   const cardRef = useRef<HTMLDivElement>(null);
   const { offset, beginDragging } = useCalloutDrag(cardRef);
@@ -81,6 +85,45 @@ export default function InlineReviewComment({
       reviewerNameRef.current?.focus();
     }
   }, []);
+
+  useEffect(() => {
+    const query = window.matchMedia("(max-width: 900px)");
+    const apply = () => setPhoneSheet(query.matches);
+    apply();
+    query.addEventListener("change", apply);
+    return () => query.removeEventListener("change", apply);
+  }, []);
+
+  useLayoutEffect(() => {
+    if (!phoneSheet) return;
+    const card = cardRef.current;
+    if (!card) return;
+    const place = () => {
+      const viewport = window.visualViewport;
+      const width = viewport?.width ?? window.innerWidth;
+      const height = viewport?.height ?? window.innerHeight;
+      const offsetLeft = viewport?.offsetLeft ?? 0;
+      const offsetTop = viewport?.offsetTop ?? 0;
+      card.style.position = "fixed";
+      card.style.left = `${offsetLeft + 8}px`;
+      card.style.right = "auto";
+      card.style.top = "auto";
+      card.style.width = `${Math.max(0, width - 16)}px`;
+      card.style.maxHeight = `${Math.max(120, height - 16)}px`;
+      card.style.bottom = `${Math.max(8, window.innerHeight - (offsetTop + height) + 8)}px`;
+      card.style.transform = "none";
+      card.style.zIndex = "80";
+    };
+    place();
+    window.visualViewport?.addEventListener("resize", place);
+    window.visualViewport?.addEventListener("scroll", place);
+    window.addEventListener("resize", place);
+    return () => {
+      window.visualViewport?.removeEventListener("resize", place);
+      window.visualViewport?.removeEventListener("scroll", place);
+      window.removeEventListener("resize", place);
+    };
+  }, [phoneSheet]);
 
   async function submit() {
     if (!reviewerName.trim() || submitting) return;
@@ -126,21 +169,16 @@ export default function InlineReviewComment({
     });
   }
 
-  return (
-    <div
-      ref={anchorRef}
-      className="review-inline-comment"
-      data-horizontal={horizontalSide}
-      data-vertical={verticalSide}
-      style={{ left: `${pin.x}%`, top: `${pin.y}%`, "--callout-drag-x": `${offset.x}px`, "--callout-drag-y": `${offset.y}px` } as CSSProperties}
-      role="dialog"
-      aria-label={`Add a comment at ${formatTimeLong(timecode)}`}
-      aria-busy={submitting}
-      onClick={(event) => event.stopPropagation()}
-      onMouseDown={(event) => event.stopPropagation()}
-    >
-      <AnchoredLeaderLine anchorRef={anchorRef} cardRef={cardRef} refreshKey={`${offset.x}:${offset.y}`} className="review-inline-comment-leader" />
-      <div ref={cardRef} className="review-inline-comment-card">
+  const commentCard = (
+      <div
+        ref={cardRef}
+        className={phoneSheet ? "review-inline-comment-card review-phone-comment-sheet" : "review-inline-comment-card"}
+        data-phone-sheet={phoneSheet ? "true" : undefined}
+        role="dialog"
+        aria-label={`Add a comment at ${formatTimeLong(timecode)}`}
+        aria-busy={submitting}
+        style={phoneSheet ? { position: "fixed", left: 8, right: 8, bottom: 8, width: "calc(100vw - 16px)", maxWidth: "none", maxHeight: "calc(100dvh - 16px)", boxSizing: "border-box", transform: "none", zIndex: 80 } : undefined}
+      >
       <header>
         <button type="button" className="review-inline-comment-drag" onPointerDown={beginDragging} aria-label="Move comment card"><GripVertical size={14} /></button>
         <div>
@@ -221,6 +259,21 @@ export default function InlineReviewComment({
         <p role="alert"><AlertCircle size={12} /> {error}</p>
       ) : null}
       </div>
+  );
+
+  return (
+    <div
+      ref={anchorRef}
+      className="review-inline-comment"
+      data-horizontal={horizontalSide}
+      data-vertical={verticalSide}
+      data-phone-sheet={phoneSheet ? "true" : undefined}
+      style={{ left: `${pin.x}%`, top: `${pin.y}%`, "--callout-drag-x": `${offset.x}px`, "--callout-drag-y": `${offset.y}px` } as CSSProperties}
+      onClick={(event) => event.stopPropagation()}
+      onMouseDown={(event) => event.stopPropagation()}
+    >
+      <AnchoredLeaderLine anchorRef={anchorRef} cardRef={cardRef} refreshKey={`${offset.x}:${offset.y}:${phoneSheet}`} className="review-inline-comment-leader" />
+      {phoneSheet && typeof document !== "undefined" ? createPortal(commentCard, document.body) : commentCard}
     </div>
   );
 }

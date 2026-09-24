@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
 import { useDemoMode } from "@/lib/demo/mode";
 import { useDemoWorkspace } from "@/lib/demo/workspace-store";
-import { roleCan, type WorkspaceRole } from "@/components/navigation/navigation-model";
+import type { WorkspaceRole } from "@/components/navigation/navigation-model";
 import CopilotPanel from "./CopilotPanel";
 import { copilotProjectFromPath } from "./copilot-client";
 
@@ -17,7 +17,7 @@ const WORKSPACE_ROLES: readonly WorkspaceRole[] = ["owner", "producer", "editor"
 export function copilotAllowedOnPath(pathname: string, role?: WorkspaceRole | null): boolean {
   if (EXCLUDED_PATHS.has(pathname)) return false;
   if (EXCLUDED_PREFIXES.some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`))) return false;
-  if (role && !roleCan(role, "media:write") && PROJECT_FILM_PATH.test(pathname)) return false;
+  if (PROJECT_FILM_PATH.test(pathname)) return false;
   return true;
 }
 

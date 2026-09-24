@@ -850,7 +850,8 @@ export default function ProjectCockpit({
       : layout.dockOpen;
   const canUpload = roleCan(workspaceRole, "media:write");
   const canShare = roleCan(workspaceRole, "reviews:comment");
-  const clientFilmFirst = !canUpload;
+  const filmRoute = activeSection === "overview" || reviewViewActive;
+  const clientFilmFirst = filmRoute;
 
   const comments = demoMode
     ? visibleExactInternalReviewRecords(
@@ -2237,6 +2238,15 @@ export default function ProjectCockpit({
           >
             <Share2 size={17} /> <span>Share</span>
           </button>
+          {(() => {
+            const guestFilm = projectLinks.find((link) => link.is_active)?.public_url
+              ?? (demoMode ? "/review/demo?demo=1" : "");
+            return guestFilm ? (
+              <a data-guest-preview href={guestFilm} target="_blank" rel="noopener noreferrer">
+                Guest Preview
+              </a>
+            ) : null;
+          })()}
           {clientFilmFirst ? null : (
           <button
             className="cockpit-action-primary"

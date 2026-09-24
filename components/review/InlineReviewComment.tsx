@@ -144,7 +144,7 @@ export default function InlineReviewComment({
         role="dialog"
         aria-label={`Add a comment at ${formatTimeLong(timecode)}`}
         aria-busy={submitting}
-        style={phoneSheet ? { position: "fixed", left: 8, right: 8, bottom: 12, width: "auto", maxWidth: "none", transform: "none", zIndex: 80 } : undefined}
+        style={phoneSheet ? { position: "fixed", left: 8, right: 8, bottom: 12, width: "calc(100vw - 16px)", maxWidth: "none", boxSizing: "border-box", transform: "none", zIndex: 80 } : undefined}
       >
       <header>
         <button type="button" className="review-inline-comment-drag" onPointerDown={beginDragging} aria-label="Move comment card"><GripVertical size={14} /></button>

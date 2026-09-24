@@ -40,6 +40,9 @@ test("C2 a film tap pauses and opens a playhead composer with a marker", () => {
   assert.match(inlineComment, /data-phone-sheet/);
   assert.match(inlineComment, /createPortal\(commentCard, document\.body\)/);
   assert.match(inlineComment, /left: 8, right: 8/);
+  assert.match(inlineComment, /calc\(100vw - 16px\)/);
+  assert.match(cockpit, /data-guest-preview/);
+  assert.doesNotMatch(cockpit, /className="cockpit-comment-composer"/);
   assert.match(page, /timecode_seconds: commentPin\.timeSeconds/);
   assert.match(cockpit, /data-playhead-comment/);
   assert.match(cockpit, /function openPlayheadComment\(\)/);
@@ -66,7 +69,9 @@ test("a signed-in client film route hides the operator rail, upload, and copilot
   assert.match(cockpit, /data-client-film=\{clientFilmFirst \? "true" : "false"\}/);
   assert.match(cockpit, /clientFilmFirst \? null : \(\s*<button[\s\S]*?Upload media/);
   assert.match(cockpit, /clientFilmFirst \? null : \(\s*<aside className="cockpit-sidebar"/);
-  assert.match(copilot, /!roleCan\(role, "media:write"\) && PROJECT_FILM_PATH\.test\(pathname\)/);
+  assert.match(cockpit, /const filmRoute = activeSection === "overview" \|\| reviewViewActive/);
+  assert.match(cockpit, /const clientFilmFirst = filmRoute/);
+  assert.match(copilot, /if \(PROJECT_FILM_PATH\.test\(pathname\)\) return false/);
   assert.match(nextConfig, /compress:\s*false/);
 });
 

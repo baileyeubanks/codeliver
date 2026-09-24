@@ -5,6 +5,16 @@
 **Credit base assumed:** Cursor/Grok bucket ~11% · Other (Kimi/Claude) ~64% · "don't stop."
 **Companion:** `MASTER_SPINE_DRAFT.md` (the ordered backlog), `REBUTTAL_TEMPLATE.md` (peer slots).
 
+**Ground truth (Blaze, 2026-09-24 — Bailey: "this, not status grades"):**
+
+> **ACS OS** = Astro Cleanings operating system. Surfaces: admin / clients / crew / public. Flow: lead → real enriched client (full name + contact) → job titled `First L. Service` → dispatch/crew → Caio-only Continuity field truth (`+15048581959`, never Twilio/Kyle) → complete / invoice / roster hygiene. Copilot-in-ACS intent. Quiet admin. **Land with proof.**
+>
+> **CVP** = production OS, not player-with-login. Surfaces: co-videopro / client.contentco-op / admin OS / marketing. SoT: Wistia player · Wipster review · Sandcastles scripting. North star: kill Excel status; native Wipster review/approve + versions; creative AI in Brief→Shoot→Cut→Delivery; proposals/invoice on job objects; WEFTEC-scale multi-stakeholder. Login → Projects. Tap-film comment; no under-deck; phone bottom pipeline + drawer; **desktop thin left**; sapphire blue-long logo.
+>
+> Sibling businesses, one Commander. Visual + workflow hand in hand.
+
+Everything below argues from that text. Where my first draft diverged, §0.5 says so and the spine was changed.
+
 **Bailey addendum (2026-09-24), binding on this seat:**
 - *Reason amongst yourselves.* When a peer is right on operations, the spine changes — logged in `MASTER_SPINE_DRAFT.md › Change log`, not defended out of pride. Burden of proof sits on **keeping** my draft, not on the peer.
 - *Visual surface outcomes go hand in hand with the OS spine.* Every ritual is performed on a surface; a Land that moves the workflow but leaves its surface OPEN is half a Land. Current ledger: **player PASS · logo PASS · tap-comment OPEN · nav Council OPEN · ACS quiet admin OPEN.** Priority funds visual + workflow together; UI is not a side quest and not a deferral bucket.
@@ -17,6 +27,20 @@
 2. **Both businesses run on rituals, not features.** ACS runs on a *morning dispatch* and an *evening close*, every day. CVP runs on a *review round* and a *delivery*, every project. "Complete" is when the ritual runs inside the product with nothing kept in Excel, iMessage, or Bailey's head.
 3. **Grok Lands are the scarce resource, so every Grok Land must move a ritual *on its surface*, and every Grok Land must be preceded by a Kimi pack.** Kimi is abundant; Grok is the surgeon. Council decides once per master; it does not iterate.
 4. **Workflow and surface are one deliverable.** The dispatch list *is* the morning ritual; the tap-comment on the film *is* the review round. A spine item is done when its workflow acceptance **and** its surface PASS both hold. That is why the ledger items (tap-comment, nav, ACS quiet admin) sit inside P0/P1, not in a "polish" tail.
+5. **Sibling businesses, one Commander.** ACS and CVP share one operating pattern — *record → daily/project ritual → field or client truth → close → copilot over the record* — and one owner reading both on one phone. The spine interleaves them, and a pattern Landed in one (quiet toasts, phone-first list, drawer/copilot delivering named artifacts) is reused in the other rather than reinvented.
+
+### 0.5 Reconciliation of my first draft against the ground truth
+
+| Ground-truth line | First draft | Change made |
+|---|---|---|
+| ACS surfaces: admin / **clients / crew** / public | Dispatch framed as an admin view only | #4 and #6 now name the **crew surface** (the list Caio reads in the van) as the surface half; admin dispatch and crew list Land from the same Job data |
+| **Copilot-in-ACS intent** | Buried as a P3 "CS bot draft-only" | Promoted to **#14 → P2**, reframed as *Copilot-in-ACS*: a FORM drafter over the Job/Client record (enrichment drafts, hygiene suggestions, close-note drafts, CS reply drafts) that Bailey approves; sends still gated by Bailey yes. Sibling of CVP #13 (Sandcastles/Claude drawer) |
+| Caio Continuity rail `+15048581959`, never Twilio/Kyle | Stated as principle | Written into the #6 Land gate as the exact rail; Ring owns it |
+| **Land with proof** | "verified by the seat" | §4.3 now requires artifact proof (screen recording or screenshot on live M4/M2 + VA sweep result) attached to the Land before Clip/Latch |
+| CVP **desktop thin left** | Desktop master left unspecified | Ledger nav row and #3/#9 surface outcome now say: phone = bottom pipeline + drawer; desktop = **thin left** |
+| CVP surfaces include **marketing** (contentco-op.com / co-videopro.com) | Marketing deferred | Kept deferred **except** the guest film-first entry from a review link and the logo PASS; a marketing redesign does not move a ritual |
+| **Login → Projects** | Implicit in #9 | Made explicit: #9's workflow half is "login lands on Projects, every project shows its deliverable strip" |
+| "One Commander" | Interleave by cadence | Added §7.4 sibling leverage: reuse Landed patterns across products to save Grok |
 
 ---
 
@@ -47,9 +71,32 @@ Client+Job record (reliable create / edit / delete)          ← spine object
         └─ Caio confirm loop (Job state from the field)      ← field truth
              └─ Complete → notes → invoice state             ← evening close
 Lead/Booking intake (web/phone) → writes a Client+Job        ← feeder; manual entry is an acceptable stopgap
-Roster hygiene (bulk, automation)                            ← consequence of volume
-Phone CS bot                                                 ← only after the Continuity rail is trustworthy
+Copilot-in-ACS (FORM drafter over the record)                ← needs a record with real state to draft from
+Roster hygiene (bulk, automation)                            ← consequence of volume; copilot's first job
+Phone CS bot (a copilot output, draft-only)                  ← only after the Continuity rail is trustworthy
 ```
+
+### 1.2a The four ACS surfaces and who reads them
+
+| Surface | Reader | Ritual | Spine items |
+|---|---|---|---|
+| **admin** (admin.astrocleanings.com) | Bailey, on a phone | evening dispatch read; evening close; weekly roster hygiene; copilot review queue | #2, #4, #8, #14 |
+| **crew** | Caio and crew, in a van | today's list: client, address, access notes, service; state chips (en route / on-site / done / issue) | #4, #6 |
+| **clients** | a client, rarely | their upcoming/recent jobs, invoice state; no marketing | #8, #10 |
+| **public** (astrocleanings.com) | a prospect | booking that persists into a Client+Job | #10 |
+
+The crew surface is the one my first draft missed. Dispatch is not done when Bailey can read it; it is done when Caio can read it in the van and write back to it through the Continuity rail.
+
+### 1.2b Copilot-in-ACS — what it is and is not
+
+Same doctrine as CVP's five agents: **FORM → copilot drafts, Bailey approves. JUDGMENT → Bailey. CRAFT → the crew.** The copilot lives over the Job/Client record and produces named artifacts into a quiet review queue on the admin:
+
+- enrichment drafts for a client from Caio's field notes (gate code, pets, parking) — Bailey confirms
+- close-note drafts for a completed job — Bailey edits/approves
+- roster hygiene suggestions (duplicates, stale, recurring next-date drift) — Bailey applies
+- CS reply drafts to inbound inquiries — **draft only**, sent only on Bailey yes
+
+It is not a chatbot on the admin, not a Twilio responder, and not live to clients or crew. It is downstream of #6 and #8 because it needs real Job state to draft from; it is P2 not P3 because Bailey named it as intent and because it is the sibling of CVP #13.
 
 Why lead intake is *not* first even though it is the top of the funnel: an owner-operator's day is dominated by **existing recurring clients**, not new leads. Bailey typing a client in from a phone call is a fine stopgap for months. A job that never appears on tomorrow's dispatch is not.
 
@@ -62,7 +109,7 @@ Why lead intake is *not* first even though it is the top of the funnel: an owner
 ### 1.4 Don't-break list, in operating terms
 
 - **Live admin Land train**: the admin is used every morning. A broken Land is a missed dispatch.
-- **Caio Continuity path**: the only phone rail. Never Twilio, never Kyle. No product feature may route field truth anywhere else.
+- **Caio Continuity path** (`+15048581959`, Continuity/FaceTime): the only phone rail. Never Twilio, never Kyle. No product feature may route field truth anywhere else. Ring owns this rail; Ring initiates only on Bailey yes or routine.
 - **No unsolicited sends**: no client/crew SMS/email/push fires without Bailey's explicit yes. Any bot or automation is draft-only until then.
 
 ---
@@ -149,7 +196,7 @@ Observation for the debate: **north star 1 (kill Excel) is a data-model problem,
 
 ### 4.3 Shared definition of Land
 
-Land = live on M4/M2, verified by the seat that landed it, don't-break list checked, **surface PASS checked against the ledger**, and Clip/Latch confirmation. A green PR is a *candidate*, not a Land. A Land whose workflow works but whose surface is still OPEN is logged as *half-Landed* and stays the open item for that product.
+Land = live on M4/M2, **with proof**: a screen recording or screenshots taken on the live surface (phone for ACS admin/crew and CVP client; desktop where the item has a desktop half), the don't-break list checked, the surface PASS checked against the ledger with the VA sweep result attached, and Clip/Latch confirmation. A green PR is a *candidate*, not a Land. A Land without artifact proof is not a Land. A Land whose workflow works but whose surface is still OPEN is logged as *half-Landed* and stays the open item for that product.
 
 ### 4.4 Visual surface ledger (Bailey's scoreboard, carried on every spine item)
 
@@ -158,8 +205,8 @@ Land = live on M4/M2, verified by the seat that landed it, don't-break list chec
 | Player (thin on-film, tip `46a256f2`) | **PASS** — hold, don't-break | every CVP Land gate |
 | Logo / sapphire blue-long transparent mark | **PASS** — hold | every CVP Land gate |
 | Tap-comment (click-film dialog, under-deck killed, quiet surround) | **OPEN** | #1 |
-| Nav master (phone bottom-pipeline + Claude drawer; desktop) | **OPEN** — Council mock → Bailey pick → Land | #3 → #9 |
-| ACS quiet admin (VA sweep clean: roster, dispatch, job create) | **OPEN** | #2, #4 |
+| Nav master (phone = bottom pipeline + Claude drawer; desktop = **thin left**) | **OPEN** — Council mock → Bailey pick → Land | #3 → #9 |
+| ACS quiet admin (VA sweep clean: roster, dispatch, job create) + crew list legible in a van | **OPEN** | #2, #4 |
 
 The ledger is not a separate track. Each OPEN row is the surface half of a spine item that already holds the workflow half.
 
@@ -180,8 +227,8 @@ Legend: **G** = Grok 4.7 Land (scarce) · **K** = Kimi pack (abundant) · **C** 
 | **P1** | Client enrich sequential (Caio-sourced); hold Amanda until Lupe fields | Enrichment feeds dispatch (access notes) and the CS bot later; do it in schema order | G small (Forge), K to draft field spec |
 | **P2** | Complete → notes → invoice state on Job | The evening close. Requires P1 state transitions to exist | G (Forge) |
 | **P2** | Booking persistence: public site → inquiry → Client+Job; no auto-sends | The feeder. Manual entry is the stopgap until here | G (Forge/Clip), K pack |
-| **P3** | Roster hygiene automation (dupes, stale, recurring next-date) | Volume problem; earns its place after the week-test passes | K design, G later |
-| **P3** | Phone CS bot — NOT live, draft-only behind Bailey yes | Explicitly after Continuity rail is solid; violates "no unsolicited sends" if rushed | K design only |
+| **P2** | Copilot-in-ACS: FORM drafter over Job/Client (enrichment drafts, close-note drafts, roster hygiene suggestions, CS reply drafts) → quiet review queue, Bailey approves; sends only on Bailey yes | Named intent; sibling of CVP Sandcastles; needs real Job state from #6/#8 to draft from | K pack (Frame) → G (Forge) |
+| **P3** | Phone CS bot goes *live* (copilot replies sent without per-message yes) | Only after the Continuity rail and copilot drafts have earned trust over a real week | B decision, then G |
 
 ### 5.2 CVP
 
@@ -205,13 +252,13 @@ Legend: **G** = Grok 4.7 Land (scarce) · **K** = Kimi pack (abundant) · **C** 
 |---|---|---|
 | #1 CVP tap-comment | frame-bound comment persists on exact version | click-film comment dialog; under-deck gone; quiet surround; player + logo PASS held |
 | #2 ACS PR#5 roster | delete/merge without data loss | confirmation + toasts that don't storm; ACS-VA quiet on roster |
-| #3 nav master | — (Council/Bailey) | one phone master (bottom pipeline + Claude drawer) and one desktop master, mock-only until picked |
-| #4 ACS dispatch | tomorrow's Jobs by crew load reliably | no dead loading state; one-handed phone read; ACS-VA quiet on dispatch and job create |
+| #3 nav master | — (Council/Bailey) | one phone master (bottom pipeline + Claude drawer) and one desktop master (**thin left**), mock-only until picked |
+| #4 ACS dispatch | tomorrow's Jobs by crew load reliably; **crew surface** shows today's list | no dead loading state; one-handed phone read on admin; van-legible crew list; ACS-VA quiet on dispatch and job create |
 | #5 CVP review shell | share modes + finish reviewing + version-bound approval | Wipster ritual feel: film first, thin controls, approve as a deliberate act, guest film-first |
-| #6 ACS Caio loop | job state from Continuity | state chips readable in a van; no modal traps |
+| #6 ACS Caio loop | job state from Continuity (`+15048581959` only) | state chips on crew + admin surfaces; no modal traps |
 | #7 CVP Deliverable status | derived status per deliverable per client | status rendered in existing cockpit with no new chrome; reads as a strip, not a table |
 | #8 ACS evening close | notes + invoice state on Job | close flow in ≤3 taps on phone; ACS-VA quiet |
-| #9 CVP Projects home | renders #7 | the picked nav master, Landed; logo PASS; no left+bottom on phone |
+| #9 CVP Projects home | **login lands on Projects**; every project shows its deliverable strip (#7) | the picked nav master Landed: phone bottom pipeline + drawer, desktop thin left; logo PASS; no left+bottom on phone |
 
 ## 6. What to defer (named drops — "a dropped thing you named is a decision")
 
@@ -222,7 +269,8 @@ Legend: **G** = Grok 4.7 Land (scarce) · **K** = Kimi pack (abundant) · **C** 
 - **Visual NLE/timeline** (R4): data-truthful sequences only; no timeline chrome.
 - **Product-identity naming cleanup** (Co-Deliver/Co-Production Pro labels): visible debt, not operating debt.
 - **Twilio / any non-Continuity phone rail** for ACS. Never.
-- **Marketing-site redesigns** for astrocleanings.com / co-videopro.com beyond booking persistence and guest film-first.
+- **Marketing-site redesigns** for astrocleanings.com / co-videopro.com / contentco-op.com beyond booking persistence (ACS #10), guest film-first from a review link, and logo PASS. A marketing surface is in the ground truth's surface list; it is not in any ritual, so it waits.
+- **Live (un-gated) CS bot sends** for ACS until copilot drafts have earned a week of Bailey approvals.
 - **Fifth competitor teardown / design-universe audits** on Kimi. Research packs must be tied to a spine item.
 
 ---
@@ -249,6 +297,20 @@ Legend: **G** = Grok 4.7 Land (scarce) · **K** = Kimi pack (abundant) · **C** 
 ### 7.3 Product interleave rationale
 
 ACS has a **daily** cadence (a crew leaves every morning); CVP has a **project** cadence (a review round every few days). Breakage in ACS hurts tomorrow at 7am; breakage in CVP hurts on the next review day. So: ACS gets *reliability-first* priority (finish, dispatch, Caio loop); CVP gets *capability-build* priority (review shell, Deliverable). The spine interleaves them so neither company waits a full sprint.
+
+### 7.4 Sibling leverage (one Commander, one pattern, half the Grok)
+
+Because both businesses are read by one owner on one phone and follow the same *record → ritual → truth → close → copilot* shape, Landed patterns transfer:
+
+| Pattern | Lands first in | Reused in | Grok saving |
+|---|---|---|---|
+| Quiet confirmation/toast register | ACS #2 | CVP #5 approve/finish-reviewing confirmations | no second design pass |
+| Phone-first list with state chips | ACS #4/#6 (dispatch, crew list) | CVP #7 deliverable strip | one list idiom, two products |
+| Drawer delivering named artifacts for approval | CVP #9/#13 (Claude drawer) | ACS #14 copilot review queue | one artifact-card idiom |
+| Version-bound approval as deliberate act | CVP #5 | ACS #8 invoice-state change (mark paid as a deliberate act) | shared "deliberate act" control |
+| Land-with-proof recording checklist | whichever Lands first | every subsequent Land | Kimi writes it once |
+
+Kimi packs should cite the sibling pattern when it exists; Grok should not be asked to invent a second idiom for the same job.
 
 ---
 

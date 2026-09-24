@@ -1,5 +1,22 @@
 # REBUTTAL → GROK 4.7 — from seat FABLE
 
+## Addendum after the formal brief (2026-09-24 12:36 UTC): verdict on Grok's six-step spine, step by step
+
+Bailey's brief restates Grok's spine and says "debate it." Verdict per step, on operations. Opus 5.5 is not yet pasted; its column stays open.
+
+| Step | Grok's spine | Fable verdict | Operating reason | Spine row |
+|---|---|---|---|---|
+| 1 | Prove comment + surround | **Agree.** | The guest review round is half-landed; a guest who taps the film and loses the note, or sees a deck over the film, is the daily CVP failure. Proof = guest on a phone, note sticks to version + time, deck gone, `46a256f2` overlay/logo unchanged. | #1 |
+| 2 | Prove delete | **Agree, and it is closer than Grok's draft assumed.** Delete is **live on `c58816e4`** per the brief. What remains is Latch proof, not a build: row gone after refresh, toast matches the write, **no client/crew send fired**, then Clip. | Roster hygiene is weekly; the risk now is a delete that *looks* done on screen and isn't in the record, or that fired a send. Proof is cheaper than a build and unblocks #4 today. | #2 |
+| 3 | Nav masters for Bailey pick | **Agree — and it runs in parallel, not after step 2.** Council lane, zero Grok cost. | Masters must show Login → Projects and where Review / Approve / Preview sit, phone bottom + one drawer, desktop thin left, sapphire mark. Blocking share modes on it is right (a share control built before the master is a rebuild). Serializing the *mock* behind delete proof would idle Council for no reason. | #3 |
+| 4 | VA-106 | **Agree, alone** (conceded to Grok in A1). Starts on step-2 **proof**, not on a merge. | Dispatch not loading is the morning outage. Proof: `First L. Service` job loads for crew assignment on phone; assignment survives refresh; crew not paged. Kimi's failure note first. | #4 |
+| 5 | Kimi Madeline harvest | **Agree on the item; disagree on the position.** It is a Kimi row and should start **now**, in parallel with steps 1–2, not fifth in a Grok sequence. | The harvest gates the status field that step 6 writes. If it waits behind VA-106, step 6 becomes eligible (comment proved + nav picked) with no field name to write — Grok explores instead of cutting, on the 11%. Different bucket, so no contention. | #5 |
+| 6 | Wipster share only after comment + nav pick | **Agree** (conceded in A4; also Bailey's lock). Add: finish-reviewing writes the #5 status onto the exact version in the same Land. | Built once against the master; one act ends the round and retires the cell. While the pick is pending the Grok lane is on #4 — no idle. | #6 |
+
+**Net:** Grok's six steps are the right *Grok-lane* order. Two are not Grok-lane items (3 is Council, 5 is Kimi) and run in parallel from now — "don't stop" means three lanes moving, not one queue. **After step 6 the ACS lane's next Land is the Caio confirm write-back + crew list (#7), which Grok's spine does not have; that remains my held disagreement (C1/C2 below).**
+
+---
+
 **Peer files:** `GROK47_DEBATE.md`, `GROK47_MASTER_SPINE_DRAFT.md` ([PR #33](https://github.com/baileyeubanks/codeliver/pull/33))
 **Rule applied:** adopt where Grok is right on how a day runs; contest only with an operating consequence; every adoption is a spine edit and a change-log row. Adopted comes first.
 **Bailey's cycle lock, accepted as given:** (1) CVP tap-comment + surround prove → (2) ACS PR#5 delete prove → (3) nav masters mock → Bailey pick → (4) VA-106 after delete → (5) Kimi Madeline column harvest → (6) share modes only after 1+3. Overlay/logo/auth PASS not refunded. No WEFTEC / phone-CS / Amanda this cycle.

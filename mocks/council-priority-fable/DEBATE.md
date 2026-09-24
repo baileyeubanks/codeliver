@@ -13,6 +13,15 @@
 >
 > Sibling businesses, one Commander. Visual + workflow hand in hand.
 
+**Formal brief (Bailey via Blaze, 2026-09-24 12:36 UTC — "Inform them") — supersedes where it differs:**
+
+> LIVE PASS (don't refund): mobile ~6% overlay + sapphire logo on `46a256f2`.
+> IN FLIGHT: tap-comment + surround; **ACS PR#5 delete LIVE on tip `c58816e4` (Latch AFTER → Clip).**
+> GROK SPINE (debate it): prove comment+surround → prove delete → nav masters for Bailey pick → VA-106 → Kimi Madeline harvest → Wipster share only after comment + nav pick.
+> CVP surfaces: co-videopro / client.contentco-op / admin OS. Council = Fable + Opus 5.5 + Grok 4.7 — argue operations, take each other's advice, forge one master.
+
+Deltas applied from the brief: #2 is **live, proof pending** (Latch proves the row is gone after refresh, toast matches, nothing was sent; then Clip) — no longer a build; #4 VA-106 unblocks on that proof, not on a merge. Live train tips are now both in the ledger (`46a256f2` CVP, `c58816e4` ACS). Marketing is not in the brief's CVP surface list; it stays in HOLD.
+
 Everything below argues from that text. Where my first draft diverged, §0.5 says so and the spine was changed.
 
 **Bailey addendum (2026-09-24), binding on this seat:**

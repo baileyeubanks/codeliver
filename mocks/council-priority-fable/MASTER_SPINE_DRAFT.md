@@ -1,10 +1,17 @@
-# MASTER SPINE — draft from seat FABLE (rev. after Grok 4.7)
+# MASTER SPINE — draft from seat FABLE (rev. after Grok 4.7 + formal brief 2026-09-24 12:36 UTC)
 
 One ordered backlog across ACS OS and CVP. 15 rows, upstream→downstream by **dependency**, interleaved by **cadence** (ACS daily, CVP per-project). Owner hints use the office seats from the command map. Lane: **G** Grok Land (~11% bucket) · **K** Kimi pack (~64%) · **C** Council · **B** Bailey pick.
 
 Rules applied: no G without a preceding K pack · one open Land per product · alternate by slice · Kimi runs one slice ahead, every pack tied to a row · **every row carries a surface outcome that must PASS in the same Land as its workflow** · **every Land carries proof, including the negative** (guest path still plays; no send fired; crew not paged).
 
 P-levels (adopted from Grok so the two spines read alike): **P0** in flight or the named next open step · **P1** this cycle or the next funded Land · **P2** after a review round can end and a job can dispatch · **P3** no owner on this bucket.
+
+## Live trains (don't break; every Land preflights against these)
+
+| Train | Tip | State |
+|---|---|---|
+| CVP (M2) | `46a256f2` — player, mobile overlay ~6%, sapphire logo | LIVE PASS — never re-fund |
+| ACS admin (M4) | `c58816e4` — PR#5 roster delete | **LIVE, proof pending** — Latch proves → Clip |
 
 ## Visual surface ledger (Bailey's scoreboard)
 
@@ -22,10 +29,10 @@ P-levels (adopted from Grok so the two spines read alike): **P0** in flight or t
 | # | ID | P | Product | Item (workflow half) | Done when (surface + state, with proof) | Owner seats | Lane | Depends on | This cycle? |
 |---|---|---|---|---|---|---|---|---|---|
 | 1 | CVP-01 | P0 | CVP | Finish tap-comment + kill under-deck + quiet surround (`bc-ec6df537`). Do not retouch overlay, logo, `compress:false`, or version-bound approval. | Guest on a phone taps the picture; the note sticks to that version and time; deck is gone; tip, overlay, logo, auth unchanged. **Ledger: tap-comment → PASS.** | Reel/Cut → Latch | G (in flight) | — | Yes |
-| 2 | ACS-01 | P0 | ACS | Finish admin PR#5 roster delete/toasts → Clip. | Row is gone after refresh; toast matches the write; **no outbound message** to client or crew. **Ledger: ACS quiet (roster).** | Forge → Clip/Latch | G (in flight) | — | Yes |
+| 2 | ACS-01 | P0 | ACS | PR#5 roster delete/toasts — **live on `c58816e4`**. Remaining work is **Latch proof, then Clip**; no further build unless proof fails. | Latch on live admin, phone: row is gone after refresh; toast matches the write; **no outbound message** to client or crew. Then Clip. **Ledger: ACS quiet (roster) → PASS on proof.** | Latch → Clip (Forge only if proof fails) | Proof (G only on failure) | — | Yes — proof now |
 | 3 | COUNCIL-01 | P0 | CVP | Nav masters, mock only, ONE pick: phone bottom pipeline + one drawer (never left+bottom); desktop thin left; sapphire mark. | Drawing shows Login → Projects and where Review / Approve / Preview sit. Bailey confirms. No implementation branch. **Ledger: nav → picked.** | Fable/Opus/Grok → Blaze → Bailey | C → B | — | Yes (mock) |
-| 4 | ACS-02 | P1 | ACS | **VA-106 dispatch loading, alone.** Kimi writes the failure note first (who, which job, phone/desktop, what the screen does instead of loading). | The `First L. Service` job loads for crew assignment on the phone; the assignment is still there after refresh; no dead loading state; **crew not paged.** **Ledger: ACS quiet (dispatch) → PASS.** | Forge/Clip; Frame note | K → G | #2 | Yes, when #2 is done |
-| 5 | KIMI-01 | P1 | CVP | **Madeline column harvest for one live client**: column, who changes it, what "done" means per column. | Written list that names the status field #6 writes and #8 renders. No invented board. | Frame/Scout | K | — | Yes, in parallel |
+| 4 | ACS-02 | P1 | ACS | **VA-106 dispatch loading, alone.** Kimi writes the failure note first (who, which job, phone/desktop, what the screen does instead of loading). | The `First L. Service` job loads for crew assignment on the phone; the assignment is still there after refresh; no dead loading state; **crew not paged.** **Ledger: ACS quiet (dispatch) → PASS.** | Forge/Clip; Frame note | K → G | #2 **proof** (not a merge) | Yes, as soon as #2 proves |
+| 5 | KIMI-01 | P1 | CVP | **Madeline column harvest for one live client**: column, who changes it, what "done" means per column. **Starts now**, Kimi lane, parallel with #1/#2 — not queued behind VA-106. | Written list that names the status field #6 writes and #8 renders. No invented board. | Frame/Scout | K | — | Yes — now, in parallel |
 | 6 | CVP-02 | P1 | CVP | Review shell = Wipster share modes on the picked nav: Review / Approve / Preview is the control the guest uses **and** the posture stored on the share (durable `share_intent`); **"finish reviewing" writes the status field from #5 onto that exact version.** | Round can end; status lands without anyone retyping; film first, thin controls, approve as a deliberate act; player/logo/auth PASS held; admission limits unchanged. | Reel/Cut/Latch; Frame pack drawn against #3 mocks | K → G | #1 **and** #3 picked | Only after 1 + 3; otherwise Grok lane is on #4 |
 | 7 | ACS-06 | P1 | ACS | Caio confirm loop → Job state (scheduled → en route → on-site → done / issue) **+ crew today-list.** The rail stays voice/FaceTime at `+15048581959`; the write is a human tap on admin or crew after the call. | State chips on crew + admin; crew list legible in a van; no modals; **no send; rail untouched.** **Ledger: crew list → PASS.** | Forge + Ring (owns the rail) | K → G | #4 | No — next cycle |
 | 8 | CVP-03 | P2 | CVP | Per-deliverable, per-client status for **that one client** on the existing project, columns from #5, status **derived** from #6's finish write. Minimal Deliverable contract packed by Frame. | Madeline does not retype that client's rows. Status reads as a strip on the existing cockpit; no new chrome ahead of the pick. D8: derived, never hand-typed. | Reel; Frame contract pack | K → G | #5, #6 | No |
@@ -39,11 +46,13 @@ P-levels (adopted from Grok so the two spines read alike): **P0** in flight or t
 
 ## Cycle acceptance (this bucket)
 
-The cycle closes when: #1 and #2 are on the live trains with proof (including the negatives) · #3 is up for Bailey to pick · #4 is the next Forge Land, alone · #5 is a written list. #6 does not start before the pick. Overlay, logo, auth untouched. Nothing was sent.
+The cycle closes when: #1 is on `46a256f2`'s train with proof · #2 is **proved by Latch on `c58816e4` and clipped** (row gone after refresh, toast true, nothing sent) · #3 is up for Bailey to pick · #4 is the next Forge Land, alone, started on #2's proof · #5 is a written list. #6 does not start before the pick. Overlay, logo, auth untouched. Nothing was sent.
+
+Three lanes move at once ("don't stop"): **Grok** #1 → #4 → #6 · **Council** #3 now · **Kimi** #5 now + VA-106 failure note + share-mode pack against the #3 mocks.
 
 ## Dependency locks
 
-- #4 starts when #2 is done. It does not wait on a job-create rewrite (#11 is a check after it).
+- #4 starts when #2 is **proved** (Latch on live `c58816e4`), not merged — it is already live. It does not wait on a job-create rewrite (#11 is a check after it).
 - #6 starts when #1 is done **and** Bailey has picked #3; it writes the field named in #5. If the pick is late, the Grok lane stays on ACS (#4, then #7 next cycle).
 - #8 waits on #6. #10 waits on #3 and #8.
 - #7 waits on #4; #9 waits on #7; #11's booking half waits on #9.
@@ -81,4 +90,5 @@ The cycle closes when: #1 and #2 are on the live trains with proof (including th
 | 2026-09-24 | Grok 4.7 (M1) | Enrichment is human entry, not a Land; close/notes/invoice-state is | #9 split | — |
 | 2026-09-24 | Grok 4.7 (M3) | Projects home is after a round can end and a status exists | #10 P1 → P2 (owner kept) | nav Land moves to #10 |
 | 2026-09-24 | Grok 4.7 — **held** | No Caio write-back row; no crew surface; copilot blanket-deferred; Kimi "KIMI-01 only" | #7 held P1 next cycle; #14 held as pack; Kimi one-slice-ahead held — see `REBUTTAL_TO_GROK.md` C1–C4 | crew list stays a ledger sub-row (#7) |
+| 2026-09-24 | Formal brief (Bailey via Blaze) | PR#5 delete already live on `c58816e4`; Latch after → Clip | #2 becomes proof-then-Clip, not a build; #4 unblocks on proof; live-trains table added; #5 marked parallel-now | ACS quiet (roster) → PASS on proof |
 | — | Opus 5.5 | — | — | — |

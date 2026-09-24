@@ -13,7 +13,6 @@ interface ReviewMediaSurfaceProps {
   poster?: string;
   videoRef: RefObject<HTMLVideoElement | null>;
   imageRef?: RefObject<HTMLImageElement | null>;
-  pinMode: boolean;
   annotationEnabled?: boolean;
   overlay: ReactNode;
   onFramePin?: (x: number, y: number, timeSeconds: number) => void;
@@ -44,7 +43,6 @@ export default function ReviewMediaSurface({
   poster,
   videoRef,
   imageRef,
-  pinMode,
   annotationEnabled = false,
   overlay,
   onFramePin,
@@ -152,7 +150,7 @@ export default function ReviewMediaSurface({
       <div className="flex justify-center bg-black/90 p-3 sm:p-4">
         <div
           className={`relative inline-block overflow-hidden rounded-[var(--radius)] ${
-            pinMode && onImagePin ? "cursor-crosshair" : ""
+            onImagePin ? "cursor-crosshair" : ""
           }`}
           onClick={onImagePin}
         >

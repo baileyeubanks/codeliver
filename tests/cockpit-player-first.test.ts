@@ -57,21 +57,22 @@ test("explicit review starts with secondary details closed and keeps the review 
   );
 });
 
-test("the player and primary comment composer precede collapsed secondary material", () => {
+test("the player precedes collapsed secondary material and comments open on the film", () => {
   const renderedOverview = cockpitSource.slice(
     cockpitSource.indexOf('<main id="cockpit-workspace-content"'),
     cockpitSource.indexOf("{pipelineStages.length > 0"),
   );
   const stageIndex = renderedOverview.indexOf('className="cockpit-review-stage"');
-  const composerIndex = renderedOverview.indexOf('className="cockpit-comment-composer"');
+  const composerIndex = renderedOverview.indexOf("<InlineReviewComment");
   const timelineToggleIndex = renderedOverview.indexOf("className={styles.timelineToggle}");
   const reviewArchiveIndex = renderedOverview.indexOf("className={styles.reviewArchive}");
 
   assert.ok(stageIndex >= 0, "review player is missing");
-  assert.ok(composerIndex > stageIndex, "primary comment composer must stay with the player");
-  assert.ok(timelineToggleIndex > composerIndex, "timeline disclosure belongs after the composer");
+  assert.ok(composerIndex > stageIndex, "playhead comment composer must stay on the film");
+  assert.doesNotMatch(renderedOverview, /cockpit-comment-composer|Add a timecoded comment/);
+  assert.ok(timelineToggleIndex > composerIndex, "timeline disclosure belongs after the player");
   assert.ok(reviewArchiveIndex > timelineToggleIndex, "source archive belongs below the player controls");
-  assert.match(renderedOverview, /aria-label="Comment"/);
+  assert.match(cockpitSource, /function openPlayheadComment\(/);
 });
 
 test("focused review keeps the large player and composer within a standard desktop viewport", () => {
@@ -99,9 +100,10 @@ test("timeline is closed by default behind a keyboard-native 44px disclosure", (
 });
 
 test("the primary review playbar exposes exact-time comment markers without auto-opening a callout", () => {
+  const controlsStart = cockpitSource.indexOf('className={`cockpit-video-controls ${styles.playerControls}`}');
   const controls = cockpitSource.slice(
-    cockpitSource.indexOf('className={`cockpit-video-controls ${styles.playerControls}`}'),
-    cockpitSource.indexOf("</div>\n                    </div>\n\n                    {!pendingPin", cockpitSource.indexOf('className={`cockpit-video-controls ${styles.playerControls}`}')),
+    controlsStart,
+    cockpitSource.indexOf('EmptyState title="No review media"', controlsStart),
   );
 
   assert.match(controls, /className=\{styles\.playerSeekTrack\}/);
@@ -111,8 +113,7 @@ test("the primary review playbar exposes exact-time comment markers without auto
   assert.match(cockpitStyles, /\.playerCommentMarker\s*\{[^}]*min-width:\s*28px;[^}]*min-height:\s*28px;/);
   assert.match(cockpitStyles, /\.playerCommentMarkerDot\s*\{/);
 
-  const submitComment = cockpitSource.match(/async function submitComment\(\) \{([\s\S]*?)\n  \}/)?.[1] ?? "";
-  assert.match(submitComment, /setSelectedCommentId\(null\);/);
+  assert.match(cockpitSource, /onComplete=\{\(\) => \{[\s\S]*?setSelectedCommentId\(null\);/);
   assert.match(cockpitSource, /onPlaybackStart=\{dismissSelectedCommentForPlayback\}/);
   const nativePlay = cockpitSource.match(/onPlay=\{\(\) => \{([\s\S]*?)\n\s*\}\}/)?.[1] ?? "";
   assert.match(nativePlay, /dismissSelectedCommentForPlayback\(\);/);

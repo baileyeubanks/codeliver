@@ -472,25 +472,6 @@
   .dockSection {
     padding: 15px 14px;
   }
-
-  .shell :global(.cockpit-comment-composer) {
-    grid-template-columns: 30px minmax(0, 1fr) auto;
-  }
-
-  .shell :global(.cockpit-comment-composer input) {
-    grid-column: 2 / 4;
-  }
-
-  .shell :global(.cockpit-timecode) {
-    grid-column: 2;
-    min-width: 94px;
-    padding-inline: 7px;
-  }
-
-  .shell :global(.cockpit-add-comment) {
-    grid-column: 3;
-    min-width: 112px;
-  }
 }
 
 @media (max-width: 390px) {
@@ -523,18 +504,6 @@
     width: auto;
     flex: 1 1 0;
     margin-left: auto;
-  }
-
-  .shell :global(.cockpit-comment-composer) {
-    grid-template-columns: 28px minmax(0, 1fr);
-  }
-
-  .shell :global(.cockpit-comment-composer input),
-  .shell :global(.cockpit-timecode),
-  .shell :global(.cockpit-add-comment) {
-    grid-column: 2;
-    width: 100%;
-    min-width: 0;
   }
 }
 

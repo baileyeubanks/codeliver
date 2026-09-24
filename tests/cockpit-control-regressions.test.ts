@@ -187,7 +187,7 @@ test("operator dock tabs stay compact instead of exposing crowded labels by view
   );
 });
 
-test("390px cockpit guards prevent header and composer crowding", () => {
+test("390px cockpit guards prevent header crowding", () => {
   assert.match(cockpitProjectStyles, /@media \(max-width: 390px\)/);
   assert.match(
     cockpitProjectStyles,
@@ -205,14 +205,7 @@ test("390px cockpit guards prevent header and composer crowding", () => {
     cockpitProjectStyles,
     /\.shell :global\(\.cockpit-section-heading select\) \{[\s\S]*?flex: 1 1 0;/,
   );
-  assert.match(
-    cockpitProjectStyles,
-    /\.shell :global\(\.cockpit-comment-composer\) \{[\s\S]*?grid-template-columns: 28px minmax\(0, 1fr\);/,
-  );
-  assert.match(
-    cockpitProjectStyles,
-    /\.shell :global\(\.cockpit-comment-composer input\),[\s\S]*?\.shell :global\(\.cockpit-timecode\),[\s\S]*?\.shell :global\(\.cockpit-add-comment\) \{[\s\S]*?width: 100%;/,
-  );
+  assert.doesNotMatch(cockpitProjectStyles, /cockpit-comment-composer|cockpit-add-comment|cockpit-timecode/);
 });
 
 test("mobile navigation drawer sizes the supplied raster brand wrapper", () => {
@@ -447,11 +440,5 @@ test("demo upload terminal states stay readable and dismissible", () => {
 test("comment submission never pretends a production player resumed", () => {
   assert.doesNotMatch(inlineCommentSource, /continue playback/);
   assert.match(inlineCommentSource, /aria-label="Send comment"/);
-
-  const submitComment = cockpitSource.match(
-    /async function submitComment\(\) \{([\s\S]*?)\n  \}\n\n  async function toggleCommentStatus/,
-  )?.[1];
-  assert.ok(submitComment, "comment submission handler is missing");
-  assert.match(submitComment, /if \(!demoMode\) \{[\s\S]*?setIsPlaying\(false\);[\s\S]*?setPlaybackError\(/);
-  assert.match(submitComment, /else if \(!demoMode\) \{[\s\S]*?setIsPlaying\(false\);[\s\S]*?setPlaybackError\(/);
+  assert.doesNotMatch(cockpitSource, /async function submitComment\(/);
 });

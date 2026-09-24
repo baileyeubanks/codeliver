@@ -2,7 +2,7 @@
 
 Design comp only. Nothing here is imported by the app, and the live app shell, player, auth, and review UI are untouched. Phone and desktop share one information architecture: Projects is home, the pipeline is Brief → Shoot → Cut → Delivery, and deep tools (Library, Team, Settings, Admin) sit one step away. The three-way debate with Fable and Grok 4.7 is in [`DEBATE.md`](DEBATE.md). The frame-by-frame rebuttal of Grok's confirmed renders is in [`PEER_REBUTTAL_GROK_NAV.md`](PEER_REBUTTAL_GROK_NAV.md).
 
-**Start with [`master/`](master/).** It holds the master phone and desktop frames that came out of the debate, judged against Bailey's stated intent. The files in this top folder are my round-1 comps and are kept as history. State C in particular is superseded: it keeps a comment dock under the film, which Bailey asked to kill.
+**Bake-off set:** the round-1 frames in this folder, listed in [`PEER_NOTE_FABLE_GROK.md`](PEER_NOTE_FABLE_GROK.md). **Forge draft:** [`master/`](master/) already contains steals from both peers and is not part of the bake-off. Its phone-3 frame still draws the withdrawn scope rule. Round-1 state C keeps a comment dock under the film, which Bailey asked to kill. That failure stays on the record rather than being fixed, so the bake-off compares confirmed sets.
 
 | Master frame | File |
 | --- | --- |
@@ -26,7 +26,7 @@ On the phone, the hamburger opens the drawer, and the scrim, the panel button, o
 
 ### 1. The five rail items and what each does for a producer
 
-**A stage tab always opens that stage for whatever scope the header names** (debate R3.2, where all three comps converged). Inside a job, the header names the job and the tabs are that job's stages, so the rail doubles as the phone's stepper. On home, the header says Projects and a stage tab shows every project at that stage. The word on the tab never changes meaning, only its scope does, and the scope is always on screen. Scope changes only by an explicit act: opening a card or a Recent sets it, and back or the Projects tab clears it. It never comes from memory of the last job.
+**Each stage tab is a queue across all projects, always** (see [`PEER_NOTE_FABLE_GROK.md`](PEER_NOTE_FABLE_GROK.md), which withdraws my round-3 "scope follows the header" rule). The Cut badge stays live from every screen, so a client comment on another job is never hidden while you work. Inside a job, the header names the job, a compact stepper switches its stages, and the rail keeps the tab you came from highlighted.
 
 | Tab | What a producer does there day to day | Live route it absorbs |
 | --- | --- | --- |

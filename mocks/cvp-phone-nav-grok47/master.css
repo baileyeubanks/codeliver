@@ -72,6 +72,34 @@
   font-weight: 600;
 }
 
+.film { grid-template-rows: 47px 48px 1fr; }
+
+.comment-dialog {
+  position: absolute;
+  left: 16px;
+  top: 18px;
+  width: min(240px, 70%);
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: #fff;
+  color: var(--ink);
+  box-shadow: 0 8px 24px rgb(4 15 28 / 0.28);
+}
+
+.comment-dialog strong {
+  display: block;
+  color: var(--blue);
+  font-size: 12px;
+}
+
+.comment-dialog span {
+  display: block;
+  margin-top: 2px;
+  color: var(--soft);
+  font-size: 12px;
+  line-height: 1.35;
+}
+
 .transport {
   display: flex;
   align-items: center;

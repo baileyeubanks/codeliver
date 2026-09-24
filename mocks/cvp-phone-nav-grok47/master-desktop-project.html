@@ -9,5 +9,14 @@
 <body class="shot">
   <main class="desk-stage"><div data-desk="project"></div></main>
   <script src="./desktop.js"></script>
+  <script>
+    const player = document.querySelector(".player");
+    if (player) {
+      player.querySelector("b").textContent = "Live thin overlay";
+      player.querySelector("span").textContent = "Unchanged. Dialog at the playhead.";
+    }
+    const under = document.querySelector(".work .panel .notes");
+    if (under) under.remove();
+  </script>
 </body>
 </html>

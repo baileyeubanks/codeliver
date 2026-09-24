@@ -69,19 +69,24 @@
 | Jennifer | Second named sheet, same rule as Madeline | Column vocabulary only | Same deliverable row. If her sheet is not in, this case is open |
 | Open | No sheet yet | Nothing | Status stays the review outcome. Empty columns are not invented |
 
-## 6. Land list after 1–6
+## 6. Land-ready cut list after 1–6
 
-| # | ID | Land | Depends on | Done when | Negative | Gate |
+| Role | Rule |
+| --- | --- |
+| Grok | This cut list |
+| Fable | Forges the master |
+| This change | No Land |
+| ACS #9, #11 | Sibling train. Not cuts here |
+
+| # | ID | Cut | Touch | Proof text | Negative | Preflight |
 | --- | --- | --- | --- | --- | --- | --- |
-| 7 | CVP-06 | `schneider.co-videopro.com` resolves Schneider. Login → Projects. El Paso Water is the first row | #3 picked, #6 proved | Phone: Schneider mark, El Paso row, nothing from another tenant | Client B is absent. Guest link on today’s host still plays the film | DNS is the existing Bailey gate. Generic door stays until this Lands |
-| 8 | CVP-03 | El Paso status on `co_production.deliverables`, derived from the version’s review outcome | #6. #5 when Madeline’s sheet is in | Madeline does not retype that row | Open case shows the outcome, not an invented column | — |
-| 9 | ACS-04 | ACS close-out. Not a CVP Land | #4 | Unchanged sibling | This contract does not open it | Do not stall |
-| 10 | CVP-04 | Master Projects, cross-tenant “waiting on whom”. Shell copied from the approved nav PNGs. Film hides the rail | #3, #7, #8 | Login → Projects. El Paso shows who it waits on. Phone bottom + drawer. Desktop thin left | No second nav. No left+bottom. No crew item | Do not redraw PR #30 / #31 / #32. Not this change |
-| 11 | ACS-03 | ACS job check. Not a CVP Land | #4 | Unchanged sibling | This contract does not open it | Do not stall |
-| 12 | CVP-07 | El Paso version switch on the same film | #6, #8 | Notes stay on that version | No rail beside the film. `46a256f2` overlay and logo unchanged | — |
-| 13 | CVP-05 | Money shown on the master job from CCO OS | Handoff columns. A finished review | El Paso can show the frozen total | CVP does not write `commercial_total_cents`. No invoice send | Bailey says bill is the existing gate |
-| 14 | CVP-08 | AI-fluid on El Paso Delivery. Drafts: QC against the approved brief, chase list of open comments. Reads brief + version + open comments | #6 and one finished round | Operator accepts or ignores each draft | Draft does not send, spend, or approve. No chatbot | — |
-| 15 | CVP-09 | WEFTEC, same Schneider door, same seats, disk `schneider-electric/weftec` | #7–#8 and #12 and #14 on El Paso | Second project only | No new seat, door, or table | Leaves the old HOLD. Not a second product |
+| 7 | CVP-06 | `{client}.co-videopro.com` resolves one organization. Schneider’s door logs in to `/projects`. First row is El Paso Water. | `lib/auth/host-surface.ts`, `proxy.ts` | Phone on `schneider.co-videopro.com`: Schneider mark, El Paso Water, no other tenant. | A second tenant’s project is not on that list. A guest link already sent still paints the film. | After #3 picked and #6 proved. On top of `46a256f2`. DNS is the existing gate, not this cut. `client.contentco-op.com` stays until this passes. |
+| 8 | CVP-03 | El Paso deliverable status is derived from that version’s review outcome. Madeline’s columns, when row 5 is in, are labels on that outcome. | `co_production.deliverables` read path, project Delivery seat | El Paso row shows the outcome from Finish. Madeline does not retype it. | With no sheet, the row still shows the outcome. No empty invented column. | After #6. #5 does not block. |
+| 10 | CVP-04 | Master Login → Projects across tenants. “Waiting on whom” reads #8. Shell matches the approved nav PNGs. Film hides the pipeline rail. | `components/navigation/navigation-model.ts`, `components/navigation/WorkspaceNavigation.tsx` | Master phone: Projects list, El Paso shows who it waits on, bottom is Projects · Brief · Shoot · Cut · Delivery, Library is the drawer. Desktop thin left. | No second nav. No left rail plus bottom bar. No crew item. Player chrome on `46a256f2` unchanged. | After #7 and #8. Copy PR #30 / #31 / #32. Do not redraw. |
+| 12 | CVP-07 | El Paso version change stays on the same film. Notes stay on the version they were tapped on. | Review version binding already in `20260922073000_version_bound_approval_rounds.sql`; player version switch only | Switch version on the El Paso film. The note from the previous version is not on the new one. | No rail beside the film. Overlay and sapphire mark unchanged. | After #6 and #8. |
+| 13 | CVP-05 | Master job shows the frozen CCO total. CVP does not write it. | Read `commercial_total_cents` / `commercial_ref` on `co_production.projects` | El Paso on the master shows the handed-off total. | No CVP write to those columns. No invoice send. | After a finished review. “Bailey says bill” stays the existing gate. |
+| 14 | CVP-08 | Two drafts on El Paso Delivery: QC against the approved brief, and a chase list of open comments. Operator accepts or ignores each. | Delivery seat only. Reads `briefs`, the current version, open `comments` | Each draft is a card on Delivery. Accept and ignore both leave the deliverable status unchanged until the operator sets delivered. | The card does not send, spend, or approve. No chatbot drawer. | After #6 and one finished El Paso round. |
+| 15 | CVP-09 | Second Schneider project, WEFTEC, same seats, same door. Disk `schneider-electric/weftec` on the CCO Mac. | No new table. Second `projects` row under the Schneider organization. `assets.nas_path` points at that folder. | `schneider.co-videopro.com` lists El Paso Water and WEFTEC. WEFTEC Brief / Shoot / Cut / Delivery read that folder. | No new seat, door, or table. Jennifer’s columns, if absent, stay the open case. | After #7, #8, #12, and #14 on El Paso. |
 
 ## 7. Kill / don’t-break
 
@@ -104,7 +109,7 @@
 | Out | Why |
 | --- | --- |
 | Rows 1–6 | Already in flight or proof. This contract starts at 7 |
-| Landing the shell in this change | Nav PNGs stand. The shell Land is #10 |
+| Landing any cut in this change | #7–#15 are the list. Fable forges. No Land from this file |
 | ACS dispatch, close-out, booking | Sibling train. VA-106 stays an admin load |
 | Caio’s Continuity phone rail | Field truth stays voice. No crew product |
 | DNS edit, migration apply | Existing Bailey gates. Named, not re-asked |

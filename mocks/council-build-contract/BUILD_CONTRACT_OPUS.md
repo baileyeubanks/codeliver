@@ -1,24 +1,43 @@
-# BUILD CONTRACT — seat Opus 5.5 (one-shot, 2026-09-24)
+# BUILD CONTRACT — seat Opus 5.5 (one-shot, rev 2 — consensus folded, 2026-09-24)
 
 | Field | Value |
 |---|---|
-| Status | One-shot build contract for Blaze to forge by diff against the Fable and Grok contracts, section by section. Not a Land. |
+| Status | Final Opus contract. Consensus with Fable ([#38](https://github.com/baileyeubanks/codeliver/pull/38)) and Grok ([#37](https://github.com/baileyeubanks/codeliver/pull/37)) is adopted where it is obvious (§0). Remaining differences sit in §6b for the forge. Not a Land. |
 | Governs | CVP Lands **after** spine rows 1–6 close. Rows 1–6 are not reopened, re-ordered, or stalled. |
-| Bailey | GO full speed 2026-09-23. Zero questions. Gates G1 (migration apply) and G2 (DNS) are named where they fall, not re-asked. |
-| Inputs | Bailey locks (below) · Opus spine rev 5.1 · Fable spine rev 4 · Grok spine draft · nav mocks [#30](https://github.com/baileyeubanks/codeliver/pull/30) / [#31](https://github.com/baileyeubanks/codeliver/pull/31) / [#32](https://github.com/baileyeubanks/codeliver/pull/32) · repo `main` @ `5da6aed` |
-| Disk | `CCO/clients/schneider-electric/2026-03-13_el-paso-customer-story` and `.../2026-09-25_weftec` live on M2. This seat did not read them. Fill rows name record targets and known live UUIDs only, and never invent contents. |
-| Legend | **EXISTS** = in a named migration or file · **NEW** = new column, table, or function, applied only at gate G1 · **DERIVED** = computed and never typed · **Lnn** = Land number in §6 |
+| Bailey | GO full speed 2026-09-23; "do whatever consensus is obvious, no re-ask." Zero questions. Gates G1 (migration apply) and G2 (DNS) are named where they fall. |
+| Inputs | Bailey locks (below) · spine rev 5.1 / rev 4 / Grok draft · nav mocks [#30](https://github.com/baileyeubanks/codeliver/pull/30) / [#31](https://github.com/baileyeubanks/codeliver/pull/31) / [#32](https://github.com/baileyeubanks/codeliver/pull/32) · peer contracts #37, #38 · repo `main` @ `5da6aed` |
+| Disk | `CCO/clients/schneider-electric/2026-03-13_el-paso-customer-story` and `.../2026-09-25_weftec` on the CCO Mac, the root `scripts/schneider-preview.mjs` already trusts. This seat did not read them. Fill rows map **folder classes**, never invented contents. |
+| Legend | **EXISTS** = in a named migration or file · **NEW** = new column or function, applied only at G1 · **DERIVED** = computed, never typed · **7a…15** = spine-grid Land numbers (§6) |
 
 | Lock | Text | Enforced by |
 |---|---|---|
-| K1 | Client door `{client}.co-videopro.com` plus a Content Co-op Master over many accounts | §2a tenancy, L8–L10 |
-| K2 | No crew: no crew product, crew states, or van app | §7 kill, L16 |
-| K3 | Delivery is AI-fluid: the lock record is fixed and the how is swappable. No sacred wizard. | §1 invariants, L17, L19 |
-| K4 | Film route has no nav rail | §2b film row, L11 |
-| K5 | Login → Projects | §2b login row, L12 |
-| K6 | Seats: Projects · Brief · Shoot · Cut · Delivery, plus a Library drawer | §2b, L11 |
-| K7 | Golden path is El Paso Water × Schneider. WEFTEC is the event pressure test. | §3, §4, L20 |
-| K8 | Keep the Fable/Grok nav drawing. No redraw. | L11, §7b |
+| K1 | Client door `{client}.co-videopro.com` plus a Content Co-op Master over many accounts | §2a, Land 7 |
+| K2 | No crew product, crew states, or van app | §7a |
+| K3 | Delivery is AI-fluid: the record is fixed, the stage is swappable, no sacred wizard | §1c, Land 14 |
+| K4 | Film route has no nav rail | §2b, Lands 10a, 12 |
+| K5 | Login → Projects | §2b, Land 10a |
+| K6 | Seats: Projects · Brief · Shoot · Cut · Delivery, plus a Library drawer | §2b, Lands 10a–10f |
+| K7 | Golden path is El Paso Water × Schneider; WEFTEC is the event pressure test | §3, §4, Lands 8, 15 |
+| K8 | Keep the Fable/Grok nav drawing; no redraw | Land 10a, §7b |
+
+## 0 Consensus folded (adopt before contest)
+
+| # | Consensus | Held by | Change in this rev |
+|---|---|---|---|
+| C1 | Lands use the spine rev 4 grid 7–15; ACS 9 and 11 keep their slots, unopened | Fable + Grok | §6 renumbered. The finer PR splits of the Opus plan become sub-Lands (7a–7d, 8a–8b, 10a–10g). |
+| C2 | Order: door (7) → El Paso fill + derived status (8) → master home + nav shell (10) → version switch (12) → money shown (13) → AI-fluid Delivery drafts (14) → WEFTEC (15) | Fable + Grok | Adopted. Seat surfaces ride row 10, right after the shell. |
+| C3 | Money is **shown** read-only on the master job from the CCO handoff fields, gated on "Bailey says bill" | Fable + Grok | Moved from out of scope to Land 13 |
+| C4 | AI-fluid Delivery = exactly two named drafts: **QC vs approved brief** and **chase list of open comments**; accept or ignore; no chatbot | Fable + Grok | The `assist_artifacts` table is dropped. Accept writes the existing `deliverables.qc_checks`; ignore writes nothing. |
+| C5 | Client Shoot view is progress only (dates, wrapped days, coverage done); no call sheets, crew, or rates | Fable + Grok | §2b client Shoot narrowed |
+| C6 | Library = the tenant's assets (footage, b-roll, stills, finals) keyed by project, not only locked finals | Fable + Grok | §2b Library widened |
+| C7 | Disk stays source of truth: no second library, no pointer faked as playable | Fable + Grok | Intent adopted. Mechanism corrected in §6b (`nas_path` is the tus commit key). |
+| C8 | Jennifer = **shoot-only / footage-only job shape**: Cut dormant, Delivery holds one footage-package handoff | Fable (Bailey's fixed input) + Opus "shoot-only" | §5 rewritten. The seat-grant column `project_members.seats` is dropped. |
+| C9 | Madeline = year-long engagement: footage accrues before deliverables; late testimonials land as Vn+1; her sheet columns are **labels** on the derived outcome | Fable + Grok + spine #5 | §5 rewritten |
+| C10 | Open brief = a brief on the **same job object** at development, with nothing downstream fabricated | Fable + Opus | §5 row |
+| C11 | Demo title "Physical Edge — El Paso" never becomes the live job name | all three | §7a |
+| C12 | WEFTEC: same door, same seats, no new table, seat, or door; empty classes stay honest-empty; lanes are Shoot filters | Fable + Grok | §4 |
+| C13 | Kill: under-film deck, rail on the film, second player, chatbot drawer, hand-typed status, widget-dashboard home, WEFTEC chrome, PR #25 as-is, PR #27 ahead of #36, demo-proposal promotion, `crew_members` as a surface | Fable + Grok | §7a merged |
+| C14 | Don't-break: ACS tip `c58816e4` (Latch → Clip), Wipster hosting stays, generic door until per-client doors Land | Fable + Grok | §7b merged |
 
 ---
 
@@ -26,48 +45,53 @@
 
 ### 1a Objects
 
-| Object | Table today | State | Tenancy key | Writer | Client sees | Change |
-|---|---|---|---|---|---|---|
-| Master workspace | `co_production.teams` (one row: Content Co-op) + `team_members` | EXISTS `20260715093300` | `projects.team_id` | Bailey (staff) | never | None. Every job's `team_id` is the Content Co-op team. |
-| Client account | `co_production.organizations` | EXISTS `20260716120000` | `organizations.id` | Master only | own name + mark | **NEW** `slug` (door label, unique, `^[a-z0-9-]{2,40}$`) · `brand jsonb` (mark, accent) · `disk_key` (e.g. `schneider-electric`) · `door_status` (`off` / `preview` / `live`) |
-| Account membership (long-running) | none | **NEW** `co_production.organization_members(organization_id, user_id, role client_admin/client_member, expires_at, invited_by)` | `organization_id` | Master | own row | NEW |
-| Job grant (scoped) | `co_production.project_members` | EXISTS (`role`, `expires_at`) | `project_id` | Master | own row | **NEW** `seats text[]` ⊆ {brief, shoot, cut, delivery}, default all four |
-| Job | `co_production.projects` | EXISTS; `stage`, `organization_id`, and `cco_estimate_*` already present | `organization_id` (door queries require non-null) | Master | name, DERIVED seat word, granted seats | **NEW** `disk_key` (e.g. `2026-03-13_el-paso-customer-story`, unique per account) |
-| Brief | `briefs` + `brief_versions` | EXISTS, but `UNIQUE(project_id, version)` allows only one lineage | `project_id` | Master drafts; client approves a version | `in_review` / `approved` versions | **NEW** `lineage_key text DEFAULT 'main'` and `title`; unique becomes `(project_id, lineage_key, version)`, allowing many open briefs on one job |
-| Shoot | `plan_items(kind=production_day)`, `production_days`, `locations`, `call_sheets`, `shots` | EXISTS `20260716140000`, `20260717120000` | `project_id` | Master | date, place, call time, shot list (read-only) | None. `crew_members` gets no UI (K2). |
-| Asset / Version | `assets`, `versions` (+ `previous_version_id`) | EXISTS; the only writer is `/api/upload/tus` | `project_id` | Master via tus | versions shared to them | none |
-| Share | `review_invites` + `review_view_admissions` | EXISTS; recipient-bound `20260922052640` | asset → project → org | Master | the film | Stored Review / Approve / Preview posture is **owned by row 6**. This contract adds nothing. |
-| Note | `comments` (version-bound, 0–100 pins) | EXISTS `20260726113000` | version | guest, client, Master | shared thread | none |
-| Approval round | `approval_workflows`, `approvals`, `approval_history` | EXISTS, version-bound `20260922073000` | version | client approver, as a deliberate act | own pending step | none |
-| Revision request | `revision_requests` | EXISTS | `project_id` | Master | "changes requested" only | none |
-| Deliverable | `deliverables` (+ `qc_checks`, `locked_at`, `locked_by`, `approval_id`) | EXISTS `20260716120000`, `20260717130000`, `20260812120000` | `project_id` | Master | name, due, DERIVED state, download when locked | **NEW** `brief_id` (which open brief it answers) · `due_at timestamptz` |
-| Delivered set | `deliverable_items` (`sha256`; immutable once locked) | EXISTS `20260812120000` | `deliverable_id` | lock command only | download list | none |
-| Assist artifact (AI draft) | none | **NEW** `assist_artifacts(project_id, seat, kind, input_refs jsonb, body jsonb, status proposed/accepted/rejected, decided_by, decided_at)` | `project_id` | model proposes; Master decides | never | NEW |
-| Commercial ref | `projects.cco_estimate_id`, `cco_estimate_version_id`, `commercial_total_cents`, `commercial_ref` | EXISTS `20260812000000`; CCO OS is the authority | `project_id` | CCO OS only | never | none |
-| Door resolution | none | **NEW** RPC `co_production.resolve_door(slug)`, SECURITY DEFINER, returns `{organization_id, name, brand}` only when `door_status` is `preview` or `live` | — | — | brand only | NEW |
-| Org role check | `co_production_private.has_project_role` / `has_team_role` | EXISTS | — | — | — | **NEW** `co_production_private.has_org_role(org_id, rank)`; `projects_select` also admits it |
+| Object | Seat | Table today | State rule | Tenancy key | Writer | Client sees | Change |
+|---|---|---|---|---|---|---|---|
+| Master workspace | — | `co_production.teams` (Content Co-op) + `team_members` — EXISTS `20260715093300` | — | `projects.team_id` | Bailey (staff) | never | None. Every job's `team_id` is the Content Co-op team. |
+| Client account | Projects | `co_production.organizations` — EXISTS `20260716120000` | `door_status` off → preview → live | `organizations.id` | Master only | own name + mark | **NEW** `slug` (`^[a-z0-9-]{2,40}$`, unique) · `brand jsonb` · `disk_key` (e.g. `schneider-electric`) · `door_status` |
+| Account membership | — | none | active while `expires_at` is null or in the future | `organization_id` | Master | own row | **NEW** `co_production.organization_members(organization_id, user_id, role client_admin/client_member, expires_at, invited_by)` |
+| Job grant | — | `co_production.project_members` (`role`, `expires_at`) — EXISTS | as today | `project_id` | Master | own row | none |
+| Job | Projects | `co_production.projects` (`stage` via `lib/covideopro/transitions.ts`, `organization_id`, `cco_estimate_*`) — EXISTS | stage moves by validator only | `organization_id` (non-null for door reads) | Master | name, DERIVED seat word | **NEW** `disk_key` (e.g. `2026-03-13_el-paso-customer-story`, unique per account) |
+| Brief | Brief | `briefs` + `brief_versions` — EXISTS | draft → in_review → approved → superseded | `project_id` | Master versions; client approves | in_review / approved | **NEW** `lineage_key text DEFAULT 'main'`, `title`; unique becomes `(project_id, lineage_key, version)` (contested, §6b) |
+| Shoot day | Shoot | `production_days` — EXISTS `20260716140000` | scheduled → in_progress → wrapped / cancelled | `project_id` | Master | date + DERIVED progress | none |
+| Location | Shoot | `locations` — EXISTS | agreement none → drafted → sent → signed | `project_id` | Master | never | none |
+| Shot | Shoot | `shots` — EXISTS `20260717120000` | planned → covered / dropped | `project_id` | Master | coverage count only | none |
+| Release | Shoot | `releases` — EXISTS | unsent → sent → signed | `project_id` | Master | never | none |
+| Asset | Cut, Library | `assets` (`nas_path` = tus commit storage key, `20260726084644`) — EXISTS | file identity | `project_id` | `/api/upload/tus` only | tenant assets | **NEW** `source_relative_path text` (disk provenance from upload metadata, set by the same commit; read-only) |
+| Version | Cut | `versions` (+ `previous_version_id`) — EXISTS | exact version; one current | asset | tus only | versions shared to them | none |
+| Sequence (edit project) | Cut | `sequences` — EXISTS `20260716120000` | disk pointer; never uploaded | `project_id` | Master | never | none |
+| Share | Cut | `review_invites` + `review_view_admissions` — EXISTS | Review / Approve / Preview **stored** (row 6) | asset → project → org | Master | the film | Owned by row 6; nothing added here |
+| Note | Cut | `comments` (version-bound, 0–100 pins) — EXISTS | tap writes time + pin on that version | version | guest, client, Master | shared thread | none |
+| Review outcome | Cut | approval rounds, version-bound — EXISTS `20260922073000` | "Finish reviewing" is the only writer: finished / approved / changes requested | version | client or guest per share | own step | none |
+| Deliverable | Delivery | `deliverables` (+ `qc_checks`, `locked_at`, `locked_by`, `approval_id`) — EXISTS | specced → encoding → qc → ready → delivered (lock only) · expired | `project_id` | Master | name, due, DERIVED state | **NEW** `due_at timestamptz` · `brief_id` |
+| Delivered set | Delivery | `deliverable_items` (`sha256`, immutable once locked) — EXISTS `20260812120000` | written by the lock only | deliverable | lock command | download list | none |
+| Commercial ref | Master job | `projects.cco_estimate_id`, `cco_estimate_version_id`, `commercial_total_cents`, `commercial_ref` — EXISTS `20260812000000` | CCO OS writes; CVP never mutates | `project_id` | CCO OS | never | none |
+| Crew | — | `crew_members` — EXISTS | — | — | — | — | No product surface (K2) |
+| Door resolution | — | none | brand only, and only for `preview` / `live` | — | — | brand | **NEW** RPC `co_production.resolve_door(slug)` (SECURITY DEFINER) |
+| Org role check | — | `has_project_role`, `has_team_role` — EXISTS | — | — | — | — | **NEW** `co_production_private.has_org_role(org_id, rank)`; `projects_select` admits it |
 
 ### 1b Derived values (never typed)
 
 | Value | Computed from | Shown on | Replaces |
 |---|---|---|---|
-| Seat word per job | First match wins: brief version `in_review` → Brief; next `production_day` ≥ today → Shoot; open approval round → Cut; deliverable not locked with an approved source → Delivery; else Done | Projects rows (both sides) | Showing the typed `projects.stage` on doors. `stage` stays as the master's lifecycle field. |
-| Waiting on whom | pending `approvals` assignee (client) · open `revision_requests` (Content Co-op) · brief versions `in_review` (client approver) · deliverables past `due_at` (Content Co-op) | Master Projects; client "Needs you" | Madeline's sheet columns (row 5 maps onto these) |
-| Deliverable status | versions + rounds + `locked_at` | Cut status strip, Delivery | typed status cells |
-| Seat visibility | active `organization_members` in the door org ∪ `project_members.seats`, intersected with the door org | nav bar, route guard | — |
-| Needs-you count | the viewer's pending approval steps + brief versions awaiting their approval | Projects badge | — |
+| Seat word per job | First match wins: brief `in_review` → Brief · day `scheduled` / `in_progress` → Shoot · open round → Cut · deliverable not locked → Delivery · else Done | Projects rows | Showing typed `stage` on doors (stage stays the master lifecycle) |
+| Deliverable status | versions + review outcome + `locked_at` | Cut strip, Delivery, master home | Typed status cells; Madeline's columns become labels on this value (row 5 map) |
+| Waiting on whom | pending round step (client) · `changes_requested` outcome (Content Co-op) · brief `in_review` (client approver) · past `due_at` (Content Co-op) | Master home; client "Needs you" | the Excel |
+| Shoot progress (client) | `production_days.status` + `shots` covered / planned | client Shoot | call-sheet detail |
+| Dormant seat | seat with no records for this job (e.g. Cut on a footage-only job) | nav shows the seat dimmed | a fake "in review" |
 
 ### 1c Invariants
 
 | Invariant | Held by |
 |---|---|
-| Nothing is sent (mail, SMS, notify) without Bailey's yes. Invites return a copyable link. | L9; `notification_outbox` is never drained by these Lands |
-| `delivered` is reachable only through the lock | EXISTS constraint `deliverables_delivered_requires_lock` |
-| One catalog writer | `/api/upload/tus`; legacy writers stay `410 Gone` |
-| Notes, approvals, and deliveries bind to an exact version | EXISTS version-bound contracts |
+| Nothing is sent without Bailey's yes; invites return a copyable link | Land 7c; `notification_outbox` never drained by these Lands |
+| `delivered` only through the lock | EXISTS `deliverables_delivered_requires_lock` |
+| Lock from `approved` only, except a footage-package handoff, which is an explicit Master lock with no review round | Land 14 |
+| One catalog writer (`/api/upload/tus`); legacy writers stay `410 Gone`; no disk import writes `assets` directly | Lands 8a, 15 |
+| Notes, outcomes, deliveries bind to an exact version | EXISTS |
 | Every door read is filtered by the door org **and** RLS membership | §2a |
-| Clients never see money, assist drafts, other accounts, or the master home | §2b projections |
-| Delivery "how" lives in `deliverables.spec`, `qc_checks`, and `assist_artifacts`, never in a step machine | K3 |
+| Clients never see money, drafts, other accounts, the master home, locations, releases, or sequences | §2b |
+| Delivery "how" lives in `spec` + `qc_checks` + the two drafts, never in a step machine | K3 |
 
 ---
 
@@ -77,47 +101,48 @@
 
 | Concern | Mechanism | Where | Fails closed as |
 |---|---|---|---|
-| Host → door | `proxy.ts` parses Host with `^(?<slug>[a-z0-9-]{2,40})\.co-videopro\.com$`. Reserved labels are rejected: `www admin app api client review master mail status staging dev cdn assets auth`. | `lib/auth/host-surface.ts` (new `resolveDoorSlug`), `proxy.ts` | unknown, reserved, or `door_status=off` → one generic 404 body |
-| Slug → account | `resolve_door(slug)` called server-side. Result cached 60 s per slug; brand fields only. | NEW RPC | backend down → structured 503; never falls through to another door |
-| Surfaces | Door host = `client` surface bound to **one** org. `co-videopro.com` and `admin.contentco-op.com` = master surface. `client.contentco-op.com` = generic door, bound to no org. | `host-surface.ts`, `surface-origins.ts` | host not listed → existing rejection |
-| Request binding | Proxy strips any inbound `x-cvp-door-org` and stamps it after resolution (same pattern as the demo capability header). Every client API handler on a door host requires it and filters `organization_id = door org`. | `proxy.ts`, `lib/api/*` | header missing on a door host → 403 `DOOR_UNBOUND` |
-| Session scope | Supabase SSR cookies stay **host-only** (no `Domain=`), so a Schneider door login is never sent to another door or the apex. Same quiet single Sign in path on every door; Google is off on doors because Google OAuth has no wildcard redirect. Auth callback and reset links are minted on the requesting door host. | Supabase SSR cookie config, `app/api/auth/*` | a `Domain=.co-videopro.com` cookie fails the test |
-| Membership gate | After the session: `has_org_role(door org)`, or an active `project_members` row on a job in the door org. Otherwise sign out of that host and show "No access on this door". | NEW `has_org_role` | no project list is rendered |
-| RLS | `projects_select` also admits `has_org_role(organization_id, rank)`. The project-grant path is unchanged. Seats are enforced in the API projection: an ungranted seat's routes and data return 404. | migration at G1 | 0 rows |
-| Master sees | Staff (`content_coop_role=staff`) + Content Co-op `team_members` → every job with `team_id` = Content Co-op, across all accounts. "All accounts / {account}" is a view filter only. | EXISTS `has_team_role` | staff without a team row → empty list, not an error |
-| Staff on a door | Allowed as a read-only **"View as {account}"** preview: client projection plus a banner, so Bailey sees exactly what Madeline sees | `roleCanAccessSurface` | any write → 403 `PREVIEW_READ_ONLY` |
+| Host → door | `proxy.ts` matches `^(?<slug>[a-z0-9-]{2,40})\.co-videopro\.com$`. Reserved labels are rejected: `www admin app api client review master mail status staging dev cdn assets auth`. | `lib/auth/host-surface.ts` (new `resolveDoorSlug`), `proxy.ts` | unknown, reserved, or `door_status=off` → one generic 404 body |
+| Slug → account | `resolve_door(slug)` server-side, cached 60 s per slug, brand fields only | NEW RPC | backend down → structured 503; never falls through to another door |
+| Surfaces | Door host = `client` surface bound to **one** org. `co-videopro.com` + `admin.contentco-op.com` = master. `client.contentco-op.com` = generic door, no org, until per-client doors Land. | `host-surface.ts`, `surface-origins.ts` | unlisted host → existing rejection |
+| Request binding | Proxy strips any inbound `x-cvp-door-org` and stamps it after resolution (the demo-capability header pattern). Client API handlers on a door require it and filter `organization_id = door org`. | `proxy.ts`, `lib/api/*` | missing on a door host → 403 `DOOR_UNBOUND` |
+| Session scope | Supabase SSR cookies stay **host-only** (no `Domain=`); a door login is never sent to another door or the apex. Same quiet single Sign in on every door; Google is off on doors (no wildcard OAuth redirect). Callback and reset links are minted on the requesting door host. | Supabase SSR config, `app/api/auth/*` | a `Domain=.co-videopro.com` cookie fails the test |
+| Membership gate | After the session: `has_org_role(door org)`, or an active `project_members` row on a job in the door org. Otherwise sign out of that host and show "No access on this door". | NEW `has_org_role` | no list rendered |
+| RLS | `projects_select` also admits `has_org_role(organization_id, rank)`. The project-grant path is unchanged. | migration at G1 | 0 rows |
+| Master sees | Staff (`content_coop_role=staff`) + Content Co-op `team_members` → every job with `team_id` = Content Co-op, all accounts; account filter is view-only | EXISTS `has_team_role` | no team row → empty list |
+| Staff on a door | Read-only **"View as {account}"**: client projection + banner | `roleCanAccessSurface` | any write → 403 `PREVIEW_READ_ONLY` |
 | Client on the master host | Redirect to their door (one account) or the generic-door chooser (several) | EXISTS surface redirect | `SURFACE_FORBIDDEN` |
-| Person in two accounts | Separate session per door. `client.contentco-op.com` lists their doors. No client surface ever lists two accounts together. | chooser | — |
-| Guest review links | Links already sent on `co-videopro.com/review/{token}` serve forever. New links mint on `{slug}.co-videopro.com/review/{token}`. A token whose job org ≠ door org → 404 on that door. | `getReviewSiteUrl` becomes door-aware; `app/review/[token]` | 404, never a cross-door render |
-| Client A ≠ B | Enforced three times: host-only cookie, door-org request binding, RLS membership | L7, L8, L10 negatives | — |
-| DNS / TLS | Wildcard `*.co-videopro.com` on the existing Cloudflare tunnel with a one-level wildcard cert; Supabase redirect allowlist `https://*.co-videopro.com/**` | `infra/runtime/cloudflare` | Bailey gate **G2** |
+| Person in two accounts | One session per door; the generic door lists their doors; no client surface lists two accounts together | chooser | — |
+| Guest links | Already-sent `co-videopro.com/review/{token}` links serve forever. New links mint on `{slug}.co-videopro.com/review/{token}`. A token whose job org ≠ door org → 404 on that door. | `getReviewSiteUrl` (door-aware), `app/review/[token]` | 404 |
+| Client A ≠ B | Three independent checks: host-only cookie, door-org request binding, RLS membership | Lands 7a, 7b, 7d negatives | — |
+| DNS / TLS | Wildcard `*.co-videopro.com` on the existing Cloudflare tunnel; Supabase redirect allowlist `https://*.co-videopro.com/**` | `infra/runtime/cloudflare` | Bailey gate **G2** |
 | Headers | CSP and `frame-ancestors 'none'` unchanged on every host | `next.config.ts` | — |
-| Brand | Account mark + name beside the sapphire CVP lockup (no redraw). No mark on file → name only. | `organizations.brand` | — |
+| Brand | Account mark + name beside the sapphire CVP lockup (no redraw); no mark → name only | `organizations.brand` | — |
 
 ### 2b Seats × sides
 
-| Surface | Route | Side | Scope | Reads | Writes | Phone | Desktop | AI draft (Master accepts; never sends, spends, approves, or locks) |
-|---|---|---|---|---|---|---|---|---|
-| Login | `/login` | door | one account | `resolve_door` brand | session | quiet door, account mark over the form, Login → Projects | same | — |
-| Login | `/login` | master | all | — | session | quiet door, Login → Projects | same | — |
-| Projects | `/projects` | door | one account | jobs in the door org the viewer can see; seat word; needs-you | none (opens a job) | bottom pipeline with Projects active; rows show seat word + needs-you dot | thin left | — |
-| Projects | `/projects` | master | all accounts | all team jobs grouped by account; waiting on whom; `due_at` ordering | account filter (view only); create job | bottom pipeline; account chip | thin left + account filter | — |
-| Projects home, seat tap | `/projects?seat=` | both | as above | same | none | Brief / Shoot / Cut / Delivery filter jobs by seat word | same | — |
-| Brief | `/projects/[id]/brief` | door | one job | lineages; `in_review` / `approved` versions | approve a version (deliberate confirm, ACS quiet-confirm idiom) | one card per lineage | two-pane | — |
-| Brief | same | master | one job | all versions and drafts | new lineage; new version; mark `in_review` (no mail) | same | same | brief draft from inquiry, call notes, or transcript |
-| Shoot | `/projects/[id]/shoot` | door | one job | days, locations, call sheet (client-safe fields), shot list | none | day list | day + map pane | — |
-| Shoot | same | master | one job | full production entities | days, locations, call sheets, shots | same | same | shot list draft from the approved brief lineage |
-| Cut | `/projects/[id]/cut` | door | one job | versions shared to the viewer; rounds; deliverable status strip | open the film; finish reviewing (row 6) | version list + strip | list + strip | — |
-| Cut | same | master | one job | all assets, versions, rounds, shares | upload (tus); share (row 6 modes); start a round | same | same | chase list per open round; QC vs approved brief |
-| Film | `/projects/[id]/assets/[assetId]` and `/review/[token]` | both + guest | one exact version | version, notes, round | tap-comment note (row 1); approve when the share allows it | **no nav rail**; film first; back chevron to Cut | **no nav rail**; review rail as in PR #36 | none on door or guest |
-| Delivery | `/projects/[id]/delivery` | door | one job | deliverables: name, due, DERIVED state; locked items | download locked items only | list sorted by due | list + item pane | — |
-| Delivery | same | master | one job | + `spec`, `qc_checks`, lock evidence | set spec; accept or reject artifacts; **lock** (writes `deliverable_items` + `sha256`) | same | same | platform spec suggestion; QC run; package manifest draft (swappable per job) |
-| Library (drawer) | `/library` | door | one account | locked `deliverable_items` + brand kit of the door org | download | drawer item | drawer item | — |
-| Library (drawer) | same | master | all accounts | all locked items; account filter | curate and tag | same | same | — |
-| Drawer | — | door | — | — | — | Library · Members (client_admin: read-only list) · Notifications (in-app) · Sign out | same | — |
-| Drawer | — | master | — | — | — | Library · Accounts · Team · Settings · Audit log · Archive · Trash · Sign out | same | — |
-| Accounts | `/settings/accounts` | master | all | organizations, members, grants | account, slug, brand, `door_status`; add member (long-running); grant job seats with expiry; invite = copyable link | drawer → Accounts | settings pane | — |
-| Ungranted seat | any seat route | door | — | — | — | seat shows **dimmed, not focusable**, so the bar stays the drawing | same | route returns 404 |
+| Surface | Route | Side | Scope | Reads | Writes | Phone | Desktop |
+|---|---|---|---|---|---|---|---|
+| Login | `/login` | door | one account | `resolve_door` brand | session | quiet door, account mark, Login → Projects | same |
+| Login | `/login` | master | all | — | session | quiet door, Login → Projects | same |
+| Projects | `/projects` | door | one account | this account's jobs; DERIVED seat word; needs-you | none (opens a job) | bottom pipeline, Projects active; film-first cards; seat word in words | thin left |
+| Projects ("waiting on whom" home) | `/projects` | master | all accounts | all team jobs grouped by account; DERIVED waiting on whom; due order | account filter (view only); create job | same list, operator scope | thin left + account filter |
+| Seat tap on home | `/projects?seat=` | both | as above | same | none | Brief / Shoot / Cut / Delivery filter jobs by seat word | same |
+| Brief | `/projects/[id]/brief` | door | one job | lineages; in_review / approved versions | approve a version (deliberate confirm, ACS quiet-confirm idiom) | card per lineage | two-pane |
+| Brief | same | master | one job | all versions | new version; new lineage; mark in_review (no mail) | same | same |
+| Shoot | `/projects/[id]/shoot` | door | one job | DERIVED progress: dates, wrapped days, coverage done | none | progress list | same |
+| Shoot | same | master | one job | days, locations, shots, releases; **lanes = filters** by day / location | day and shot status, release state | lane filter chips inside the seat, never new nav | same |
+| Cut | `/projects/[id]/cut` | door | one job | versions shared to the viewer; outcome; deliverable strip | open the film | version list + strip | same |
+| Cut | same | master | one job | all assets, versions, rounds, shares, sequences (pointer rows) | upload (tus); share (row 6 modes); start a round | same | same |
+| Film | `/projects/[id]/assets/[assetId]`, `/review/[token]` | both + guest | one exact version | version, notes, outcome | tap note (row 1); Finish reviewing (row 6); version switch in place (Land 12) | **no nav rail**; film first; back chevron to Cut | **no nav rail**; review rail as in PR #36 |
+| Delivery | `/projects/[id]/delivery` | door | one job | deliverables: name, due, DERIVED state; locked items | download locked items | list by due | list + pane |
+| Delivery | same | master | one job | + `spec`, `qc_checks`, the two drafts, lock evidence | set spec; accept / ignore drafts; **lock** (writes `deliverable_items` + `sha256`) | same | same |
+| Money (read-only) | master job header | master | one job | `commercial_total_cents`, `commercial_ref` | none | one line on the job | same |
+| Library (drawer) | `/library` | door | one account | account assets keyed by project (footage, b-roll, stills, finals) | download per share permission; finals only when locked | drawer item | drawer item |
+| Library (drawer) | same | master | all accounts | all assets, account + project filters, rights badges | favorites | same | same |
+| Drawer | — | door | — | — | — | Library · Members (client_admin, read-only) · Notifications (in-app) · Sign out | same |
+| Drawer | — | master | — | — | — | Library · Accounts · Team · Settings · Audit log · Archive · Trash · Sign out | same |
+| Accounts | `/settings/accounts` | master | all | organizations, members | account, slug, brand, `door_status`; add member with expiry; invite = copyable link | drawer → Accounts | settings pane |
+| Dormant seat | any seat route | both | — | — | — | seat shows **dimmed, not focusable**, so the bar stays the drawing | same |
 
 ---
 
@@ -127,21 +152,21 @@
 |---|---|
 | Account | Schneider Electric · `slug=schneider` · `disk_key=schneider-electric` |
 | Job | El Paso Water customer story · `disk_key=2026-03-13_el-paso-customer-story` |
-| Live asset | `1ec225a9-e405-453a-9a53-d9dfa7e063a3`, version `bb081d37-ef8f-450f-8006-307f342d148e` (named in PR #27; client paint proved by F1 on `46a256f2`) |
-| Fill rule | Link the existing live job; never recreate it. Media enters only through tus. Records are entered by the Master from what is on disk; a missing source is an empty state, never invented. Nothing is sent to Schneider during the fill. |
-| Demo seed conflict | `lib/demo/record-seed.ts` names `org-schneider` "Schneider National / Logistics" and `lib/demo/workspace.ts` names the job "Physical Edge — El Paso". Neither is the real record (see §7 kill). |
+| Live asset | `1ec225a9-e405-453a-9a53-d9dfa7e063a3`, version `bb081d37-ef8f-450f-8006-307f342d148e` (PR #27; client paint proved by F1 on `46a256f2`) |
+| Fill rule | Link the existing live job; never recreate it. Playable media and finals enter only through tus, with `source_relative_path` recording the disk origin. Documents become records entered by the Master. Edit project files are pointer rows, never uploaded. Nothing is marked approved or delivered by the fill. Nothing is sent to Schneider. |
 
-| Seat | Record rows to fill | Source | Madeline (door) sees | Jennifer (door) sees | Master sees | Write proved in | If disk lacks it |
-|---|---|---|---|---|---|---|---|
-| Account | `organizations` Schneider (slug, brand, `door_status`) | Blaze supplies mark | mark on door | mark on door | account in filter | L9, L10 | name only, no mark |
-| Projects | existing live El Paso `projects` row: `organization_id`=Schneider, `team_id`=Content Co-op, `disk_key` | live row holding asset `1ec225a9…` | El Paso row, DERIVED seat word, needs-you | El Paso row only, word "Shoot" | row under Schneider, with waiting on whom | L13 | — |
-| Brief | `briefs` lineage `main` v1..n; approved version | brief documents in the job folder | approved version (read-only), approve control on `in_review` | Brief dimmed (404) | all versions | L15 | "No brief on file" empty state |
-| Brief (second open lineage) | `briefs` lineage `cutdowns` on the **same** job | job folder, if short-form was briefed | both lineages | dimmed | both | L15 | lineage not created |
-| Shoot | `production_days` from 2026-03-13 · `locations` (El Paso Water site) · `call_sheets` · `shots` | call sheet and shot list files in the job folder | date, place (past) | **the only seat**: date, call time, location, site contacts | full | L16 | day with date only |
-| Cut | `assets` / `versions` (live `bb081d37…` + later versions via tus) · rounds · notes | already live; extra versions through tus | film first, notes, finish reviewing | 404 | all versions + chase list | L14 | — |
-| Delivery | `deliverables` (hero story + cutdowns), each with `brief_id` · locked sets with `sha256` | final exports in the job folder → tus → version → lock | locked items downloadable, DERIVED state | 404 | spec, QC, lock | L17 | deliverable stays `specced` |
-| Library | `deliverable_items` of locked El Paso deliverables | DERIVED | downloads | dimmed | cross-account | L18 | empty library |
-| Assist | `assist_artifacts`: QC vs approved brief on the hero cut | DERIVED from brief + version | never | never | card accepted or rejected | L19 | no card |
+| Folder class (disk) | Seat | Record target | Client door sees | Master sees | If the class is empty | Land |
+|---|---|---|---|---|---|---|
+| Admin / SOW / contracts | master only | `commercial_ref` frozen by CCO OS (not by the fill) | never | commercial line (Land 13) | nothing shown | 13 |
+| Brief / messaging / interview questions | Brief | `briefs` lineage `main` v1..n | approved version | all versions | "No brief on file" | 8a, 10c |
+| Pre-pro: schedule, shot list, locations, releases | Shoot | `production_days` from 2026-03-13 · `shots` · `locations` · `releases` | progress: days wrapped, coverage done | full, with release state | day with date only | 8a, 10d |
+| Footage: interviews, b-roll, audio | Library (Shoot provenance) | `assets` via tus, `source_relative_path` | account footage in Library | same + filters | empty Library section | 8a, 10f |
+| Transcripts | Cut (support) | transcript on its exact asset | never | on the asset | none | 8a |
+| Edit project files (Premiere / AE) | Cut | `sequences` pointer row, never uploaded | never | name + version, not playable | none | 8a |
+| Review exports v1…vN | Cut | `versions` V1…Vn on the live asset chain; rounds version-bound | film, notes, Finish | all versions + chase list | Cut dormant | 8a, 10b |
+| Finals: master, cutdowns, captions | Delivery | `deliverables` (+ `brief_id`) → lock → `deliverable_items` + `sha256` | DERIVED state; locked downloads | spec, QC, lock | stays `specced` | 8a, 10e, 14 |
+| Stills / BTS | Library | image `assets` via tus | Library | Library | empty | 8a |
+| Graphics / music / licenses | Library | `assets` + rights note | Library, licensed only | rights badge; unlicensed never marked cleared | empty | 8a |
 
 ---
 
@@ -149,76 +174,81 @@
 
 | Anchor | Value |
 |---|---|
-| Job | `disk_key=2026-09-25_weftec` · **same** Schneider account and door; no new account |
-| Timing | Pressure-tests the record on paper now. The live replay comes from disk after the event (L20). No Land races the event date. |
-| Holds unchanged | record objects · door · nav · lock rule · no-send · tenancy |
+| Job | `disk_key=2026-09-25_weftec`, a **second Schneider row**, same door, same seats |
+| New | Only `deliverables.due_at` (a column already in Land 7a). No new table, seat, door, or chrome. |
+| Timing | Paper pressure test now; the live fill comes from disk after the event (Land 15). No Land races the event date. |
 
-| Dimension | El Paso (golden) | WEFTEC (event) | Record delta | Surface delta | Breaks if missing | Covered by |
+| Dimension | El Paso (story) | WEFTEC (event) | Record delta | Surface delta | Empty OK? | Covered by |
 |---|---|---|---|---|---|---|
-| Time shape | one story, past, weeks between rounds | fixed event date, hours matter | `deliverables.due_at` (NEW in L7) | due chip + overdue-first sort on Projects and Delivery | status can't rank urgency | L7, L13, L17 |
-| Briefs | 1–2 lineages | several lineages opened during the event (e.g. booth recap, exec interview, social set) | `briefs.lineage_key` (L7) | Brief seat adds a lineage without a new job | a new job per brief splits status and the door | L15 |
-| Shoot | one site | several days / halls / booth | many `production_days` + `locations` | Shoot seat grouped by day | single-day UI assumption | L16 |
-| Stakeholders | Madeline + one shoot-only person | more shoot-only people; an exec approver on one lineage | `project_members.seats` + `expires_at`; approval assignee per round | grant many seats per job in one sheet | per-person manual grants too slow | L9 |
-| Review cadence | days between rounds | same-day rounds, many short versions | none | Cut sorted by due; chase list | — (admission limits unchanged: 32 active per invite, 8 h) | L14 |
-| Deliverables | few | many shorts | many rows with `brief_id` | Delivery filters by lineage; dense phone list | long list unusable on a phone | L17 |
-| Delivery how | manual encode + QC | AI-assisted fast QC, platform specs | `assist_artifacts`, `spec`, `qc_checks` | artifact cards | a wizard blocks the day a tool changes | L19 |
-| Upload volume | few large files | many clips the same day | none (tus) | none | CCNAS/scan throughput (**not** reopened) | §8 |
-| Library reuse | one story | clips reused later by Madeline | `deliverable_items` | Library filters by job and lineage | — | L18 |
-| Status | slow | urgent | DERIVED waiting on whom + `due_at` | master home ranks WEFTEC first | Madeline's sheet comes back | L13 |
-| Tenancy | Schneider door | Schneider door | none | none | a new account per event would be wrong | L10 |
-| Money | CCO OS | CCO OS | none | none | — | §8 |
+| Brief | full creative brief, versions | one-page coverage plan as Brief v1; more lineages only if briefed | none (`lineage_key` if used) | none | — | 10c |
+| Shoot | one site, days + shot list + releases | several days / halls; **lanes = filters** (e.g. booth demos · sessions · interviews · floor b-roll); releases per speaker | more rows, same tables | lane filter chips inside Shoot | — | 10d |
+| Cut | v1…vN review cuts | near-empty until after the event; same-day selects only | none | none | **yes** | 10b |
+| Delivery | master + cutdowns | same-week social cutdowns; a master may never exist | `due_at` drives order | due chip + overdue-first sort | **yes** | 10e, 14 |
+| Library | footage + stills + music | bulk event footage lands here first, deliverable-less | none | project filter | — | 10f |
+| Projects card | seat word moves post → delivery | Shoot on event days, honest afterwards | none | due-ranked on master home | — | 10a |
+| Upload volume | few large files | many clips the same day | none (tus) | none | — | CCNAS / scan **not** reopened (§8) |
+| Tenancy | Schneider door | same door | none | none | — | 7d |
+| Money | CCO OS | CCO OS | none | none | — | 13 |
 
 ---
 
 ## 5 Variability matrix
 
-| Case | Grant mechanism | Scope | Seats | Duration | Can write | Never sees | Door behavior | Proved in |
-|---|---|---|---|---|---|---|---|---|
-| Bailey (Master) | staff role + Content Co-op `team_members` | all accounts | all + master tools | standing | everything, incl. lock | — | on a door: read-only "View as" | L9, L13 |
-| Madeline (Schneider, year-long) | `organization_members` (client_admin), `expires_at` = engagement end | every Schneider job, **including new ones automatically** | Brief · Shoot · Cut · Delivery + Library | year | approve brief versions, notes, approve rounds, finish reviewing, download locked | other accounts, money, drafts, master home | `schneider.co-videopro.com` → Projects | L9, L13 |
-| Jennifer (shoot-only) | `project_members` on one job, `seats={shoot}`, role viewer, `expires_at` = day after the last production day | one job | Shoot only (others dimmed, 404) | shoot window | none (read-only) | Brief, Cut, Delivery, Library, other jobs | Projects shows that one job | L9, L16 |
-| Anonymous guest | review token + recipient-bound admission | one exact version | film only | invite expiry / 8 h admission | note; approve if the share is Approve | everything else | film route, no nav | rows 1, 6 (existing) |
-| Open briefs on the same job | `briefs.lineage_key` + `deliverables.brief_id` | one job | Brief | per lineage | approve per lineage version | — | Brief lists lineages | L15 |
-| One person in two accounts | membership rows in two orgs | per door | per door | per row | per door | the other account, on this door | separate session per door; generic-door chooser | L8 |
-| Client B (test account for negatives) | own org + member | own | all | test only | — | anything Schneider | own door | L7, L8, L10 |
-| Expired grant | `expires_at` in the past | none | none | — | — | all | "No access on this door" | L9 |
-| New job in the account | `organization_id` set → Madeline's membership covers it | — | — | — | — | — | appears on Projects with no new grant | L13 |
-| Delivery variant (manual vs AI-assisted) | same `deliverables` record; `assist_artifacts` optional | — | Delivery | — | Master | drafts (client) | identical client view | L17, L19 |
+| Case | What varies | Seat behavior | Record rule | Access mechanism | Proof | Closed by |
+|---|---|---|---|---|---|---|
+| **Madeline: year-long** | footage accrues for months before any deliverable | Library takes deliverable-less assets; Shoot days accrue; Cut dormant until a cut exists | no fake status: a dormant Cut shows nothing, not "in review" | account membership with `expires_at` = engagement end, so new jobs appear with no new grant | card reads Shoot with zero deliverables and lies about nothing | 8a, 10a |
+| **Madeline: late testimonials** | new footage joins mid-Cut | next cut is Vn+1 on the same asset chain | prior outcome stays bound to V(n); never silently reset | same | V(n) outcome intact after V(n+1) exists | 12 |
+| **Madeline: her sheet** | column names, who edits, what "done" means | columns render as labels on the DERIVED deliverable status | no hand-edit path; with no sheet the outcome still shows | — | strip matches the record; no retyping | 8b |
+| **Jennifer: shoot-only** | scope is capture + handoff, no edit | Shoot active; Cut dormant (dimmed); Delivery holds one **footage-package** deliverable | delivered = Master lock of a footage set (`deliverable_items` + `sha256`), not an edited film; if a sheet exists, its columns are labels (Grok) | account membership or job grant | job reads "footage delivered" with a receipt; no phantom cuts | 8a, 14 |
+| **Open brief on the same job** | brief exists; no dates, no deliverables | Brief seat holds it; card reads Brief; other seats dormant | no separate inquiry / opportunity object; nothing downstream fabricated; further briefs open as lineages on the same job | as the account | zero versions, zero deliverables, zero invented status | 10c |
+| Anonymous guest | one exact version | film only | recipient-bound admission | review token | film paints (rows 1, 6) | existing |
+| One person in two accounts | two memberships | one account per door | — | membership rows | the other account never renders on this door | 7b |
+| Client B (negative test) | own account | own door | — | own membership | no Schneider row anywhere | 7a, 7b, 7d |
+| Expired membership | `expires_at` in the past | none | — | none | "No access on this door" | 7c |
+| Staff on a door | preview | client projection, read-only | — | staff role | writes 403 | 7b |
+| Delivery via AI draft or by hand | the how | same Delivery seat | same record; drafts optional | — | identical client view | 14 |
 
 ---
 
-## 6 Ordered Land list after rows 1–6
+## 6 Ordered Land list after rows 1–6 (spine grid)
 
-| # | Land (one PR) | May touch | Depends on | Gate | Live proof artifact | Latch negative (must hold) | Closes |
+| # | Land (one PR) | Spine | May touch | Depends on | Gate | Live proof (M2 train) | Latch negative (must hold) |
 |---|---|---|---|---|---|---|---|
-| 1–6 | **As locked.** PR #36 tap-comment · roster proof · nav pick · VA-106 · Madeline harvest · share-mode port of PR #25 | per spine | — | — | per spine | per spine | nothing in this list starts before all six close |
-| L7 | **Record migration (source only, unapplied):** §1a NEW columns and tables, `has_org_role`, `resolve_door`, `projects_select` extension | `supabase/migrations/<ts>_client_doors_record.sql`, `lib/covideopro/record.ts` types, `tests/*tenancy*.test.ts` | rows 1–6 (row 6 owns the share-posture column) | source only | migration dry-run receipt on scratch Postgres (M2) + RLS test transcript | client A JWT selecting a B job → 0 rows; staff sees both; existing rows and policies unchanged; live DB untouched | §1 |
-| G1 | **Bailey applies the L7 migration on live** | — | L7 | **G1** | apply receipt | pre/post row counts identical | — |
-| L8 | **Door resolver** behind `CVP_CLIENT_DOORS` (default off): Host → slug → org, header stamping, reserved labels, host-only cookies, door-minted auth links, staff read-only preview | `proxy.ts`, `lib/auth/host-surface.ts`, `lib/surface-origins.ts`, `app/api/auth/*`, `app/review/[token]`, tests | G1 | — | Host-header matrix on M2 `next start` for `schneider.localhost` + `clientb.localhost`: brand in door HTML, unknown slug 404, cookie has no `Domain` | flag off → identical routing on apex, `client.contentco-op.com`, admin; forged `x-cvp-door-org` stripped; A cookie on B host → login; apex `/review/{token}` paints for guest **and** signed-in client | §2a |
-| L9 | **Grants (Master Accounts):** account slug/brand/`door_status`, long-running members, job seat grants with expiry; invites as copyable link | `app/(dashboard)/settings` (accounts section), `app/api/organizations/*`, `app/api/teams/invites` (no-send path), tests | L8 | none (no send) | phone recording: Bailey grants Madeline (year) and Jennifer (Shoot, El Paso, expiry); both rows hold after refresh | nothing sent (`notification_outbox` unchanged); existing team invites unchanged; client_admin cannot grant | §5 |
-| G2 | **DNS wildcard `*.co-videopro.com` + Supabase redirect allowlist** | — | L9 | **G2** | DNS/TLS receipt | apex, admin, and client hosts still resolve and serve | — |
-| L10 | **Schneider door live:** `door_status=live` for Schneider + smoke test | config + smoke test only | L9, G2 | — | phone on `schneider.co-videopro.com`: mark → Sign in → Projects with Schneider jobs only, as Madeline and as Jennifer | client B door shows 0 Schneider rows; A session absent on B host; legacy apex review link paints; overlay/logo/auth PASS; `compress:false` held | client-door ledger → PASS (spine #7) |
-| L11 | **Nav shell from the picked master (no redraw):** phone bottom pipeline Projects · Brief · Shoot · Cut · Delivery + one drawer; desktop thin left; film route without nav rail; both scopes; ungranted seats dimmed; drawer items per §2b | `components/navigation/*`, `app/(dashboard)/layout.tsx`, seat routes as thin wrappers over existing pages | row 3 pick, L10 | — | phone + desktop screenshots, both sides, Jennifer's dimmed bar, film route without rail | film route and `/review/[token]` render as before; overlay ~6%, logo, auth untouched; no crew item; no second nav; no left+bottom on phone | nav ledger (shell half) |
-| L12 | **Kill Land:** retire §7a routes and surfaces | routes in §7a, their tests | L11 | — | each killed route answers per §7a (308 or 404); screenshot of cleaned drawer | nothing on door or master imports killed code; review/film untouched; suite green | §7a |
-| L13 | **Projects seat:** door = account jobs + seat word + needs-you; master = all accounts grouped, waiting on whom, due-ordered; row 5 columns mapped | `app/(dashboard)/projects/page.tsx`, new `lib/covideopro/status.ts` (DERIVED), `app/api/projects/*` | L12, row 5 | — | master home on phone ranks Schneider jobs by waiting on whom; Madeline's door shows Schneider only | no typed status control exists; client B sees none; counts equal the record query | spine #8 + #10; the Excel dies |
-| L14 | **Cut seat:** versions, rounds, shares per job; deliverable status strip; opens the film | `components/projects/ProjectCockpit*` (Cut section), share components from row 6 | L13, row 6 | — | El Paso Cut on the door phone: open `bb081d37…`, tap a note, finish reviewing → outcome lands on the version; strip updates | guest + signed-in client paint the film; admission limits unchanged; PR #36 path unchanged; no send | Cut seat |
-| L15 | **Brief seat:** lineages, versions, deliberate client approve, open another brief on the same job | new brief route, new `app/api/projects/[id]/briefs`, tests | L13 | — | El Paso `main` + `cutdowns`; Madeline approves a version on phone; holds after refresh | Jennifer → 404; approving a brief creates no job; nothing sent | Brief seat |
-| L16 | **Shoot seat:** days, locations, call sheet (client-safe projection), shot list; read-only for clients | new `app/api/projects/[id]/shoot` (reads production entities), route | L13 | — | Jennifer on phone sees El Paso Shoot only; Bailey edits call time; Jennifer sees it after refresh | no crew states, crew login, page, or SMS; Jennifer's direct URL to Cut → 404 | Shoot seat |
-| L17 | **Delivery seat:** deliverables (`due_at`, `brief_id`), DERIVED state, lock → `deliverable_items` + `sha256`; client downloads locked only; no wizard | `app/api/projects/[id]/deliverables` (EXISTS, gated), lock route, route | L14, L15 | — | El Paso hero story locked from its approved version; Madeline downloads; sha256 matches | `delivered` without lock impossible; unlocked items not downloadable; CCO commercial fields untouched; nothing sent | Delivery seat |
-| L18 | **Library drawer:** account-scoped locked items + brand kit; master cross-account | `app/(dashboard)/library`, `lib/assets/*` | L17 | — | Madeline's Library shows El Paso locked items only | searching a client-B title on the Schneider door → 0; demo library not mounted in production | Library |
-| L19 | **Assist artifacts (AI-fluid):** proposed cards in Brief / Shoot / Cut / Delivery; accept writes the target record, reject writes nothing | `components/assist/*`, `app/api/assist/*`, `assist_artifacts` | L17 + one real finished round (row 6) | provider keys (existing gate) | El Paso QC-vs-brief card accepted → `qc_checks` entry; a rejected card leaves the record unchanged | no card on any door; the model cannot send, spend, approve, or lock | spine #14 (CVP half) |
-| L20 | **WEFTEC replay:** WEFTEC job on the Schneider account from disk after the event; many lineages, days, and deliverables through tus; fix what breaks | data + fixes only | L19 (L18 minimum) | — | master home ranks WEFTEC by due; Delivery list usable on phone at event volume; Madeline sees both jobs | El Paso records unchanged; no new account or door; nothing sent | §4 |
+| 1–6 | **As locked.** PR #36 tap-comment · roster proof · nav pick · VA-106 · Madeline harvest · share-mode port of PR #25 | — | per spine | — | — | per spine | nothing below starts before all six close |
+| 7a | **Door record migration (source only, unapplied):** §1a NEW columns, `organization_members`, `has_org_role`, `resolve_door`, `projects_select` extension | CVP-06 | `supabase/migrations/<ts>_client_doors_record.sql`, `lib/covideopro/record.ts`, tenancy tests | rows 1–6 | source only | dry-run receipt on scratch Postgres + RLS transcript | client A JWT selecting a B job → 0 rows; staff sees both; live DB untouched |
+| G1 | **Bailey applies 7a on live** | — | — | 7a | **G1** | apply receipt | pre/post row counts identical |
+| 7b | **Door resolver** behind `CVP_CLIENT_DOORS` (off by default): Host → slug → org, header stamping, reserved labels, host-only cookies, door-minted auth links, staff preview | CVP-06 | `proxy.ts`, `lib/auth/host-surface.ts`, `lib/surface-origins.ts`, `app/api/auth/*`, `app/review/[token]` | G1 | — | Host-header matrix on `next start` for `schneider.localhost` + `clientb.localhost`: brand in the HTML, unknown slug 404, cookie without `Domain` | flag off → identical routing on apex, generic door, admin; forged header stripped; A cookie on B host → login; apex review link paints for guest **and** signed-in client |
+| 7c | **Master Accounts:** slug, brand, `door_status`, members with expiry; invite = copyable link | CVP-06 | `app/(dashboard)/settings` (accounts), `app/api/organizations/*`, `app/api/teams/invites` (no-send path) | 7b | none | phone recording: account + member created; rows hold after refresh | nothing sent (`notification_outbox` unchanged); client_admin cannot add members |
+| G2 | **Wildcard DNS + Supabase redirect allowlist** | — | — | 7c | **G2** | DNS/TLS receipt | apex, admin, generic door still serve |
+| 7d | **Schneider door live** (`door_status=live`) | CVP-06 | config + smoke test | 7c, G2 | — | phone at `schneider.co-videopro.com`: mark → Sign in → Projects with El Paso Water, nothing else | client B door shows 0 Schneider rows; A session absent on B host; legacy review link paints; overlay / logo / auth PASS; `compress:false`; generic door still up |
+| 8a | **El Paso fill** per §3: link the live job; tus for media with `source_relative_path`; records by the Master; sequences as pointer rows | CVP-03 | fill runbook + tus metadata field; no new writer | 7d | — | every §3 class visible in its record on live (via the existing cockpit until 10b–10f) | fill marks nothing approved or delivered; no second catalog writer; disk untouched; no send |
+| 8b | **Derived status:** `lib/covideopro/status.ts` (seat word, deliverable status, waiting on whom); Madeline columns as labels | CVP-03 | `lib/covideopro/status.ts`, `app/api/projects/*` read path, strip in the cockpit | 8a, row 5 (labels only; not blocking) | — | El Paso strip shows the outcome from Finish; matches a record query | no hand-edit path anywhere; with no sheet the outcome still shows, no invented column |
+| 9 | ACS-04 close-out — sibling train, slot held | ACS-04 | — | — | — | unchanged | not stalled, not opened here |
+| 10a | **Nav shell + master "waiting on whom" home + client Projects:** copy the picked mock (no redraw); phone bottom Projects · Brief · Shoot · Cut · Delivery + one drawer; desktop thin left; film hides the rail; dormant seats dimmed | CVP-04 | `components/navigation/*`, `app/(dashboard)/layout.tsx`, `app/(dashboard)/projects/page.tsx` | row 3 pick, 7d, 8b | — | master phone: El Paso shows who it waits on; Schneider door phone: Schneider only; desktop thin left; film with no rail | no second nav; no left+bottom on phone; no crew item; client doors never render the master home; `46a256f2` chrome unchanged |
+| 10b | **Cut seat** on the shell (versions, outcome, strip, shares from row 6) | CVP-04 | Cut route + `ProjectCockpit*` Cut section | 10a, row 6 | — | El Paso Cut on the door phone: open `bb081d37…`, tap a note, Finish → outcome on the version; strip updates | guest + signed-in client paint the film; admission limits unchanged; PR #36 path unchanged |
+| 10c | **Brief seat** (lineages, versions, deliberate approve) | CVP-04 | brief route, `app/api/projects/[id]/briefs` | 10a | — | El Paso approved brief on both sides; an approve holds after refresh | approving creates no job; nothing sent |
+| 10d | **Shoot seat** (client progress; master days / shots / releases; lanes as filters) | CVP-04 | shoot route, read of production entities | 10a | — | El Paso days read wrapped; coverage count on the door | no crew states, call sheets, or rates on the door; no page / SMS |
+| 10e | **Delivery seat** (due, DERIVED state, lock, locked downloads) | CVP-04 | delivery route, `app/api/projects/[id]/deliverables` (EXISTS), lock route | 10b | — | El Paso hero story locked from its approved version; door downloads it; sha256 matches | delivered without lock impossible; unlocked items not downloadable; CCO fields untouched |
+| 10f | **Library drawer** (account assets by project; master cross-account) | CVP-04 | `app/(dashboard)/library`, `lib/assets/*` | 10a | — | door Library shows only Schneider assets, filtered by El Paso | a client-B title search on the Schneider door → 0; demo library not mounted in production |
+| 10g | **Kill Land** per §7a | CVP-04 | routes in §7a + their tests | 10a | — | each killed route answers per §7a | door and master import nothing killed; film / review untouched; suite green |
+| 11 | ACS-03 job check — sibling train, slot held | ACS-03 | — | — | — | unchanged | not stalled, not opened here |
+| 12 | **Version switch on the same film** (El Paso v1…vN; late testimonials land as Vn+1) | CVP-07 | player version switch only; binding EXISTS `20260922073000` | row 6, 8a | — | switch versions on the El Paso film; notes stay on their version; V(n) outcome intact after V(n+1) | no rail beside the film; overlay and sapphire mark unchanged |
+| 13 | **Money shown on the master job** from CCO handoff fields | CVP-05 | master job header read of `commercial_total_cents` / `commercial_ref` | 8a, one finished round, **Bailey says bill** | Bailey says bill | El Paso on the master shows the frozen total | CVP never writes those columns; no invoice send; no finance seat; door never shows it |
+| 14 | **AI-fluid Delivery drafts:** QC vs approved brief + chase list of open comments; accept writes `qc_checks`, ignore writes nothing; lock stays a Master act | CVP-08 | Delivery seat only; reads `briefs`, current version, open `comments` | row 6, 10e, one finished El Paso round | provider keys (existing gate) | each draft is a card on El Paso Delivery; accept adds a `qc_checks` entry; a real deliverable locks with a receipt | draft never sends, spends, approves, or locks; no chatbot; lock refused except from approved (or a footage-package handoff) |
+| 15 | **WEFTEC pressure test:** second Schneider job from `…/2026-09-25_weftec` after the event, same door and seats | CVP-09 | data via tus + fixes found | 7d, 8, 10a–10f, 12, 14 proven on El Paso | — | door lists El Paso Water and WEFTEC; lanes filter; empty Cut / Delivery honest-empty; master home ranks by due | no new table, seat, door, or chrome; El Paso unchanged; nothing sent |
 
-### 6b Order calls to settle in the forge
+### 6b Still differs — for the forge
 
-| Call | This seat | Peer position | Reason |
+| Point | Opus (this contract) | Peer | Reason to prefer Opus |
 |---|---|---|---|
-| Shell before seat fills | L11 comes before L13–L18 | spine #10 Lands the nav at the master home, after #8 | Every seat Land needs a place to hang. Without the shell, each Land invents placement (the PR #25 failure). |
-| Cut before Brief | L14 before L15 | not ordered in peers | El Paso Cut is already live (F1), and row 6 finishes there; the client value is there first |
-| Kill right after the shell | L12 | kill at end or unspecified | Removes demo noise before seats are proved against real records |
-| Staff on a door | read-only "View as" | not stated | Bailey sees exactly the client view with no cross-write risk |
-| Google sign-in on doors | off | not stated | No wildcard OAuth redirect; the one quiet Sign in path is locked |
-| WEFTEC | paper now, replay after the event | HOLD (spines) | K7 asks for a pressure test, not a live event build |
+| Disk pointer | Keep the peers' intent. Media goes through tus; disk origin lives in NEW `assets.source_relative_path`; edit files are `sequences` pointer rows. | `assets.nas_path` points at the disk folder (Fable, Grok) | `nas_path` is the tus commit's storage key and idempotency match (`20260726084644_atomic_upload_catalog_v1.sql:311`). Setting it by hand to a Mac path is a second catalog writer, which all three contracts forbid. |
+| Door map | Columns on `organizations` | NEW `tenant_doors` table (Fable) | One fewer table; slug and brand are account facts |
+| Many briefs on one job | NEW `briefs.lineage_key` | not stated | Today's `UNIQUE(project_id, version)` allows one lineage; a second open brief would otherwise need a new job |
+| Tenancy detail | Host-only cookies, header binding, RLS, reserved labels, Google off on doors | not specified | K1 needs a mechanism, not a slogan |
+| Master opening a job | Stays on the master; staff get a read-only "View as" on a door | the job opens on the client door (Grok) | Keeps writes on the master surface; no cross-host session |
+| Client act in Delivery | Download locked items only | "Client: confirm" (Fable) | Only one seat proposed it; it adds a write with no named record |
+| Sub-Land split | 7a–7d, 8a–8b, 10a–10g, one PR each | one PR per grid row | Keeps each PR provable against one negative |
+| WEFTEC timing | Replay from disk after the event | not stated | Nothing races 2026-09-25 |
 
 ---
 
@@ -226,63 +256,72 @@
 
 ### 7a Kill
 
-| Kill | Where | Lock / reason | Replaced by | Answer after kill | Land |
+| Kill | Where | Why | Replaced by | Answer after kill | Land |
 |---|---|---|---|---|---|
-| Overview dashboard | `app/(dashboard)/page.tsx` | K5 Login → Projects | Projects | 308 → `/projects` | L12 |
-| Opportunities | `app/(dashboard)/opportunities` | CCO OS owns commercial | CCO OS | 404 | L12 |
-| Request center (P27, demo) | `app/(dashboard)/requests`, `app/(client)/portal/requests` | demo-only, simulated dispatch | open a brief lineage | 404 | L12 |
-| Client portal (P23, demo) | `app/(client)/portal` | a second client shell | account door | 308 → `/projects` | L12 |
-| Field | `app/(dashboard)/field` | K2 no crew | Shoot seat (read-only) | 404 | L12 |
-| Activity page | `app/(dashboard)/activity` | not a seat | Audit log in the master drawer | 308 → audit log | L12 |
-| Reports (P28, demo) | `app/(dashboard)/reports` | seeded browser data | DERIVED status on Projects | 404 | L12 |
-| Reviews list | `app/(dashboard)/reviews` | folded into Cut | Cut seat | 308 → `/projects?seat=cut` | L12 |
-| Whiteboard (P25, demo) | `app/(dashboard)/projects/[id]/whiteboard` | not a seat | — | 404 | L12 |
-| Floating Copilot (P14, demo) | `components/copilot/*` mount | AI lives as artifact cards, not a chat drawer | L19 cards | unmounted | L12 |
-| Demo workspace tabs (P24) | `ProjectWorkspaceTabs` | seats replace tabs | seats | unmounted | L12 |
-| Crew UI of any kind | any | K2 | none | — (table `crew_members` untouched) | L12 |
-| Wrong Schneider seed | `lib/demo/record-seed.ts` "Schneider National / Logistics"; `lib/demo/workspace.ts` "Physical Edge — El Paso" | misnames the real account and job | real record | seed renamed or removed | L12 |
-| Delivery wizard / fixed step ritual | nothing to remove | K3 | assist cards + lock | never built | — |
-| "Co-Production Pro" / "Co-Deliver" labels on doors | UI copy | naming debt | Co-VideoPro + account mark | — | L11 |
+| Crew product, van app, crew states; `crew_members` as a surface | any | K2 | none (table untouched) | — | never built |
+| Rigid delivery ritual / wizard (fixed QC → encode → package gates) | nothing to remove | K3 | two drafts + lock | never built | — |
+| Nav redraw or a third nav | — | K8 | picked mock | — | — |
+| Pipeline rail on the film | — | K4 | back chevron | — | 10a |
+| Permanent comment deck under the film | — | row 1 | tap composer | — | row 1 |
+| Second player; chatbot drawer; floating Copilot (P14 demo) | `components/copilot/*` mount | C4 | Delivery drafts | unmounted | 10g |
+| Hand-typed status anywhere | — | C9 | DERIVED status | — | 8b |
+| Widget-dashboard home (Overview) | `app/(dashboard)/page.tsx` | K5 | Projects | 308 → `/projects` | 10g |
+| Opportunities | `app/(dashboard)/opportunities` | CCO OS owns commercial | CCO OS | 404 | 10g |
+| Request center (P27 demo) | `app/(dashboard)/requests`, `app/(client)/portal/requests` | demo, simulated dispatch | a brief on the job | 404 | 10g |
+| Client portal (P23 demo) | `app/(client)/portal` | second client shell | account door | 308 → `/projects` | 10g |
+| Field | `app/(dashboard)/field` | K2 | Shoot seat | 404 | 10g |
+| Activity page | `app/(dashboard)/activity` | not a seat | Audit log in the master drawer | 308 → audit log | 10g |
+| Reports (P28 demo) | `app/(dashboard)/reports` | seeded data | DERIVED status | 404 | 10g |
+| Reviews list | `app/(dashboard)/reviews` | folded into Cut | Cut seat | 308 → `/projects?seat=cut` | 10g |
+| Whiteboard (P25 demo) | `app/(dashboard)/projects/[id]/whiteboard` | not a seat | — | 404 | 10g |
+| Demo workspace tabs (P24) | `ProjectWorkspaceTabs` | seats replace tabs | seats | unmounted | 10g |
+| WEFTEC-specific chrome or seats | — | C12 | same seats | — | — |
+| Demo "Physical Edge — El Paso" and "Schneider National / Logistics" seeds | `lib/demo/workspace.ts`, `lib/demo/record-seed.ts` | misname the real job and account | real record | renamed or removed | 10g |
+| Demo-proposal promotion | — | two price authorities | CCO OS | never built | — |
+| Landing PR #25 as-is; PR #27 ahead of #36 | — | spine | row 6 port; #27 regression-only | — | — |
+| "Co-Production Pro" / "Co-Deliver" labels on doors | UI copy | naming debt | Co-VideoPro + account mark | — | 10a |
 
 ### 7b Don't-break
 
 | Guard | Checked in |
 |---|---|
-| Rows 1–6 scope and order: PR #36 is the only tap-comment Land; PR #25 frozen until row 6; PR #27 only if a regression appears | every Land |
-| Live tip `46a256f2`: player, mobile overlay ~6%, sapphire logo | every CVP Land |
-| Quiet auth door (`c9804e1`, `5da6aed`), one Sign in path | L8, L10, L11 |
+| Rows 1–6 in flight and unreopened; PR #36 is the only tap-comment Land; PR #25 frozen until row 6; PR #27 regression-only | every Land |
+| ACS tip `c58816e4`: Latch, then Clip; ACS M4 train untouched | every Land |
+| Live tip `46a256f2`: player, ~6% overlay, sapphire logo | every CVP Land |
+| Quiet auth door (`c9804e1`, `5da6aed`), one Sign in path | 7b, 7d, 10a |
 | `compress:false` | every Land |
-| Guest film-first; anonymous guest **and** signed-in client paint the film | L8, L10, L11, L14 |
-| Already-sent `co-videopro.com/review/{token}` links serve forever | L8 |
-| `/api/upload/tus` is the only catalog writer; legacy writers stay `410 Gone` | L17, L20 |
-| Recipient-bound admission limits unchanged | L14 |
-| Version-bound approval rounds; exact-version notes | L14, L15 |
-| Locked delivery immutability; delivered requires lock | L17 |
-| CCO OS commercial authority; CVP never mutates commercial fields | L17 |
-| CSP / `frame-ancestors 'none'`; demo gate stays server-only | L8 |
-| Host-only auth cookies | L8, L10 |
-| Nothing sent without Bailey's yes | every Land |
-| Migration and DNS only at G1 / G2 | L7, G1, G2, L10 |
-| ACS M4 train untouched | every Land |
-| No nav redraw: the Fable/Grok drawing is the spec | L11 |
+| Guest film-first; anonymous guest **and** signed-in client paint the film (F1) | 7b, 7d, 10a, 10b |
+| Already-sent review links keep working | 7b |
+| Generic door `client.contentco-op.com` until per-client doors Land | 7b, 7d |
+| Wipster hosting stays | every Land |
+| `/api/upload/tus` is the only catalog writer | 8a, 15 |
+| Admission limits; version-bound approval; exact-version notes | 10b, 12 |
+| Locked delivery immutability; delivered requires lock | 10e, 14 |
+| CCO OS money authority: frozen totals, never mutated | 13 |
+| CSP / `frame-ancestors 'none'`; demo gate server-only; host-only cookies | 7b |
+| Bailey gates: migration apply (G1), DNS (G2), any send | 7a, G1, G2, 7d, every Land |
+| No nav redraw | 10a |
 
 ---
 
 ## 8 Out of scope
 
-| Item | Why | Lives in |
-|---|---|---|
-| ACS rows (roster, VA-106, close-out, booking) | separate train | ACS spine |
-| Crew product, crew states, van app | K2 | never |
-| Money on the job (proposal / invoice UI) | CCO OS authority; gated on "Bailey says bill" | spine #13 |
-| Outbound sends: invite mail, notification mail, CS bot or drafts | no-send rule | HOLD |
-| Running WEFTEC in-product during the event | no Land races the event | L20 replay |
-| Vanity domains (e.g. a client-owned host), SSO/SAML, Google on doors | wildcard only; one Sign in path | later contract |
-| Per-account billing, plans, metering | not a lock | — |
-| Wipster archive migration | HOLD | spine HOLD |
-| Sandcastles scripting, drawing suite, NLE / transcript editor | HOLD | spine HOLD |
-| Reopening CCNAS, scan policy, or approval setup | no live regression | — |
-| Nav redesign; overlay / logo / auth redo | PASS held | — |
-| Other agencies running their own masters | the master is Content Co-op only | — |
-| Native mobile app | the phone web surface is the product | — |
-| Auto-parsing disk documents into brief or shoot records | the Master enters records; media enters only via tus | possible L19 card later |
+| Out | Why |
+|---|---|
+| Rows 1–6 | already in flight or proof; this contract starts at 7 |
+| Landing anything from this file | Blaze forges; Lands cite the forged master |
+| ACS dispatch, close-out, booking (rows 9, 11) | sibling train |
+| Caio's Continuity phone rail | field truth stays voice; no crew product |
+| Invoice send, finance seat, new payment rails | CCO OS authority; Land 13 is read-only |
+| Outbound sends: invite mail, notification mail, phone CS bot, outbound drafts | nothing sends itself |
+| AI drafts beyond the two named Delivery drafts (brief drafts, shot-list drafts, chat) | C4 |
+| Running WEFTEC in-product during the event | Land 15 replays after |
+| Vanity domains, SSO / SAML, Google sign-in on doors | wildcard only; one Sign in path |
+| Per-account billing, plans, metering | not a lock |
+| Wipster hosting cutover or archive migration | Wipster stays |
+| Sandcastles, drawing suite, transcript NLE | not a seat |
+| Reopening CCNAS, scan policy, or approval setup | no live regression |
+| Player, overlay, logo, auth redo | PASS on `46a256f2` |
+| Amanda enrich | held |
+| Other agencies running their own masters; native mobile app | the master is Content Co-op; the phone web surface is the product |
+| A question back to Bailey | locks are closed |

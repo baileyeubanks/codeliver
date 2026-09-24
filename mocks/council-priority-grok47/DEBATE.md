@@ -30,9 +30,14 @@ Caio's Continuity rail is **+1 504 858 1959**. Field truth comes from that numbe
 
 Proof, not a grade: a delete is done when the row is gone after refresh and the toast matches, with no outbound message. Dispatch is done when that job loads for crew assignment on the phone and the assignment is still there after refresh.
 
-### CVP — production OS
+### CVP — production OS (Bailey lock, Fable + Grok)
 
-Surfaces: co-videopro.com, client.contentco-op.com, admin OS, marketing. Login goes to Projects. The film is the content.
+Two sides. No crew side.
+
+- **Client door:** `{client}.co-videopro.com`. Example: `schneider.co-videopro.com`.
+- **Master:** Content Co-op OS. Bailey runs Schneider and the other A-list clients from this one operator seat. Login → Projects.
+
+Council nav mocks stand. Delivery is AI-fluid. There is no rigid delivery ritual. B7 is closed: no crew surface, no van app, no crew states. Opus is not a seat on this rewrite.
 
 Tools of record, still: Wistia (play), Wipster (review host), Sandcastles (script assist). CVP replaces the operating job of each one at a time. It does not clone all three this cycle.
 

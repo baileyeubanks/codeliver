@@ -187,7 +187,7 @@ test("operator dock tabs stay compact instead of exposing crowded labels by view
   );
 });
 
-test("390px cockpit guards prevent header and composer crowding", () => {
+test("390px cockpit guards prevent header crowding", () => {
   assert.match(cockpitProjectStyles, /@media \(max-width: 390px\)/);
   assert.match(
     cockpitProjectStyles,
@@ -205,14 +205,7 @@ test("390px cockpit guards prevent header and composer crowding", () => {
     cockpitProjectStyles,
     /\.shell :global\(\.cockpit-section-heading select\) \{[\s\S]*?flex: 1 1 0;/,
   );
-  assert.match(
-    cockpitProjectStyles,
-    /\.shell :global\(\.cockpit-comment-composer\) \{[\s\S]*?grid-template-columns: 28px minmax\(0, 1fr\);/,
-  );
-  assert.match(
-    cockpitProjectStyles,
-    /\.shell :global\(\.cockpit-comment-composer input\),[\s\S]*?\.shell :global\(\.cockpit-timecode\),[\s\S]*?\.shell :global\(\.cockpit-add-comment\) \{[\s\S]*?width: 100%;/,
-  );
+  assert.doesNotMatch(cockpitProjectStyles, /cockpit-comment-composer|cockpit-add-comment|cockpit-timecode/);
 });
 
 test("mobile navigation drawer sizes the supplied raster brand wrapper", () => {

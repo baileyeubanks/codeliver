@@ -13,10 +13,14 @@ const cockpit = source("components/projects/ProjectCockpit.tsx");
 const player = source("components/player/VideoPlayer.tsx");
 const brand = source("components/brand/CoProductionBrand.tsx");
 const playerStyles = source("components/player/PlayerControls.module.css");
+const globals = source("app/globals.css");
+const cockpitStyles = source("components/projects/ProjectCockpit.module.css");
 
 test("C1 the permanent under-stage comment row is gone", () => {
   assert.doesNotMatch(page, /Add a timecoded comment|PublicReviewComposer|cockpit-comment-composer/);
   assert.doesNotMatch(cockpit, /Add a timecoded comment|cockpit-comment-composer/);
+  assert.doesNotMatch(globals, /cockpit-comment-composer|client-review-composer|cockpit-add-comment/);
+  assert.doesNotMatch(cockpitStyles, /cockpit-comment-composer|cockpit-add-comment|cockpit-timecode/);
   assert.match(page, /composer:\s*null/);
 });
 

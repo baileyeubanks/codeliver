@@ -1,12 +1,16 @@
 # REBUTTAL TEMPLATE — for pasting into any peer DEBATE.md
 
-Blaze: copy one block per peer into the target `DEBATE.md` under a `## Rebuttals` heading. Fill from the peer's own text; quote, don't paraphrase. Every disagreement must cite an **operating** consequence (a ritual that breaks, a record that gets lost, a send that fires without Bailey's yes, a bucket that burns) — not a preference about screens.
+Blaze: copy one block per peer into the target `DEBATE.md` under a `## Rebuttals` heading. Fill from the peer's own text; quote, don't paraphrase.
 
-Ground rules for a rebuttal round:
+## Ground rules (Bailey 2026-09-24: take each other's advice, reason amongst yourselves)
 
-- One round. New evidence only comes from a Land, not from another rebuttal.
-- Each rebuttal must end in a concrete spine edit (move / merge / drop / hold) or an explicit "no change."
-- Anything only Bailey can decide goes in the last slot and is presented by Blaze as one pick.
+1. **Default is adopt.** If the peer is right on how the business operates — a ritual, a record, a send, a bucket, or the surface the ritual runs on — the spine changes. Burden of proof is on *keeping* your own draft.
+2. **Only operating reasons can contest.** "My ordering is cleaner" is not a reason. "That order leaves tomorrow's dispatch unreadable on a phone" is. "The client sees an under-deck before the film" is.
+3. **Adopted comes before contested.** The block is ordered so the first thing Bailey reads is what you took from the peer.
+4. **Every adoption is a spine edit and a change-log row** in `MASTER_SPINE_DRAFT.md › Change log`.
+5. **Surface outcomes are spine outcomes.** Every rebuttal states which ledger rows (player, logo, tap-comment, nav, ACS quiet admin) it touches. UI is not a side quest.
+6. **One round.** New evidence comes from a Land, not from another rebuttal. Genuine Bailey calls go to Blaze as one pick.
+7. **Where peers disagree with each other**, reason it out and name the operating consequence that decides — don't split the difference.
 
 ---
 
@@ -15,21 +19,31 @@ Ground rules for a rebuttal round:
 **Peer's core claim (verbatim or near):**
 > …
 
-**Where we agree:**
-- …
+**Adopted as-is — peer is right on operations:**
+- Point: …
+  Why it holds: …  *(ritual / record / send / bucket / surface)*
+  Spine edit: `#… → action` · Change-log row added: yes
 
-**Where I disagree, and the operating evidence:**
-- Claim: …
-  Consequence if we follow it: …  *(which ritual / record / send / bucket)*
-  Evidence: …  *(command map line, repo doc, commit, or field fact)*
+**Adopted with modification:**
+- Point: …
+  Modification and why: …
+  Spine edit: `#… → action` · Change-log row added: yes
 
-**What this changes in `MASTER_SPINE_DRAFT.md`:**
-| Spine # | Action (move up / move down / merge with # / drop / hold) | Reason |
+**Contested — operating reason only:**
+- Peer says: …
+  Consequence if we follow it: …  *(which ritual breaks / record lost / send fires / bucket burns / surface regresses)*
+  Evidence: …  *(command map line, repo doc, commit, VA sweep, field fact)*
+  Spine: no change
+
+**Spine edits summary:**
+| Spine # | Action (move up / move down / merge with # / drop / hold / add) | Reason (operating) |
 |---|---|---|
 | … | … | … |
 
-**What I concede:**
-- …
+**Surface ledger impact:**
+| Ledger row | Before | After this rebuttal | Via item |
+|---|---|---|---|
+| player / logo / tap-comment / nav / ACS quiet | PASS · OPEN | PASS · OPEN · moved | #… |
 
 **Credit impact of the peer's proposal (G / K / C):**
 - Grok Lands added or removed: …
@@ -41,6 +55,15 @@ Ground rules for a rebuttal round:
 
 ---
 
+## Cross-peer section (fill once, after both peers are read)
+
+**Where Opus 5.5 and Grok 4.7 disagree with each other:**
+- Point: …
+- Operating consequence that decides it: …
+- Ruling and spine edit — or Bailey pick: …
+
+---
+
 ## Pre-cut slots
 
 ### Rebuttal → OPUS 5.5 (`mocks/council-priority-opus/DEBATE.md`)
@@ -48,19 +71,24 @@ Ground rules for a rebuttal round:
 **Peer's core claim:**
 > …
 
-**Where we agree:**
+**Adopted as-is:**
 - …
 
-**Where I disagree, and the operating evidence:**
+**Adopted with modification:**
 - …
 
-**What this changes in `MASTER_SPINE_DRAFT.md`:**
+**Contested — operating reason only:**
+- …
+
+**Spine edits summary:**
 | Spine # | Action | Reason |
 |---|---|---|
 | … | … | … |
 
-**What I concede:**
-- …
+**Surface ledger impact:**
+| Ledger row | Before | After | Via item |
+|---|---|---|---|
+| … | … | … | … |
 
 **Credit impact (G / K / C):**
 - …
@@ -73,19 +101,24 @@ Ground rules for a rebuttal round:
 **Peer's core claim:**
 > …
 
-**Where we agree:**
+**Adopted as-is:**
 - …
 
-**Where I disagree, and the operating evidence:**
+**Adopted with modification:**
 - …
 
-**What this changes in `MASTER_SPINE_DRAFT.md`:**
+**Contested — operating reason only:**
+- …
+
+**Spine edits summary:**
 | Spine # | Action | Reason |
 |---|---|---|
 | … | … | … |
 
-**What I concede:**
-- …
+**Surface ledger impact:**
+| Ledger row | Before | After | Via item |
+|---|---|---|---|
+| … | … | … | … |
 
 **Credit impact (G / K / C):**
 - …

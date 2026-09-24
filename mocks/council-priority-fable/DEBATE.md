@@ -5,13 +5,18 @@
 **Credit base assumed:** Cursor/Grok bucket ~11% · Other (Kimi/Claude) ~64% · "don't stop."
 **Companion:** `MASTER_SPINE_DRAFT.md` (the ordered backlog), `REBUTTAL_TEMPLATE.md` (peer slots).
 
+**Bailey addendum (2026-09-24), binding on this seat:**
+- *Reason amongst yourselves.* When a peer is right on operations, the spine changes — logged in `MASTER_SPINE_DRAFT.md › Change log`, not defended out of pride. Burden of proof sits on **keeping** my draft, not on the peer.
+- *Visual surface outcomes go hand in hand with the OS spine.* Every ritual is performed on a surface; a Land that moves the workflow but leaves its surface OPEN is half a Land. Current ledger: **player PASS · logo PASS · tap-comment OPEN · nav Council OPEN · ACS quiet admin OPEN.** Priority funds visual + workflow together; UI is not a side quest and not a deferral bucket.
+
 ---
 
 ## 0. Thesis in three lines
 
 1. **"Upstream" means the object every other step writes to — not the first screen a customer sees.** For ACS that object is the **Job hanging off a Client**. For CVP it is the **Deliverable hanging off a Project, carrying Versions**. Everything else (intake forms, dispatch views, review players, status boards, invoices, assistants) is a reader or writer of that object.
 2. **Both businesses run on rituals, not features.** ACS runs on a *morning dispatch* and an *evening close*, every day. CVP runs on a *review round* and a *delivery*, every project. "Complete" is when the ritual runs inside the product with nothing kept in Excel, iMessage, or Bailey's head.
-3. **Grok Lands are the scarce resource, so every Grok Land must move a ritual, and every Grok Land must be preceded by a Kimi pack.** Kimi is abundant; Grok is the surgeon. Council decides once per master; it does not iterate.
+3. **Grok Lands are the scarce resource, so every Grok Land must move a ritual *on its surface*, and every Grok Land must be preceded by a Kimi pack.** Kimi is abundant; Grok is the surgeon. Council decides once per master; it does not iterate.
+4. **Workflow and surface are one deliverable.** The dispatch list *is* the morning ritual; the tap-comment on the film *is* the review round. A spine item is done when its workflow acceptance **and** its surface PASS both hold. That is why the ledger items (tap-comment, nav, ACS quiet admin) sit inside P0/P1, not in a "polish" tail.
 
 ---
 
@@ -52,7 +57,7 @@ Why lead intake is *not* first even though it is the top of the funnel: an owner
 
 - Jobs titled `First L. Service` (e.g. `Amanda R. Deep Clean`) — this is how a crew reads a list in a van and how Bailey searches on a phone. It is a **data convention**, so it belongs in the Job create path, not in a display formatter.
 - "Real people clients, full name + enriched contact" — enrichment is **sequential and Caio-sourced** (field lead knows the gate code, the dog, the parking). Hold Amanda until Lupe fields exist: do not enrich into a schema that will change.
-- "Quiet admin chrome (ACS-VA quiet)" — quiet is the *absence* of alerts, spinners, and modals that block the morning read. Treat it as a reliability property (no dead loading states, no toast storms), not as a palette.
+- "Quiet admin chrome (ACS-VA quiet)" — quiet is the *absence* of alerts, spinners, and modals that block the morning read **and** the visual register Bailey reads on a phone at 6:30am. It is both a reliability property (no dead loading states, no toast storms) and a surface PASS (ACS-VA sweep clean). The two Land together: PR#5 toasts and VA-106 dispatch loading are each half workflow, half surface. **Ledger: ACS quiet admin OPEN** until the sweep passes on the live admin.
 
 ### 1.4 Don't-break list, in operating terms
 
@@ -127,8 +132,9 @@ Observation for the debate: **north star 1 (kill Excel) is a data-model problem,
 - Completed jobs carry notes and an invoice state (sent / paid / unpaid).
 - The roster survived a hygiene pass (delete/merge/edit with confirmation) without data loss.
 - Zero unsolicited sends fired.
+- **Surface PASS:** ACS-VA quiet sweep clean on the live admin (no toast storms, no dead loading states, no modal traps in the dispatch or roster paths); phone read of dispatch legible one-handed.
 
-**Not complete if:** any of the week's jobs lived only in iMessage; dispatch required a desktop; Caio's truth was re-keyed later from a call.
+**Not complete if:** any of the week's jobs lived only in iMessage; dispatch required a desktop; Caio's truth was re-keyed later from a call; the admin passed the data test but Bailey still winced opening it.
 
 ### 4.2 CVP — complete when one real project runs a review round and a delivery inside it
 
@@ -137,12 +143,25 @@ Observation for the debate: **north star 1 (kill Excel) is a data-model problem,
 - Approval flips Deliverable status; delivery is recorded; the invoice is attached to the same Project.
 - Wistia still hosts; Wipster is no longer needed for that round.
 - Player tip `46a256f2` still plays.
+- **Surface PASS:** player PASS held; logo PASS held (sapphire blue-long transparent mark in chrome); tap-comment PASS (click-film comment dialog, under-deck gone, quiet surround); nav master picked and Landed (phone = bottom pipeline + Claude drawer, no left+bottom); thin on-film player; guest film-first.
 
-**Not complete if:** status is typed by hand into the product (that's Excel with a login); approval is by email; the client had to be walked through the shell.
+**Not complete if:** status is typed by hand into the product (that's Excel with a login); approval is by email; the client had to be walked through the shell; the review works but the client saw an under-deck or a login before the film.
 
 ### 4.3 Shared definition of Land
 
-Land = live on M4/M2, verified by the seat that landed it, don't-break list checked, and Clip/Latch confirmation. A green PR is a *candidate*, not a Land.
+Land = live on M4/M2, verified by the seat that landed it, don't-break list checked, **surface PASS checked against the ledger**, and Clip/Latch confirmation. A green PR is a *candidate*, not a Land. A Land whose workflow works but whose surface is still OPEN is logged as *half-Landed* and stays the open item for that product.
+
+### 4.4 Visual surface ledger (Bailey's scoreboard, carried on every spine item)
+
+| Surface outcome | State | Funded by spine item |
+|---|---|---|
+| Player (thin on-film, tip `46a256f2`) | **PASS** — hold, don't-break | every CVP Land gate |
+| Logo / sapphire blue-long transparent mark | **PASS** — hold | every CVP Land gate |
+| Tap-comment (click-film dialog, under-deck killed, quiet surround) | **OPEN** | #1 |
+| Nav master (phone bottom-pipeline + Claude drawer; desktop) | **OPEN** — Council mock → Bailey pick → Land | #3 → #9 |
+| ACS quiet admin (VA sweep clean: roster, dispatch, job create) | **OPEN** | #2, #4 |
+
+The ledger is not a separate track. Each OPEN row is the surface half of a spine item that already holds the workflow half.
 
 ---
 
@@ -180,9 +199,23 @@ Legend: **G** = Grok 4.7 Land (scarce) · **K** = Kimi pack (abundant) · **C** 
 
 ---
 
+### 5.3 Surface half of each P0/P1 item (so UI is funded, not queued)
+
+| Spine item | Workflow half | Surface half (must PASS in the same Land) |
+|---|---|---|
+| #1 CVP tap-comment | frame-bound comment persists on exact version | click-film comment dialog; under-deck gone; quiet surround; player + logo PASS held |
+| #2 ACS PR#5 roster | delete/merge without data loss | confirmation + toasts that don't storm; ACS-VA quiet on roster |
+| #3 nav master | — (Council/Bailey) | one phone master (bottom pipeline + Claude drawer) and one desktop master, mock-only until picked |
+| #4 ACS dispatch | tomorrow's Jobs by crew load reliably | no dead loading state; one-handed phone read; ACS-VA quiet on dispatch and job create |
+| #5 CVP review shell | share modes + finish reviewing + version-bound approval | Wipster ritual feel: film first, thin controls, approve as a deliberate act, guest film-first |
+| #6 ACS Caio loop | job state from Continuity | state chips readable in a van; no modal traps |
+| #7 CVP Deliverable status | derived status per deliverable per client | status rendered in existing cockpit with no new chrome; reads as a strip, not a table |
+| #8 ACS evening close | notes + invoice state on Job | close flow in ≤3 taps on phone; ACS-VA quiet |
+| #9 CVP Projects home | renders #7 | the picked nav master, Landed; logo PASS; no left+bottom on phone |
+
 ## 6. What to defer (named drops — "a dropped thing you named is a decision")
 
-- **Chrome iteration beyond the single nav master pick.** One pick, then Land; no variants.
+- **Chrome *variants* after the single nav master pick.** One pick, then Land; no A/B/C rounds. The pick itself and its Land are funded (#3, #9) — this deferral is about re-litigating, not about the surface.
 - **Insights/analytics/rollups** (repo D8 already unships them until data is real).
 - **Team/role model beyond owner-scoped** for CVP until a multi-stakeholder event forces it.
 - **Replacing Wistia hosting.** Explicitly out; the triad keeps Wistia.
@@ -198,7 +231,7 @@ Legend: **G** = Grok 4.7 Land (scarce) · **K** = Kimi pack (abundant) · **C** 
 
 ### 7.1 Rules
 
-1. **No Grok Land without a Kimi pack.** The pack names: exact files, acceptance test (the ritual it moves), don't-break checks, rollback. Grok reads and cuts; it does not explore.
+1. **No Grok Land without a Kimi pack.** The pack names: exact files, acceptance test (the ritual it moves), **the surface PASS it must hold or close (from the ledger)**, don't-break checks, rollback. Grok reads and cuts; it does not explore.
 2. **One open Land per product at a time.** Never two half-landed CVP branches; never switch products with a Land open.
 3. **Alternate by slice, not by day.** Finish CVP P0 → finish ACS P0 → ACS Dispatch (small) → CVP Review shell (medium) → ACS Caio loop → CVP Deliverable status → …
 4. **Council spends once per master.** Nav master, this spine, the definitions of complete. No re-litigation without new evidence from a Land.
@@ -209,9 +242,9 @@ Legend: **G** = Grok 4.7 Land (scarce) · **K** = Kimi pack (abundant) · **C** 
 
 | Bucket | Spend on | Do not spend on |
 |---|---|---|
-| Grok ~11% | P0 finishes, P1 spine slices (dispatch, Caio loop, review shell, Deliverable status, Projects home) | nav variants, refactors, renames, mock screens, research |
-| Kimi ~64% | packs for N+1, reality maps, VA sweeps of live surfaces, field-spec drafts (Lupe fields), acceptance scripts, rebuttal drafts, WEFTEC spec | vanity teardowns, redesign moodboards, re-auditing what is already mapped |
-| Council mix | this spine, nav master, "complete" definitions, one rebuttal round | iterating chrome, per-PR review |
+| Grok ~11% | P0 finishes, P1 spine slices (dispatch, Caio loop, review shell, Deliverable status, Projects home) — **each carrying its surface half: tap-comment close, ACS quiet, nav master Land** | nav *variants* after the pick, refactors, renames, research, surface work detached from a spine item |
+| Kimi ~64% | packs for N+1, reality maps, **VA sweeps of live surfaces (the ledger's PASS/OPEN evidence)**, field-spec drafts (Lupe fields), acceptance scripts, rebuttal drafts, WEFTEC spec | vanity teardowns, redesign moodboards, re-auditing what is already mapped |
+| Council mix | this spine, nav master (the one visual decision only Council + Bailey can close), "complete" definitions, one rebuttal round | iterating chrome after the pick, per-PR review |
 
 ### 7.3 Product interleave rationale
 
@@ -220,6 +253,16 @@ ACS has a **daily** cadence (a crew leaves every morning); CVP has a **project**
 ---
 
 ## 8. Where I expect to disagree with peers, and what I'd concede
+
+### 8.0 Concession discipline (Bailey's rule, applied to this seat)
+
+- **Default is adopt.** If a peer's point is about how the business operates (a ritual, a record, a send, a bucket) and it holds, the spine changes. I do not need to be out-argued; I need to be shown an operating consequence I missed.
+- **Only operating reasons can reject.** "My ordering is cleaner" is not a reason. "That order leaves tomorrow's dispatch unreadable" is.
+- **Every change is logged** in `MASTER_SPINE_DRAFT.md › Change log` with: peer, claim, item moved, why. Bailey should be able to read what changed and who was right without opening three files.
+- **Where two peers disagree with each other**, I reason it out in the rebuttal (not by splitting the difference) and name which operating consequence decides it. If it is genuinely a Bailey call, it goes to Blaze as one pick.
+- **Surface points count as operating points.** A peer who says "the client sees an under-deck before the film" is making an operations argument, not a fashion one.
+
+### 8.1 Anticipated positions
 
 - **If Opus argues "data integrity and runtime proof before any surface":** agree on Deliverable-before-Projects-home; disagree if it means pausing the in-flight P0 review Land — a half-landed client-facing surface is a worse integrity failure than an unapplied migration. Concede: add a Kimi reality-map pass before the Deliverable slice.
 - **If Grok argues "ship the visible shell now, it's what Bailey sees":** agree the nav master must be picked now (it's Council-cost, not Grok-cost); disagree on Landing Projects home before Deliverable status exists — it becomes Excel-with-a-login and violates D8. Concede: Projects home and Deliverable status may Land as one slice if the pack is tight.
@@ -230,22 +273,30 @@ ACS has a **daily** cadence (a crew leaves every morning); CVP has a **project**
 
 ## 9. Rebuttals (Blaze pastes peers here)
 
-Template lives in `REBUTTAL_TEMPLATE.md`. Two slots are pre-cut below.
+Template lives in `REBUTTAL_TEMPLATE.md`. Two slots are pre-cut below. Order of fields is deliberate: **what I adopt comes before what I contest.**
 
 ### 9.1 Rebuttal → Opus 5.5 DEBATE.md
 
 - **Peer's core claim:** _(paste)_
-- **Where we agree:** _(…)_
-- **Where I disagree, and the operating evidence:** _(…)_
-- **What this changes in the spine (item #, move up/down/merge/drop):** _(…)_
-- **What I concede:** _(…)_
-- **Open question only Bailey can answer:** _(…)_
+- **Adopted as-is (peer right on operations):** _(…)_ → spine edits: _(#, action)_
+- **Adopted with modification:** _(…)_ → spine edits: _(#, action)_
+- **Contested — operating reason only:** _(…)_
+- **Surface ledger impact (PASS/OPEN rows touched):** _(…)_
+- **Credit impact (G / K / C):** _(…)_
+- **Open question only Bailey can answer (one pick for Blaze):** _(…)_
 
 ### 9.2 Rebuttal → Grok 4.7 DEBATE.md
 
 - **Peer's core claim:** _(paste)_
-- **Where we agree:** _(…)_
-- **Where I disagree, and the operating evidence:** _(…)_
-- **What this changes in the spine (item #, move up/down/merge/drop):** _(…)_
-- **What I concede:** _(…)_
-- **Open question only Bailey can answer:** _(…)_
+- **Adopted as-is (peer right on operations):** _(…)_ → spine edits: _(#, action)_
+- **Adopted with modification:** _(…)_ → spine edits: _(#, action)_
+- **Contested — operating reason only:** _(…)_
+- **Surface ledger impact (PASS/OPEN rows touched):** _(…)_
+- **Credit impact (G / K / C):** _(…)_
+- **Open question only Bailey can answer (one pick for Blaze):** _(…)_
+
+### 9.3 Where Opus and Grok disagree with each other
+
+- **Point of disagreement:** _(…)_
+- **Operating consequence that decides it:** _(…)_
+- **My ruling and spine edit, or Bailey pick:** _(…)_

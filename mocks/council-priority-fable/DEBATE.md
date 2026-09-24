@@ -24,6 +24,14 @@ Deltas applied from the brief: #2 is **live, proof pending** (Latch proves the r
 
 Everything below argues from that text. Where my first draft diverged, §0.5 says so and the spine was changed.
 
+**BAILEY LOCK — CVP product shape (voice, 2026-09-24 12:48 UTC) — overrides everything below where it differs:**
+
+1. **Two sides only: CLIENT side + Content Co-op MASTER side. No crew side.** B7 closed: no crew product, no van app, no crew states — for CVP and for ACS. Field truth stays Caio's voice on Continuity; the record is marked on admin.
+2. **Master = Bailey's Content Co-op OS**, a multi-tenant operator controlling Schneider and the other A-list clients. Not one client silo.
+3. **Per-client branded door: `{client}.co-videopro.com`** (e.g. `schneider.co-videopro.com`).
+4. **Delivery is AI-fluid.** No rigid delivery ritual is frozen into the product; the record is fixed, the how is swappable as AI tools change.
+5. This pass = Fable + Grok 4.7. Council nav mocks: WOW. **Zero new Bailey questions.**
+
 **Bailey addendum (2026-09-24), binding on this seat:**
 - *Reason amongst yourselves.* When a peer is right on operations, the spine changes — logged in `MASTER_SPINE_DRAFT.md › Change log`, not defended out of pride. Burden of proof sits on **keeping** my draft, not on the peer.
 - *Visual surface outcomes go hand in hand with the OS spine.* Every ritual is performed on a surface; a Land that moves the workflow but leaves its surface OPEN is half a Land. Current ledger: **player PASS · logo PASS · tap-comment OPEN · nav Council OPEN · ACS quiet admin OPEN.** Priority funds visual + workflow together; UI is not a side quest and not a deferral bucket.
@@ -76,9 +84,9 @@ That is the **funnel** order. The **dependency** order is different, and depende
 
 ```
 Client+Job record (reliable create / edit / delete)          ← spine object
-   └─ Dispatch view (tomorrow's Jobs by crew)                ← morning ritual
-        └─ Caio confirm loop (Job state from the field)      ← field truth
-             └─ Complete → notes → invoice state             ← evening close
+   └─ Dispatch view (tomorrow's Jobs by crew)                ← morning ritual (admin, phone)
+        └─ Caio confirms by voice on Continuity               ← field truth (no product; no crew states)
+             └─ Close-out: done / issue → notes → invoice state  ← evening close (admin, Bailey's tap)
 Lead/Booking intake (web/phone) → writes a Client+Job        ← feeder; manual entry is an acceptable stopgap
 Copilot-in-ACS (FORM drafter over the record)                ← needs a record with real state to draft from
 Roster hygiene (bulk, automation)                            ← consequence of volume; copilot's first job
@@ -89,12 +97,12 @@ Phone CS bot (a copilot output, draft-only)                  ← only after the 
 
 | Surface | Reader | Ritual | Spine items |
 |---|---|---|---|
-| **admin** (admin.astrocleanings.com) | Bailey, on a phone | evening dispatch read; evening close; weekly roster hygiene; copilot review queue | #2, #4, #8, #14 |
-| **crew** | Caio and crew, in a van | today's list: client, address, access notes, service; state chips (en route / on-site / done / issue) | #4, #6 |
-| **clients** | a client, rarely | their upcoming/recent jobs, invoice state; no marketing | #8, #10 |
-| **public** (astrocleanings.com) | a prospect | booking that persists into a Client+Job | #10 |
+| **admin** (admin.astrocleanings.com) | Bailey, on a phone | evening dispatch read; evening close (marks done / issue after Caio's call); weekly roster hygiene; FORM review queue | #2, #4, #9, #14 |
+| ~~crew~~ | — | **No crew product (Bailey lock L1, B7 closed).** Caio reads the day from Bailey and confirms by voice on Continuity `+15048581959`. No van app, no crew states. | HOLD (#15) |
+| **clients** | a client, rarely | their upcoming/recent jobs, invoice state; no marketing | #9, #11 |
+| **public** (astrocleanings.com) | a prospect | booking that persists into a Client+Job | #11 |
 
-The crew surface is the one my first draft missed. Dispatch is not done when Bailey can read it; it is done when Caio can read it in the van and write back to it through the Continuity rail.
+Earlier drafts argued for a crew surface. Bailey closed it: ACS is three surfaces, and field truth enters the record once, on admin, at the evening close.
 
 ### 1.2b Copilot-in-ACS — what it is and is not
 
@@ -127,6 +135,15 @@ Why lead intake is *not* first even though it is the top of the funnel: an owner
 
 Content Co-op is a video production company. Work arrives as a project with N deliverables (cuts, aspect ratios, lengths) for one or more client stakeholders. The pipeline is `Brief → Shoot → Cut → Delivery`. The SoT triad today is Wistia (hosting/player), Wipster (review), Sandcastles (scripting). CVP is the production OS that owns the **job objects** and the **review ritual**, leaves hosting to Wistia, and replaces Wipster's review job.
 
+**Product shape (Bailey lock):** two sides, one master.
+
+| Side | Door | Who | What they do there |
+|---|---|---|---|
+| **CLIENT** | `{client}.co-videopro.com` — e.g. `schneider.co-videopro.com`; branded per tenant; `client.contentco-op.com` is the generic door until per-client doors Land | Schneider's stakeholders, every other A-list client's stakeholders — each sees only their tenant | Login → Projects; film first; tap the film to comment; Review / Approve / Preview; finish reviewing; see where each deliverable stands |
+| **MASTER** | Content Co-op OS (admin OS) | Bailey and the Content Co-op operators | every tenant at once: "waiting on whom" across clients, place share modes, drive rounds, see money from CCO OS, accept FORM drafts |
+
+No crew side. One nav master serves both sides at two scopes (client scope / operator scope).
+
 ### 2.1 The operating project
 
 | Stage | What happens in the business | What the OS must hold |
@@ -136,7 +153,7 @@ Content Co-op is a video production company. Work arrives as a project with N de
 | Shoot | Production days, crew, locations, releases, call sheets | El Paso five entities; "who films tomorrow and hasn't signed" |
 | Cut | Editor produces v1 per deliverable | Version attached to Deliverable |
 | **Review round** | Client watches on a phone, **taps the film to comment at a timecode**, editor addresses, v2, client **approves** | Share modes Review/Approve/Preview; frame-bound comments; version-bound approval; "finish reviewing" as an explicit act |
-| Delivery | Approved version hosted on Wistia, client receives link/files; invoice issued | Deliverable status → delivered; invoice on the same Project/Deliverable |
+| Delivery — **AI-fluid (lock L4)** | Approved version reaches the client; how it gets there (QC, encode, package, AI assists) is chosen per job and changes as tools change | The **record** is fixed: deliverable → version → approved → delivered state, nothing sent without Bailey's yes. The **steps** are not frozen into the product — no rigid delivery ritual. Invoice-ready on lock, shown from CCO OS |
 | Throughout | **"Where is each deliverable?"** — today answered by Madeline's Excel | Per-deliverable, per-client status visible to client and producer |
 | Events (WEFTEC) | 4 clients, 15 deliverables, 3 days, same-day cuts, many approvers | Many Projects/Deliverables, stakeholder roles per client, batch status |
 
@@ -205,7 +222,7 @@ Observation for the debate: **north star 1 (kill Excel) is a data-model problem,
 
 ### 4.3 Shared definition of Land
 
-Land = live on M4/M2, **with proof**: a screen recording or screenshots taken on the live surface (phone for ACS admin/crew and CVP client; desktop where the item has a desktop half), the don't-break list checked, the surface PASS checked against the ledger with the VA sweep result attached, **the negative proved by Latch** (guest path still plays; no client/crew send fired; crew not paged; `compress:false` still set), and Clip/Latch confirmation. A green PR is a *candidate*, not a Land. A Land without artifact proof is not a Land. A Land whose workflow works but whose surface is still OPEN is logged as *half-Landed* and stays the open item for that product.
+Land = live on M4/M2, **with proof**: a screen recording or screenshots taken on the live surface (phone for ACS admin and the CVP client door; desktop where the item has a desktop half), the don't-break list checked, the surface PASS checked against the ledger with the VA sweep result attached, **the negative proved by Latch** (guest path still plays; no client/crew send fired; crew not paged; `compress:false` still set), and Clip/Latch confirmation. A green PR is a *candidate*, not a Land. A Land without artifact proof is not a Land. A Land whose workflow works but whose surface is still OPEN is logged as *half-Landed* and stays the open item for that product.
 
 ### 4.4 Visual surface ledger (Bailey's scoreboard, carried on every spine item)
 
@@ -216,7 +233,8 @@ Land = live on M4/M2, **with proof**: a screen recording or screenshots taken on
 | Auth door quiet (`c9804e1`, `5da6aed`) | **PASS** — hold | every CVP Land gate |
 | Tap-comment (click-film dialog, under-deck killed, quiet surround) | **OPEN** | #1 |
 | Nav master (phone = bottom pipeline + Claude drawer; desktop = **thin left**; shows Login → Projects and where Review/Approve/Preview sit) | **OPEN** — Council mock → Bailey pick → Land | #3 → #10 |
-| ACS quiet admin (VA sweep clean: roster #2, dispatch #4) + crew list legible in a van (#7) | **OPEN** | #2 → #4 → #7 |
+| ACS quiet admin (VA sweep clean: roster #2, dispatch #4, close-out #9) — no crew list | **OPEN** | #2 → #4 → #9 |
+| Client door `{client}.co-videopro.com` (tenant + mark + Login → Projects) | **OPEN** | #7 |
 
 The ledger is not a separate track. Each OPEN row is the surface half of a spine item that already holds the workflow half.
 
@@ -266,10 +284,10 @@ Legend: **G** = Grok 4.7 Land (scarce) · **K** = Kimi pack (abundant) · **C** 
 | #4 ACS VA-106 (alone) | the `First L. Service` job loads for crew assignment; assignment sticks after refresh | no dead loading state; one-handed phone read; ACS-VA quiet on dispatch; crew not paged |
 | #5 KIMI-01 Madeline columns | — (pack) | names the field #6 writes and #8 renders |
 | #6 CVP share modes | Review/Approve/Preview stored as posture; finish writes the #5 status onto the exact version | control lives where the #3 master says; film first, thin controls, approve as a deliberate act |
-| #7 ACS Caio loop + crew list | job state from a human tap after the Continuity call (`+15048581959` only) | state chips on crew + admin; crew today-list van-legible; no modal traps |
+| #7 CVP client door | `{client}.co-videopro.com` resolves tenant; Login → that tenant's Projects | tenant mark on the door; guest link still film-first; nothing of another tenant visible |
 | #8 CVP one-client status | derived per-deliverable status for Madeline's client | strip on existing cockpit, no new chrome |
-| #9 ACS evening close | notes + invoice state on Job; Lupe fields only when blocking | close flow in ≤3 taps on phone; ACS-VA quiet |
-| #10 CVP Projects home | **login lands on Projects**; every project shows its deliverable strip (#8) | the picked nav master Landed: phone bottom pipeline + drawer, desktop thin left; logo PASS; no left+bottom on phone |
+| #9 ACS evening close | Bailey marks done / issue after Caio's call; notes + invoice state on Job; Lupe fields only when blocking | close flow in ≤3 taps on phone; ACS-VA quiet; no crew states |
+| #10 CVP master home | master-side cross-tenant "waiting on whom"; client side Login → Projects on each door | the picked nav master Landed at both scopes: phone bottom pipeline + drawer, desktop thin left; logo PASS; no left+bottom on phone |
 
 ## 6. What to defer (named drops — "a dropped thing you named is a decision")
 
@@ -316,7 +334,7 @@ Because both businesses are read by one owner on one phone and follow the same *
 | Pattern | Lands first in | Reused in | Grok saving |
 |---|---|---|---|
 | Quiet confirmation/toast register | ACS #2 | CVP #5 approve/finish-reviewing confirmations | no second design pass |
-| Phone-first list with state chips | ACS #4/#6 (dispatch, crew list) | CVP #7 deliverable strip | one list idiom, two products |
+| Phone-first list with state chips | ACS #4 (dispatch) | CVP #8 deliverable strip | one list idiom, two products |
 | Drawer delivering named artifacts for approval | CVP #9/#13 (Claude drawer) | ACS #14 copilot review queue | one artifact-card idiom |
 | Version-bound approval as deliberate act | CVP #5 | ACS #8 invoice-state change (mark paid as a deliberate act) | shared "deliberate act" control |
 | Land-with-proof recording checklist | whichever Lands first | every subsequent Land | Kimi writes it once |
@@ -360,10 +378,6 @@ Summary: 11 points adopted as-is (unbundle VA-106; Madeline column harvest as it
 
 Caio write-back (Opus; minimal states), share modes ↔ Madeline's sheet (Opus; not blocked), where the Excel dies (Opus; cross-client home), money (both merged: CCO authority, shown on the job, Bailey says bill), Projects home label (P1 next cycle), Kimi scope (Opus's inputs-only rule, Grok's list this cycle).
 
-### 9.4 Consolidated asks for Bailey (one message from Blaze)
+### 9.4 Bailey questions
 
-1. Pick the nav master from #30 / #31 / #32.
-2. Share Madeline's sheet for one live client.
-3. Does Caio (or the crew) open the crew surface in the van? (decides full vs minimal Caio states on #7)
-4. "Leave Wipster hosting" = old archives stay on Wipster, new rounds run in CVP?
-5. Does Madeline's sheet carry money as a core column?
+**None open.** B7 closed by the lock (no crew product). The nav pick is in Bailey's hands already (mocks reviewed). Madeline's sheet for one tenant is a Blaze-supplied input to Kimi row #5, not a question. Earlier questions about Wipster-hosting semantics and a money column are withdrawn: row #6 leaves Wipster hosting untouched and row #13 reads money from CCO OS regardless.

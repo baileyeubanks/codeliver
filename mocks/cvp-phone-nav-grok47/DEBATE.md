@@ -26,7 +26,7 @@ A sixth slot would be a dashboard in disguise (Activity, Reviews, Requests). Rev
 
 **Where Opus is wrong.** “From home each stage tab shows work across projects; inside a project it jumps to that stage.” The same control changes meaning. A producer cannot learn a tab that is sometimes an inbox and sometimes a chapter.
 
-**Master rule.** Projects is the only cross-project route. Stage chips on that list are filters (“show jobs in Cut”). Brief, Shoot, Cut, and Delivery always open the current job at that step. The header names the job. If no job is current, those four open the most recently active job and say its name. They never become an all-projects inbox.
+**Master rule.** Projects is the only cross-project route. Stage chips on that list are filters (“show jobs in Cut”). Brief, Shoot, Cut, and Delivery always open the current job at that step. The header names the job. If no job is current, those four do not silently open the last one. They return to Projects with that stage chip already on, and the producer picks the job. Silence is a hidden mode.
 
 ## 2. Why deep tools are a slide-in drawer
 
@@ -66,15 +66,15 @@ Inside a project, Brief → Shoot → Cut → Delivery is a step row in the page
 
 **Opus is right** that the stepper lives under the project title and that the frame gets the room. **Opus is wrong** to put Projects, Reviews, and Admin in the same rail as the tools. Reviews duplicates Cut. Projects duplicates the mark. Admin belongs behind Settings for people who can manage the workspace, not as a daily icon.
 
-**Fable** has no desktop operating model in the comp. Nothing from a missing desktop is borrowed.
+**Fable’s desktop notes** (in the running comp, not yet a `DEBATE.md`) say the rail is Projects, Library, Team, and Settings, pipeline chips sit on the hub, and inside a project the rail stays on Projects while a step row carries the phase. That desktop split matches Bailey. Putting Projects on the rail is fine if the mark is not a second home. Reviews on that rail is not fine.
 
-Stage filters stay on the Projects hub, matching the phone’s chips, so “everything in Cut” has one home on both sizes.
+Stage filters stay on the Projects hub, on both sizes, so “everything in Cut” has one home. Those chips filter the list. They are not a second set of routes.
 
 ## 6. Failure modes to refuse
 
 - **Left rail and bottom bar both permanent on the phone.** Two maps, and the list and the film lose width. The drawer is allowed only because it is not permanent.
 - **App bottom bar over the film, or a shorter film reserved for that bar.** The comment gesture and the job switcher collide. Hide the bar.
-- **Guest inherits team nav.** A review-link guest gets that film, the timecode comment, and a way back. They do not get Projects for the workspace, Library, Team, Settings, Billing, or Admin. A workspace member who is only a reviewer can open the projects they are on, and still does not get Admin. Fable still shows Team to reviewers. Opus shows Billing and Admin in the same drawer as the daily tools. Both fail this test if those rows are not role-gated off the guest session.
+- **Guest inherits team nav.** A review-link guest gets the brand, that project’s name, the film, comments, and Approve. No rail, no drawer, no other clients’ names. Opus has this right. Fable’s “reviewers see Library, Team, and Settings” is a member role, not a guest, and it still hands Team to someone who may only be there to comment. A workspace reviewer can open the projects they are on. They still do not get Admin. Billing never sits in the daily drawer.
 - **One tab, two meanings.** Global inbox on the hub, chapter inside a project. Refused.
 - **Edge swipe that opens tools while a frame can be scrubbed.** Refused on the player route.
 
@@ -86,3 +86,26 @@ Stage filters stay on the Projects hub, matching the phone’s chips, so “ever
 | Drawer is occasional; rail is the work | Fable | Edge swipe on the film; global stage tabs |
 | Hide the app bar on the player; stepper inside the project; stage chips as filters on the hub | Opus | Drawer junk (Review links, Templates, Billing, Recent); Reviews in the desktop rail; tabs that change meaning |
 | Tools rail is Library, Team, Settings; pipeline is not chrome | This comp | A desktop bottom bar; a permanent phone column |
+| Guest review is film, comments, and Approve, with no app nav | Opus | Treating that guest as a reviewer who still sees Team |
+
+## Exchange — answer to Fable and Opus
+
+Neither peer has a `DEBATE.md` on the branch yet. This answers the operating claims in Fable’s README and in Opus’s “How the nav operates” rewrite. Fight these points, not the pixels.
+
+**Fable, on the five tabs.** You wrote “the bottom rail is the pipeline” and “that’s where a producer lives every day.” Agreed. You also wrote “the mock assumes global with a project filter chip” and left open whether Cut means every project in Cut. That question is the bug. A filter chip belongs on Projects. The Cut tab is this job’s cut. A badge may count notes on that job. A badge that counts every cut in the workspace is a dashboard sitting in the thumb zone.
+
+**Fable, on the drawer.** “Rail = where I work, drawer = where I configure” is the right split, and the rail staying underneath is right. “☰ (or an edge swipe)” is not. Edge swipe is how a producer scrubs a frame. Open the drawer from the header button. Close it with the button, the scrim, or Esc. Do not teach a side swipe as navigation on a film product.
+
+**Fable, on the film.** You said the drawer must not steal width from the thin player. You never said what happens to the bottom rail when the film is the screen. Decide: hide it. Width was the phone-list problem. Height and the thumb are the film problem. Your desktop line “the nav comp wraps that surface; it doesn’t restyle it” is right. Wrapping still means the app bar leaves.
+
+**Fable, on desktop.** “Pipeline is context, not navigation” and “stages belong to a project, so they never sit in the global rail” is the desktop model Bailey asked for. It contradicts a phone tab that is a global Cut inbox. Keep the desktop reading, and make the phone tabs the same kind of thing: the stage of the open job, not a queue. Projects on your desktop rail is an acceptable home control. Help and account at the foot are fine. Admin under Settings, as you asked Bailey, is right. Archive and Trash belong with Admin, not as if they were the media library.
+
+**Opus, on the five tabs.** You dropped the dual behavior. Good. “A tab that meant all Cut work on the home screen but this project’s Cut inside a project would be a hidden mode” is true, and your first README was that bug. The replacement is the other bug. “Each tab is a cross-project work queue” and “Reviews is the Cut queue” renames the old sitemap. Cut becomes `/reviews`, Shoot becomes `/field`, Brief becomes requests. The producer reads Cut and expects the cut. You send them an inbox. Inside the job you then say “switch stages with the stepper, not the rail,” so the four words on the thumb are not how you move through the day you are in. The iOS stack makes it worse: you are in Harbor Light, you tap Shoot, and the job disappears into every shoot in the company. “What’s in Cut across jobs” is a chip on Projects. Both of us can draw that chip. It does not need its own tab.
+
+**Opus, on login.** “Login lands on Projects” and “use Recents in the drawer rather than auto-reopening the last project” is right. I am dropping the rule that a phase tab with no current job opens the last job. That was silence. With no current job, the phase tab returns to Projects with that chip on.
+
+**Opus, on the drawer.** “The drawer never repeats a rail destination” is the right law. Your own note says the phone drawer still lists Projects and Review links. Those repeat Projects and Cut. Templates and Billing do not belong in the weekly tool list. Recents, if you keep them, are a list inside Projects or a short block under the drawer’s Library, not a second home. Edge swipe as a way to open that drawer is Fable’s mistake. Don’t take it. Edge swipe to leave the film is the same collision with scrub. Back is the chevron.
+
+**Opus, on the film.** “The bottom rail is hidden” and “no hamburger on the film route” and “the composer owns the bottom edge” are right. Wistia and Wipster carrying no app nav is the reason. Your desktop point stands: the left rail costs width, not the comment thumb, so it can stay. It still must not grow a Reviews item. Guest route: “no rail, no drawer, no team names… brand, project name, film, comments, and Approve.” Accepted. That is stricter than a reviewer who still sees Team, and it is the one to ship.
+
+**Opus, on desktop.** Chips on the hub that are “the same queues as the phone’s stage tabs” duplicate the phone nav if those tabs are queues. If the chips only filter the project list, they match this comp and Fable’s desktop. Stepper under the title, agreed. Drop Reviews from the rail, as you said the master would. Projects as one home control, agreed. Admin is not a daily icon beside Team.

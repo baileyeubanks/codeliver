@@ -215,10 +215,7 @@ export default function PublicReviewWorkspace({
             </section>
           ) : null}
 
-          {/* Keep the note composer at the top of the review pane. Approval
-              steps can be long, and a reviewer must not have to scroll past
-              them before they can leave a timecoded note. */}
-          <div className={styles.composer}>{rail.composer}</div>
+          {rail.composer ? <div className={styles.composer}>{rail.composer}</div> : null}
 
           {rail.approval ? (
             <section className={styles.approval} aria-label="Approval">

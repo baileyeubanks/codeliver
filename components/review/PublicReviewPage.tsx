@@ -19,7 +19,6 @@ import CommentList from "@/components/comments/CommentList";
 import FrameIndicator from "@/components/player/FrameIndicator";
 import ReviewMediaSurface from "@/components/review/ReviewMediaSurface";
 import ReviewWorkspace from "@/components/review/PublicReviewWorkspace";
-import PublicReviewComposer from "@/components/review/PublicReviewComposer";
 import InlineReviewComment from "@/components/review/InlineReviewComment";
 import AnnotationCanvas from "@/components/review/annotation/AnnotationCanvas";
 import AnnotationThumbnail from "@/components/review/annotation/AnnotationThumbnail";
@@ -1143,7 +1142,7 @@ export default function PublicReviewPage({
   }
 
   function handleImagePin(event: React.MouseEvent<HTMLDivElement>) {
-    if (!canComment || !pinMode) return;
+    if (!canComment) return;
 
     const rect = event.currentTarget.getBoundingClientRect();
     const x = ((event.clientX - rect.left) / rect.width) * 100;
@@ -1151,20 +1150,6 @@ export default function PublicReviewPage({
 
     setCommentPin({ x, y, timeSeconds: null });
     setPinMode(false);
-  }
-
-  function togglePinMode() {
-    // Pin mode and draw mode are mutually exclusive ways to start a note.
-    setDrawMode(false);
-    setDraftStrokes([]);
-
-    if (commentPin) {
-      setCommentPin(null);
-      setPinMode(true);
-      return;
-    }
-
-    setPinMode((current) => !current);
   }
 
   function clearPin() {
@@ -1767,7 +1752,6 @@ export default function PublicReviewPage({
                 }
                 videoRef={videoRef}
                 imageRef={imageRef}
-                pinMode={canComment && pinMode}
                 annotationEnabled={canComment && asset?.file_type === "video"}
                 overlay={renderPins()}
                 onFramePin={handleFramePin}
@@ -1781,7 +1765,7 @@ export default function PublicReviewPage({
                 onCommentMarkerSelect={(comment) => handleCommentSelect(comment as ReviewComment)}
                 selectedCommentId={selectedCommentId}
                 onCutMarker={canComment ? handleCutMarker : undefined}
-                onImagePin={handleImagePin}
+                onImagePin={canComment ? handleImagePin : undefined}
                 timeline={{
                   label: "Cut decisions",
                   countLabel: `${cutMarkers.length} cuts`,
@@ -1967,26 +1951,7 @@ export default function PublicReviewPage({
             </div>
           ),
         },
-        composer: railTab === "comments" && asset ? (
-          <PublicReviewComposer
-            token={token}
-            demoMode={demoMode}
-            assetId={asset.id}
-            assetType={asset.file_type}
-            versionId={activeVersion?.id ?? null}
-            reviewInviteId={invite?.id ?? null}
-            shareIntent={shareIntent}
-            canComment={canComment}
-            reviewerName={reviewerName}
-            onReviewerNameChange={setReviewerName}
-            timecode={commentPin?.timeSeconds ?? currentTime}
-            pin={commentPin}
-            pinMode={pinMode}
-            onTogglePinMode={togglePinMode}
-            onClearPin={clearPin}
-            onCommentCreated={handleCommentCreated}
-          />
-        ) : <div />,
+        composer: null,
       }}
     />
   );

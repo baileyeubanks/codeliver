@@ -447,11 +447,5 @@ test("demo upload terminal states stay readable and dismissible", () => {
 test("comment submission never pretends a production player resumed", () => {
   assert.doesNotMatch(inlineCommentSource, /continue playback/);
   assert.match(inlineCommentSource, /aria-label="Send comment"/);
-
-  const submitComment = cockpitSource.match(
-    /async function submitComment\(\) \{([\s\S]*?)\n  \}\n\n  async function toggleCommentStatus/,
-  )?.[1];
-  assert.ok(submitComment, "comment submission handler is missing");
-  assert.match(submitComment, /if \(!demoMode\) \{[\s\S]*?setIsPlaying\(false\);[\s\S]*?setPlaybackError\(/);
-  assert.match(submitComment, /else if \(!demoMode\) \{[\s\S]*?setIsPlaying\(false\);[\s\S]*?setPlaybackError\(/);
+  assert.doesNotMatch(cockpitSource, /async function submitComment\(/);
 });

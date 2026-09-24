@@ -47,7 +47,7 @@ test("an unavailable internal version cannot reach player or write handlers", ()
     "seekTo",
     "handleReviewFrameClick",
     "addCutDecision",
-    "submitComment",
+    "openPlayheadComment",
     "toggleCommentStatus",
   ]) {
     const body = cockpit.match(new RegExp(`(?:async )?function ${handler}\\([^)]*\\) \\{([\\s\\S]*?)\\n  \\}`))?.[1] ?? "";
@@ -77,8 +77,7 @@ test("historical review details do not inherit current approval or contextual sh
   assert.doesNotMatch(historicalDock, /setShareOpen\(true\)|Start review|Share readiness|Batch share/);
 });
 
-test("the active composer reads its draft from the exact asset and version", () => {
-  assert.match(cockpit, /const \[commentDrafts, setCommentDrafts\] = useState<Record<string, string>>\(\{\}\)/);
-  assert.match(cockpit, /reviewCommentDraftKey\(activeAsset\.id, demoMode \? activeDemoVersionId : activeLiveVersion\?\.id \?\? null\)/);
-  assert.match(cockpit, /commentDrafts\[activeCommentDraftKey\] \?\? ""/);
+test("the film composer is bound to the exact asset and version", () => {
+  assert.doesNotMatch(cockpit, /cockpit-comment-composer|commentDrafts/);
+  assert.match(cockpit, /<InlineReviewComment[\s\S]*?assetId=\{activeAsset\.id\}[\s\S]*?versionId=\{demoMode \? activeDemoVersionId : activeLiveVersion\?\.id \?\? null\}/);
 });

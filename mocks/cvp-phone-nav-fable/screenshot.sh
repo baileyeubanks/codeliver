@@ -44,6 +44,7 @@ shoot() {
 # Phone 390×844 @2×
 shoot "file://$here/index.html"                 "a-default-projects-bottom-rail.png"   390,844  2
 shoot "file://$here/index.html?state=drawer"    "b-drawer-open-deep-tools.png"        390,844  2
+shoot "file://$here/index.html?state=film"      "c-film-route-no-rail.png"            390,844  2
 
 # Desktop 1440×900 @1.5× (crisp enough for review; keeps PNGs under ~1 MB)
 shoot "file://$here/desktop.html"               "desktop-a-projects-hub.png"           1440,900 1.5

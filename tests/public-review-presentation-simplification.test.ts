@@ -30,7 +30,9 @@ test("review metadata and secondary tools use disclosure while primary review co
   assert.match(page, /<details className="client-review-tools">/);
   assert.match(page, /<summary>Review details<\/summary>/);
   assert.match(page, /<VersionSwitcher\b/);
-  assert.match(page, /<PublicReviewComposer\b/);
+  assert.match(page, /<InlineReviewComment\b/);
+  assert.doesNotMatch(page, /<PublicReviewComposer\b/);
+  assert.match(page, /composer:\s*null/);
   assert.match(page, /permissions === "approve"/);
   assert.match(page, /<details className="review-timeline-help">/);
 

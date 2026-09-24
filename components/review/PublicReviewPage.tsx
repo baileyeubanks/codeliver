@@ -19,7 +19,6 @@ import CommentList from "@/components/comments/CommentList";
 import FrameIndicator from "@/components/player/FrameIndicator";
 import ReviewMediaSurface from "@/components/review/ReviewMediaSurface";
 import ReviewWorkspace from "@/components/review/PublicReviewWorkspace";
-import PublicReviewComposer from "@/components/review/PublicReviewComposer";
 import InlineReviewComment from "@/components/review/InlineReviewComment";
 import AnnotationCanvas from "@/components/review/annotation/AnnotationCanvas";
 import AnnotationThumbnail from "@/components/review/annotation/AnnotationThumbnail";
@@ -1143,7 +1142,7 @@ export default function PublicReviewPage({
   }
 
   function handleImagePin(event: React.MouseEvent<HTMLDivElement>) {
-    if (!canComment || !pinMode) return;
+    if (!canComment) return;
 
     const rect = event.currentTarget.getBoundingClientRect();
     const x = ((event.clientX - rect.left) / rect.width) * 100;
@@ -1151,20 +1150,6 @@ export default function PublicReviewPage({
 
     setCommentPin({ x, y, timeSeconds: null });
     setPinMode(false);
-  }
-
-  function togglePinMode() {
-    // Pin mode and draw mode are mutually exclusive ways to start a note.
-    setDrawMode(false);
-    setDraftStrokes([]);
-
-    if (commentPin) {
-      setCommentPin(null);
-      setPinMode(true);
-      return;
-    }
-
-    setPinMode((current) => !current);
   }
 
   function clearPin() {
@@ -1767,7 +1752,6 @@ export default function PublicReviewPage({
                 }
                 videoRef={videoRef}
                 imageRef={imageRef}
-                pinMode={canComment && pinMode}
                 annotationEnabled={canComment && asset?.file_type === "video"}
                 overlay={renderPins()}
                 onFramePin={handleFramePin}
@@ -1777,22 +1761,26 @@ export default function PublicReviewPage({
                   onNext: () => selectAdjacentComment(1),
                   disabled: orderedTimedRootComments.length === 0,
                 }}
-                commentMarkers={rootComments}
+                commentMarkers={[
+                  ...rootComments,
+                  ...(commentPin?.timeSeconds != null
+                    ? [{
+                        id: "playhead-draft",
+                        timecode_seconds: commentPin.timeSeconds,
+                        status: "open",
+                        body: "New comment at the playhead",
+                      }]
+                    : []),
+                ]}
                 onCommentMarkerSelect={(comment) => handleCommentSelect(comment as ReviewComment)}
                 selectedCommentId={selectedCommentId}
                 onCutMarker={canComment ? handleCutMarker : undefined}
-                onImagePin={handleImagePin}
-                timeline={{
+                onImagePin={canComment ? handleImagePin : undefined}
+                timeline={cutMarkers.length === 0 ? null : {
                   label: "Cut decisions",
                   countLabel: `${cutMarkers.length} cuts`,
-                  collapsed: cutMarkers.length === 0,
-                  content: cutMarkers.length === 0 ? (
-                    <p className="px-4 pb-3 text-xs text-[var(--muted)]">
-                      {canComment
-                        ? "Press Down to propose a version-bound cut at the playhead."
-                        : "Cut decisions are read-only for this link."}
-                    </p>
-                  ) : (
+                  collapsed: false,
+                  content: (
                     <div className="grid gap-2">
                       <PlayerTimeline
                         comments={[]}
@@ -1967,26 +1955,7 @@ export default function PublicReviewPage({
             </div>
           ),
         },
-        composer: railTab === "comments" && asset ? (
-          <PublicReviewComposer
-            token={token}
-            demoMode={demoMode}
-            assetId={asset.id}
-            assetType={asset.file_type}
-            versionId={activeVersion?.id ?? null}
-            reviewInviteId={invite?.id ?? null}
-            shareIntent={shareIntent}
-            canComment={canComment}
-            reviewerName={reviewerName}
-            onReviewerNameChange={setReviewerName}
-            timecode={commentPin?.timeSeconds ?? currentTime}
-            pin={commentPin}
-            pinMode={pinMode}
-            onTogglePinMode={togglePinMode}
-            onClearPin={clearPin}
-            onCommentCreated={handleCommentCreated}
-          />
-        ) : <div />,
+        composer: null,
       }}
     />
   );

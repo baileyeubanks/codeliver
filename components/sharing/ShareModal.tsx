@@ -21,6 +21,7 @@ import NotificationAuthorityControl, {
   type NotificationAuthorityValue,
 } from "@/components/notifications/NotificationAuthorityControl";
 import NotificationPreview from "@/components/notifications/NotificationPreview";
+import { KNOWN_GUEST_FILM_URL } from "@/lib/sharing/guest-film";
 import {
   SHARE_INTENTS,
   getShareIntentDefinition,
@@ -540,6 +541,15 @@ function ShareModalContent({
           {error ? <p className={styles.error} role="alert">{error}</p> : null}
         </div>
         <footer className={styles.footer}>
+          <a
+            className={styles.openLink}
+            data-guest-preview
+            href={link || KNOWN_GUEST_FILM_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            Guest Preview
+          </a>
           {link ? <><button type="button" onClick={resetCreatedState}>New link</button><button type="button" className={styles.primary} onClick={onClose}>Done</button></> : <>
             <button type="button" onClick={previewShare} disabled={loading || versionsLoading || !versionId}>Preview</button>
             <button type="button" className={styles.primary} onClick={createLink} disabled={loading || versionsLoading || !versionId}>{loading ? "Creating…" : notificationAuthority.action === "send" ? "Create & send" : "Create link"}</button>

@@ -1761,22 +1761,26 @@ export default function PublicReviewPage({
                   onNext: () => selectAdjacentComment(1),
                   disabled: orderedTimedRootComments.length === 0,
                 }}
-                commentMarkers={rootComments}
+                commentMarkers={[
+                  ...rootComments,
+                  ...(commentPin?.timeSeconds != null
+                    ? [{
+                        id: "playhead-draft",
+                        timecode_seconds: commentPin.timeSeconds,
+                        status: "open",
+                        body: "New comment at the playhead",
+                      }]
+                    : []),
+                ]}
                 onCommentMarkerSelect={(comment) => handleCommentSelect(comment as ReviewComment)}
                 selectedCommentId={selectedCommentId}
                 onCutMarker={canComment ? handleCutMarker : undefined}
                 onImagePin={canComment ? handleImagePin : undefined}
-                timeline={{
+                timeline={cutMarkers.length === 0 ? null : {
                   label: "Cut decisions",
                   countLabel: `${cutMarkers.length} cuts`,
-                  collapsed: cutMarkers.length === 0,
-                  content: cutMarkers.length === 0 ? (
-                    <p className="px-4 pb-3 text-xs text-[var(--muted)]">
-                      {canComment
-                        ? "Press Down to propose a version-bound cut at the playhead."
-                        : "Cut decisions are read-only for this link."}
-                    </p>
-                  ) : (
+                  collapsed: false,
+                  content: (
                     <div className="grid gap-2">
                       <PlayerTimeline
                         comments={[]}

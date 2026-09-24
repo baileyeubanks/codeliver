@@ -2724,6 +2724,16 @@ export default function ProjectCockpit({
                               <span className={styles.playerCommentMarkerDot} aria-hidden="true" />
                             </button>
                           ))}
+                          {pendingPin ? (
+                            <span
+                              className={styles.playerCommentMarker}
+                              style={{ left: `${(pendingPin.timeSeconds / previewDuration) * 100}%` }}
+                              data-playhead-comment
+                              aria-hidden="true"
+                            >
+                              <span className={styles.playerCommentMarkerDot} />
+                            </span>
+                          ) : null}
                         </div>
                         <select
                           value={seekStepSeconds}

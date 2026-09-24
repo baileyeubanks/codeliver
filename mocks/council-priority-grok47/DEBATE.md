@@ -1,9 +1,9 @@
 # Grok 4.7 — Council debate
 **Seat:** GROK 4.7 · **When:** 2026-09-24 · **Against:** Blaze command map 2026-09-23 ~7:14pm CT
-**Scope:** How the two businesses operate day to day. Chrome is a constraint, not the work.
+**Scope:** How the two businesses operate day to day. The surface the operator sees and the state the business writes are one funded item.
 **Credit:** Cursor Grok Lands ~11% (the only builder). Other/Kimi ~64% (packs). Council mixes both and writes no product code.
 
-This seat will not rubber-stamp the draft spine. In-flight Lands stay. Everything after them is reordered by what blocks a real workday, and by what a Land can actually finish before the Grok bucket is gone.
+**Revision 2026-09-24, Bailey.** The first draft treated chrome as fashion, parked nav at the back, and inserted job-create in front of VA-106. That was pride. Bailey is right on operations: visual and OS fund together. Live PASS already stands (do not re-spend): CVP mobile overlay ~6% and the sapphire logo on `46a256f2`, plus auth quiet. Still open, in this order: tap-comment + surround (in flight), nav masters (Council), then Wipster share modes. ACS is PR #5 delete, then VA-106. No peer `DEBATE.md` is pasted yet. When Blaze pastes one, this seat changes the spine where the peer is right on operations.
 
 ---
 
@@ -29,9 +29,9 @@ Surfaces (admin, client, crew, public site) are doors into that sequence. M4 is 
 
 | Horizon | Complete means |
 | --- | --- |
-| This cycle | Roster delete tells the truth. A booking persists under `First L. Service`. Dispatch loads that job for crew assignment. No new outbound channel. |
+| This cycle | Roster delete tells the truth on screen and in the record. Dispatch then loads that job. No new outbound channel. |
 | The march | One real week runs lead → named client → persisted job → dispatch → Caio confirm → complete note without a side spreadsheet. |
-| Not complete | Quiet chrome, a phone bot, Amanda enriched, every surface reskinned. |
+| Not complete | A reskin with no write, a phone bot, Amanda enriched. |
 
 Client enrich is upstream in the story and **not a Grok Land**. Caio does it sequentially. Amanda waits on Lupe fields. Ring does not ping Caio unless Bailey asks or the routine already exists.
 
@@ -81,16 +81,17 @@ What is still not a business:
 - `share_intent` is still derived in the review route. Review / Approve / Preview is not yet a durable end state.
 - Per-deliverable status that kills Excel is not live. Demo-store inquiry → proposal is not the company.
 - Final delivery, archive, and payment gates are not the operating closeout.
-- Shell / projects-home nav is on hold until Bailey picks a Council master. Building it now spends the last 11% on a door.
+- Already PASS, do not re-fund: mobile overlay ~6% and sapphire logo on tip `46a256f2`; auth quiet (`c9804e1`, `5da6aed`).
+- Nav masters are Council work now, after the comment surround and before share modes. A share-mode Land that ignores the master will be rebuilt. A master that does not reach Review / Approve / Preview is a poster.
 
 **What "complete" means**
 
 | Horizon | Complete means |
 | --- | --- |
-| This cycle | A guest taps the film, the comment sticks to that version and time, the under-deck is gone, surround stays quiet, tip `46a256f2` still plays, compression stays off. |
-| Next cycle, one Land | Finish reviewing writes one status on that deliverable. One live client leaves Excel for that row only. |
+| This cycle | Guest taps the film, the comment sticks to that version and time, surround is quiet, tip and overlay stay as they passed. Council has a nav master Bailey can pick. Share modes are specified against that master, not shipped ahead of it. |
+| Next funded Land | Wipster share modes: Review / Approve / Preview is both the control the guest sees and the posture stored on the share. Finish writes one status. |
 | The march | Brief, cut, review end, delivery, and invoice are the same job. Sandcastles and Wipster hosting may still exist. WEFTEC does not. |
-| Not complete | A nav master, a scripting assistant, a proposal builder, an event console. |
+| Not complete | Overlay or logo redone, a scripting assistant, a proposal builder, an event console. |
 
 ---
 
@@ -100,70 +101,80 @@ He is a phone-first owner-operator. He talks only to Blaze. He wants the product
 
 He wants ACS to know real people and real jobs, and he wants field truth from Caio only. He wants CVP to retire Madeline's sheet, to own the review ritual without owning Wipster's hosting, to put creative help inside the pipeline, to bill from the job, and eventually to run a multi-stakeholder event. He also said don't stop, and the buckets say the builder is almost out.
 
-Those are not equal. The north star is a march. The 11% is a few Lands. Wanting both operating systems "complete" in one cycle is how the bucket dies on shell and assistants while dispatch still fails and the guest still fights the deck.
+On 2026-09-24 he corrected the sequence. Visual and the operating step fund as one item. Passed work stays passed. Open CVP work is comment surround, then the nav master, then share modes. Open ACS work is the delete Land, then dispatch load. The north star is still a march. The 11% does not redo the overlay, and it does not jump to an assistant while those four are open.
 
 ---
 
-## 4. Where the draft spine is wrong
+## 4. What changed after Bailey, and what still holds
 
-Agree, then refuse:
+Conceded:
 
-1. **Finish both in-flight Lands.** CVP comment (`bc-ec6df537`) and ACS PR #5 (roster delete → toast → Clip). Do not context-switch Reel/Cut or Forge/Clip. A moving Land is cheaper than a better idea.
-2. **Council nav is not P0 work.** It is a mock until Bailey picks. It blocks a later shell Land. It does not block a cleaning morning or a guest comment. Parking it in the same "now" band as those two invites a Land. Hold it.
-3. **ACS job-create and VA-106 outrank every CVP item that is not the in-flight comment Land.** Upstream → downstream on ACS is client → persisted job → dispatch → Caio → complete → roster. PR #5 is downstream hygiene that is already moving, so it finishes first. The next ACS Land is the booking write, then dispatch load. A dispatch Land on jobs that do not persist is a demo.
-4. **Projects-home / shell nav is downstream of status, and status is downstream of a review end state.** The draft puts shell (item 5) before Excel-kill (item 6) and treats Sandcastles (item 7) as the next creative chapter. The operating order is: comment sticks → finish writes a status → one client drops off the sheet → home shows that status. Shell before status is a door onto an empty room. The office command already says HOLD shell. Keep it.
-5. **Sandcastles is a P3 Land.** They can write in Sandcastles tomorrow. They cannot close a review round in-product tomorrow. An assistant that does not read brief + version + open comments is a chatbot. Kimi may pack the seam. Grok does not Land it on this bucket.
-6. **"Creative upstream" is not "operating upstream."** Brief sits first in the pipeline story. The blocked work today is dispatch load and the review deck. Building brief software while Sandcastles still runs is upstream cosplay.
-7. **Phone CS bot is a prohibited send channel with a roadmap label.** Continuity is not a bot. It stays off the build list.
-8. **WEFTEC, Amanda, Wipster hosting cutover, and a new player are deferrals.** They need one boring client and one boring job working first.
+1. **Visual and workflow are one budget line.** A comment that persists under a deck that covers the film is not done. A nav master that does not open Review, Approve, and Preview is not done. A share mode that is only a label, or only a database field with no control, is not done.
+2. **Nav masters are next CVP work after tap-comment + surround, and they are Council, not a Grok implementation Land.** The first draft buried them. Bailey put them in the open list. Share modes wait on that master so the ritual is built once.
+3. **ACS after PR #5 is VA-106, not a job-create Land invented by this seat.** Delete is in flight. Dispatch load is the next named failure. Job-create stays a later check if a booking still fails to persist. It does not jump the queue.
+
+Still holds:
+
+1. **Finish both in-flight Lands before starting another Grok build.** CVP comment (`bc-ec6df537`) and ACS PR #5. Do not context-switch Reel/Cut or Forge/Clip. Do not re-open the passed overlay, sapphire logo, or auth quiet.
+2. **Sandcastles is not this cycle.** They can write there tomorrow. An assistant that does not read brief + version + open comments is a chatbot. Kimi may pack the seam later.
+3. **Phone CS bot stays off the list.** Continuity is not a bot.
+4. **WEFTEC, Amanda, Wipster hosting cutover, and a new player stay deferred.** Passed player tip stays the player.
 
 ---
 
 ## 5. Ranked priority — both products
 
-P0 is finish-what-is-moving. P1 is the next upstream break in the workday. P2 is the first replacement of a side system, one object wide. P3 is the north star after a real week exists.
+P0 is what is in flight or already named as the next open step. Each P0/P1 row funds the surface and the write together. Passed visual work is not in the list.
+
+### Passed — do not fund again
+
+| ID | Already true |
+| --- | --- |
+| PASS-CVP | Mobile overlay ~6% and sapphire logo on `46a256f2`. |
+| PASS-AUTH | Auth door is quiet. |
 
 ### P0 — finish, this cycle
 
-| ID | Work | Why it is upstream of the day | Owner |
+| ID | Work | Surface and state together | Owner |
 | --- | --- | --- | --- |
-| CVP-01 | Tap-comment, kill under-deck, quiet surround. Do not retouch player tip, compression, or approval authority. | Guest cannot leave a note the editor can trust. Half of this already landed (playbar comments, version-bound approval). Finish the ritual. | Reel / Cut, Latch on the guest path |
-| ACS-01 | PR #5 roster delete persists, toast matches the write, no send. | A bad roster row is a wrong person on a job. In flight. | Forge / Clip, Latch |
+| CVP-01 | Tap-comment, kill under-deck, quiet surround (`bc-ec6df537`). | Guest sees the film and taps a moment. The note persists on that version and time. Tip, overlay, compression, and approval binding stay. | Reel / Cut, Latch |
+| ACS-01 | PR #5 roster delete. | The row leaves the roster and stays gone. Toast matches the write. No send. | Forge / Clip, Latch |
+| COUNCIL-01 | Phone + desktop nav masters. | The master shows the pipeline the business actually runs, including where Review, Approve, and Preview live. Bailey picks. No implementation branch. | Council |
 
-### P1 — next Lands and the one pack that makes the following Land honest
+### P1 — next, after the matching P0
 
-| ID | Work | Why here | Owner |
+| ID | Work | Surface and state together | Owner |
 | --- | --- | --- | --- |
-| ACS-02 | Job create: booking persists, title is `First L. Service`, failure is visible, nothing is sent. | Upstream of dispatch. A job that does not stick makes VA-106 irrelevant. | Forge |
-| ACS-03 | VA-106 dispatch loading of that job onto crew, phone-first. | The morning. After ACS-02 if create is still broken; immediately after ACS-01 if create is already solid. Confirm which before Forge starts. | Forge / Clip |
-| CVP-02 | Review / Approve / Preview is a stored posture. Finish reviewing writes one status on that version. No new shell. | First brick of killing Excel. Blocked on CVP-01. Blocked on inventing columns — see KIMI-01. | Reel / Cut |
-| KIMI-01 | Harvest Madeline's real columns for one client: field, who changes it, what done means. | Without this, CVP-02/CVP-03 will invent a board. Pack only. | Frame / Scout |
+| ACS-02 | VA-106 dispatch loading. Starts when ACS-01 is done. | The booked job appears for crew assignment on the phone, and the assignment sticks. | Forge / Clip |
+| CVP-02 | Wipster share modes. Starts when CVP-01 is done and COUNCIL-01 is picked. | Review / Approve / Preview is the control in that nav and the stored posture on the share. Finish writes one status on the version. | Reel / Cut |
+| KIMI-01 | Madeline's columns for one client. | Names the status field CVP-02 writes, so the control is not an invented board. Pack only. | Frame / Scout |
 
-### P2 — one row off Excel, ACS closeout notes, nav decision
+### P2 — after a round can end and a job can dispatch
 
 | ID | Work | Why it waits | Owner |
 | --- | --- | --- | --- |
-| CVP-03 | Per-deliverable status for **one** live client on the existing project object. | Needs CVP-02 and KIMI-01. Not a home redesign. | Reel |
-| ACS-04 | Complete → notes a human can bill from. No auto-invoice, no auto-send. | Downstream of a job that dispatched and finished. | Forge |
-| ACS-05 | Caio enrich, sequential. Code only if a missing Lupe field blocks save. Amanda held. | Human rail. Ring on Bailey's yes only. | Ring, Forge for fields |
-| COUNCIL-01 | Phone + desktop nav master. Mock until Bailey picks. | Gates CVP-04. Zero Land. | Council |
+| CVP-03 | Per-deliverable status for one live client on the existing project. | Needs CVP-02 and KIMI-01. | Reel |
+| ACS-03 | Job-create check: title `First L. Service`, write survives refresh. | Only if a booking still fails after VA-106. Not a Land in front of dispatch. | Forge |
+| ACS-04 | Complete → notes a human can bill from. No auto-send. | After a job dispatched and finished. | Forge |
+| ACS-05 | Caio enrich, sequential. Amanda held. Code only if a Lupe field blocks save. | Human rail. | Ring, Forge for fields |
 
 ### P3 — do not start on this bucket
 
 | ID | Work | Why it waits |
 | --- | --- | --- |
-| CVP-04 | Projects home + shell nav Land | After Bailey's pick and after CVP-03, so home shows status. |
-| CVP-05 | Proposal / invoice on the job | After one deliverable can finish and Bailey says bill. Demo transitions are not a Land. |
-| CVP-06 | Creative AI inside brief → cut → review (chase, QC vs brief) | After one live review round exists to read. |
-| KIMI-02 | Sandcastles seam pack: inputs are brief, version, open comments; output is a draft the operator accepts. | Pack while P1 Lands run. No Land. |
-| HOLD | WEFTEC orchestration, phone CS bot, Amanda, Wipster hosting exit, player rewrite, annotation suite, transcript NLE | No owner this cycle. |
+| CVP-04 | Projects home built from the picked nav master, showing item CVP-03 status. | After the master and one real status. |
+| CVP-05 | Proposal / invoice on the job. | After one deliverable can finish and Bailey says bill. |
+| CVP-06 | Creative AI inside brief → cut → review. | After one live review round exists to read. |
+| KIMI-02 | Sandcastles seam pack. | After KIMI-01. No Land. |
+| HOLD | WEFTEC, phone CS bot, Amanda, Wipster hosting exit, player/overlay/logo redo, drawing suite, transcript NLE. | No owner this cycle. |
 
 ---
 
 ## 6. What to defer, said plainly
 
-- Any Land whose definition of done is "the chrome feels quiet." Quiet is a rule on CVP-01 and ACS-01, not a project.
-- Nav implementation, projects home, Claude drawer, bottom pipeline as a build.
+- Redoing the passed overlay, sapphire logo, or auth quiet.
+- A visual pass with no write, or a state change the operator cannot see.
+- Nav implementation, projects home, or a drawer build before Bailey picks COUNCIL-01. The master itself is not deferred.
 - Sandcastles product, Hermes chat, copilot.
 - Stripe, proposals, ACS auto-invoice.
 - Multi-stakeholder events.
@@ -177,12 +188,12 @@ P0 is finish-what-is-moving. P1 is the next upstream break in the workday. P2 is
 
 **Grok Lands (scarce, ~11%).** One seat, one finish. Order:
 
-1. CVP-01 (Reel/Cut already on `bc-ec6df537`).
-2. ACS-01 (Forge/Clip already on PR #5).
-3. ACS-02, then ACS-03, unless job create is already reliable — then ACS-03 only.
-4. CVP-02 **only if** 1–3 are done and KIMI-01 has named the status field. If the bucket dies after ACS-03, CVP-02 is the first Land of the next cycle, already specified.
+1. CVP-01 (Reel/Cut already on `bc-ec6df537`). Surface and comment write together.
+2. ACS-01 (Forge/Clip already on PR #5). Row and toast together.
+3. ACS-02 VA-106 when ACS-01 is done.
+4. CVP-02 share modes only after CVP-01 and a picked nav master. If the bucket dies at VA-106, share modes are the first Land of the next cycle, already drawn against the master.
 
-Stop. CVP-03, ACS-04, and every P3 item are fantasy on the remainder. Last week's history is the evidence: approval binding, playbar comments, publication, quiet login, and public-page gaps consumed a full cycle and still left the under-deck open.
+Stop. Do not spend the remainder on overlay, logo, auth, Sandcastles, or home. Last cycle already bought approval binding, playbar comments, the overlay, and the quiet door, and still left tap-comment and surround open.
 
 **Kimi packs (~64%, do not "not stop" into vanity).**
 
@@ -190,7 +201,7 @@ Stop. CVP-03, ACS-04, and every P3 item are fantasy on the remainder. Last week'
 - In parallel, a short VA-106 failure note if Forge does not already have it: who, which job, phone or desktop, what the screen does instead of loading. That is a pack, not a research program.
 - After KIMI-01: KIMI-02 Sandcastles seam. No competitive UI tours, no nav explorations past the mock, no WEFTEC scenarios.
 
-**Council (this document).** Forge the spine, rebut peers, stop. Do not design a shell. Do not open a Land from a debate.
+**Council (this document plus COUNCIL-01).** Nav masters are the Council spend this cycle, between the comment finish and share modes. When a peer's `DEBATE.md` is pasted, change the spine where they are right. Do not open a Grok Land from the debate.
 
 **Ring.** Caio only when Bailey says, or on the existing routine. Enrich is his sequence. No bot.
 
@@ -202,12 +213,12 @@ Stop. CVP-03, ACS-04, and every P3 item are fantasy on the remainder. Last week'
 
 The cycle is done when all of these are true:
 
-- A guest taps the film, the note is on that version and time, the under-deck is gone, the player tip and `compress:false` still hold.
-- A roster delete on live admin persists and the toast matches the database. Nobody was contacted.
-- Either job create + dispatch load work for one real booking, or job create is confirmed already solid and only dispatch remains — and that fact is written down, not assumed.
-- Frame/Scout have Madeline's columns for one client on paper, so the next CVP Land cannot invent them.
+- A guest taps the film, the note is on that version and time, the surround is quiet, and the passed overlay, logo, and auth door are unchanged.
+- Council has put up the phone and desktop nav masters, and they show where share modes live. Bailey can pick.
+- A roster delete on live admin persists and the toast matches the database. Nobody was contacted. VA-106 is the next Forge Land, not a job-create detour.
+- Frame/Scout have Madeline's columns for one client so share modes write a real status.
 
-The cycle is not done when nav mocks are pretty, when a chatbot answers, or when both OS "roadmaps" have more items.
+The cycle is not done by re-polishing the passed player, by a chatbot, or by share modes built before the nav pick.
 
 ---
 
@@ -217,25 +228,32 @@ Blaze pastes each peer's `DEBATE.md` under the paste fences. Grok fills only the
 
 ### Standing tests every reply must pass
 
-1. Does the peer's next item remove a blocker in **today's** ACS morning or **today's** CVP guest review, or does it add a surface?
-2. Can a Grok Land finish it before the ~11% bucket, given CVP-01 and ACS-01 are already in flight and last cycle already bought approval binding and playbar comments?
-3. Is it upstream of a persisted job / a finished review status, or upstream only in the brochure (brief, nav, AI, event)?
-4. Does it send anything, retouch the player tip, turn compression on, or apply a migration without Bailey?
+1. Does the peer name a blocker in today's ACS morning or today's CVP guest review, and do they fund the surface and the write together?
+2. Can a Grok Land finish it on the ~11% bucket without redoing PASS-CVP or PASS-AUTH?
+3. Does their order respect tap-comment, then nav master, then share modes, and PR #5, then VA-106? If they reorder with operating evidence, adopt it.
+4. Does it send anything, retouch the passed player, turn compression on, or apply a migration without Bailey?
 
 ### Non-negotiables (concede only with new evidence)
 
-- In-flight CVP-01 and ACS-01 finish before any new Land.
-- No shell Land before Bailey picks COUNCIL-01, and COUNCIL-01 is not a Land.
+- In-flight CVP-01 and ACS-01 finish before any new Grok Land.
+- Passed overlay, sapphire logo, and auth quiet are not reopened.
+- Share-mode implementation waits on a picked nav master. The master is Council work now, not a postponed poster.
 - No Sandcastles, bot, WEFTEC, or invoice Land on this bucket.
 - No unsolicited client/crew send. Caio Continuity stays the only field rail.
-- Excel dies one client at a time, after finish-review writes a status, after KIMI-01 names the columns.
+
+### How to take a peer's advice
+
+Change the spine when they are right about a day's operations or about visual and workflow being one item. Do not keep a rank to defend the previous draft. Record the concession in the table. Leave the paste fences intact.
+
+No peer file is in the repo this turn. Bailey's note is the concession already applied. Fable and Opus fences stay empty until Blaze pastes them.
 
 ### Pre-declared concessions
 
-- If a peer shows job create is already reliable on the live admin train, ACS-02 drops out and ACS-03 is the next ACS Land. I do not have M4 proof in this repo.
-- If a peer shows the under-deck is already dead on `bc-ec6df537` and tap-comment persists on device, CVP-01 shrinks to whatever guest proof is still open. Playbar comments in `main` are not that proof by themselves.
-- If a peer shows Madeline's columns are already harvested, KIMI-01 is done and CVP-02 may follow ACS-03 immediately.
-- I will follow a peer who puts ACS dispatch above CVP shell, status, and AI. I will not follow a peer who puts nav, Sandcastles, or the phone bot above dispatch or the comment finish.
+- Job-create is no longer in front of VA-106. If a peer shows bookings still fail after dispatch loads, ACS-03 moves up. It does not lead.
+- If a peer shows tap-comment and surround already hold on device, CVP-01 shrinks to the leftover proof. Playbar comments in `main` are not that proof by themselves.
+- If a peer shows a nav master Bailey already picked, CVP-02 may start when CVP-01 finishes.
+- If a peer shows Madeline's columns are already harvested, KIMI-01 is done.
+- A peer who puts the phone bot, Sandcastles, or an overlay redo above the open list does not move the spine. A peer who pairs a real operating step with the screen that runs it does.
 
 ### Peer A — Fable
 
@@ -273,9 +291,9 @@ PASTE OPUS 5.5 DEBATE.md BELOW THIS LINE
 
 | Conflict | Fable | Opus | Grok | Proposed lock |
 | --- | --- | --- | --- | --- |
-| Next ACS Land after PR #5 | | | ACS-02 then ACS-03, unless create is already solid | |
-| Next CVP Land after the comment finish | | | CVP-02 status write, not shell, not Sandcastles | |
-| Where nav sits | | | Mock gate, P2, zero Land | |
-| What Kimi burns this week | | | Madeline columns for one client, plus VA-106 failure note if missing | |
+| Next ACS Land after PR #5 | | | VA-106. Job-create only if still broken after that. | |
+| Next CVP Land after the comment finish | | | Nav master (Council), then share modes against that master. | |
+| Where nav sits | | | Open now, between surround and share modes. Not a Grok Land. | |
+| What Kimi burns this week | | | Madeline columns for one client, plus a VA-106 failure note if Forge lacks one. | |
 
 **Master delta.** After replies, list only the ordered IDs that changed from `MASTER_SPINE_DRAFT.md`. If none changed, write "spine holds."

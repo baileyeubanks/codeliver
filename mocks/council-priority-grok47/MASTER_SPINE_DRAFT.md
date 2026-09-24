@@ -1,6 +1,6 @@
 # Master spine draft — Grok 4.7
-**Date:** 2026-09-24 · **Seat:** GROK 4.7 · **Status:** ground truth from Blaze. Peer debates not pasted yet.
-**Rule:** Siblings, one Commander. One backlog, max 15. A row is done only with live proof. Visual and the write fund together. Change a row when Fable or Opus is right on operations.
+**Date:** 2026-09-24 · **Seat:** GROK 4.7 · **Status:** DEBATE DRAFT. Formal brief for peers. Not the master.
+**Rule:** Siblings, one Commander. One backlog, max 15. A row is done only with live proof. Visual and the write fund together. Grok Lands are fat — don't stop. Kimi packs stay careful. When Blaze pastes Fable or Opus, move rows where they are right on the day. Do not mark this master-final before that paste.
 
 ## What moved
 
@@ -10,16 +10,16 @@ Bailey's open order is the spine: tap-comment + surround, nav masters, then Wips
 
 | Bucket | Burns on |
 | --- | --- |
-| Grok Lands | 1, then 2, then 4. Item 6 only after 1 is done and 3 is picked. |
+| Grok Lands (fat, don't stop) | 1 while 2 is in proof. Then 4. Then 6 after 1 is proved and 3 is confirmed. |
 | Council | 3 now, so 6 is built once. |
-| Kimi ~64% | 5 now. 13 only after 5. |
+| Kimi (careful) | 5 only. 13 after 5, not beside it. |
 
 ## Ordered backlog
 
 | # | ID | P | Item | Done when (surface and state) | Owner | This cycle? |
 | --- | --- | --- | --- | --- | --- | --- |
 | 1 | CVP-01 | P0 | Finish tap-comment and quiet surround (`bc-ec6df537`). Do not retouch the passed overlay, sapphire logo, `compress:false`, or version-bound approval. | Guest sees the film, taps a moment, comment persists on that version and time, deck is gone. | Reel / Cut · Latch | Yes, in flight |
-| 2 | ACS-01 | P0 | Finish admin PR #5 roster delete. | The row leaves the list and is gone after refresh. Toast matches the write. No send. | Forge / Clip · Latch | Yes, in flight |
+| 2 | ACS-01 | P0 | Roster delete tip `c58816e4` is live. Proof only, unless proof fails. | Latch → Clip: row stays gone after refresh, toast matches, no send. | Latch, then Clip | Yes, proof gate |
 | 3 | COUNCIL-01 | P0 | Nav masters: phone bottom pipeline + one drawer, desktop thin left, sapphire mark, Login → Projects. | Drawing shows where Review, Approve, and Preview sit. Bailey confirms. No implementation branch. | Council | Yes, mock |
 | 4 | ACS-02 | P1 | VA-106 dispatch loading. Field confirm stays Caio at +1 504 858 1959 on Continuity. Never Twilio, never Kyle. | The `First L. Service` job loads for crew assignment on the phone, and the assignment is still there after refresh. No send. | Forge / Clip | Yes, when 2 is done |
 | 5 | KIMI-01 | P1 | Madeline column harvest for one live client. | Written list: column, who changes it, what done means. | Frame / Scout | Yes, pack in parallel |
@@ -45,4 +45,4 @@ Bailey's open order is the spine: tap-comment + surround, nav masters, then Wips
 
 ## Cycle acceptance
 
-The cycle is closed when 1 and 2 are on the live trains, 3 is up for Bailey to pick, and 4 is the next Forge Land. Item 6 does not start before that pick. Passed overlay, logo, and auth are untouched.
+This draft is not closed and not the master. It is the brief peers argue against. Overlay and logo on `46a256f2` stay untouched. Delete tip `c58816e4` closes only when Latch → Clip proof passes. VA-106 is the next Grok Land after that proof, and the march continues into share modes after the nav drawing is confirmed. Fable and Opus fences in `DEBATE.md` stay empty until Blaze pastes them.

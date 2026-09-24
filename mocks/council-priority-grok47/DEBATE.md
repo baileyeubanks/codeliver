@@ -1,11 +1,16 @@
 # Grok 4.7 — Council debate
 **Seat:** GROK 4.7 · **When:** 2026-09-24 · **Against:** Blaze command map 2026-09-23 ~7:14pm CT
 **Scope:** How the two businesses operate day to day. The surface the operator sees and the state the business writes are one funded item.
-**Credit:** Cursor Grok Lands ~11% (the only builder). Other/Kimi ~64% (packs). Council mixes both and writes no product code.
+**Credit:** Grok Lands are the fat builder. Don't stop. Kimi packs stay careful. Council writes no product code.
+**Status:** Debate draft. Not the master. Hold until Fable and Opus rebuttals arrive through Blaze.
 
 **Revision 2026-09-24, Bailey.** The first draft treated chrome as fashion, parked nav at the back, and inserted job-create in front of VA-106. That was pride. Visual and OS fund together. Already live, do not re-spend: CVP mobile overlay ~6% and the sapphire logo on `46a256f2`, plus auth quiet. Still open: tap-comment + surround (in flight), nav masters (Council), then Wipster share modes. ACS is PR #5 delete, then VA-106.
 
-**Ground truth from Blaze, same day.** Bailey asked for the system, not grades. ACS and CVP are siblings under one Commander. A Land is finished only with proof on the live train. Fable and Opus are not pasted yet. When they are, change the spine where they are right on operations.
+**Formal brief, Blaze to peers.** This is the shared ground truth, not a new product. ACS and CVP are siblings under one Commander. A Land is finished only with proof on the live train.
+
+**Live now.** Overlay and sapphire logo PASS on `46a256f2`. ACS delete tip is `c58816e4`, in Latch → Clip proof. It is not an open coding Land. CVP tap-comment and surround are still the open Grok Land.
+
+Fable and Opus are not pasted. When Blaze brings their rebuttals, move rows where they are right on the day. Do not declare the master before that paste.
 
 ---
 
@@ -48,17 +53,18 @@ Visual contract, already decided:
 
 Proof, not a grade: tap-comment is done when a guest on the phone taps the picture, the note sticks to that version and time, and the deck is gone, on the build that already passed overlay and logo.
 
-### What a Grok Land can finish on ~11%
+### What Grok finishes, and what stays a pack
 
-Two in-flight proofs, then one ACS proof if the bucket remains:
+Grok Lands are fat. Don't stop after the delete proof. Don't spend them redoing `46a256f2`. Kimi writes one careful pack at a time.
 
-| Land | Proof this cycle | Not this cycle |
-| --- | --- | --- |
-| CVP-01, in flight | Tap-film comment, no under-deck, quiet surround, passed tip untouched | Share modes, Excel, AI, invoice, WEFTEC |
-| ACS-01, in flight | Roster delete persists, toast true, no send to client or crew | Enrichment, bot, auto-invoice |
-| ACS-02, next if 01 lands | VA-106: the job loads on dispatch | A new dispatch product |
-| Council nav | Phone bottom+drawer, desktop thin left, share modes marked on it | A Grok implementation of that nav |
-| CVP-02 | Only if CVP-01 is proved and the nav master is picked, and only the three share modes plus one status write | The rest of the north star |
+| Lane | Now | Proof | Not this pass |
+| --- | --- | --- | --- |
+| CVP-01, open Grok Land | Tap-film comment, no under-deck, quiet surround | Guest note sticks on that version and time. Passed tip untouched. | Excel, AI, invoice, WEFTEC |
+| ACS-01, live tip `c58816e4` | Latch → Clip proof. No new delete code unless proof fails. | Row gone after refresh, toast matches, no send. | Enrichment, bot, auto-invoice |
+| ACS-02, next Grok Land | VA-106 when that proof passes | `First L. Service` loads for crew on the phone and survives refresh. No send. | A new dispatch product |
+| Council nav | Phone bottom + drawer, desktop thin left | Drawing marks Review / Approve / Preview. Bailey confirms. | A Grok nav Land |
+| CVP-02 | Share modes after CVP-01 proof and the confirmed drawing | Three modes visible and stored. Finish writes one status. | The rest of the north star |
+| Kimi | Madeline's columns for one client, then stop | A field list Reel can write, not a tour | Sandcastles, WEFTEC, nav fashion |
 
 ---
 
@@ -193,7 +199,7 @@ P0 is what is in flight or already named as the next open step. Each P0/P1 row f
 | ID | Work | Surface and state together | Owner |
 | --- | --- | --- | --- |
 | CVP-01 | Tap-comment, kill under-deck, quiet surround (`bc-ec6df537`). | Guest sees the film and taps a moment. The note persists on that version and time. Tip, overlay, compression, and approval binding stay. | Reel / Cut, Latch |
-| ACS-01 | PR #5 roster delete. | The row leaves the roster and stays gone. Toast matches the write. No send. | Forge / Clip, Latch |
+| ACS-01 | PR #5 roster delete. Tip `c58816e4` is live. | Latch → Clip proof: the row stays gone, the toast matches, no send. No new code unless proof fails. | Latch, then Clip |
 | COUNCIL-01 | Nav masters locked to the decided chrome: phone bottom pipeline + one drawer, desktop thin left, sapphire mark. | The master shows Login → Projects and where Review, Approve, and Preview sit. Bailey confirms the drawing. No implementation branch. | Council |
 
 ### P1 — next, after the matching P0
@@ -241,16 +247,16 @@ P0 is what is in flight or already named as the next open step. Each P0/P1 row f
 
 ## 7. Credit-aware sequencing
 
-**Grok Lands (scarce, ~11%).** One seat, one finish. Order:
+**Grok Lands (fat builder). Don't stop.** Order:
 
-1. CVP-01 (Reel/Cut already on `bc-ec6df537`). Surface and comment write together.
-2. ACS-01 (Forge/Clip already on PR #5). Row and toast together.
-3. ACS-02 VA-106 when ACS-01 is done.
-4. CVP-02 share modes only after CVP-01 and a picked nav master. If the bucket dies at VA-106, share modes are the first Land of the next cycle, already drawn against the master.
+1. CVP-01 (Reel/Cut on `bc-ec6df537`). Surface and comment write together.
+2. ACS-01 is not a coding Land. Tip `c58816e4` waits on Latch → Clip.
+3. ACS-02 VA-106 as soon as that proof passes.
+4. CVP-02 share modes after CVP-01 proof and a confirmed nav drawing. Keep going. Do not park the march because the overlay already passed.
 
-Stop. Do not spend the remainder on overlay, logo, auth, Sandcastles, or home. Last cycle already bought approval binding, playbar comments, the overlay, and the quiet door, and still left tap-comment and surround open.
+Do not spend Lands on overlay, logo, auth, Sandcastles, or home.
 
-**Kimi packs (~64%, do not "not stop" into vanity).**
+**Kimi packs (careful).**
 
 - Now: KIMI-01 only (Madeline columns for one client).
 - In parallel, a short VA-106 failure note if Forge does not already have it: who, which job, phone or desktop, what the screen does instead of loading. That is a pack, not a research program.

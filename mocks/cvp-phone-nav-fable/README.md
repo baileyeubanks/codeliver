@@ -52,8 +52,20 @@ copied inline so every mock is self-contained. Same IA on both form factors:
 - **The review workspace is dropped in unchanged.** Desktop B keeps the canonical contract — one compact top bar, one dominant dark media stage, one adjacent review rail — with the thin player, timestamp markers, frame pin, and click-to-comment hint as placeholders. The nav comp wraps that surface; it doesn't restyle it.
 - **Sapphire stays quiet at 1440 wide too.** Active rail item, 2 px top hairline, the one primary button per view (`New project` / `Request approval`), the current step, and timeline markers. Client review comments are highlighted with the ice tint, never a saturated fill, so the media stage remains the most saturated thing on screen.
 
+## How the nav operates (short version — full argument in [`DEBATE.md`](DEBATE.md))
+
+1. **Why these five on the bottom rail.** Projects + Brief · Shoot · Cut · Delivery is the producer's daily loop, one stop per stage, each a *global queue of work at that stage* with a project filter and a badge. Projects: find/open/create a production. Brief: what's awaiting client sign-off, nudge, approve scope. Shoot: today's call sheet, shot ticks, releases, offload. Cut: versions awaiting feedback/approval — the hot, badged stop; the thin player lives behind it. Delivery: send finals, confirm download, lock. Five is the thumb-bar ceiling; a sixth is a drawer in a tab costume.
+2. **Why deep tools slide in instead of sitting in a permanent left column.** Thumb reach (weekly tools go in the hard top-left zone with an edge-swipe fallback; hourly stops go under the thumb), film-first (a 64 px column costs 16 % of a 390 px film all day), cognitive load (five stops + one ☰ is the whole visible nav). Claude Code's rail slides *over* content so you keep your place and can undo in 240 ms.
+3. **On the player/film route the bottom bar hides.** The bottom edge belongs to the scrub bar, composer, and keyboard — Wistia and Wipster run the player edge-to-edge with nothing beneath the timeline. The film route is a leaf you leave via back, and it shares one layout with the guest route so the click-to-comment work stays honest.
+4. **Login → Projects, not a dashboard.** The producer's question is "what do I do next?", answered by a production at a stage. The card list *is* the summary and every row is the door; a widget dashboard is a non-navigable copy that adds a tap to every task.
+5. **Desktop keeps a thin left tools rail; pipeline lives inside the project.** 68 px is ~5 % of 1440 and there's no thumb, so persistence buys wayfinding. The rail holds exactly the phone drawer's contents (one vocabulary); stages render as quiet steps under the project header, never in the rail; the rail stays on Projects and the breadcrumb carries depth — so the desktop never shows the phone bar rotated 90°.
+6. **Refused outright.** Left rail + bottom bar both permanent on phone; a bottom bar over the film; guests on `/review/[token]` inheriting team nav; dashboard as home; ☰ or a sixth item inside the bottom bar; stages duplicated in drawer/rail; phase colour as identity; drawers that push content; stage tabs whose scope silently changes.
+
+`DEBATE.md` also carries the seven-task tap-count rubric used to judge every comp (workflow clarity first, looks second) and the slots for the Opus 5.5 / Grok 4.7 critique and the master-forge notes.
+
 ## Files
 
+- `DEBATE.md` — operating rationale, refusals, scoring rubric, peer critique + master forge (pending peers)
 - `index.html` — phone mock (390 × 844; framed in a bezel on wide windows). `?state=drawer` opens the drawer immediately (used for screenshot B).
 - `desktop.html` — desktop mock (1440 × 900). `?state=project` renders state B. Clicking the first card / the Projects breadcrumb switches views live.
 - `compare.html` — all four states in live iframes.

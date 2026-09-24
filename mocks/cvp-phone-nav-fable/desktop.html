@@ -309,14 +309,20 @@
   .media .frame svg { position: absolute; inset: 0; width: 100%; height: 100%; }
   .pin { position: absolute; width: 24px; height: 24px; border-radius: 50% 50% 50% 4px; background: var(--cvp-blue); border: 2px solid #fff; transform: translate(-50%, -100%) rotate(-45deg); box-shadow: 0 4px 12px rgb(0 0 0 / .35); }
   .pin span { position: absolute; inset: 0; display: grid; place-items: center; transform: rotate(45deg); color: #fff; font-size: 10.5px; font-weight: 700; }
-  .hintpill {
-    position: absolute; left: 50%; bottom: 14px; transform: translateX(-50%);
-    padding: 6px 12px; border-radius: var(--cvp-radius-pill);
-    background: rgb(4 15 28 / 0.72); color: #fff; font-size: 12px; font-weight: 500;
-    display: inline-flex; align-items: center; gap: 8px;
-    -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px);
+  /* The composer is born from the click, anchored to the point (design-qa point-comment
+     primitive): one spatial point, one compact dark composer, one explicit submit. */
+  .onfilm {
+    position: absolute; transform: translate(-50%, 18px);
+    width: 340px; padding: 8px 8px 8px 10px;
+    background: rgb(17 26 43 / .96); border: 1px solid rgb(255 255 255 / .1); border-radius: var(--cvp-radius-lg);
+    display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 10px;
+    box-shadow: 0 12px 32px rgb(0 0 0 / .45); color: #fff;
   }
-  .hintpill i { width: 6px; height: 6px; border-radius: 50%; background: var(--cvp-blue-soft); }
+  .onfilm::before { content: ""; position: absolute; top: -7px; left: calc(50% - 6px); width: 12px; height: 12px; background: #111a2b; border-left: 1px solid rgb(255 255 255 / .1); border-top: 1px solid rgb(255 255 255 / .1); transform: rotate(45deg); }
+  .onfilm .tc { padding: 2px 7px; border-radius: 4px; background: var(--cvp-blue); font-size: 11.5px; font-weight: 700; font-variant-numeric: tabular-nums; }
+  .onfilm .field { font-size: 13px; color: #94a3b8; }
+  .onfilm .go { height: 30px; padding: 0 12px; border-radius: var(--cvp-radius-sm); background: var(--cvp-blue); color: #fff; font-size: 12.5px; font-weight: 600; }
+  .onfilm .sub { grid-column: 1 / -1; font-size: 11px; color: #64748b; padding-left: 2px; }
   .controls {
     height: 44px; display: grid; grid-template-columns: auto auto 1fr auto auto; align-items: center; gap: 12px;
     padding: 0 12px 0 10px; background: #0b1220; border-top: 1px solid rgb(255 255 255 / 0.08);
@@ -350,10 +356,6 @@
   .cmt p { font-size: 13px; line-height: 1.45; color: var(--cvp-ink-soft); margin-top: 4px; }
   .cmt .acts { display: flex; gap: 12px; margin-top: 6px; font-size: 12px; font-weight: 600; color: var(--cvp-ink-faint); }
   .cmt .acts .res { color: var(--cvp-success); }
-  .composer { border-top: 1px solid var(--cvp-border-soft); padding: 10px 12px 12px; display: flex; flex-direction: column; gap: 8px; }
-  .composer .box { min-height: 40px; border: 1px solid var(--cvp-border); border-radius: var(--cvp-radius-sm); padding: 10px 12px; font-size: 13px; color: var(--cvp-ink-faint); background: var(--cvp-canvas); }
-  .composer .row { display: flex; align-items: center; gap: 8px; }
-  .composer .row .grow { flex: 1; font-size: 12px; color: var(--cvp-ink-faint); display: inline-flex; align-items: center; gap: 6px; }
 </style>
 </head>
 <body>
@@ -630,7 +632,12 @@
               <svg viewBox="0 0 160 90" preserveAspectRatio="none" aria-hidden="true"><defs><linearGradient id="st" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#2b3d5c"/><stop offset="1" stop-color="#0b1220"/></linearGradient></defs><rect width="160" height="90" fill="url(#st)"/><circle cx="108" cy="36" r="20" fill="#3d5a86" opacity=".6"/><rect x="0" y="62" width="160" height="28" fill="#0b1220" opacity=".65"/><rect x="14" y="70" width="60" height="4" rx="2" fill="#fff" opacity=".35"/><rect x="14" y="78" width="40" height="3" rx="1.5" fill="#fff" opacity=".2"/></svg>
               <span class="pin" style="left:63%; top:41%"><span>2</span></span>
             </div>
-            <div class="hintpill"><i></i>Paused at 00:42 · click the frame to leave a comment</div>
+            <div class="onfilm" role="dialog" aria-label="Comment at 00:42" style="left:63%; top:41%">
+                <span class="tc">00:42</span>
+                <span class="field">Comment on this frame…</span>
+                <button class="go" aria-label="Send">Send</button>
+                <span class="sub">Pinned to frame · visible to client · Esc to cancel</span>
+              </div>
           </div>
           <div class="controls">
             <button class="cbtn" aria-label="Play"><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M7 5v14l11-7z"/></svg></button>
@@ -655,7 +662,7 @@
       <!-- Adjacent review rail -->
       <aside class="review" aria-label="Review">
         <div class="rhead">
-          <h2>Review · v3</h2>
+          <h2>Comments · v3</h2>
           <div class="filters" role="group">
             <button aria-pressed="true">Open 4</button><button aria-pressed="false">All 7</button><button aria-pressed="false">Resolved</button>
           </div>
@@ -693,16 +700,6 @@
               <div class="acts"><span>Reply</span><span class="res">Resolve</span></div>
             </div>
           </article>
-        </div>
-        <div class="composer">
-          <div class="box">Leave a comment at 00:42…</div>
-          <div class="row">
-            <span class="grow">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s7-5.5 7-12a7 7 0 1 0-14 0c0 6.5 7 12 7 12Z"/><circle cx="12" cy="10" r="2.5"/></svg>
-              Pin to frame</span>
-            <button class="btn" style="height:30px;padding:0 10px;font-size:12.5px">Cancel</button>
-            <button class="btn primary" style="height:30px;padding:0 12px;font-size:12.5px">Comment</button>
-          </div>
         </div>
       </aside>
     </div>

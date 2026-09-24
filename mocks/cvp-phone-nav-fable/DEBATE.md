@@ -38,6 +38,32 @@ on every device — gets the screen to itself.
 
 ---
 
+## 0.5 Bailey's intentionality is the test, not our taste
+
+Bailey relayed ten points. Every choice below is argued from them, and §11
+lists peer choices (and my own earlier ones) that fight them.
+
+| # | Bailey said | Nav rule it becomes |
+| --- | --- | --- |
+| 1 | Player chrome is better — leave it alone; don't break the live thin overlay / logo work. | The film route wraps the player; it never restyles it. Our transport in the frames is a placeholder for the live overlay. |
+| 2 | Everything *around* the player must be sleek, clean, aligned. | Film-first: on the film route the app chrome is one compact bar; the stage is dark and quiet; no permanent panels fight the picture. |
+| 3 | Comments like Wipster: tap the film → comment dialog at the playhead. **Kill the permanent bottom comment section under the video.** | No permanent comment feed and no permanent composer on the phone film route. Comments live as markers; a tap on the frame births one compact dialog at the playhead; the list is a sheet on demand. Desktop keeps the canonical *adjacent* rail as a list, but the composer is on the film, at the click. |
+| 4 | After login, land on Projects — real work home, not a widget dashboard. | Projects is home. Chips filter; nothing summarises. |
+| 5 | Phone having both a left rail and a bottom bar feels weird; no dual chrome. | One persistent nav on phone: the bottom rail. The left rail exists only as a transient drawer. |
+| 6 | Likes Claude Code's left rail that slides in/out beautifully for deep tools — robust when needed, gone when not. | Drawer slides over a scrim from ☰; holds Library · Team · Settings · Admin; never a second home. |
+| 7 | Pipeline story already shown on login: Brief → Shoot → Cut → Delivery. Nav should honor it. | Phone rail = Projects + those four words as global queues; desktop = those four words as steps inside the project. Same vocabulary everywhere. |
+| 8 | "Make it work and make it look good — but get opinions first so we don't break what we have." | Mock first; nothing lands on the live shell until a master is picked. Debate operations before pixels. |
+| 9 | Debate how it operates and why; share arguments intrinsically. | §8 — read from the peers' branches, answered by name. |
+| 10 | Forge one master phone + one master desktop. | §9. |
+
+**Decoded operating intent, restated as tests:** phone daily path = thumb
+bottom rail tied to pipeline + Projects · deep tools = slide-in drawer ·
+never left + bottom together on phone · film route is film-first · desktop
+thin left tools rail, pipeline inside the project · guest/share review is
+film + comments only.
+
+---
+
 ## 1. Why the bottom rail is exactly these five, and what each does all day
 
 The rail is **Projects + the four pipeline stages**. Not Home, not Library,
@@ -108,35 +134,62 @@ item, or a "Review links" item, the rail has failed.
 
 ## 3. What happens on the PLAYER / film route
 
-**The app bottom bar and the app bar hide.** Rendered as **state C**
+**Film-first, per Bailey #1–#3.** Rendered as **state C**
 (`index.html?state=film`, `screenshots/c-film-route-no-rail.png`). When you
-open a version — internal review at `/projects/[id]/assets/[assetId]` or
-public review at `/review/[token]` — the screen is: compact film bar (back,
-project + stage/version, share) → full-width 16:9 film with the transport
-overlaid inside its bottom edge → version chip / compare → comments →
-composer on the bottom edge. No Projects·Brief·Shoot·Cut·Delivery bar.
+open a version — from the Cut queue, from a card's frame, or from a review
+link — the screen is:
 
-Why:
+- **one compact film bar** (back · job + stage/version · share), and
+- **the dark stage**, edge to edge, with the film at the top at full width
+  and the live transport inside the frame's bottom edge (placeholder for
+  the thin overlay — we do not touch it).
 
-- **The bottom edge belongs to the film.** The scrub bar, the comment
-  composer, and the keyboard all live at the bottom. A nav bar underneath
-  the scrub bar is a collision zone: a thumb reaching for 01:46 hits
-  "Delivery". Wistia and Wipster both run the player edge-to-edge with the
-  timeline as the lowest control and nothing beneath it.
-- **Height is the cost, not width.** The rail is 86 px with safe area; on a
-  219 px-tall film that is 39 % of the frame's height given back to the
-  comments list and composer.
+**No app bar, no bottom rail, no permanent comment feed, no permanent
+composer.** That last clause is Bailey's #3 and it is the one all three of
+us initially got wrong (see §8.3). Comments operate the Wipster way:
+
+- **Existing comments are markers** on the transport (sapphire; amber for
+  the selected/pinned one). Tap a marker → seek there, and that comment
+  appears as a floating card at the playhead. Not a list.
+- **Tap the film → one compact dialog at the playhead**, anchored to the
+  point you tapped (the point-comment primitive already accepted in
+  `design-qa.md`: one spatial point, one compact dark composer, one explicit
+  submit). It is born from the tap and dies on send or cancel. It is not
+  chrome.
+- **The list is on demand:** a `4 comments` pill opens a sheet over the
+  stage; swipe it away and the film is alone again. `Approve` is a pill
+  beside it — one tap, film-first, for team and guest alike.
+
+Why the bar and the feed both go:
+
+- **The bottom edge belongs to the film.** Scrub, the on-tap composer, and
+  the keyboard all live at the bottom. A nav bar or a permanent composer
+  underneath the scrub bar is a collision zone: a thumb reaching for 01:46
+  hits "Delivery" or focuses a text field. Wistia and Wipster run the
+  player edge-to-edge with nothing beneath the timeline.
+- **A permanent feed makes the comment, not the frame, the unit of
+  review.** Bailey's #3 is a statement about what review *is*: you watch,
+  you tap the frame, you say the thing. A feed under the video is a
+  ticket queue with a thumbnail. Killing it is what makes the route feel
+  like Wipster rather than a SaaS cockpit (#2).
+- **Height is the cost, not width.** Rail (86 px) + feed + composer took
+  the whole lower screen; now that space is quiet stage, and the sheet
+  uses it only when asked.
 - **The film route is a leaf, not a hub.** You arrived from Cut (or a link)
-  and you'll leave via back. Persistent nav on a leaf invites mid-review
-  abandonment and makes "did I finish resolving those?" a real question.
-- **Guests never see the bar anyway** (see §6). Making the team route match
-  the guest route means one player layout to keep the thin-player and
-  click-to-comment work honest, not two.
-- **Landscape / fullscreen** hides even the film bar; only the film and a
-  tap-to-reveal control layer remain.
+  and leave via back. Persistent nav on a leaf invites mid-review
+  abandonment.
+- **Guests never see the bar or the drawer** (see §6), so team and guest
+  share one player layout — one place to keep the thin overlay honest (#1).
+- **Landscape / fullscreen** hides even the film bar.
 
-Desktop: the tools rail stays on the film route because it costs width,
-not the thumb, and it is not the comment gesture. Theater mode hides it.
+**Desktop** (`desktop.html?state=project`): the tools rail stays because it
+costs width, not the thumb, and is not the comment gesture; theater mode
+hides it. The canonical contract — one compact top bar, one dominant media
+stage, one **adjacent** review rail — holds: the rail is the comment *list*
+(it is beside the film, not under it, so #3 is satisfied), and the composer
+is on the film at the click point, not a permanent field at the rail's foot.
+*(Changed this round: the permanent composer was removed from the desktop
+rail.)*
 
 ---
 
@@ -214,6 +267,12 @@ five-stop bar rotated 90°.
 11. **A rail that changes shape by role.** A viewer gets the same five
     stops with empty queues, not a three-item bar. Predictability beats
     tidiness.
+12. **A permanent comment feed or permanent composer under the film on
+    phone.** Bailey #3. Comments are markers + an on-tap dialog at the
+    playhead; the list is a sheet on demand. (My own first state C broke
+    this; corrected.)
+13. **Restyling the player.** Bailey #1. The nav wraps the stage; the thin
+    overlay and logo work are not ours to touch.
 
 ---
 
@@ -312,27 +371,48 @@ edge-swipe-to-open from `index.html`. The drawer opens from ☰, closes from
 ✕, scrim, or Esc. Edge swipe is never *taught* as nav — it is simply the
 platform's back.
 
-### 8.3 The film route
+### 8.3 The film route — re-argued under Bailey #3
 
-**Both peers:** "Fable does not decide." **Opus** drew state C (390×219 film,
-6 % overlay controls, composer owns the bottom edge, no rail, no ☰).
-**Grok** drew `master-phone-player.png`: a portrait dark slab, back link,
-transport strip at the bottom, no comments visible.
+**Both peers:** "Fable does not decide." **Opus** drew state C: 390×219 film,
+6 % overlay controls, no rail, no ☰ — and beneath it a **permanent comment
+feed and a permanent composer on the bottom edge**. **Grok** drew
+`master-phone-player.png`: a bare dark stage, back link, thin transport at
+the bottom, "tap the frame to comment" — and **no representation of
+existing comments at all**. My own first state C copied Opus's layout.
 
-**FABLE:** I decided in prose (§3) but a rule without a frame is a
-non-decision in a design debate — fair hit. **State C is now rendered**
-and matches Opus's layout in every operating respect: no rail, no ☰, film
-first, transport inside the frame, comments beneath, composer on the
-bottom edge, back chevron top-left. Two differences worth arguing:
+**Bailey then said #3: tap the film → dialog at the playhead; kill the
+permanent bottom comment section under the video.** That re-grades all
+three:
 
-- **Keep the stage/version line under the title** ("Cut · v3 · filename").
-  Opus does this; Grok's back link "‹ Harbor Light · Cut" does too. Agreed
-  by all three — the film bar must say which job and which stage you are
-  inside, because the rail that used to say it is gone.
-- **Grok's player frame fails the film test.** The film is not 16:9 and the
-  comments list is absent, so T2 (reply to a pinned comment) needs another
-  screen. Grok's *rule* (hide the bar) is right; the frame doesn't
-  demonstrate the workflow.
+- **Opus's C and my first C fight #3 directly.** The feed under the film is
+  the "permanent bottom comment section" by name, and the always-present
+  composer on the bottom edge is a second violation: it makes the text
+  field, not the frame, the entry point to a comment. Opus's rule (hide
+  the rail) is right; its layout is the SaaS cockpit Bailey is trying to
+  leave.
+- **Grok's film-first instinct is right by #2 and #3 — I was wrong to mark
+  it down for lacking a feed.** A bare dark stage with "tap the frame to
+  comment" is closer to Wipster than either of ours. Where Grok still
+  fails is *operational*: with no markers, no count, and no way to open a
+  list, T2 (reply to the pinned comment) cannot be done from this screen
+  at all, and a producer cannot see that four notes exist. Film-first
+  does not mean comment-blind.
+- **Corrected FABLE C is the synthesis:** Grok's stage + Opus's rule (no
+  rail, no ☰, back + stage/version in the bar) + Wipster's operation:
+  markers on the transport, one dialog born from the tap at the playhead
+  (the `design-qa.md` point-comment primitive, untouched), and the list as
+  an on-demand sheet behind a `4 comments` pill, with `Approve` beside it.
+
+Two things all three agree on and the master must keep: the film bar names
+the job and the stage/version (the rail that used to say it is gone); and
+the left-edge swipe is back, never a drawer.
+
+**Desktop:** Opus's B and my B both had a permanent composer at the foot of
+the review rail. The rail itself is fine — it is *adjacent*, the canonical
+contract — but the composer belongs on the film at the click (#3). Removed
+from mine; Opus should do the same. Grok's desktop frame has a 40 px strip
+labelled "Thin player" and no comments surface, so it cannot be judged on
+#3 at all.
 
 ### 8.4 Drawer contents
 
@@ -487,7 +567,7 @@ name, that's whose model won on operations and why is in §8.
 | Projects home (login) | App bar + rail | Chips: Needs you · Active · Archived. Cards: thumbnail + version tag, name, client · date, four-segment meter, **stage · fact · counter** line, one health dot. Sorted attention-first. Tap the frame → film route. | all three / FABLE card |
 | Stage queue | App bar (queue name) + rail | Same card list filtered to that stage, attention-first. No project filter chip. | Opus |
 | Project page | Back · title · compact stepper + rail | Stepper switches stages inside the job; rail keeps the tab you came from highlighted; header names the job. | Opus + Grok (header rule) |
-| Film route | Back · job + stage/version · share. **No rail, no ☰.** | Full-width 16:9, transport inside the frame's bottom 6 %, version chip / compare, comments, composer owns the bottom edge. Left-edge swipe = system back. | Opus (frame) / all three (rule) |
+| Film route | Back · job + stage/version · share. **No rail, no ☰, no feed, no fixed composer.** | Dark stage edge to edge; full-width 16:9 with the live transport inside the frame (untouched). Comments = markers; tap a marker → floating card at the playhead. **Tap the film → one dialog at the playhead** (point-comment primitive). `v3 ▾` · `4 comments` (sheet on demand) · `Approve` as pills at the foot. Left-edge swipe = system back. | Bailey #3 → FABLE C (synthesis of Grok's stage + Opus's rule) |
 | Drawer | Slides over a scrim from ☰ only | Library (Media, Archive, Trash) · Team (Members, Clients & guests, Invites & roles) · Settings (Workspace, Brand kit, Notifications) · Admin (owners: Billing, Webhooks & API, Audit log) · account footer. **No Recents, no Projects, no Review links.** Inert background, focus move/return, Esc/scrim close, reduced-motion; Opus's nudge optional. | FABLE inventory + Grok (no Recents) + Opus (Archive/Trash placement) |
 | Guest `/review/[token]` | Brand · project name only | Film, comments, Approve. Nothing else. | all three |
 
@@ -498,7 +578,7 @@ name, that's whose model won on operations and why is in §8.
 | Rail (68–72 px, always on) | Projects · Library · Team · Settings; Help + account at foot | Mark is brand only. Admin under Settings for owners. No Reviews, no stages. Optional keyboard-expanded sidebar with Recents. | FABLE (labelled Projects) + Grok (Admin placement) + Opus (expand) |
 | Top bar | Breadcrumb · ⌘K search · Upload · notifications | Breadcrumb carries depth; rail stays on Projects inside a job. | FABLE |
 | Projects hub (login) | Grid of the phone card | Chips: Needs you · Active · Brief · Shoot · Cut · Delivery · Archived — filters, not routes. | all three |
-| Project page | Title · meta · **stepper with one-line status per stage** | Stage content beneath; Cut = version tabs, dominant media stage, adjacent review rail. | FABLE + Opus |
+| Project page | Title · meta · **stepper with one-line status per stage** | Stage content beneath; Cut = version tabs, dominant media stage, **adjacent comment list** (canonical contract), **composer on the film at the click point** — no fixed composer in the rail. | FABLE + Opus (rail) / Bailey #3 (composer) |
 | Film route | Rail stays | Costs width, not the thumb. Theater mode hides rail + header. | all three |
 | Guest | Same as phone | No rail. | all three |
 
@@ -510,8 +590,14 @@ name, that's whose model won on operations and why is in §8.
   Archived; avatar removed from the app bar; edge-swipe-to-open removed;
   **new state C** (`?state=film`) — film route with no rail and no app bar;
   tapping a card's thumbnail enters it, back returns.
+- `index.html` state C, **second revision for Bailey #3**: permanent
+  comment feed and permanent composer removed; dark stage edge to edge;
+  markers on the transport; one compact dialog at the playhead anchored to
+  the pin; `v3` / `4 comments` / `Approve` pills at the foot.
 - `desktop.html`: the mark no longer navigates; Projects is the labelled
-  home control.
+  home control; **permanent composer removed from the review rail**, the
+  composer is now on the film at the click point; rail header reads
+  "Comments · v3".
 - `screenshot.sh` / `screenshots/`: adds `c-film-route-no-rail.png`.
 - `README.md`: reviewer-role wording corrected (no Team for reviewers);
   open questions updated.
@@ -519,3 +605,30 @@ name, that's whose model won on operations and why is in §8.
 Still open, for Bailey rather than for the peers: whether the desktop
 steps row collapses to a compact segmented control once you're inside a
 version, to give the stage more height.
+
+---
+
+## 11. Peer choices (and my own) that fight the intentionality
+
+Named so the master can drop them deliberately. Bailey's point number is
+the one each choice fights.
+
+| Choice | Whose | Fights | Why |
+| --- | --- | --- | --- |
+| Permanent comment feed + fixed composer under the phone film | Opus C; **my first C** | #3, #2 | It *is* the "permanent bottom comment section"; the text field becomes the entry point instead of the frame. Corrected in FABLE C. |
+| Fixed composer at the foot of the desktop review rail | Opus desktop B; **my first desktop B** | #3 | Composer should be born on the film at the click. Corrected in mine. |
+| Film stage with no markers, no count, no list access | Grok `master-phone-player` | #3 (half), operations | Film-first is right; comment-blind is not. T2 impossible from the screen. |
+| Stage tabs = "current job at this stage" | Grok | #7 as decoded ("thumb bottom rail tied to pipeline + Projects"), #4 | The bar can only report the job you're in; the landing screen's bar is 80 % redirects to Projects, so the rail is not the daily path — Projects + chips is. |
+| Stage chips on the phone Projects list | Grok master | #5 (spirit: no duplicate chrome) | Four stage words 200 px above the same four stage words. |
+| Drawer with Projects, Review links, Templates, New project, search, Billing, Recents | Opus B (conceded in part) | #6 | "Robust when needed, gone when not" is a tools drawer, not a second home. Recents is never faster than the Projects tab. |
+| `Reviews` item in the desktop rail | Opus desktop | #7 | Reviews is Cut; a second word for the same stage breaks the story. |
+| `Admin` as a daily desktop rail icon | Opus desktop | #2, #6 | Weekly, owner-only; lives under Settings. |
+| Role-shaped rail (viewer gets 3 stops; <3 → no rail) | Opus proposal | #5 (predictability) | One bar, empty queues. |
+| Mark as the only route home; no "Projects", no breadcrumb | Grok desktop | #2 ("aligned"), wayfinding | A producer's first week shouldn't need to know the logo is a button. Mark is brand; Projects is labelled. |
+| Archive/Trash under Admin | Grok drawer | operations | `projects:read` in the live model; they'd vanish for non-owners. |
+| Red badge on Cut | **my first A** | tokens (red = health) | Corrected to sapphire. |
+| Edge-swipe opens the drawer | **my first A/B** | #1/#3 (film gestures) | Left edge is system back; on the film it collides with scrub. Removed. |
+| "In review / Delivered" chips beside Cut / Delivery tabs | **my first A** | #5 (spirit) | Duplicate chrome. Corrected. |
+
+Everything else in the three comps is compatible with the ten points and is
+a matter of craft, to be settled last.

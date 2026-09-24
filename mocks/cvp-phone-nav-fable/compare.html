@@ -29,6 +29,13 @@
   iframe { width: 390px; height: 844px; border: 0; display: block; }
   figcaption { font-size: 13.5px; color: var(--ink); text-align: center; max-width: 390px; line-height: 1.45; }
   figcaption b { display: block; font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; color: #0057ff; margin-bottom: 4px; }
+
+  h2 { max-width: 1000px; margin: 56px auto 18px; font-size: 13px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--faint); }
+  .desks { display: flex; flex-direction: column; gap: 40px; align-items: center; }
+  .desks figcaption { max-width: 900px; }
+  /* 1440×900 desktop frames scaled to fit a ~1000px review column */
+  .deskframe { width: 1008px; height: 630px; border-radius: 10px; overflow: hidden; box-shadow: 0 0 0 1px rgb(4 15 28 / 0.12), 0 24px 60px rgb(4 15 28 / 0.22); background: #f7f9fc; }
+  .deskframe iframe { width: 1440px; height: 900px; transform: scale(0.7); transform-origin: 0 0; }
 </style>
 </head>
 <body>
@@ -44,6 +51,18 @@
     <figure>
       <div class="frame"><iframe src="index.html?state=drawer" title="State B — Drawer open"></iframe></div>
       <figcaption><b>B · Drawer open</b>☰ / More → left drawer slides in over the list: Library, Team, Settings, Admin. Rail stays put underneath.</figcaption>
+    </figure>
+  </div>
+
+  <h2>Desktop · 1440 × 900 — same IA, thin left tools rail, no bottom bar</h2>
+  <div class="desks">
+    <figure>
+      <div class="deskframe"><iframe src="desktop.html" title="Desktop A — Projects hub"></iframe></div>
+      <figcaption><b>Desktop A · Projects hub</b>Login lands here. Thin left rail = Projects · Library · Team · Settings. Pipeline stages appear only as quiet filter chips, not as navigation.</figcaption>
+    </figure>
+    <figure>
+      <div class="deskframe"><iframe src="desktop.html?state=project" title="Desktop B — inside a project"></iframe></div>
+      <figcaption><b>Desktop B · Inside a project</b>Same rail. Brief → Shoot → Cut → Delivery become quiet steps under the project header; the player-first review workspace sits beneath, untouched.</figcaption>
     </figure>
   </div>
 </body>

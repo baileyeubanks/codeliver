@@ -28,12 +28,12 @@ profile="$(mktemp -d)"
 trap 'rm -rf "$profile"' EXIT
 
 shoot() {
-  local url="$1" file="$2"
+  local url="$1" file="$2" size="$3" scale="$4"
   timeout 60 "$chrome" \
     --headless=new --disable-gpu --no-sandbox --hide-scrollbars \
     --no-first-run --no-default-browser-check \
     --user-data-dir="$profile" \
-    --window-size=390,844 --force-device-scale-factor=2 \
+    --window-size="$size" --force-device-scale-factor="$scale" \
     --virtual-time-budget=1500 \
     --screenshot="$out/$file" \
     "$url" >/dev/null 2>&1 || true
@@ -41,5 +41,10 @@ shoot() {
   echo "wrote $out/$file"
 }
 
-shoot "file://$here/index.html"               "a-default-projects-bottom-rail.png"
-shoot "file://$here/index.html?state=drawer"  "b-drawer-open-deep-tools.png"
+# Phone 390×844 @2×
+shoot "file://$here/index.html"                 "a-default-projects-bottom-rail.png"   390,844  2
+shoot "file://$here/index.html?state=drawer"    "b-drawer-open-deep-tools.png"        390,844  2
+
+# Desktop 1440×900 @1.5× (crisp enough for review; keeps PNGs under ~1 MB)
+shoot "file://$here/desktop.html"               "desktop-a-projects-hub.png"           1440,900 1.5
+shoot "file://$here/desktop.html?state=project" "desktop-b-inside-project-left-rail.png" 1440,900 1.5

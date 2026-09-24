@@ -1,0 +1,308 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>Co-VideoPro — MASTER phone (Opus 5.5 proposal)</title>
+  <link rel="stylesheet" href="phone.css" />
+  <script>
+    // #drawer and #job render those states without animation (used for screenshots).
+    const h = location.hash;
+    if (h === "#drawer") document.documentElement.classList.add("drawer-open", "no-anim");
+    if (h === "#job") document.documentElement.classList.add("in-job", "no-anim");
+  </script>
+</head>
+<body>
+  <svg width="0" height="0" style="position:absolute" aria-hidden="true">
+    <defs>
+      <symbol id="i-menu" viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h10" /></symbol>
+      <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5" /><path d="m20 20-4.2-4.2" /></symbol>
+      <symbol id="i-back" viewBox="0 0 24 24"><path d="m14.5 6-6 6 6 6" /></symbol>
+      <symbol id="i-more" viewBox="0 0 24 24"><circle cx="5.5" cy="12" r="1.3" /><circle cx="12" cy="12" r="1.3" /><circle cx="18.5" cy="12" r="1.3" /></symbol>
+      <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14" /></symbol>
+      <symbol id="i-upload" viewBox="0 0 24 24"><path d="M12 16V5M7 9.5l5-5 5 5M5 19.5h14" /></symbol>
+      <symbol id="i-comment" viewBox="0 0 24 24"><path d="M4.5 5.5h15v10h-9l-4.5 3.5v-3.5h-1.5z" /></symbol>
+      <symbol id="i-play" viewBox="0 0 24 24"><path d="M8 5.5v13l10.5-6.5z" /></symbol>
+      <symbol id="i-projects" viewBox="0 0 24 24"><rect x="3.5" y="4" width="7" height="7" rx="1.6" /><rect x="13.5" y="4" width="7" height="7" rx="1.6" /><rect x="3.5" y="14" width="7" height="6" rx="1.6" /><rect x="13.5" y="14" width="7" height="6" rx="1.6" /></symbol>
+      <symbol id="i-brief" viewBox="0 0 24 24"><path d="M14 3.5H7a1.5 1.5 0 0 0-1.5 1.5v14A1.5 1.5 0 0 0 7 20.5h10a1.5 1.5 0 0 0 1.5-1.5V8z" /><path d="M14 3.5V8h4.5M9 12.5h6M9 16h4" /></symbol>
+      <symbol id="i-shoot" viewBox="0 0 24 24"><rect x="3" y="6.5" width="12.5" height="11" rx="2" /><path d="m15.5 10.5 5.5-3v9l-5.5-3z" /></symbol>
+      <symbol id="i-cut" viewBox="0 0 24 24"><circle cx="6.5" cy="6.5" r="2.8" /><circle cx="6.5" cy="17.5" r="2.8" /><path d="M8.6 8.4 20 18M8.6 15.6 20 6" /></symbol>
+      <symbol id="i-delivery" viewBox="0 0 24 24"><path d="M21 3.5 10.5 14M21 3.5 14.5 21l-4-7-7-4z" /></symbol>
+      <symbol id="i-library" viewBox="0 0 24 24"><rect x="3.5" y="5" width="17" height="14" rx="2" /><path d="M3.5 9h17M8 5v4M13 5v4M10 12.5v4l3.5-2z" /></symbol>
+      <symbol id="i-archive" viewBox="0 0 24 24"><rect x="3.5" y="4.5" width="17" height="4.5" rx="1" /><path d="M5 9v10.5h14V9M10 13h4" /></symbol>
+      <symbol id="i-trash" viewBox="0 0 24 24"><path d="M5 7.5h14M9.5 7.5V5h5v2.5M7 7.5l.8 12h8.4l.8-12" /></symbol>
+      <symbol id="i-team" viewBox="0 0 24 24"><circle cx="9" cy="8.5" r="3.2" /><path d="M3.5 19a5.5 5.5 0 0 1 11 0" /><circle cx="17" cy="9.5" r="2.5" /><path d="M16 14.2a4.5 4.5 0 0 1 4.5 4.8" /></symbol>
+      <symbol id="i-settings" viewBox="0 0 24 24"><path d="M4 7h9M17 7h3M4 17h3M11 17h9" /><circle cx="15" cy="7" r="2" /><circle cx="9" cy="17" r="2" /></symbol>
+      <symbol id="i-shield" viewBox="0 0 24 24"><path d="M12 3.5 19 6v5.5c0 4.2-3 7.4-7 9-4-1.6-7-4.8-7-9V6z" /><path d="m9 12 2 2 4-4" /></symbol>
+      <symbol id="i-panel" viewBox="0 0 24 24"><rect x="3.5" y="4.5" width="17" height="15" rx="2.5" /><path d="M9.5 4.5v15M14.5 10l-2 2 2 2" /></symbol>
+      <symbol id="i-updown" viewBox="0 0 24 24"><path d="m8 9 4-4 4 4M8 15l4 4 4-4" /></symbol>
+      <symbol id="i-check" viewBox="0 0 24 24"><path d="m6 12.5 4 4 8-9" /></symbol>
+    </defs>
+  </svg>
+
+  <div class="phone">
+    <div class="page">
+      <div class="status-bar" aria-hidden="true">
+        <span>9:41</span>
+        <span class="status-icons">
+          <svg width="18" height="12" viewBox="0 0 18 12" fill="currentColor"><rect x="0" y="8" width="3" height="4" rx="1"/><rect x="5" y="5.5" width="3" height="6.5" rx="1"/><rect x="10" y="3" width="3" height="9" rx="1"/><rect x="15" y="0" width="3" height="12" rx="1"/></svg>
+          <svg width="26" height="12" viewBox="0 0 26 12"><rect x=".5" y=".5" width="22" height="11" rx="3.5" fill="none" stroke="currentColor" opacity=".4"/><rect x="2" y="2" width="17" height="8" rx="2" fill="currentColor"/></svg>
+        </span>
+      </div>
+
+      <!-- App bar names the scope: "Projects" on home, the job inside a job -->
+      <header class="app-bar home-only">
+        <button class="icon-btn" id="open-drawer" aria-label="Open menu" aria-controls="drawer" aria-expanded="false">
+          <svg width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><use href="#i-menu" /></svg>
+        </button>
+        <h1 class="bar-title">Projects</h1>
+        <button class="icon-btn" aria-label="Search">
+          <svg width="21" height="21" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><use href="#i-search" /></svg>
+        </button>
+      </header>
+      <header class="app-bar job-only">
+        <button class="icon-btn" data-go="home" aria-label="Back to Projects">
+          <svg width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><use href="#i-back" /></svg>
+        </button>
+        <div class="bar-job">
+          <strong>Northwind — Spring Launch</strong>
+          <span>Northwind Outfitters · <span class="dot warn"></span> Due Fri</span>
+        </div>
+        <button class="icon-btn" aria-label="Project options">
+          <svg width="20" height="20" fill="currentColor"><use href="#i-more" /></svg>
+        </button>
+      </header>
+
+      <!-- ── Home: Projects list ── -->
+      <main class="scroll home-only">
+        <div class="home-head">
+          <p>6 active · 3 waiting on you</p>
+          <button class="new-btn">
+            <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><use href="#i-plus" /></svg>
+            New
+          </button>
+        </div>
+
+        <div class="chips" role="group" aria-label="Filter">
+          <button class="chip" aria-pressed="true">Needs you <b>3</b></button>
+          <button class="chip" aria-pressed="false">Active <b>6</b></button>
+          <button class="chip" aria-pressed="false">Archived</button>
+        </div>
+
+        <ul class="project-list">
+          <li><a class="project" href="#job" data-go="job">
+            <div class="thumb t1"><span class="ver">v3</span><span class="dur">2:14</span></div>
+            <div class="project-body">
+              <div class="project-title">Northwind — Spring Launch</div>
+              <div class="project-meta">Northwind Outfitters · due Fri</div>
+              <div class="status-line"><b>Cut</b> · v3 · changes requested<span class="counter"><svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><use href="#i-comment" /></svg>4</span></div>
+              <span class="pipeline" aria-hidden="true"><i class="done"></i><i class="done"></i><i class="now"></i><i></i></span>
+            </div>
+            <span class="dot warn corner"></span>
+          </a></li>
+          <li><a class="project" href="#">
+            <div class="thumb t3"><span class="ver">Final</span><span class="dur">1:05</span></div>
+            <div class="project-body">
+              <div class="project-title">Atlas Coffee — Brand Film</div>
+              <div class="project-meta">Atlas Coffee Co. · due today</div>
+              <div class="status-line"><b>Delivery</b> · captions pending</div>
+              <span class="pipeline" aria-hidden="true"><i class="done"></i><i class="done"></i><i class="done"></i><i class="now"></i></span>
+            </div>
+            <span class="dot risk corner"></span>
+          </a></li>
+          <li><a class="project" href="#">
+            <div class="thumb t4 doc"><span class="ver">Brief</span></div>
+            <div class="project-body">
+              <div class="project-title">Evergreen Realty — Q4 Social</div>
+              <div class="project-meta">Evergreen Realty · kickoff Oct 2</div>
+              <div class="status-line"><b>Brief</b> · awaiting client sign-off</div>
+              <span class="pipeline" aria-hidden="true"><i class="now"></i><i></i><i></i><i></i></span>
+            </div>
+            <span class="dot ok corner"></span>
+          </a></li>
+          <li><a class="project" href="#">
+            <div class="thumb t2"><span class="dur">0:30</span></div>
+            <div class="project-body">
+              <div class="project-title">Harbor Health — Patient Stories</div>
+              <div class="project-meta">Harbor Health · shoot day 2 of 3</div>
+              <div class="status-line"><b>Shoot</b> · 18 shots logged · 142 GB</div>
+              <span class="pipeline" aria-hidden="true"><i class="done"></i><i class="now"></i><i></i><i></i></span>
+            </div>
+            <span class="dot ok corner"></span>
+          </a></li>
+          <li><a class="project" href="#">
+            <div class="thumb t5"><span class="ver">v1</span><span class="dur">3:40</span></div>
+            <div class="project-body">
+              <div class="project-title">Lumen Labs — Product Demo</div>
+              <div class="project-meta">Lumen Labs · due Oct 14</div>
+              <div class="status-line"><b>Cut</b> · v1 · processing 72%</div>
+              <span class="pipeline" aria-hidden="true"><i class="done"></i><i class="done"></i><i class="now"></i><i></i></span>
+            </div>
+            <span class="dot ok corner"></span>
+          </a></li>
+        </ul>
+      </main>
+
+      <!-- ── Inside a job: the rail's stage tabs now mean this job ── -->
+      <main class="scroll job-only">
+        <div class="stage-head">
+          <h2>Cut</h2>
+          <p>v3 in review · changes requested · 4 open notes</p>
+        </div>
+        <div class="stage-actions">
+          <button class="new-btn">Request approval</button>
+          <button class="quiet-btn">
+            <svg width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><use href="#i-upload" /></svg>
+            Upload v4
+          </button>
+        </div>
+
+        <a class="version-hero" href="phone-film.html">
+          <div class="hero-frame">
+            <span class="hero-play"><svg width="20" height="20" fill="#fff"><use href="#i-play" /></svg></span>
+            <span class="ver">v3 · current</span><span class="dur">2:14</span>
+          </div>
+          <div class="hero-meta">
+            <strong>Hero_Spring_2m14.mov</strong>
+            <span>Jess R. commented 1h ago · 4 open</span>
+          </div>
+        </a>
+
+        <div class="section-label">Earlier versions</div>
+        <ul class="version-list">
+          <li><span class="mini t1"></span><div><strong>v2</strong><span>12 notes · all resolved</span></div><em>Sep 19</em></li>
+          <li><span class="mini t1"></span><div><strong>v1</strong><span>21 notes · all resolved</span></div><em>Sep 15</em></li>
+        </ul>
+      </main>
+
+      <nav class="bottom-rail" aria-label="Primary">
+        <p class="rail-scope job-only">Northwind · stages</p>
+        <ul class="rail-items">
+          <li><a class="rail-item home-current" href="#" data-go="home">
+            <svg width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"><use href="#i-projects" /></svg>
+            Projects</a></li>
+          <li><a class="rail-item" href="#">
+            <span class="done-mark job-only"><svg width="9" height="9" fill="none" stroke="#fff" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"><use href="#i-check" /></svg></span>
+            <svg width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round" stroke-linecap="round"><use href="#i-brief" /></svg>
+            Brief</a></li>
+          <li><a class="rail-item" href="#">
+            <span class="done-mark job-only"><svg width="9" height="9" fill="none" stroke="#fff" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"><use href="#i-check" /></svg></span>
+            <svg width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"><use href="#i-shoot" /></svg>
+            Shoot</a></li>
+          <li><a class="rail-item job-current" href="#">
+            <span class="badge home-only">3</span>
+            <svg width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><use href="#i-cut" /></svg>
+            Cut</a></li>
+          <li><a class="rail-item" href="#">
+            <svg width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round" stroke-linecap="round"><use href="#i-delivery" /></svg>
+            Delivery</a></li>
+        </ul>
+      </nav>
+    </div>
+
+    <div class="scrim" id="scrim"></div>
+
+    <aside class="drawer" id="drawer" aria-label="Workspace menu" inert>
+      <div class="drawer-head">
+        <div class="drawer-top">
+          <button class="workspace">
+            <span class="logo-mark" aria-hidden="true">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="#fff"><path d="M8 5.5v13l10.5-6.5z" /></svg>
+            </span>
+            <span class="ws-text">
+              <strong>Content Co-op</strong>
+              <span>Co-VideoPro · Studio</span>
+            </span>
+            <svg width="16" height="16" fill="none" stroke="#64748b" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><use href="#i-updown" /></svg>
+          </button>
+          <button class="icon-btn" id="close-drawer" aria-label="Close menu">
+            <svg width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><use href="#i-panel" /></svg>
+          </button>
+        </div>
+      </div>
+
+      <div class="drawer-body">
+        <section class="nav-group">
+          <h2>Recent</h2>
+          <ul>
+            <li><a class="recent-link" href="#job" data-go="job"><span class="dot warn"></span>Northwind — Spring Launch<em>Cut</em></a></li>
+            <li><a class="recent-link" href="#"><span class="dot ok"></span>Harbor Health — Patient Stories<em>Shoot</em></a></li>
+            <li><a class="recent-link" href="#"><span class="dot risk"></span>Atlas Coffee — Brand Film<em>Delivery</em></a></li>
+          </ul>
+        </section>
+
+        <section class="nav-group">
+          <h2>Library</h2>
+          <ul>
+            <li><a class="nav-link" href="#">
+              <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round" stroke-linecap="round"><use href="#i-library" /></svg>
+              Media<span class="count">2,418</span></a></li>
+            <li><a class="nav-link" href="#">
+              <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round" stroke-linecap="round"><use href="#i-archive" /></svg>
+              Archive</a></li>
+            <li><a class="nav-link" href="#">
+              <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round" stroke-linecap="round"><use href="#i-trash" /></svg>
+              Trash<span class="count">30 days</span></a></li>
+          </ul>
+        </section>
+
+        <section class="nav-group">
+          <h2>Workspace</h2>
+          <ul>
+            <li><a class="nav-link" href="#">
+              <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><use href="#i-team" /></svg>
+              Team<span class="count">2 invites</span></a></li>
+            <li><a class="nav-link" href="#">
+              <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><use href="#i-settings" /></svg>
+              Settings</a></li>
+            <li><a class="nav-link" href="#">
+              <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round" stroke-linecap="round"><use href="#i-shield" /></svg>
+              Admin<span class="tag">Owner</span></a></li>
+          </ul>
+        </section>
+      </div>
+
+      <div class="drawer-foot">
+        <span class="avatar">BE</span>
+        <div class="foot-text">
+          <strong>Bailey Eubanks</strong>
+          <span>Owner · Content Co-op</span>
+        </div>
+        <button class="sign-out">Sign out</button>
+      </div>
+    </aside>
+
+    <div class="home-indicator" aria-hidden="true"></div>
+  </div>
+
+  <script>
+    const root = document.documentElement;
+    const drawer = document.getElementById("drawer");
+    const openBtn = document.getElementById("open-drawer");
+    const closeBtn = document.getElementById("close-drawer");
+    const page = document.querySelector(".page");
+    const setDrawer = (open) => {
+      root.classList.remove("no-anim");
+      root.classList.toggle("drawer-open", open);
+      openBtn.setAttribute("aria-expanded", String(open));
+      drawer.inert = !open;
+      page.inert = open;
+      (open ? closeBtn : openBtn).focus({ preventScroll: true });
+    };
+    const go = (where) => {
+      root.classList.remove("no-anim");
+      if (root.classList.contains("drawer-open")) setDrawer(false);
+      root.classList.toggle("in-job", where === "job");
+      history.replaceState(null, "", where === "job" ? "#job" : "#");
+    };
+    openBtn.addEventListener("click", () => setDrawer(true));
+    closeBtn.addEventListener("click", () => setDrawer(false));
+    document.getElementById("scrim").addEventListener("click", () => setDrawer(false));
+    document.addEventListener("keydown", (e) => { if (e.key === "Escape" && root.classList.contains("drawer-open")) setDrawer(false); });
+    document.querySelectorAll("[data-go]").forEach((el) =>
+      el.addEventListener("click", (e) => { e.preventDefault(); go(el.dataset.go); })
+    );
+    if (root.classList.contains("drawer-open")) { drawer.inert = false; page.inert = true; openBtn.setAttribute("aria-expanded", "true"); }
+  </script>
+</body>
+</html>

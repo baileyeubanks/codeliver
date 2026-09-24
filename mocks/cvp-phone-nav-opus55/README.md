@@ -1,6 +1,16 @@
 # Co-VideoPro nav — design comp (Opus 5.5)
 
-Design comp only. Nothing here is imported by the app, and the live app shell, player, auth, and review UI are untouched. Phone and desktop share one information architecture: Projects is home, the pipeline is Brief → Shoot → Cut → Delivery, and deep tools (Library, Team, Settings, Admin) sit one step away. The critique of the Fable and Grok 4.7 comps, and the proposed master, are in [`DEBATE.md`](DEBATE.md).
+Design comp only. Nothing here is imported by the app, and the live app shell, player, auth, and review UI are untouched. Phone and desktop share one information architecture: Projects is home, the pipeline is Brief → Shoot → Cut → Delivery, and deep tools (Library, Team, Settings, Admin) sit one step away. The three-way debate with Fable and Grok 4.7 is in [`DEBATE.md`](DEBATE.md).
+
+**Start with [`master/`](master/).** It holds the master phone and desktop frames that came out of the debate, judged against Bailey's stated intent. The files in this top folder are my round-1 comps and are kept as history. State C in particular is superseded: it keeps a comment dock under the film, which Bailey asked to kill.
+
+| Master frame | File |
+| --- | --- |
+| Phone: Projects home, drawer, inside a job | `master/phone-1-projects@2x.png`, `master/phone-2-drawer@2x.png`, `master/phone-3-job-cut@2x.png` (`master/phone.html`, `#drawer`, `#job`) |
+| Phone: tap the film to comment, notes sheet, guest review | `master/phone-4-film-tap-comment@2x.png`, `master/phone-5-film-notes-sheet@2x.png`, `master/phone-6-guest-review@2x.png` (`master/phone-film.html`, `#tap`, `#notes`, `#guest`) |
+| Desktop: Projects hub, project at Cut | `master/desktop-1-projects-hub.png`, `master/desktop-2-project-cut.png` (`master/desktop.html`, `#project`) |
+
+Round-1 comps:
 
 | Mock | State | Screenshot |
 | --- | --- | --- |
@@ -16,7 +26,7 @@ On the phone, the hamburger opens the drawer, and the scrim, the panel button, o
 
 ### 1. The five rail items and what each does for a producer
 
-Each tab is a **cross-project work queue** with a fixed meaning. Opening a project pushes it onto the current tab's stack (the iOS tab-bar model), so the back button returns to the queue you came from. Inside a project, you switch stages with the project's own stepper, not the rail. A tab that meant "all Cut work" on the home screen but "this project's Cut" inside a project would be a hidden mode, and hidden modes are where people get lost. My first phone README described exactly that dual behavior; I've dropped it.
+**A stage tab always opens that stage for whatever scope the header names** (debate R3.2, where all three comps converged). Inside a job, the header names the job and the tabs are that job's stages, so the rail doubles as the phone's stepper. On home, the header says Projects and a stage tab shows every project at that stage. The word on the tab never changes meaning, only its scope does, and the scope is always on screen. Scope changes only by an explicit act: opening a card or a Recent sets it, and back or the Projects tab clears it. It never comes from memory of the last job.
 
 | Tab | What a producer does there day to day | Live route it absorbs |
 | --- | --- | --- |
@@ -37,11 +47,12 @@ The only badge is a sapphire count of items waiting on *you*, shown on stage tab
 
 ### 3. The player and review film route: hide the app bar
 
-On any route where one asset plays for review, the bottom rail is hidden. That covers a version in a project's Cut stage, `/review/[token]`, and a client-portal asset. State C shows it.
+On any route where one asset plays for review, the bottom rail is hidden. That covers a version in a project's Cut stage, `/review/[token]`, and a client-portal asset. `master/phone-4` to `phone-6` show it.
 
 - On a 390px phone the frame is 390×219. The live player keeps its controls to a roughly 6% overlay on the film (about 13px), with no deck underneath.
-- The rail is 54px plus a 26px safe area: 80px, or 37% of the frame height, parked under the film. It would also stack with the comment composer, which needs the same bottom edge for the keyboard and the thumb. That is the dual-chrome problem again, turned vertical.
-- Wistia and Wipster review pages carry no app nav at all: the page is the film and its comments. CVP should match that.
+- The rail is 54px plus a 26px safe area: 80px, or 37% of the frame height, parked under the film. That is the dual-chrome problem again, turned vertical.
+- There is no permanent comment section either. Tapping the film pauses it and opens a comment dialog at the playhead, placed below the frame so the overlay stays clear. Notes open in a sheet from a scrubber marker or the Notes pill, and the sheet goes away when you close it. Desktop keeps a collapsible notes panel *beside* the film and uses the same dialog at the pin.
+- Wistia and Wipster review pages carry no app nav at all, and Wipster's comment gesture is a tap on the frame. CVP should match both.
 - To leave, use the top-left back chevron, labeled with the job and stage ("‹ Northwind · Cut"), which returns you to the tab you came from. There are no app-level edge swipes on the film route: horizontal gestures belong to scrubbing and pinning. There is no hamburger here, and landscape shows only the film with its overlay.
 - Desktop is different: its rail costs width, not film height, so it stays. A theater mode can still hide it.
 
@@ -57,7 +68,7 @@ On any route where one asset plays for review, the bottom rail is hidden. That c
 
 - A 1440×900 screen has width to spare and little height. A 72px left rail costs 5% of the width, while any top or bottom bar costs film height. So on desktop the persistent nav goes on the left.
 - The rail holds global tools only: Projects, Library, Team, and Settings, with Help and the account at the foot. Admin sits behind Settings for owners. It never holds stages.
-- Stages appear in two places, as one concept rendered two ways. **Across projects**, they are filter chips on the Projects hub, the same queues as the phone's stage tabs. **Inside a project**, they are the stepper under the title, the same stepper the phone shows on a project page. The phone rail isn't ported to desktop, and the desktop rail isn't ported to phone (the phone gets it as the drawer). So nothing is duplicated.
+- Stages appear in two places, as one concept rendered two ways. **Across projects**, they are filter chips on the Projects hub, the same filter the phone's stage tabs apply from home. **Inside a project**, they are the step cards under the title, which do the job the phone's rail does inside a job. The phone rail isn't ported to desktop, and the desktop rail isn't ported to phone (the phone gets it as the drawer). So nothing is duplicated.
 - For deep work, the rail can expand into a labeled sidebar with recents, Claude Code style, from a keyboard toggle. It is collapsed by default.
 
 ### 6. Failure modes I would refuse
@@ -65,7 +76,7 @@ On any route where one asset plays for review, the bottom rail is hidden. That c
 - **A permanent left column and a bottom bar together on a phone.** That is two navs to the same places, 18% of the width lost, and no clear answer to "where is home?"
 - **A bottom bar over the film, or stacked under it.** It undoes the 6% overlay and the tap-to-comment work, and it fights the composer for the bottom edge.
 - **A guest inheriting team nav.** `/review/[token]` and the client portal show no rail, no drawer, no team names, and no other projects: just the brand, the project name, the film, comments, and Approve. Anything more leaks other clients' project names and offers tabs that end in a 403. Today `/review/[token]` and the `(review)` and `(client)` route groups already sit outside the `(dashboard)` layout that carries workspace nav; the master has to keep it that way.
-- Also refused: tabs whose meaning changes with context; rainbow phase colors; a "More" tab taking a sixth rail slot; red alarm badges for routine counts; and role-gated tabs that lead to a forbidden page instead of simply not appearing.
+- Also refused: tabs whose scope changes where you can't see it (the header must always name the scope); rainbow phase colors; a "More" tab taking a sixth rail slot; red alarm badges for routine counts; and role-gated tabs that lead to a forbidden page instead of simply not appearing.
 
 ## Visual notes
 

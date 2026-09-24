@@ -4,7 +4,8 @@ The question is how the nav operates, not how it looks. Peers: Fable's [FABLE mo
 
 - **Round 1** is my critique of the first phone comps.
 - **Round 2** answers Grok's `DEBATE.md` and master frames (commit `7a480e7`) and Fable's desktop comp (commit `85f8003`). Fable had not pushed a `DEBATE.md` when I wrote this, so I answer the positions in its README.
-- **The master** section is my current proposal after both rounds, with the points still contested marked.
+- **Round 3** judges every open point against Bailey's stated intent, using Fable's `DEBATE.md` (`5a51cca`) and Grok's intent pass (`0adf850`). It concedes the comment dock and ratifies the stage-tab rule all three of us converged on.
+- **The master** section links the drawn master frames in [`master/`](master/).
 
 Peers: cite my claims by section, for example "Opus R2.1".
 
@@ -150,31 +151,95 @@ On the film route a horizontal swipe belongs to scrubbing and pinning. On any we
 - **Answer to Fable's open question on collapsing the step row:** yes. On a version or film route, the step row collapses to one compact line so the stage gets the height. On the project page it stays full.
 - **One rebut:** Fable's phone rail is global, with an optional project filter chip. Drop the chip. Inside a project, the stepper already scopes, and a chip that silently narrows a global tab is a second mode. See R2.1.
 
-## MASTER after round 2
+## Round 3: judged against Bailey's stated intent
 
-### Phone (390×844)
+Bailey's intent statement is now the test, and it settles most of what we were still fighting about. Sources: Fable's `DEBATE.md` (commit `5a51cca`) and Grok's intent pass (commit `0adf850`). Where his intent rules against me, I say so first.
 
-| Surface | Chrome | Status |
+### R3.1 Comments: I lose this one
+
+Bailey: "Click/tap the film → comment dialog at playhead. Kill the permanent bottom comment section under the video."
+
+- **My state C fails it.** It keeps a notes list and a composer permanently under the film. Grok called this correctly. Fable's rule fails too: its phone film route is "film → review rail/composer", the same dock.
+- **Where I still hold against Grok:** notes have to be readable and answerable somewhere. Grok's player frame had no place at all to read, reply to, or resolve a note. The fix is *on demand*, not a dock.
+- **Master:**
+  - **Phone.** Tapping the film pauses it, drops a pin, and opens a comment dialog at the playhead. The dialog sits *below* the frame, so the live 6% overlay is never covered. To read notes, tap a scrubber marker or the Notes pill in the header; notes open in a sheet that closes when you're done. Nothing sits permanently under the film.
+  - **Desktop.** Clicking the film opens the same dialog beside the pin. The notes list sits *beside* the film, not under it, and collapses with one click. There is no permanent composer.
+
+### R3.2 Stage tabs: we have converged, so here is the rule to ratify
+
+- **Grok's revised rule, stated with no job open:** a stage tab "returns to Projects with that stage chip on." Inside a job, it opens that job's stage. That is exactly my round-1 rule (across projects from home, this job's stage inside a job), which Grok's own refusal list calls "one tab, two meanings."
+- **Fable** has global queues plus a project filter chip, so its tabs also narrow to one job.
+- **So all three models let the scope change with context.** The honest version is to ratify that rule explicitly: **a stage tab always opens that stage for whatever scope the header names.** Inside a job, the header names the job; on home, it says Projects. The word on the tab never changes meaning, only its scope does, and the scope is always on screen.
+- **This matches his intent.** A "thumb bottom rail tied to pipeline + Projects" that "honors the story": inside a job, the four words on the thumb are that job's story, which is Grok's point and the stronger one. From home, they're the same story across all jobs.
+- **Hidden state is gone.** Scope changes only by an explicit act: opening a card or a Recent sets it, and back or the Projects tab clears it. It never comes from memory. Grok dropped "open the last job", which was the risk I argued in R2.1.
+- **Consequences on the phone:**
+  - Inside a job, the rail *is* the stepper. Brief and Shoot show done checks, the current stage is active, and a quiet "Northwind · stages" label sits above the tabs.
+  - There is no separate stepper, and there are no stage chips on the phone home screen. Grok contradicts itself here: it says the tab "returns to Projects with that stage chip on" and also that the phone list "does not add Brief/Shoot/Cut/Delivery chips." In the master, tapping Cut from home simply shows the Projects list filtered to Cut under the header "Cut · all projects." There is no separate chip control.
+- **Fable's project filter chip** is still dropped; the header carries the scope.
+- **Peers, attack this rule if it's wrong.** I'm conceding my R2.1 "hold" to it.
+
+### R3.3 Drawer: settled, except one mechanic
+
+- **Settled (all three):** hamburger only, background inert, focus returns, and nothing that repeats a rail destination.
+- **Settled (Grok now agrees):** Recents at the top, up to three, which is the Claude Code "robust when needed" behavior he asked for. Archive and Trash go under Library.
+- **Settled:** Admin is an owner-tagged row, and Billing lives inside Admin.
+- **Fable still has the edge swipe.** Its §2 says "the edge swipe gives it a reachable alternative." That fights the film's scrub gesture and iOS Safari's back gesture. Drop it.
+- **My 28px page nudge.** Fable's refusal 8 is "a drawer that pushes content." Mine is a transform-only nudge with no reflow, so the film never resizes. It's a looks call; I'll drop it if either peer thinks it reads as a push.
+
+### R3.4 The film route's own chrome
+
+He said "player chrome is better — leave that alone" and "everything AROUND the player must be sleek, clean, aligned."
+
+- **Agreed by all three:** the app rail hides and there is no hamburger. Fable adds that landscape hides the top bar too, and I agree.
+- **Master (around the player only):**
+  - **Top bar:** a back label that names the job and stage ("‹ Northwind · Cut · v3"), the Notes pill, and share.
+  - **Under the film:** the filename, one status line, a version picker, and one primary action.
+  - **The live overlay is drawn as-is, never restyled.**
+
+### R3.5 Guests: settled
+
+- **All three agree:** a share-link guest gets the brand, that review's name, the film, notes, and Approve or Request changes. No rail, no drawer, no team, no other clients.
+- **Grok's distinction also stands.** A workspace member with the reviewer role is not that guest.
+- The master now draws it (`master/phone-6-guest-review@2x.png`).
+
+### R3.6 Desktop: settled
+
+- **Rail:** Projects, Library, Team, Settings, with Help and the account at the foot. The logo is not a second home link, which answers Grok's condition for keeping Projects in the rail.
+- **Hub:** stage chips with counts, and they only filter the list, as Grok requires. The phone's stage tab on home is the same filter reached by thumb.
+- **Project page:** Fable's step cards, each with a status line and the current one tinted.
+- **Notes:** a notes panel beside the film, and a comment dialog at the pin.
+
+### R3.7 Fable's seven-task rubric, run on the master
+
+| # | Task | Master phone | Master desktop |
+| --- | --- | --- | --- |
+| T1 | Open the cut a client just commented on | 2: Cut tab on home (newest client note first), then the version | 2: card (opens at the current stage), then the version is already current |
+| T2 | Reply to a pinned comment | 4: T1, then a marker or the Notes pill, then Reply | 3: T1, then Reply in the panel |
+| T3 | Log a talent release on set | 3: Shoot tab, then the job, then Releases (2 if already in the job) | 3: card, Shoot step, Releases |
+| T4 | See which briefs await sign-off | 1: Brief tab | 1: Brief chip |
+| T5 | Send a final and confirm the download | 2: Delivery tab, then the job | 3: card, Delivery step, Send |
+| T6 | Invite a teammate | 2: hamburger, then Team, then the form | 1: Team, then the form |
+| T7 | A client opens a review link and comments | 1: the link opens the film; tap the film | 1 |
+
+T2 on phone costs one tap more than Fable's count. That is the price of killing the dock, and his intent says to pay it.
+
+## MASTER (round 3), drawn in [`master/`](master/)
+
+These are the frames I'm putting forward for the forge. They're built from the debate, not from my round-1 comp.
+
+| Frame | File | What it settles |
 | --- | --- | --- |
-| Projects home (`/projects`) | App bar (hamburger, "Projects", search) and the five-tab rail | Agreed by all three. Chips: Needs you, Active, Archived. No stage chips, because the rail owns the stages (see R2.1). |
-| Brief, Shoot, Cut, Delivery tabs | App bar names the queue | **Contested (R2.1).** Opus and Fable: queues across projects. Grok: the current job at that stage. |
-| Project page | Back, the job name, compact stepper, and the rail | The stepper is the in-job stage switch. If Bailey picks Grok's model, the rail replaces the stepper and must show the job name. |
-| Film route (a version, a review link, a portal asset) | "‹ Job · Cut" back label and share. **No rail.** | Agreed by Opus and Grok; Fable silent. Layout per R2.4. |
-| Drawer | Hamburger only, no edge swipe. The page nudges under a scrim, the background is inert, and focus returns to the hamburger. | Contents per R2.2. **Contested:** Recents (Opus keeps it, Grok drops it). |
-| Guest (`/review/[token]`, portal) | Brand, project name, film, notes, Approve | Agreed by all three. No rail, no drawer, no team. |
-
-### Desktop (1440×900)
-
-| Surface | Chrome | Status |
-| --- | --- | --- |
-| Rail (68 to 72px) | Projects, Library, Team, Settings; Help and the account at the foot | Agreed by Opus and Fable. Admin sits behind Settings. **Contested:** Grok drops Projects from the rail (R2.5). |
-| Projects hub (login home) | Top bar with the workspace, ⌘K search, and notifications | Stage chips with counts plus Needs you, Active, and Archived. Grid or quiet list is a visual call. |
-| Project page | Breadcrumb, title, a step row with a status per step (current step tinted), one primary action ("Request approval") | No second pipeline panel (R2.6). The eight live project tabs fold into the steps, plus a side panel for Files, Team, and Comms. |
-| Film and version route | The rail stays, and the step row collapses to one line | The frame takes the width, and the review panel has Reply, Resolve, and a composer at the timecode. Theater mode hides the rail. |
-| Guest | Same rule as phone | No rail. |
+| Phone: Projects home | `master/phone-1-projects@2x.png` (`phone.html`) | Hamburger, "Projects", search. Chips: Needs you, Active, Archived. Fable's stage-fact-counter card lines, and a sapphire badge on Cut. |
+| Phone: drawer | `master/phone-2-drawer@2x.png` (`phone.html#drawer`) | Recents (3); Library (Media, Archive, Trash); Workspace (Team, Settings, Admin for owners); account with sign-out. No rail repeats. |
+| Phone: inside a job | `master/phone-3-job-cut@2x.png` (`phone.html#job`) | The header names the job, and the rail is the job's stages (R3.2): Request approval, Upload v4, and the versions. |
+| Phone: tap the film | `master/phone-4-film-tap-comment@2x.png` (`phone-film.html#tap`) | No rail and no dock. The dialog at the playhead sits below the frame, and the overlay is untouched. |
+| Phone: notes on demand | `master/phone-5-film-notes-sheet@2x.png` (`phone-film.html#notes`) | A sheet from the Notes pill or a marker, with Reply and Resolve. Gone when closed. |
+| Phone: guest | `master/phone-6-guest-review@2x.png` (`phone-film.html#guest`) | Brand, review name, film, dialog, Approve, and Request changes. No team chrome. |
+| Desktop: hub | `master/desktop-1-projects-hub.png` (`desktop.html`) | Rail of Projects, Library, Team, Settings, plus Help. Chips: Needs you, Active, the four stages with counts, and Archived. |
+| Desktop: project at Cut | `master/desktop-2-project-cut.png` (`desktop.html#project`) | Step cards, a version switcher, a dialog at the pin, a collapsible notes panel with Reply and Resolve, and one primary action ("Request approval"). |
 
 ## Still open for Bailey
 
-1. **Where producers use the phone.** Is phone time mostly inside one job (on set, in an edit session) or triage across jobs (between meetings)? This decides R2.1: inside one job favors Grok's job-scoped tabs, triage favors queues across projects.
-2. **Where leads live.** Is Leads (today's Opportunities) daily work for your producers? If so, it's the only candidate for a rail slot, and it would have to displace a stage.
-3. **Recents in the drawer.** Do you want the Claude Code sidebar's "resume" behavior (named recent projects), or should the drawer be tools only?
+1. **The scope label.** Inside a job, is the "Northwind · stages" label above the tabs wanted, or is the job name in the header enough?
+2. **Leads.** Is Leads (today's Opportunities) daily work? If so, it goes in the drawer, never on the rail.
+3. **Desktop notes panel.** Should it start open (review work) or collapsed (film first) when a version opens?

@@ -70,6 +70,7 @@ copied inline so every mock is self-contained. Same IA on both form factors:
 ## Files
 
 - `DEBATE.md` — operating rationale, refusals, scoring rubric, the three-way exchange, master spec
+- `PEER_REBUTTAL_GROK_NAV.md` — frame-by-frame critique of Grok 4.7's confirmed renders; what the master steals and refuses
 - `index.html` — phone mock (390 × 844; framed in a bezel on wide windows). `?state=drawer` renders B, `?state=film` renders C.
 - `desktop.html` — desktop mock (1440 × 900). `?state=project` renders state B. Clicking the first card / the Projects breadcrumb switches views live.
 - `compare.html` — all four states in live iframes.

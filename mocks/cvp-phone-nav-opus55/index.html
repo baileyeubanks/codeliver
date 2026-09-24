@@ -1,0 +1,298 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>Co-VideoPro — phone nav mock (Opus 5.5)</title>
+  <link rel="stylesheet" href="styles.css" />
+  <script>
+    // #drawer renders state B without animation (used for screenshots).
+    if (location.hash === "#drawer") document.documentElement.classList.add("drawer-open", "no-anim");
+  </script>
+</head>
+<body>
+  <svg width="0" height="0" style="position:absolute" aria-hidden="true">
+    <defs>
+      <symbol id="i-menu" viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h10" /></symbol>
+      <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5" /><path d="m20 20-4.2-4.2" /></symbol>
+      <symbol id="i-bell" viewBox="0 0 24 24"><path d="M6 16V11a6 6 0 1 1 12 0v5l1.5 2h-15z" /><path d="M10 20.5a2.2 2.2 0 0 0 4 0" /></symbol>
+      <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14" /></symbol>
+      <symbol id="i-projects" viewBox="0 0 24 24"><rect x="3.5" y="4" width="7" height="7" rx="1.6" /><rect x="13.5" y="4" width="7" height="7" rx="1.6" /><rect x="3.5" y="14" width="7" height="6" rx="1.6" /><rect x="13.5" y="14" width="7" height="6" rx="1.6" /></symbol>
+      <symbol id="i-brief" viewBox="0 0 24 24"><path d="M14 3.5H7a1.5 1.5 0 0 0-1.5 1.5v14A1.5 1.5 0 0 0 7 20.5h10a1.5 1.5 0 0 0 1.5-1.5V8z" /><path d="M14 3.5V8h4.5M9 12.5h6M9 16h4" /></symbol>
+      <symbol id="i-shoot" viewBox="0 0 24 24"><rect x="3" y="6.5" width="12.5" height="11" rx="2" /><path d="m15.5 10.5 5.5-3v9l-5.5-3z" /></symbol>
+      <symbol id="i-cut" viewBox="0 0 24 24"><circle cx="6.5" cy="6.5" r="2.8" /><circle cx="6.5" cy="17.5" r="2.8" /><path d="M8.6 8.4 20 18M8.6 15.6 20 6" /></symbol>
+      <symbol id="i-delivery" viewBox="0 0 24 24"><path d="M21 3.5 10.5 14M21 3.5 14.5 21l-4-7-7-4z" /></symbol>
+      <symbol id="i-library" viewBox="0 0 24 24"><rect x="3.5" y="5" width="17" height="14" rx="2" /><path d="M3.5 9h17M8 5v4M13 5v4M10 12.5v4l3.5-2z" /></symbol>
+      <symbol id="i-team" viewBox="0 0 24 24"><circle cx="9" cy="8.5" r="3.2" /><path d="M3.5 19a5.5 5.5 0 0 1 11 0" /><circle cx="17" cy="9.5" r="2.5" /><path d="M16 14.2a4.5 4.5 0 0 1 4.5 4.8" /></symbol>
+      <symbol id="i-review" viewBox="0 0 24 24"><path d="M4.5 5.5h15v10h-9l-4.5 3.5v-3.5h-1.5z" /></symbol>
+      <symbol id="i-templates" viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="2" /><path d="M4 9.5h16M9.5 9.5V20" /></symbol>
+      <symbol id="i-settings" viewBox="0 0 24 24"><path d="M4 7h9M17 7h3M4 17h3M11 17h9" /><circle cx="15" cy="7" r="2" /><circle cx="9" cy="17" r="2" /></symbol>
+      <symbol id="i-billing" viewBox="0 0 24 24"><rect x="3" y="5.5" width="18" height="13" rx="2" /><path d="M3 10h18M7 15h3" /></symbol>
+      <symbol id="i-shield" viewBox="0 0 24 24"><path d="M12 3.5 19 6v5.5c0 4.2-3 7.4-7 9-4-1.6-7-4.8-7-9V6z" /><path d="m9 12 2 2 4-4" /></symbol>
+      <symbol id="i-plug" viewBox="0 0 24 24"><path d="M9 3.5v4M15 3.5v4M6.5 7.5h11V11a5.5 5.5 0 0 1-11 0zM12 16.5v4" /></symbol>
+      <symbol id="i-log" viewBox="0 0 24 24"><path d="M8 6.5h12M8 12h12M8 17.5h12M4 6.5h.01M4 12h.01M4 17.5h.01" /></symbol>
+      <symbol id="i-panel" viewBox="0 0 24 24"><rect x="3.5" y="4.5" width="17" height="15" rx="2.5" /><path d="M9.5 4.5v15M14.5 10l-2 2 2 2" /></symbol>
+      <symbol id="i-updown" viewBox="0 0 24 24"><path d="m8 9 4-4 4 4M8 15l4 4 4-4" /></symbol>
+      <symbol id="i-more" viewBox="0 0 24 24"><circle cx="5.5" cy="12" r="1.3" /><circle cx="12" cy="12" r="1.3" /><circle cx="18.5" cy="12" r="1.3" /></symbol>
+    </defs>
+  </svg>
+
+  <div class="phone" id="phone">
+    <!-- ── PAGE: Projects home + thin bottom rail ── -->
+    <div class="page">
+      <div class="status-bar" aria-hidden="true">
+        <span>9:41</span>
+        <span class="status-icons">
+          <svg width="18" height="12" viewBox="0 0 18 12" fill="currentColor"><rect x="0" y="8" width="3" height="4" rx="1"/><rect x="5" y="5.5" width="3" height="6.5" rx="1"/><rect x="10" y="3" width="3" height="9" rx="1"/><rect x="15" y="0" width="3" height="12" rx="1"/></svg>
+          <svg width="16" height="12" viewBox="0 0 16 12" fill="currentColor"><path d="M8 2.5c2.3 0 4.4.9 6 2.4l1.3-1.4A10.6 10.6 0 0 0 8 .6 10.6 10.6 0 0 0 .7 3.5L2 4.9a8.7 8.7 0 0 1 6-2.4Zm0 3.8c1.3 0 2.5.5 3.4 1.3l1.3-1.4A6.8 6.8 0 0 0 8 4.4c-1.8 0-3.4.7-4.7 1.8l1.3 1.4c.9-.8 2.1-1.3 3.4-1.3ZM8 12l2.3-2.5A3.3 3.3 0 0 0 8 8.4c-.9 0-1.7.4-2.3 1.1Z"/></svg>
+          <svg width="26" height="12" viewBox="0 0 26 12"><rect x=".5" y=".5" width="22" height="11" rx="3.5" fill="none" stroke="currentColor" opacity=".4"/><rect x="2" y="2" width="17" height="8" rx="2" fill="currentColor"/><rect x="23.5" y="4" width="1.8" height="4" rx="1" fill="currentColor" opacity=".4"/></svg>
+        </span>
+      </div>
+
+      <header class="app-bar">
+        <button class="icon-btn" id="open-drawer" aria-label="Open menu" aria-controls="drawer" aria-expanded="false">
+          <svg width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><use href="#i-menu" /></svg>
+        </button>
+        <div class="wordmark">
+          <span class="logo-mark" aria-hidden="true">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="#fff"><path d="M8 5.5v13l10.5-6.5z" /></svg>
+          </span>
+          Co-VideoPro
+        </div>
+        <button class="icon-btn" aria-label="Notifications">
+          <svg width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round" stroke-linecap="round"><use href="#i-bell" /></svg>
+        </button>
+        <button class="icon-btn" aria-label="Account"><span class="avatar">BE</span></button>
+      </header>
+
+      <main class="scroll">
+        <div class="page-head">
+          <div>
+            <h1>Projects</h1>
+            <p>6 active · 3 need your review</p>
+          </div>
+          <button class="new-btn">
+            <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><use href="#i-plus" /></svg>
+            New
+          </button>
+        </div>
+
+        <div class="search">
+          <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><use href="#i-search" /></svg>
+          Search projects, clients, cuts
+        </div>
+
+        <div class="chips" role="group" aria-label="Filter">
+          <button class="chip" aria-pressed="true">Active <b>6</b></button>
+          <button class="chip" aria-pressed="false">Needs review <b>3</b></button>
+          <button class="chip" aria-pressed="false">Archived</button>
+        </div>
+
+        <div class="section-label">Recently updated</div>
+        <ul class="project-list">
+          <li class="project">
+            <div class="thumb t1"><span class="dur">2:14</span></div>
+            <div class="project-body">
+              <div class="project-title">Northwind — Spring Launch</div>
+              <div class="project-meta">v3 cut · 4 new comments</div>
+              <div class="project-foot">
+                <span class="pipeline" aria-hidden="true"><i class="done"></i><i class="done"></i><i class="now"></i><i></i></span>
+                <span class="stage">Cut</span>
+                <span class="health"><span class="dot warn"></span>Due Fri</span>
+              </div>
+            </div>
+          </li>
+          <li class="project">
+            <div class="thumb t2"><span class="dur">0:30</span></div>
+            <div class="project-body">
+              <div class="project-title">Harbor Health — Patient Stories</div>
+              <div class="project-meta">Call sheet sent · 2 locations</div>
+              <div class="project-foot">
+                <span class="pipeline" aria-hidden="true"><i class="done"></i><i class="now"></i><i></i><i></i></span>
+                <span class="stage">Shoot</span>
+                <span class="health"><span class="dot ok"></span>Oct 2</span>
+              </div>
+            </div>
+          </li>
+          <li class="project">
+            <div class="thumb t3"><span class="dur">1:05</span></div>
+            <div class="project-body">
+              <div class="project-title">Atlas Coffee — Brand Film</div>
+              <div class="project-meta">Final approved · captions pending</div>
+              <div class="project-foot">
+                <span class="pipeline" aria-hidden="true"><i class="done"></i><i class="done"></i><i class="done"></i><i class="now"></i></span>
+                <span class="stage">Delivery</span>
+                <span class="health"><span class="dot risk"></span>Today</span>
+              </div>
+            </div>
+          </li>
+          <li class="project">
+            <div class="thumb t4"><span class="dur">—</span></div>
+            <div class="project-body">
+              <div class="project-title">Evergreen Realty — Q4 Social</div>
+              <div class="project-meta">Brief awaiting client sign-off</div>
+              <div class="project-foot">
+                <span class="pipeline" aria-hidden="true"><i class="now"></i><i></i><i></i><i></i></span>
+                <span class="stage">Brief</span>
+                <span class="health"><span class="dot ok"></span>Oct 9</span>
+              </div>
+            </div>
+          </li>
+          <li class="project">
+            <div class="thumb t5"><span class="dur">3:40</span></div>
+            <div class="project-body">
+              <div class="project-title">Lumen Labs — Product Demo</div>
+              <div class="project-meta">v1 cut · review link shared</div>
+              <div class="project-foot">
+                <span class="pipeline" aria-hidden="true"><i class="done"></i><i class="done"></i><i class="now"></i><i></i></span>
+                <span class="stage">Cut</span>
+                <span class="health"><span class="dot ok"></span>Oct 14</span>
+              </div>
+            </div>
+          </li>
+        </ul>
+      </main>
+
+      <nav class="bottom-rail" aria-label="Primary">
+        <ul class="rail-items">
+          <li><a class="rail-item" href="#" aria-current="page">
+            <svg width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"><use href="#i-projects" /></svg>
+            Projects</a></li>
+          <li><a class="rail-item" href="#">
+            <svg width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round" stroke-linecap="round"><use href="#i-brief" /></svg>
+            Brief</a></li>
+          <li><a class="rail-item" href="#">
+            <svg width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"><use href="#i-shoot" /></svg>
+            Shoot</a></li>
+          <li><a class="rail-item" href="#">
+            <span class="badge">3</span>
+            <svg width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><use href="#i-cut" /></svg>
+            Cut</a></li>
+          <li><a class="rail-item" href="#">
+            <svg width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round" stroke-linecap="round"><use href="#i-delivery" /></svg>
+            Delivery</a></li>
+        </ul>
+      </nav>
+    </div>
+
+    <div class="scrim" id="scrim"></div>
+
+    <!-- ── DRAWER: deep tools, slides in from the left ── -->
+    <aside class="drawer" id="drawer" aria-label="Workspace menu">
+      <div class="drawer-head">
+        <div class="drawer-top">
+          <button class="workspace">
+            <span class="logo-mark" aria-hidden="true">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="#fff"><path d="M8 5.5v13l10.5-6.5z" /></svg>
+            </span>
+            <span class="ws-text">
+              <strong>Eubanks Creative</strong>
+              <span>Studio workspace · 8 seats</span>
+            </span>
+            <svg width="16" height="16" fill="none" stroke="#64748b" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><use href="#i-updown" /></svg>
+          </button>
+          <button class="icon-btn" id="close-drawer" aria-label="Close menu">
+            <svg width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><use href="#i-panel" /></svg>
+          </button>
+        </div>
+        <div class="drawer-actions">
+          <button class="drawer-new">
+            <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><use href="#i-plus" /></svg>
+            New project
+          </button>
+          <button class="drawer-search" aria-label="Search">
+            <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><use href="#i-search" /></svg>
+          </button>
+        </div>
+      </div>
+
+      <div class="drawer-body">
+        <section class="nav-group">
+          <ul>
+            <li><a class="nav-link" href="#" aria-current="page">
+              <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"><use href="#i-projects" /></svg>
+              Projects<span class="count">6</span></a></li>
+            <li><a class="nav-link" href="#">
+              <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round" stroke-linecap="round"><use href="#i-library" /></svg>
+              Library<span class="count">412</span></a></li>
+            <li><a class="nav-link" href="#">
+              <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><use href="#i-team" /></svg>
+              Team</a></li>
+            <li><a class="nav-link" href="#">
+              <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"><use href="#i-review" /></svg>
+              Review links<span class="count">3</span></a></li>
+            <li><a class="nav-link" href="#">
+              <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"><use href="#i-templates" /></svg>
+              Templates</a></li>
+          </ul>
+        </section>
+
+        <section class="nav-group">
+          <h2>Recent</h2>
+          <ul>
+            <li><a class="recent-link" href="#"><span class="dot warn"></span>Northwind — Spring Launch</a></li>
+            <li><a class="recent-link" href="#"><span class="dot ok"></span>Harbor Health — Patient Stories</a></li>
+            <li><a class="recent-link" href="#"><span class="dot risk"></span>Atlas Coffee — Brand Film</a></li>
+          </ul>
+        </section>
+
+        <section class="nav-group">
+          <h2>Workspace</h2>
+          <ul>
+            <li><a class="nav-link" href="#">
+              <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><use href="#i-settings" /></svg>
+              Settings</a></li>
+            <li><a class="nav-link" href="#">
+              <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><use href="#i-billing" /></svg>
+              Billing</a></li>
+          </ul>
+        </section>
+
+        <section class="nav-group">
+          <h2>Admin <span class="tag">Owner</span></h2>
+          <ul>
+            <li><a class="nav-link" href="#">
+              <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round" stroke-linecap="round"><use href="#i-shield" /></svg>
+              Members &amp; roles</a></li>
+            <li><a class="nav-link" href="#">
+              <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round" stroke-linecap="round"><use href="#i-plug" /></svg>
+              Integrations</a></li>
+            <li><a class="nav-link" href="#">
+              <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><use href="#i-log" /></svg>
+              Audit log</a></li>
+          </ul>
+        </section>
+      </div>
+
+      <div class="drawer-foot">
+        <span class="avatar">BE</span>
+        <div class="foot-text">
+          <strong>Bailey Eubanks</strong>
+          <span>bailey@eubankscreative.co</span>
+        </div>
+        <button class="icon-btn" aria-label="Account options">
+          <svg width="20" height="20" fill="currentColor"><use href="#i-more" /></svg>
+        </button>
+      </div>
+    </aside>
+
+    <div class="home-indicator" aria-hidden="true"></div>
+  </div>
+
+  <script>
+    const root = document.documentElement;
+    const openBtn = document.getElementById("open-drawer");
+    const setOpen = (open) => {
+      root.classList.remove("no-anim");
+      root.classList.toggle("drawer-open", open);
+      openBtn.setAttribute("aria-expanded", String(open));
+      history.replaceState(null, "", open ? "#drawer" : "#");
+    };
+    openBtn.addEventListener("click", () => setOpen(true));
+    document.getElementById("close-drawer").addEventListener("click", () => setOpen(false));
+    document.getElementById("scrim").addEventListener("click", () => setOpen(false));
+    document.addEventListener("keydown", (e) => { if (e.key === "Escape") setOpen(false); });
+    if (root.classList.contains("drawer-open")) openBtn.setAttribute("aria-expanded", "true");
+  </script>
+</body>
+</html>

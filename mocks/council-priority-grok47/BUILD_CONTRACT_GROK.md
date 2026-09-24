@@ -4,7 +4,7 @@
 
 | Object | Seat | Lives today | State rule | This plan |
 | --- | --- | --- | --- | --- |
-| Tenant | Projects | `co_production.organizations`; hosts in `lib/auth/host-surface.ts` are `admin.contentco-op.com`, `client.contentco-op.com`, `co-videopro.com` | One tenant per `{client}` | New: subdomain resolves the tenant. Schneider is the first door |
+| Tenant | Projects | `co_production.organizations`; hosts in `lib/auth/host-surface.ts` are `admin.contentco-op.com`, `client.contentco-op.com`, `co-videopro.com` | One tenant per `{client}`. Session stays on that host. Client A never reads client B | New: `{client}.co-videopro.com` resolves the tenant. Schneider is the first door. `client.contentco-op.com` stays until that door Lands. Guest links already sent keep working |
 | Project | Projects | `co_production.projects` (`stage`, `organization_id`) | One job. Login opens the list | Reuse. El Paso Water is the first row on Schneider |
 | Brief | Brief | `co_production.briefs`, `co_production.brief_versions` | `draft` → `in_review` → `approved` → `superseded` | Reuse. Disk folder is the source of the words |
 | Shoot day | Shoot | `co_production.production_days` | `scheduled` → `in_progress` → `wrapped` / `cancelled` | Reuse. Days, locations, shots. No crew row on the seat |
@@ -15,7 +15,7 @@
 | Comment | Cut | `co_production.comments` | Tap on the film writes time + pin on that version | Reuse. Opened from the tap. No under-deck |
 | Share | Cut | `co_production.review_invites`; intent still derived in `lib/sharing/share-intent.ts` | Review / Approve / Preview stored on the share | Row 6 ports VA-018. This plan does not rebuild it |
 | Review outcome | Cut | Version-bound approval rounds | Finish writes `finished` / `approved` / `changes requested` on that version | Derived. Nobody retypes it |
-| Deliverable | Delivery | `co_production.deliverables` (`specced` `encoding` `qc` `ready` `delivered` `expired`) | Fixed record: approved version → delivered. Nothing sent without the operator’s yes | Reuse the row. The how (QC, encode, package, AI) is swappable |
+| Deliverable | Delivery | `co_production.deliverables` (`specced` `encoding` `qc` `ready` `delivered` `expired`) | Fixed record: approved version → delivered. Nothing sent without the operator’s yes | Reuse the row. AI drafts are QC against the approved brief, and a chase list of open comments. Operator accepts or ignores. The draft never sends, spends, or approves |
 | Commercial | — | `cco_estimate_id`, `commercial_total_cents` on `co_production.projects` (`20260812000000_commercial_handoff_fields.sql`) | CCO OS writes them. CVP does not mutate them | Show on the master. No finance seat |
 | Crew | — | `co_production.crew_members` exists | No crew product | Not a seat. Not a door. Not a state machine |
 
@@ -31,7 +31,7 @@
 | Shoot | Client | One project | Derived day progress | None | Step shows progress | Step shows progress |
 | Cut | Client | One project | Current version | Tap writes a comment on that version | Film only. Rail hidden. Composer from the tap | Film only. No side rail |
 | Cut | Master | One project | Same version + share | Stores Review / Approve / Preview on the share. Finish writes the review outcome | Same film | Same film |
-| Delivery | Both | One deliverable | `deliverables` + approved version | Operator sets delivered. AI draft is accept or ignore | Bottom: Delivery | Step row |
+| Delivery | Both | One deliverable | `deliverables` + approved version + brief + open comments | Operator accepts or ignores the QC draft and the chase list, then sets delivered | Bottom: Delivery | Step row |
 | Library | Client | One tenant | That tenant’s assets | None on open | Drawer | Thin left |
 | Library | Master | All tenants | Assets across tenants, still keyed by project | None on open | Drawer | Thin left |
 | Guest link | Neither door | One version | The shared version | Comment if the share allows | Film. Rail hidden | Film. Rail hidden |
@@ -66,20 +66,22 @@
 | Case | Input | What may change | What stays |
 | --- | --- | --- | --- |
 | Madeline | Her sheet for the one live client (row 5) | Column name, who changes the cell, what done means | Derived from version + review outcome |
-| Jennifer | A second sheet, same rule | A second column vocabulary | Same mapping. Same deliverable row |
+| Jennifer | Second named sheet, same rule as Madeline | Column vocabulary only | Same deliverable row. If her sheet is not in, this case is open |
 | Open | No sheet yet | Nothing | Status stays the review outcome. Empty columns are not invented |
 
 ## 6. Land list after 1–6
 
-| After | ID | Land | Depends on | Done when | Negative | Gate |
+| # | ID | Land | Depends on | Done when | Negative | Gate |
 | --- | --- | --- | --- | --- | --- | --- |
-| 7 | CVP-06 | `schneider.co-videopro.com` resolves Schneider. Login → Projects. El Paso Water is on the list | #3 picked, #6 proved | Phone: Schneider mark, El Paso row, no other tenant | A second tenant’s project is absent. Guest link still plays the film | DNS stays the existing Bailey gate. `client.contentco-op.com` stays until this Lands |
-| 8 | CVP-03 | El Paso status on `co_production.deliverables`, derived | #5 if Madeline’s sheet is in; #6 always | El Paso row matches the review outcome. Madeline does not retype it | Open case shows the outcome, not a blank invented column | — |
-| 9 | CVP-04 | Master Projects: cross-tenant “waiting on whom”. Shell from the approved PNGs. Film hides the rail | #7, #8 | Login → Projects. El Paso shows who it is waiting on. Phone bottom + drawer. Desktop thin left | No second nav. No left+bottom on the phone. No crew item | Do not redraw PR #30 / #31 / #32 |
-| 10 | CVP-07 | El Paso Cut stays one film | #6 | Version switch on the same player. Notes stay on the version | No rail beside the film. Overlay and logo on `46a256f2` unchanged | — |
-| 11 | CVP-08 | El Paso Delivery, AI-fluid | A finished El Paso review (#6) | Operator accepts or ignores one draft (QC against the brief, or a package note). Delivered is a field on the deliverable | The draft does not send, spend, or approve | — |
-| 12 | CVP-09 | WEFTEC, same seats | #7–#11 on El Paso | Second Schneider project reads `schneider-electric/weftec` | No new seat, door, or table | — |
-| 13 | CVP-05 | Money shown on the master job | CCO handoff columns | El Paso can show the frozen total | CVP does not write `commercial_total_cents` | Bailey says bill. No invoice send |
+| 7 | CVP-06 | `schneider.co-videopro.com` resolves Schneider. Login → Projects. El Paso Water is the first row | #3 picked, #6 proved | Phone: Schneider mark, El Paso row, nothing from another tenant | Client B is absent. Guest link on today’s host still plays the film | DNS is the existing Bailey gate. Generic door stays until this Lands |
+| 8 | CVP-03 | El Paso status on `co_production.deliverables`, derived from the version’s review outcome | #6. #5 when Madeline’s sheet is in | Madeline does not retype that row | Open case shows the outcome, not an invented column | — |
+| 9 | ACS-04 | ACS close-out. Not a CVP Land | #4 | Unchanged sibling | This contract does not open it | Do not stall |
+| 10 | CVP-04 | Master Projects, cross-tenant “waiting on whom”. Shell copied from the approved nav PNGs. Film hides the rail | #3, #7, #8 | Login → Projects. El Paso shows who it waits on. Phone bottom + drawer. Desktop thin left | No second nav. No left+bottom. No crew item | Do not redraw PR #30 / #31 / #32. Not this change |
+| 11 | ACS-03 | ACS job check. Not a CVP Land | #4 | Unchanged sibling | This contract does not open it | Do not stall |
+| 12 | CVP-07 | El Paso version switch on the same film | #6, #8 | Notes stay on that version | No rail beside the film. `46a256f2` overlay and logo unchanged | — |
+| 13 | CVP-05 | Money shown on the master job from CCO OS | Handoff columns. A finished review | El Paso can show the frozen total | CVP does not write `commercial_total_cents`. No invoice send | Bailey says bill is the existing gate |
+| 14 | CVP-08 | AI-fluid on El Paso Delivery. Drafts: QC against the approved brief, chase list of open comments. Reads brief + version + open comments | #6 and one finished round | Operator accepts or ignores each draft | Draft does not send, spend, or approve. No chatbot | — |
+| 15 | CVP-09 | WEFTEC, same Schneider door, same seats, disk `schneider-electric/weftec` | #7–#8 and #12 and #14 on El Paso | Second project only | No new seat, door, or table | Leaves the old HOLD. Not a second product |
 
 ## 7. Kill / don’t-break
 
@@ -102,7 +104,7 @@
 | Out | Why |
 | --- | --- |
 | Rows 1–6 | Already in flight or proof. This contract starts at 7 |
-| Landing the shell in this change | Nav PNGs stand. The shell Land is row 9 above |
+| Landing the shell in this change | Nav PNGs stand. The shell Land is #10 |
 | ACS dispatch, close-out, booking | Sibling train. VA-106 stays an admin load |
 | Caio’s Continuity phone rail | Field truth stays voice. No crew product |
 | DNS edit, migration apply | Existing Bailey gates. Named, not re-asked |

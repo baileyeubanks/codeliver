@@ -2448,6 +2448,17 @@ a { color: inherit; text-decoration: none; }
   transform: translate(calc(-100% - 14px + var(--callout-drag-x, 0px)), calc(-100% - 14px + var(--callout-drag-y, 0px)));
 }
 
+@media (max-width: 640px) {
+  .review-inline-comment[data-horizontal][data-vertical] .review-inline-comment-card {
+    position: fixed;
+    inset: auto 8px 12px 8px;
+    width: auto;
+    max-height: min(42dvh, 260px);
+    transform: none;
+    z-index: 80;
+  }
+}
+
 .review-inline-comment-leader,.review-anchored-comment-leader { position:absolute; inset:0; width:1px; height:1px; overflow:visible; pointer-events:none; }
 .review-inline-comment-leader { z-index:-1; }
 .review-inline-comment-leader line,.review-anchored-comment-leader line { stroke:var(--accent); stroke-width:2; vector-effect:non-scaling-stroke; }

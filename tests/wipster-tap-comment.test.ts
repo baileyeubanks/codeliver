@@ -29,6 +29,8 @@ test("C2 a film tap pauses and opens a playhead composer with a marker", () => {
   assert.match(page, /function handleFramePin\(x: number, y: number, timeSeconds: number\)/);
   assert.match(page, /<InlineReviewComment\b/);
   assert.match(page, /id: "playhead-draft"/);
+  assert.match(globals, /@media \(max-width: 640px\)[\s\S]*?\.review-inline-comment\[data-horizontal\]\[data-vertical\] \.review-inline-comment-card[\s\S]*?position: fixed/);
+  assert.match(globals, /inset: auto 8px 12px 8px/);
   assert.match(page, /timecode_seconds: commentPin\.timeSeconds/);
   assert.match(cockpit, /data-playhead-comment/);
   assert.match(cockpit, /function openPlayheadComment\(\)/);

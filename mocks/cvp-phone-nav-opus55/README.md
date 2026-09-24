@@ -26,7 +26,7 @@ Each tab is a **cross-project work queue** with a fixed meaning. Opening a proje
 | **Cut** | Versions waiting on review, newest comments, approvals owed. Tapping a version opens the film route. | `/reviews` |
 | **Delivery** | Masters in QC, captions, approved and locked files, delivery links, anything overdue. | project Deliverables tab |
 
-The only badge is a sapphire count of items waiting on *you*, shown on stage tabs only. Everything else in today's phone bar leaves the rail. Overview merges into Projects. Opportunities is labeled "Pipeline" in the live model, which collides with the production pipeline, so it becomes Leads in the drawer. Requests feeds the Brief queue, Reviews is the Cut queue, and Activity moves to notifications in the drawer.
+The only badge is a sapphire count of items waiting on *you*, shown on stage tabs only. Everything else in today's phone bar leaves the rail. Overview merges into Projects. Opportunities is labeled "Pipeline" in the live model, which collides with the production pipeline, so it becomes Leads, in the drawer if producers need it (an open question in `DEBATE.md`). Requests feeds the Brief queue, Reviews is the Cut queue, and Activity moves to notifications in the drawer.
 
 ### 2. Why deep tools live in a slide-in drawer, not a permanent left column
 
@@ -42,7 +42,7 @@ On any route where one asset plays for review, the bottom rail is hidden. That c
 - On a 390px phone the frame is 390×219. The live player keeps its controls to a roughly 6% overlay on the film (about 13px), with no deck underneath.
 - The rail is 54px plus a 26px safe area: 80px, or 37% of the frame height, parked under the film. It would also stack with the comment composer, which needs the same bottom edge for the keyboard and the thumb. That is the dual-chrome problem again, turned vertical.
 - Wistia and Wipster review pages carry no app nav at all: the page is the film and its comments. CVP should match that.
-- To leave, use the top-left back chevron or an edge swipe, which returns you to the tab you came from. There is no hamburger on the film route, and landscape shows only the film with its overlay.
+- To leave, use the top-left back chevron, labeled with the job and stage ("‹ Northwind · Cut"), which returns you to the tab you came from. There are no app-level edge swipes on the film route: horizontal gestures belong to scrubbing and pinning. There is no hamburger here, and landscape shows only the film with its overlay.
 - Desktop is different: its rail costs width, not film height, so it stays. A theater mode can still hide it.
 
 ### 4. Login lands on Projects, not a dashboard
@@ -56,7 +56,7 @@ On any route where one asset plays for review, the bottom rail is hidden. That c
 ### 5. Desktop: why the thin left rail stays, and where the pipeline shows
 
 - A 1440×900 screen has width to spare and little height. A 72px left rail costs 5% of the width, while any top or bottom bar costs film height. So on desktop the persistent nav goes on the left.
-- The rail holds global tools only: Projects, Library, and Team, with Admin, Settings, and the account at the bottom. It never holds stages.
+- The rail holds global tools only: Projects, Library, Team, and Settings, with Help and the account at the foot. Admin sits behind Settings for owners. It never holds stages.
 - Stages appear in two places, as one concept rendered two ways. **Across projects**, they are filter chips on the Projects hub, the same queues as the phone's stage tabs. **Inside a project**, they are the stepper under the title, the same stepper the phone shows on a project page. The phone rail isn't ported to desktop, and the desktop rail isn't ported to phone (the phone gets it as the drawer). So nothing is duplicated.
 - For deep work, the rail can expand into a labeled sidebar with recents, Claude Code style, from a keyboard toggle. It is collapsed by default.
 
@@ -72,4 +72,8 @@ On any route where one asset plays for review, the bottom rail is hidden. That c
 - **Phone.** Cards pair a thumbnail with a four-segment sapphire pipeline meter, the stage named in words, and one health dot (green, amber, or red). The rail has a hairline divider between Projects and the four stages. The drawer is 314px, slides on `cubic-bezier(0.32, 0.72, 0, 1)`, and nudges the page 28px under a soft scrim.
 - **Desktop.** The hub is a four-column grid with version tags and "Needs review" flags. In the project view, the frame gets most of the width above one 44px control strip. Timeline dots sit at the comment timecodes, a pin marks the selected comment, and a dashed ghost pin shows click-to-comment. A 360px comments panel sits on the right.
 - **Both.** White and `#f7f9fc` surfaces, with `#0057ff` only for active states, primary actions, pins, and badges. Inter with 8/12px radii, mirroring `app/brand-tokens.css`. Health colors never encode phase.
-- **Where my comps lag this model.** The phone drawer still lists Projects and Review links, and the desktop rail still has Reviews; both duplicate a queue. `DEBATE.md` covers this, and the master drops them.
+- **Where my comps lag this model.** The mocks are round-1 drawings, and several items there lose in the round-2 debate:
+  - The phone drawer lists Projects and Review links (duplicates), Templates, and an ungated Billing.
+  - The desktop rail has Reviews and a top-level Admin.
+
+  `DEBATE.md` covers each, and the master drops them.

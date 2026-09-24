@@ -16,8 +16,8 @@ export interface CoProductionBrandProps {
 
 const DEFAULT_LABEL = "Co‑VideoPro by Content Co-op";
 
-/** Bailey's sapphire blue long lockup, already transparent, with padding in the file.
- * Layout contains the full artwork. It never crops, redraws, or recolors it. */
+/** Bailey's sapphire blue long lockup (CVP_BLUE_LONG_TRANSPARENT).
+ * Transparent field. Layout contains the full artwork and never crops, redraws, or recolors it. */
 export function CoProductionBrand({
   variant = "horizontal",
   className,
@@ -32,7 +32,7 @@ export function CoProductionBrand({
     <span className={rootClassName} data-brand-variant={variant} role="img" aria-label={label}>
       <Image
         className={styles.mark}
-        src="/brand/cvp-mark-safe-pad.png"
+        src="/brand/CVP_BLUE_LONG_TRANSPARENT.png"
         alt=""
         width={730}
         height={187}

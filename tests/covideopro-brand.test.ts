@@ -17,14 +17,14 @@ test("the Co‑VideoPro lockup renders the transparent blue long mark", () => {
   assert.match(componentSource, /role="img"/);
   assert.match(componentSource, /aria-label=\{label\}/);
   assert.match(componentSource, /by Content Co-op/);
-  assert.match(componentSource, /src="\/brand\/cvp-mark-safe-pad\.png"/);
+  assert.match(componentSource, /src="\/brand\/CVP_BLUE_LONG_TRANSPARENT\.png"/);
   assert.match(componentSource, /unoptimized/);
-  assert.doesNotMatch(componentSource, /cvp-sapphire-mark\.png|cvp-ribbon-transparent\.png|CVPLOGO2/);
+  assert.doesNotMatch(componentSource, /cvp-sapphire-mark\.png|cvp-ribbon-transparent\.png|cvp-mark-safe-pad\.png|CVPLOGO2|cvp-fourcolor/);
   assert.doesNotMatch(componentSource, /Co-Production Pro|Co-Deliver/);
 });
 
 test("the login mark is the padded transparent blue long artwork", () => {
-  const file = resolve(repositoryRoot, "public/brand/cvp-mark-safe-pad.png");
+  const file = resolve(repositoryRoot, "public/brand/CVP_BLUE_LONG_TRANSPARENT.png");
   const registered = resolve(repositoryRoot, "public/brand/cvp-long.png");
   assert.ok(existsSync(file));
   const bytes = readFileSync(file);
@@ -39,7 +39,7 @@ test("the login mark is the padded transparent blue long artwork", () => {
 });
 
 test("variants share one supplied source artwork", () => {
-  assert.equal(componentSource.match(/cvp-mark-safe-pad\.png/g)?.length, 1, "one registration mark reference");
+  assert.equal(componentSource.match(/CVP_BLUE_LONG_TRANSPARENT\.png/g)?.length, 1, "one registration mark reference");
 });
 
 test("brand layout contains the ribbon and does not crop it", () => {

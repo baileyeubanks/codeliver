@@ -28,6 +28,7 @@ import {
 } from "@/components/cockpit/CockpitNavigation";
 import CoProductionBrand from "@/components/brand/CoProductionBrand";
 import { useCockpitLayout } from "@/components/cockpit/useCockpitLayout";
+import type { WorkspaceRole } from "@/components/navigation/navigation-model";
 import type { DemoProject } from "@/lib/demo/workspace";
 import type { MediaAsset } from "./MediaCard";
 import styles from "./ProjectWorkspaceTabs.module.css";
@@ -58,6 +59,7 @@ export interface ProjectWorkspaceTabsProps {
   onUpload: () => void;
   onUploadRevision?: (assetId: string) => void;
   onUploadDismiss?: () => void;
+  workspaceRole?: WorkspaceRole;
 }
 
 export interface ProjectWorkspaceChromeProps {
@@ -216,6 +218,7 @@ export default function ProjectWorkspaceTabs(props: ProjectWorkspaceTabsProps) {
             onUpload={props.onUpload}
             onUploadRevision={props.onUploadRevision}
             onUploadDismiss={props.onUploadDismiss}
+            workspaceRole={props.workspaceRole}
           />
         )}
         {activeTab === "brief" && <ProjectBriefPanel projectId={id} projectName={project.name} />}

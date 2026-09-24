@@ -2448,6 +2448,29 @@ a { color: inherit; text-decoration: none; }
   transform: translate(calc(-100% - 14px + var(--callout-drag-x, 0px)), calc(-100% - 14px + var(--callout-drag-y, 0px)));
 }
 
+.review-phone-comment-sheet {
+  position: fixed;
+  left: max(8px, env(safe-area-inset-left));
+  right: max(8px, env(safe-area-inset-right));
+  bottom: max(8px, env(safe-area-inset-bottom));
+  top: auto;
+  width: auto;
+  max-width: none;
+  max-height: calc(100dvh - 16px);
+  margin: 0;
+  box-sizing: border-box;
+  transform: none;
+  z-index: 80;
+}
+
+.cockpit-shell[data-client-film="true"] .cockpit-sidebar,
+.cockpit-shell[data-client-film="true"] .cockpit-mobile-nav,
+.cockpit-shell[data-client-film="true"] .cockpit-mobile-menu,
+.cockpit-shell[data-client-film="true"] .cockpit-action-primary,
+.cockpit-shell[data-client-film="true"] .cockpit-empty-upload {
+  display: none !important;
+}
+
 .review-inline-comment-leader,.review-anchored-comment-leader { position:absolute; inset:0; width:1px; height:1px; overflow:visible; pointer-events:none; }
 .review-inline-comment-leader { z-index:-1; }
 .review-inline-comment-leader line,.review-anchored-comment-leader line { stroke:var(--accent); stroke-width:2; vector-effect:non-scaling-stroke; }
@@ -2486,37 +2509,44 @@ a { color: inherit; text-decoration: none; }
 .review-anchored-comment-error { color:var(--red); }
 
 .review-inline-comment header,
+.review-phone-comment-sheet header,
 .review-inline-comment header > div,
+.review-phone-comment-sheet header > div,
 .review-inline-comment-entry {
   display: flex;
   align-items: center;
 }
 
-.review-inline-comment header {
+.review-inline-comment header,
+.review-phone-comment-sheet header {
   justify-content: space-between;
   gap: 10px;
 }
 
-.review-inline-comment header > div {
+.review-inline-comment header > div,
+.review-phone-comment-sheet header > div {
   min-width: 0;
   gap: 7px;
 }
 
-.review-inline-comment header strong {
+.review-inline-comment header strong,
+.review-phone-comment-sheet header strong {
   overflow: hidden;
   font-size: 0.76rem;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.review-inline-comment header span {
+.review-inline-comment header span,
+.review-phone-comment-sheet header span {
   color: #aab6c7;
   font-family: var(--font-mono, monospace);
   font-size: 0.68rem;
   font-variant-numeric: tabular-nums;
 }
 
-.review-inline-comment header button {
+.review-inline-comment header button,
+.review-phone-comment-sheet header button {
   display: grid;
   flex: 0 0 28px;
   width: 28px;
@@ -2527,7 +2557,9 @@ a { color: inherit; text-decoration: none; }
 }
 
 .review-inline-comment header button:hover,
-.review-inline-comment header button:focus-visible {
+.review-phone-comment-sheet header button:hover,
+.review-inline-comment header button:focus-visible,
+.review-phone-comment-sheet header button:focus-visible {
   background: rgba(255, 255, 255, 0.08);
   color: #fff;
 }
@@ -2536,13 +2568,15 @@ a { color: inherit; text-decoration: none; }
 .review-inline-comment-attachment button { display:inline-flex; align-items:center; gap:5px; max-width:100%; overflow:hidden; border:1px solid rgb(255 255 255 / .16); border-radius:5px; padding:5px 7px; color:#cbd7e6; font-size:.69rem; text-overflow:ellipsis; white-space:nowrap; }
 .review-inline-comment-attachment button:hover { background:rgb(255 255 255 / .08); color:#fff; }
 
-.review-inline-comment label {
+.review-inline-comment label,
+.review-phone-comment-sheet label {
   display: grid;
   gap: 5px;
   margin-top: 8px;
 }
 
-.review-inline-comment label span {
+.review-inline-comment label span,
+.review-phone-comment-sheet label span {
   color: #aab6c7;
   font-size: 0.67rem;
   font-weight: 600;
@@ -2554,7 +2588,9 @@ a { color: inherit; text-decoration: none; }
 }
 
 .review-inline-comment input,
-.review-inline-comment textarea {
+.review-inline-comment textarea,
+.review-phone-comment-sheet input,
+.review-phone-comment-sheet textarea {
   min-width: 0;
   width: 100%;
   border: 1px solid rgba(255, 255, 255, 0.13);
@@ -2566,16 +2602,22 @@ a { color: inherit; text-decoration: none; }
   outline: none;
 }
 
-.review-inline-comment input { height: 38px; padding-block: 0; }
-.review-inline-comment textarea { min-height: 48px; resize: vertical; }
+.review-inline-comment input,
+.review-phone-comment-sheet input { height: 38px; padding-block: 0; }
+.review-inline-comment textarea,
+.review-phone-comment-sheet textarea { min-height: 48px; resize: vertical; }
 
 .review-inline-comment input::placeholder,
-.review-inline-comment textarea::placeholder {
+.review-inline-comment textarea::placeholder,
+.review-phone-comment-sheet input::placeholder,
+.review-phone-comment-sheet textarea::placeholder {
   color: #93a0b2;
 }
 
 .review-inline-comment input:focus,
-.review-inline-comment textarea:focus {
+.review-inline-comment textarea:focus,
+.review-phone-comment-sheet input:focus,
+.review-phone-comment-sheet textarea:focus {
   border-color: #5b9df0;
   box-shadow: 0 0 0 2px rgba(91, 157, 240, 0.18);
 }
@@ -2601,7 +2643,8 @@ a { color: inherit; text-decoration: none; }
   opacity: 0.45;
 }
 
-.review-inline-comment > p {
+.review-inline-comment > p,
+.review-phone-comment-sheet > p {
   display: flex;
   align-items: center;
   gap: 5px;
@@ -2680,15 +2723,6 @@ a { color: inherit; text-decoration: none; }
 .client-review-comment-list {
   padding-top: 12px;
   padding-bottom: 14px;
-}
-
-.client-review-composer {
-  border-top: 1px solid var(--border);
-  background: var(--surface);
-}
-
-.client-review-composer > div {
-  border-top: 0;
 }
 
 /* ── Responsive Breakpoints ──────────────────────────────────── */
@@ -3679,23 +3713,6 @@ a { color: inherit; text-decoration: none; }
 .cockpit-video-controls input { min-width: 70px; flex: 1; accent-color: var(--cockpit-accent); }
 .cockpit-video-controls select { width: 52px; min-height: 30px; padding: 0 4px; border: 1px solid rgba(255,255,255,0.18); border-radius: 5px; background: #122746; color: #fff; font-size: 10px; }
 
-.cockpit-comment-composer {
-  display: grid;
-  grid-template-columns: 34px minmax(0, 1fr) auto auto;
-  align-items: center;
-  gap: 10px;
-  padding: 14px;
-}
-
-.cockpit-avatar { width: 34px; height: 34px; display: inline-flex; align-items: center; justify-content: center; border-radius: 50%; background: var(--cockpit-accent); color: #fff; font-size: 10px; font-weight: 700; }
-.cockpit-comment-field { min-width: 0; display: grid; gap: 6px; }
-.cockpit-pin-chip { justify-self: start; min-height: 20px; display: inline-flex; align-items: center; gap: 5px; padding: 0 7px; border: 1px solid rgba(74, 125, 255, 0.24); border-radius: 8px; background: var(--cockpit-accent-soft); color: var(--cockpit-accent); font-size: 9px; font-weight: 700; }
-.cockpit-comment-composer input { width: 100%; min-width: 0; height: 38px; padding: 0 12px; border: 1px solid var(--cockpit-border); border-radius: 7px; outline: 0; background: var(--cockpit-panel); color: var(--cockpit-ink); font-size: 12px; }
-.cockpit-comment-composer input:focus { border-color: var(--cockpit-accent); box-shadow: 0 0 0 3px rgba(74, 125, 255, 0.08); }
-.cockpit-timecode { height: 38px; padding: 0 10px; border: 1px solid var(--cockpit-border); border-radius: 7px; background: var(--cockpit-panel); color: var(--cockpit-muted); font: 500 10px/1 ui-monospace, SFMono-Regular, Menlo, monospace !important; }
-.cockpit-add-comment { height: 38px; padding: 0 15px; border: 0; border-radius: 7px; background: var(--cockpit-accent); color: #fff; font-size: 11px; font-weight: 650; }
-.cockpit-add-comment:disabled { opacity: 0.45; cursor: not-allowed; }
-
 .cockpit-timeline {
   margin-top: 14px;
   overflow: hidden;
@@ -4022,10 +4039,6 @@ a { color: inherit; text-decoration: none; }
   .cockpit-section-heading select { width: 100%; max-width: none; margin-left: 0; }
   .cockpit-review-strip { grid-template-columns: repeat(5, minmax(118px, 1fr)); overflow-x: auto; scrollbar-width: thin; }
   .cockpit-review-strip article { min-height: 50px; }
-  .cockpit-comment-composer { grid-template-columns: 30px minmax(0, 1fr); gap: 8px; padding: 10px; }
-  .cockpit-avatar { width: 30px; height: 30px; }
-  .cockpit-timecode { grid-column: 1 / 2; }
-  .cockpit-add-comment { grid-column: 2 / 3; }
   .cockpit-video-controls { min-height: 42px; padding: 6px 8px; gap: 5px; }
   .cockpit-video-controls > span { display: none; }
   .cockpit-video-controls button { width: 28px; height: 28px; }

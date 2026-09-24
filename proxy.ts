@@ -62,6 +62,8 @@ const CLIENT_API_ROUTE_PATTERNS = [
   new RegExp(
     `^/api/review/media/${HLS_UUID_PATH_SEGMENT}/hls/(?:playlist\\.m3u8|segments/${HLS_SEGMENT_INDEX})$`,
   ),
+  // El Paso client film mints and lists comment handoffs. Admin keeps the same route.
+  new RegExp(`^/api/assets/${UUID_PATH_SEGMENT}/share$`),
 ];
 
 const ADMIN_API_ROUTE_PATTERNS = [

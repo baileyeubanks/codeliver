@@ -93,9 +93,10 @@ test("the full lifecycle runs on one connected record", async ({ page }) => {
   await expect(page.locator("option", { hasText: "cohort-day1-selects" })).toBeAttached({ timeout: 30000 });
 
   /* 8 · REVIEW — a timecoded note lands on the cut */
-  const composer = page.locator(".cockpit-comment-composer").first();
+  await page.getByRole("button", { name: "Comment at playhead" }).click();
+  const composer = page.getByRole("dialog", { name: /Add a comment at/ });
   await composer.getByLabel("Comment").fill("Open on the dawn climb, not the yard.");
-  await composer.getByRole("button", { name: "Add comment" }).click();
+  await composer.getByRole("button", { name: "Send comment" }).click();
   await expect(page.getByText("Open on the dawn climb, not the yard.")).toBeVisible();
 
   /* 9 · DELIVERY — specced against the uploaded cut, gated, shipped */

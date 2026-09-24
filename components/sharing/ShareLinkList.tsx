@@ -21,6 +21,7 @@ import {
   formatShareIntentMeta,
   type ShareIntent,
 } from "@/lib/sharing/share-intent";
+import { KNOWN_GUEST_FILM_URL } from "@/lib/sharing/guest-film";
 import { toReviewSiteUrl } from "@/lib/surface-origins";
 import type { ShareLink, SharePermission } from "@/lib/types/codeliver";
 
@@ -198,6 +199,9 @@ export default function ShareLinkList({ assetId, refreshKey = 0 }: ShareLinkList
             <p className="mt-1 text-sm text-[var(--muted)]">{activeLoadError}</p>
           </div>
         </div>
+        <a data-guest-preview href={KNOWN_GUEST_FILM_URL} target="_blank" rel="noopener noreferrer">
+          Guest Preview
+        </a>
         <button
           type="button"
           onClick={retryLoad}
@@ -217,6 +221,9 @@ export default function ShareLinkList({ assetId, refreshKey = 0 }: ShareLinkList
         <p className="mt-1 text-sm text-[var(--muted)]">
           Create a link for internal review, client review, approval, or final delivery.
         </p>
+        <a data-guest-preview href={KNOWN_GUEST_FILM_URL} target="_blank" rel="noopener noreferrer">
+          Guest Preview
+        </a>
       </div>
     );
   }

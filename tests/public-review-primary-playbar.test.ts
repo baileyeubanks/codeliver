@@ -33,13 +33,14 @@ test("public review puts exact-time comment markers on the primary seek bar", ()
   assert.match(playerControlsStyles, /\.commentMarker \{[\s\S]*?min-width: 28px;[\s\S]*?min-height: 28px;/);
   assert.match(reviewMediaSurface, /commentMarkers=\{commentMarkers\}/);
   assert.match(reviewMediaSurface, /onCommentMarkerSelect=\{onCommentMarkerSelect\}/);
-  assert.match(publicReviewPage, /commentMarkers=\{rootComments\}/);
+  assert.match(publicReviewPage, /commentMarkers=\{\[\s*\.\.\.rootComments,/);
   assert.match(publicReviewPage, /onCommentMarkerSelect=\{\(comment\) => handleCommentSelect\(comment as ReviewComment\)\}/);
 });
 
 test("the secondary public timeline retains cut decisions without duplicating comment dots", () => {
   assert.match(publicReviewPage, /label: "Cut decisions"/);
-  assert.match(publicReviewPage, /collapsed: cutMarkers\.length === 0/);
+  assert.match(publicReviewPage, /cutMarkers\.length === 0 \? null/);
+  assert.match(publicReviewPage, /collapsed: false/);
   assert.match(publicReviewPage, /comments=\{\[\]\}/);
   assert.match(publicReviewPage, /cutMarkers=\{cutMarkers\}/);
   assert.match(reviewMediaSurface, /timeline\.collapsed \? \(/);

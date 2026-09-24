@@ -49,7 +49,6 @@ interface RailSection {
     emptyDescription: string;
     content: React.ReactNode;
   };
-  composer: React.ReactNode;
 }
 
 export interface ReviewWorkspaceProps {
@@ -214,11 +213,6 @@ export default function PublicReviewWorkspace({
               <div className={styles.guideContent}>{rail.intro}</div>
             </section>
           ) : null}
-
-          {/* Keep the note composer at the top of the review pane. Approval
-              steps can be long, and a reviewer must not have to scroll past
-              them before they can leave a timecoded note. */}
-          <div className={styles.composer}>{rail.composer}</div>
 
           {rail.approval ? (
             <section className={styles.approval} aria-label="Approval">

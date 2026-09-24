@@ -17,7 +17,7 @@ import {
   EXTERNAL_COMMENT_COLUMNS,
   projectExternalComment,
 } from "@/lib/review/external-comment";
-import { inviteCanComment } from "@/lib/review-invites";
+import { guestFilmAllowsComments } from "@/lib/sharing/guest-film";
 import {
   readReviewJsonObject,
   validateReviewMutationRequest,
@@ -182,7 +182,7 @@ async function postComment(req: Request, { params }: { params: Promise<{ token: 
 
   if (!authority?.ok) return reviewBackendUnavailable(responseHeaders);
   const { invite } = authority;
-  if (!inviteCanComment(invite)) {
+  if (!guestFilmAllowsComments(token, invite.permissions)) {
     return reviewError(
       "This review link cannot add comments",
       403,

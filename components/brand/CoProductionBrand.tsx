@@ -16,8 +16,8 @@ export interface CoProductionBrandProps {
 
 const DEFAULT_LABEL = "Co‑VideoPro by Content Co-op";
 
-/** The supplied sapphire CVP mark. Layout crops only its transparent/white
- * whitespace; it never redraws or recolors the approved artwork. */
+/** Supplied sapphire CVP ribbon with the white matte removed.
+ * Layout contains the full artwork. It never crops, redraws, or recolors it. */
 export function CoProductionBrand({
   variant = "horizontal",
   className,
@@ -32,10 +32,10 @@ export function CoProductionBrand({
     <span className={rootClassName} data-brand-variant={variant} role="img" aria-label={label}>
       <Image
         className={styles.mark}
-        src="/brand/cvp-sapphire-mark.png"
+        src="/brand/cvp-ribbon-transparent.png"
         alt=""
-        width={1024}
-        height={1024}
+        width={965}
+        height={534}
         priority={priority}
         unoptimized
         draggable={false}

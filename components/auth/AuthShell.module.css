@@ -74,8 +74,23 @@
   text-decoration: none;
 }
 
-.brandLockup {
-  --co-production-brand-width: 148px;
+.column .brandLockup {
+  --co-production-brand-width: 232px;
+  height: auto;
+  overflow: visible;
+  background: transparent;
+  /* Room above the ribbon so the top curves are not cut by the viewport. */
+  padding: 16px 12px 6px;
+}
+
+.column .brandLockup img {
+  display: block;
+  width: 100%;
+  height: auto;
+  max-height: none;
+  object-fit: contain;
+  object-position: center;
+  background: transparent;
 }
 
 .formColumn {

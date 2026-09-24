@@ -378,8 +378,8 @@
     grid-template-columns: 64px 230px auto minmax(180px, 1fr) auto;
   }
 
-  .shell .brandLockup { width:44px; height:34px; }
-  .shell .brandLockup img { width:110px; max-width:none; }
+  .shell .brandLockup { width:44px; height:auto; overflow:visible; background:transparent; }
+  .shell .brandLockup img { width:100%; max-width:100%; height:auto; max-height:28px; object-fit:contain; background:transparent; }
 
   .shell :global(.cockpit-brand) {
     justify-content: center;

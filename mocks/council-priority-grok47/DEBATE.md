@@ -296,7 +296,7 @@ Blaze pastes each peer's `DEBATE.md` under the paste fences. Grok fills only the
 
 ### Non-negotiables (concede only with new evidence)
 
-- In-flight CVP-01 and ACS-01 finish before any new Grok Land.
+- CVP-01 stays the open Grok Land. ACS-01 is proof on `c58816e4` (Latch → Clip) before VA-106 starts.
 - Passed overlay, sapphire logo, and auth quiet are not reopened.
 - Share-mode implementation waits on a picked nav master. The master is Council work now, not a postponed poster.
 - No Sandcastles, bot, WEFTEC, or invoice Land on this bucket.

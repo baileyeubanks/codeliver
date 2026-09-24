@@ -7,10 +7,10 @@
   <link rel="stylesheet" href="phone.css" />
   <link rel="stylesheet" href="film.css" />
   <script>
-    // #tap: comment dialog at the playhead. #notes: notes sheet. #guest: share-link guest (with the dialog).
+    // #tap: comment dialog at the playhead. #notes: notes sheet. #guest: share-link guest, idle.
     const h = location.hash;
     const c = document.documentElement.classList;
-    if (h === "#tap" || h === "#guest") c.add("show-dialog");
+    if (h === "#tap") c.add("show-dialog");
     if (h === "#notes") c.add("show-notes");
     if (h === "#guest") c.add("guest");
   </script>

@@ -228,3 +228,19 @@
 html.guest .team-only { display: none !important; }
 html:not(.guest) .guest-only { display: none !important; }
 html:not(.show-dialog) .comment-dialog, html:not(.show-dialog) .pin.new { display: none; }
+
+/* Dark review stage (from Grok): the film is the brightest thing on the route */
+.phone:has(.film-page) { background: #0a0d12; }
+.film-page { background: #0a0d12; color: #e8edf5; }
+.film-page .status-bar { color: #fff; }
+.film-page .icon-btn { color: #cbd5e1; }
+.film-title span { color: #8a97ab; }
+.film-title span b { color: var(--blue-soft); }
+.notes-pill { border-color: rgb(255 255 255 / 0.14); color: #e8edf5; }
+.notes-pill .n { color: var(--blue-soft); }
+.film-info .sub { color: #8a97ab; }
+.film-page .pill { background: rgb(255 255 255 / 0.06); border-color: rgb(255 255 255 / 0.12); color: #e8edf5; }
+.film-page .btn-quiet { background: transparent; border-color: rgb(255 255 255 / 0.2); color: #fff; }
+.hint { background: rgb(255 255 255 / 0.05); color: #8a97ab; }
+.phone:has(.film-page) .home-indicator { background: #fff; }
+.comment-dialog { color: var(--ink); }

@@ -92,8 +92,8 @@
           </div>
 
           <div class="toolbar">
-            <button class="chip" aria-pressed="true">Needs you <b>3</b></button>
-            <button class="chip" aria-pressed="false">Active <b>8</b></button>
+            <button class="chip" aria-pressed="false">Needs you <b>3</b></button>
+            <button class="chip" aria-pressed="true">Active <b>8</b></button>
             <span class="chip-sep"></span>
             <button class="chip" aria-pressed="false">Brief <b>2</b></button>
             <button class="chip" aria-pressed="false">Shoot <b>2</b></button>
@@ -101,73 +101,28 @@
             <button class="chip" aria-pressed="false">Delivery <b>1</b></button>
             <span class="chip-sep"></span>
             <button class="chip" aria-pressed="false">Archived</button>
-            <span class="sort">Sort <strong>Recently updated</strong>
+            <span class="sort">Sort <strong>Needs you first</strong>
               <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><use href="#i-down" /></svg>
             </span>
             <div class="view-toggle" role="group" aria-label="View">
-              <button aria-pressed="true" aria-label="Grid"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><use href="#i-projects" /></svg></button>
-              <button aria-pressed="false" aria-label="List"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><use href="#i-list" /></svg></button>
+              <button aria-pressed="false" aria-label="Grid"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><use href="#i-projects" /></svg></button>
+              <button aria-pressed="true" aria-label="List"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><use href="#i-list" /></svg></button>
             </div>
           </div>
 
-          <ul class="grid">
-            <li><a class="card" href="#project" data-go="project">
-              <div class="thumb t1"><span class="review">Needs review</span><span class="ver">v3</span><span class="dur">2:14</span></div>
-              <div class="card-body">
-                <div class="card-title">Northwind — Spring Launch</div>
-                <div class="card-meta">v3 · changes requested · 4 notes</div>
-                <div class="card-foot"><span class="pipeline"><i class="done"></i><i class="done"></i><i class="now"></i><i></i></span><span class="stage">Cut</span><span class="health"><span class="dot warn"></span>Due Fri</span></div>
-              </div></a></li>
-            <li><a class="card" href="#">
-              <div class="thumb t2"><span class="dur">0:30</span></div>
-              <div class="card-body">
-                <div class="card-title">Harbor Health — Patient Stories</div>
-                <div class="card-meta">Day 2 of 3 · 18 shots · 142 GB</div>
-                <div class="card-foot"><span class="pipeline"><i class="done"></i><i class="now"></i><i></i><i></i></span><span class="stage">Shoot</span><span class="health"><span class="dot ok"></span>Oct 2</span></div>
-              </div></a></li>
-            <li><a class="card" href="#">
-              <div class="thumb t3"><span class="ver">Final</span><span class="dur">1:05</span></div>
-              <div class="card-body">
-                <div class="card-title">Atlas Coffee — Brand Film</div>
-                <div class="card-meta">Approved · captions pending</div>
-                <div class="card-foot"><span class="pipeline"><i class="done"></i><i class="done"></i><i class="done"></i><i class="now"></i></span><span class="stage">Delivery</span><span class="health"><span class="dot risk"></span>Today</span></div>
-              </div></a></li>
-            <li><a class="card" href="#">
-              <div class="thumb t4"></div>
-              <div class="card-body">
-                <div class="card-title">Evergreen Realty — Q4 Social</div>
-                <div class="card-meta">Awaiting client sign-off</div>
-                <div class="card-foot"><span class="pipeline"><i class="now"></i><i></i><i></i><i></i></span><span class="stage">Brief</span><span class="health"><span class="dot ok"></span>Oct 9</span></div>
-              </div></a></li>
-            <li><a class="card" href="#">
-              <div class="thumb t5"><span class="review">Needs review</span><span class="ver">v1</span><span class="dur">3:40</span></div>
-              <div class="card-body">
-                <div class="card-title">Lumen Labs — Product Demo</div>
-                <div class="card-meta">v1 · processing 72%</div>
-                <div class="card-foot"><span class="pipeline"><i class="done"></i><i class="done"></i><i class="now"></i><i></i></span><span class="stage">Cut</span><span class="health"><span class="dot ok"></span>Oct 14</span></div>
-              </div></a></li>
-            <li><a class="card" href="#">
-              <div class="thumb t6"><span class="dur">0:45</span></div>
-              <div class="card-body">
-                <div class="card-title">Cedar & Co — Holiday Spot</div>
-                <div class="card-meta">Call sheet sent · 2 days booked</div>
-                <div class="card-foot"><span class="pipeline"><i class="done"></i><i class="now"></i><i></i><i></i></span><span class="stage">Shoot</span><span class="health"><span class="dot warn"></span>Oct 5</span></div>
-              </div></a></li>
-            <li><a class="card" href="#">
-              <div class="thumb t7"><span class="review">Needs review</span><span class="ver">v2</span><span class="dur">1:30</span></div>
-              <div class="card-body">
-                <div class="card-title">Summit Bank — Recruiting Reel</div>
-                <div class="card-meta">v2 · music swap requested</div>
-                <div class="card-foot"><span class="pipeline"><i class="done"></i><i class="done"></i><i class="now"></i><i></i></span><span class="stage">Cut</span><span class="health"><span class="dot ok"></span>Oct 20</span></div>
-              </div></a></li>
-            <li><a class="card" href="#">
-              <div class="thumb t8"></div>
-              <div class="card-body">
-                <div class="card-title">Bluebird Schools — Open House</div>
-                <div class="card-meta">Drafting scope · kickoff Tue</div>
-                <div class="card-foot"><span class="pipeline"><i class="now"></i><i></i><i></i><i></i></span><span class="stage">Brief</span><span class="health"><span class="dot ok"></span>Nov 1</span></div>
-              </div></a></li>
-          </ul>
+          <table class="ptable">
+            <thead><tr><th>Project</th><th>Stage</th><th>Now</th><th>Due</th></tr></thead>
+            <tbody>
+              <tr data-go="project" class="go"><td><div class="pcell"><span class="pthumb t1"></span><div><strong>Northwind — Spring Launch</strong><span>Northwind Outfitters</span></div></div></td><td><div class="scell"><b>Cut</b><span class="pipeline"><i class="done"></i><i class="done"></i><i class="now"></i><i></i></span></div></td><td class="now"><span class="you">Needs you</span>v3 · changes requested · 4 notes</td><td><span class="due"><span class="dot warn"></span>Due Fri</span></td></tr>
+              <tr><td><div class="pcell"><span class="pthumb t3"></span><div><strong>Atlas Coffee — Brand Film</strong><span>Atlas Coffee Co.</span></div></div></td><td><div class="scell"><b>Delivery</b><span class="pipeline"><i class="done"></i><i class="done"></i><i class="done"></i><i class="now"></i></span></div></td><td class="now">Approved · captions pending</td><td><span class="due"><span class="dot risk"></span>Today</span></td></tr>
+              <tr><td><div class="pcell"><span class="pthumb t5"></span><div><strong>Lumen Labs — Product Demo</strong><span>Lumen Labs</span></div></div></td><td><div class="scell"><b>Cut</b><span class="pipeline"><i class="done"></i><i class="done"></i><i class="now"></i><i></i></span></div></td><td class="now"><span class="you">Needs you</span>v1 · processing 72%</td><td><span class="due"><span class="dot ok"></span>Oct 14</span></td></tr>
+              <tr><td><div class="pcell"><span class="pthumb t7"></span><div><strong>Summit Bank — Recruiting Reel</strong><span>Summit Bank</span></div></div></td><td><div class="scell"><b>Cut</b><span class="pipeline"><i class="done"></i><i class="done"></i><i class="now"></i><i></i></span></div></td><td class="now"><span class="you">Needs you</span>v2 · music swap requested</td><td><span class="due"><span class="dot ok"></span>Oct 20</span></td></tr>
+              <tr><td><div class="pcell"><span class="pthumb t2"></span><div><strong>Harbor Health — Patient Stories</strong><span>Harbor Health</span></div></div></td><td><div class="scell"><b>Shoot</b><span class="pipeline"><i class="done"></i><i class="now"></i><i></i><i></i></span></div></td><td class="now">Day 2 of 3 · 18 shots · 142 GB</td><td><span class="due"><span class="dot ok"></span>Oct 2</span></td></tr>
+              <tr><td><div class="pcell"><span class="pthumb t6"></span><div><strong>Cedar &amp; Co — Holiday Spot</strong><span>Cedar &amp; Co</span></div></div></td><td><div class="scell"><b>Shoot</b><span class="pipeline"><i class="done"></i><i class="now"></i><i></i><i></i></span></div></td><td class="now">Call sheet sent · 2 days booked</td><td><span class="due"><span class="dot warn"></span>Oct 5</span></td></tr>
+              <tr><td><div class="pcell"><span class="pthumb t4"></span><div><strong>Evergreen Realty — Q4 Social</strong><span>Evergreen Realty</span></div></div></td><td><div class="scell"><b>Brief</b><span class="pipeline"><i class="now"></i><i></i><i></i><i></i></span></div></td><td class="now">Awaiting client sign-off</td><td><span class="due"><span class="dot ok"></span>Oct 9</span></td></tr>
+              <tr><td><div class="pcell"><span class="pthumb t8"></span><div><strong>Bluebird Schools — Open House</strong><span>Bluebird ISD</span></div></div></td><td><div class="scell"><b>Brief</b><span class="pipeline"><i class="now"></i><i></i><i></i><i></i></span></div></td><td class="now">Drafting scope · kickoff Tue</td><td><span class="due"><span class="dot ok"></span>Nov 1</span></td></tr>
+            </tbody>
+          </table>
         </div>
       </section>
 

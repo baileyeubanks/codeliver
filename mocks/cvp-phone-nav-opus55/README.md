@@ -1,6 +1,6 @@
 # Co-VideoPro nav — design comp (Opus 5.5)
 
-Design comp only. Nothing here is imported by the app, and the live app shell, player, auth, and review UI are untouched. Phone and desktop share one information architecture: Projects is home, the pipeline is Brief → Shoot → Cut → Delivery, and deep tools (Library, Team, Settings, Admin) sit one step away. The three-way debate with Fable and Grok 4.7 is in [`DEBATE.md`](DEBATE.md).
+Design comp only. Nothing here is imported by the app, and the live app shell, player, auth, and review UI are untouched. Phone and desktop share one information architecture: Projects is home, the pipeline is Brief → Shoot → Cut → Delivery, and deep tools (Library, Team, Settings, Admin) sit one step away. The three-way debate with Fable and Grok 4.7 is in [`DEBATE.md`](DEBATE.md). The frame-by-frame rebuttal of Grok's confirmed renders is in [`PEER_REBUTTAL_GROK_NAV.md`](PEER_REBUTTAL_GROK_NAV.md).
 
 **Start with [`master/`](master/).** It holds the master phone and desktop frames that came out of the debate, judged against Bailey's stated intent. The files in this top folder are my round-1 comps and are kept as history. State C in particular is superseded: it keeps a comment dock under the film, which Bailey asked to kill.
 

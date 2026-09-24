@@ -540,6 +540,15 @@ function ShareModalContent({
           {error ? <p className={styles.error} role="alert">{error}</p> : null}
         </div>
         <footer className={styles.footer}>
+          <a
+            className={styles.openLink}
+            data-guest-preview
+            href={link || `/review/demo?demo=1&intent=${encodeURIComponent(shareIntent)}`}
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            Guest Preview
+          </a>
           {link ? <><button type="button" onClick={resetCreatedState}>New link</button><button type="button" className={styles.primary} onClick={onClose}>Done</button></> : <>
             <button type="button" onClick={previewShare} disabled={loading || versionsLoading || !versionId}>Preview</button>
             <button type="button" className={styles.primary} onClick={createLink} disabled={loading || versionsLoading || !versionId}>{loading ? "Creating…" : notificationAuthority.action === "send" ? "Create & send" : "Create link"}</button>

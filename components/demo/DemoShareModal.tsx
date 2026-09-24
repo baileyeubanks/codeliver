@@ -269,9 +269,14 @@ export default function DemoShareModal({
                 : "Choose the media, recipient experience, and delivery authority."}
             </p>
           </div>
-          <button className="demo-share-icon-button" type="button" onClick={onClose} title="Close" aria-label="Close">
-            <X size={18} />
-          </button>
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <a data-guest-preview href={createdLinks.map((link) => resolveDemoLink(link.public_url)).find((url): url is string => Boolean(url)) ?? "/review/demo?demo=1"} target="_blank" rel="noreferrer">
+              Guest Preview
+            </a>
+            <button className="demo-share-icon-button" type="button" onClick={onClose} title="Close" aria-label="Close">
+              <X size={18} />
+            </button>
+          </div>
         </header>
 
         {createdLinks.length > 0 ? (

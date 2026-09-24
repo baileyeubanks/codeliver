@@ -850,6 +850,7 @@ export default function ProjectCockpit({
       : layout.dockOpen;
   const canUpload = roleCan(workspaceRole, "media:write");
   const canShare = roleCan(workspaceRole, "reviews:comment");
+  const clientFilmFirst = !canUpload;
 
   const comments = demoMode
     ? visibleExactInternalReviewRecords(
@@ -2147,6 +2148,7 @@ export default function ProjectCockpit({
       data-rail={compactRail ? "compact" : "expanded"}
       data-dock={dockVisible ? "open" : "closed"}
       data-mobile-dock={mobileDockOpen ? "open" : "closed"}
+      data-client-film={clientFilmFirst ? "true" : "false"}
       data-density={layout.density}
       data-online={online}
     >
@@ -2235,6 +2237,7 @@ export default function ProjectCockpit({
           >
             <Share2 size={17} /> <span>Share</span>
           </button>
+          {clientFilmFirst ? null : (
           <button
             className="cockpit-action-primary"
             type="button"
@@ -2247,6 +2250,7 @@ export default function ProjectCockpit({
           >
             <Plus size={18} /> <span>{uploading ? "Uploading" : "Upload"}</span>
           </button>
+          )}
           <div className="cockpit-popover-anchor">
             <button
               ref={notificationButtonRef}
@@ -2388,6 +2392,7 @@ export default function ProjectCockpit({
         />
       </div>
 
+      {clientFilmFirst ? null : (
       <aside className="cockpit-sidebar" aria-label="Project navigation rail">
         <CockpitProjectNavigation
           activeSection={activeSection}
@@ -2400,6 +2405,9 @@ export default function ProjectCockpit({
           onCollapse={toggleRail}
         />
       </aside>
+      )}
+      {clientFilmFirst ? null : (
+      <>
       <CockpitProjectNavigationDrawer
         open={mobileNavOpen}
         activeSection={activeSection}
@@ -2417,6 +2425,8 @@ export default function ProjectCockpit({
         onSelect={selectSection}
         onOpenDrawer={() => setMobileNavOpen(true)}
       />
+      </>
+      )}
 
       <main id="cockpit-workspace-content" className="cockpit-main" tabIndex={-1}>
         {activeSection === "overview" ? (
@@ -2474,7 +2484,7 @@ export default function ProjectCockpit({
                         <span>Version history unavailable</span>
                       ) : null}
                     </>
-                  ) : (
+                  ) : clientFilmFirst ? null : (
                     <button className="cockpit-action-primary cockpit-empty-upload" type="button" onClick={onUpload}>
                       <Upload size={15} /> Upload media
                     </button>
@@ -2895,9 +2905,11 @@ export default function ProjectCockpit({
                         <Upload size={22} />
                         <strong>No media yet</strong>
                         <p>Upload the first file to start review, comments, versions, and approvals.</p>
+                        {clientFilmFirst ? null : (
                         <button className="cockpit-rail-primary" type="button" onClick={onUpload} disabled={!canUpload}>
                           <Upload size={14} /> Upload media
                         </button>
+                        )}
                       </div>
                     ) : effectiveDockTab === "review" ? (
                       <div className={styles.dockStack}>
@@ -3162,7 +3174,7 @@ export default function ProjectCockpit({
 
             {activeSection === "media" ? (
               <>
-                <header><div><h2>Project media</h2><p>Versions, status, comments, and review readiness in one place.</p></div><button type="button" onClick={onUpload}><Upload size={16} /> Upload media</button></header>
+                <header><div><h2>Project media</h2><p>Versions, status, comments, and review readiness in one place.</p></div>{clientFilmFirst ? null : <button type="button" onClick={onUpload}><Upload size={16} /> Upload media</button>}</header>
                 <div className="cockpit-media-grid">
                   {assets.map((asset) => (
                     <article key={asset.id}>
@@ -3190,7 +3202,7 @@ export default function ProjectCockpit({
 
             {activeSection === "reviews" ? (
               <>
-                <header><div><h2>Review links</h2><p>Active and revocable links for client review and delivery.</p></div><button type="button" onClick={activeAsset ? () => setShareOpen(true) : onUpload} disabled={Boolean(activeAsset && (!contextualShareAllowed || !canShare))}>{activeAsset ? <Share2 size={16} /> : <Upload size={16} />} {activeAsset ? "Create link" : "Upload media"}</button></header>
+                <header><div><h2>Review links</h2><p>Active and revocable links for client review and delivery.</p></div>{clientFilmFirst && !activeAsset ? null : <button type="button" onClick={activeAsset ? () => setShareOpen(true) : onUpload} disabled={Boolean(activeAsset && (!contextualShareAllowed || !canShare))}>{activeAsset ? <Share2 size={16} /> : <Upload size={16} />} {activeAsset ? "Create link" : "Upload media"}</button>}</header>
                 <div className="cockpit-table-list">
                   {projectLinks.map((link) => (
                     <article key={link.id}>

@@ -27,6 +27,9 @@ const securityHeaders = [
 ];
 
 const nextConfig: NextConfig = {
+  // Origin gzip stays off. Next defaults this to true, and deleting the line
+  // turns it back on. Cloudflare is the only compressor for the HTML doors.
+  compress: false,
   poweredByHeader: false,
   productionBrowserSourceMaps: false,
   async headers() {

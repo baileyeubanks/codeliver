@@ -22,6 +22,7 @@ import {
 import ProjectWorkspaceTabs from "@/components/projects/ProjectWorkspaceTabs";
 import AssetUpload, { type UploadCompletion } from "@/components/assets/AssetUpload";
 import CoProductionBrand from "@/components/brand/CoProductionBrand";
+import type { WorkspaceRole } from "@/components/navigation/navigation-model";
 import type { MediaAsset } from "@/components/projects/MediaCard";
 import { putDemoMediaBlob } from "@/lib/demo/media-blob-store";
 import { inspectSelectedMedia } from "@/lib/demo/media-inspection";
@@ -83,6 +84,7 @@ export default function ProjectWorkspaceClient() {
   const [remoteProjects, setRemoteProjects] = useState<Project[]>([]);
   const [remoteAssets, setRemoteAssets] = useState<Asset[]>([]);
   const [viewer, setViewer] = useState({ name: "Content Co-op", email: "" });
+  const [remoteRole, setRemoteRole] = useState<WorkspaceRole>("viewer");
   const [remoteLoading, setRemoteLoading] = useState(true);
   const [remoteError, setRemoteError] = useState("");
   const [uploading, setUploading] = useState(false);
@@ -201,6 +203,10 @@ export default function ProjectWorkspaceClient() {
           ? session.name.trim()
           : email.split("@")[0]?.replace(/[._-]+/g, " ") || "Content Co-op";
         setViewer({ name: displayName, email });
+        const role = session.workspace_role;
+        if (role === "owner" || role === "producer" || role === "editor" || role === "reviewer" || role === "viewer") {
+          setRemoteRole(role);
+        }
       })
       .catch((error) => {
         if (!current || error instanceof DOMException && error.name === "AbortError") return;
@@ -603,6 +609,7 @@ export default function ProjectWorkspaceClient() {
           onUpload={() => openDemoUploadPicker({ kind: "new_asset" })}
           onUploadRevision={(assetId) => openDemoUploadPicker({ kind: "revision", assetId })}
           onUploadDismiss={dismissUploadStatus}
+          workspaceRole={demoWorkspace.session.role}
         />
       </>
     );
@@ -616,6 +623,7 @@ export default function ProjectWorkspaceClient() {
         assets={cockpitAssets}
         demoMode={false}
         viewer={viewer}
+        workspaceRole={remoteRole}
         uploading={uploading}
         uploadStatus={uploadStatus}
         onUpload={openRemoteUploadPicker}

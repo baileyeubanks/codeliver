@@ -2449,11 +2449,16 @@ a { color: inherit; text-decoration: none; }
 }
 
 @media (max-width: 640px) {
-  .review-inline-comment[data-horizontal][data-vertical] .review-inline-comment-card {
+  .review-inline-comment[data-horizontal][data-vertical] .review-inline-comment-card,
+  .review-inline-comment-card[data-phone-sheet="true"] {
     position: fixed;
     inset: auto 8px 12px 8px;
+    left: 8px;
+    right: 8px;
     width: auto;
+    max-width: none;
     max-height: min(42dvh, 260px);
+    margin: 0;
     transform: none;
     z-index: 80;
   }

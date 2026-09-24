@@ -62,8 +62,21 @@
   padding-top: 20px;
 }
 
+.shell[data-client-film="true"] {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.shell[data-client-film="true"] :global(.cockpit-main),
+.shell[data-client-film="true"] .toolbarSlot {
+  grid-column: 1;
+}
+
 .shell[data-rail="compact"] {
   grid-template-columns: 64px minmax(0, 1fr);
+}
+
+.shell[data-client-film="true"][data-rail="compact"] {
+  grid-template-columns: minmax(0, 1fr);
 }
 
 .shell[data-rail="compact"] :global(.cockpit-sidebar) {

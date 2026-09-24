@@ -15,6 +15,11 @@ const brand = source("components/brand/CoProductionBrand.tsx");
 const playerStyles = source("components/player/PlayerControls.module.css");
 const globals = source("app/globals.css");
 const cockpitStyles = source("components/projects/ProjectCockpit.module.css");
+const inlineComment = source("components/review/InlineReviewComment.tsx");
+const share = source("components/sharing/ShareModal.tsx");
+const demoShare = source("components/demo/DemoShareModal.tsx");
+const copilot = source("components/copilot/CopilotMount.tsx");
+const nextConfig = source("next.config.ts");
 
 test("C1 the permanent under-stage comment row is gone", () => {
   assert.doesNotMatch(page, /Add a timecoded comment|PublicReviewComposer|cockpit-comment-composer/);
@@ -31,6 +36,10 @@ test("C2 a film tap pauses and opens a playhead composer with a marker", () => {
   assert.match(page, /id: "playhead-draft"/);
   assert.match(globals, /@media \(max-width: 640px\)[\s\S]*?\.review-inline-comment\[data-horizontal\]\[data-vertical\] \.review-inline-comment-card[\s\S]*?position: fixed/);
   assert.match(globals, /inset: auto 8px 12px 8px/);
+  assert.match(globals, /left: 8px;\s*right: 8px;/);
+  assert.match(inlineComment, /data-phone-sheet/);
+  assert.match(inlineComment, /createPortal\(commentCard, document\.body\)/);
+  assert.match(inlineComment, /left: 8, right: 8/);
   assert.match(page, /timecode_seconds: commentPin\.timeSeconds/);
   assert.match(cockpit, /data-playhead-comment/);
   assert.match(cockpit, /function openPlayheadComment\(\)/);
@@ -42,6 +51,23 @@ test("C3 the guest review shell is film and comments, without operator chrome", 
   assert.match(workspace, /className=\{styles\.rail\}/);
   assert.match(workspace, /rail\.comments\.content/);
   assert.match(page, /cutMarkers\.length === 0 \? null/);
+});
+
+test("share UI exposes a Guest Preview link to the guest film", () => {
+  assert.match(share, /data-guest-preview/);
+  assert.match(share, /Guest Preview/);
+  assert.match(share, /\/review\/demo\?demo=1/);
+  assert.match(demoShare, /data-guest-preview/);
+  assert.match(demoShare, /Guest Preview/);
+  assert.match(demoShare, /\/review\/demo\?demo=1/);
+});
+
+test("a signed-in client film route hides the operator rail, upload, and copilot", () => {
+  assert.match(cockpit, /data-client-film=\{clientFilmFirst \? "true" : "false"\}/);
+  assert.match(cockpit, /clientFilmFirst \? null : \(\s*<button[\s\S]*?Upload media/);
+  assert.match(cockpit, /clientFilmFirst \? null : \(\s*<aside className="cockpit-sidebar"/);
+  assert.match(copilot, /!roleCan\(role, "media:write"\) && PROJECT_FILM_PATH\.test\(pathname\)/);
+  assert.match(nextConfig, /compress:\s*false/);
 });
 
 test("C4 player chrome and the sapphire lockup stay on the current film contract", () => {

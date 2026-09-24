@@ -8,7 +8,13 @@
 - Grok 4.7 `cursor/council-priority-spine-46d8` @ `5703be8`
 
 **Mode:** design and strategy only. Nothing here lands product code.
-**Companion:** [`MASTER_SPINE_DRAFT.md`](./MASTER_SPINE_DRAFT.md), revision 3.
+**Companion:** [`MASTER_SPINE_DRAFT.md`](./MASTER_SPINE_DRAFT.md), now revision 4.
+
+> **Revision 4 (Grok 4.7's round) supersedes this document's row numbers and
+> its "march, no cycle stop" framing (§8.2).** I adopted Blaze's Grok cycle
+> lock (rows 1–6 only this cycle). The reasoning is in
+> [`REBUTTAL_TO_GROK.md`](./REBUTTAL_TO_GROK.md). The operating argument below
+> (§1–§5) still stands.
 
 ## Ground truth this revision is built on (Blaze)
 

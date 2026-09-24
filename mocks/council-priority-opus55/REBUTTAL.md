@@ -40,7 +40,7 @@ Fable's points.
 | N1 | **Two tap-comment Lands are open.** PR #36 (`bc-ec6df537`, the lock's row 1) and PR #25 (draft, VA-019 "tap-frame comments") both rewrite `PublicReviewWorkspace`, `ReviewMediaSurface`, `PublicReviewComposer`, and `ProjectCockpit`. | Two CVP Lands on the same review files break "one open Land per train". Whichever lands second can silently undo the guest's comment path. | **Row 1 = PR #36 only.** PR #25's VA-019 part is not landed. |
 | N2 | **Share modes are already written.** PR #25 contains VA-018: `ReviewShareMenu` (Review / Approval / Preview), a new `preview` intent, and `lib/sharing/share-intent.ts`. | If PR #25 lands now, share modes ship *ahead of the nav pick*, against the lock. Once the pick exists, though, row 6 is a **reconcile, not a build**, which is cheaper for Grok. | **Freeze PR #25 as a draft.** Row 6 = port VA-018 onto the picked nav + make the posture durable. |
 | N3 | **PR #36 can't prove the passed tip.** Its body says "`46a256f2` is not in this repository, so those files were left as they are." | Grok's proof ("on the build that already passed overlay and logo") can't be met from GitHub alone. | **Row 1 proof runs on the M2 live train on top of `46a256f2`.** Latch checks the overlay/logo PASS there. |
-| N4 | **Signed-in clients may see a black stage.** PR #27 ("Ready for M2") admits `/api/assets/{id}/versions/{id}/hls/...` for the client surface after a live `403 SURFACE_FORBIDDEN`. PR #25 describes a related staff-only HLS projection that produced `403 STAFF_REQUIRED` → "readyState 0 black stage" for client sessions. | A client on client.contentco-op who can't see the film can't comment, can't finish, and can't approve. That's upstream of tap-comment. | **Row 1's negative proof covers the anonymous guest link *and* the signed-in client.** If the client stage is black live, the existing stop condition fires, and PR #27 is the known fix to land first. **Blaze/Latch fact check (F1).** |
+| N4 | **Signed-in clients may see a black stage** (closed: not on the current tip). PR #27 ("Ready for M2") admits `/api/assets/{id}/versions/{id}/hls/...` for the client surface after a live `403 SURFACE_FORBIDDEN`. PR #25 describes a related staff-only HLS projection that produced `403 STAFF_REQUIRED` → "readyState 0 black stage" for client sessions. | A client on client.contentco-op who can't see the film can't comment, can't finish, and can't approve. That's upstream of tap-comment. | **Row 1's negative proof covers the anonymous guest link *and* the signed-in client.** ~~If black live, land PR #27 first.~~ **F1 closed (Latch):** a signed-in client on `46a256f2` sees the film (El Paso, CC signed-in; `blaze-vault/visual-audit/20260923/cvp/player/bailey-now/mobile-AFTER-46a256f2-playing.png`). The PR #27 contingency is struck for the current tip, and the check stays as a regression guard. |
 
 ## 2. Grok 4.7, round 3
 
@@ -90,7 +90,7 @@ H1–H5). New this round:
 | Share modes | Build after #1 | Build after #1 + #3 | **Reconcile PR #25's VA-018 after #1 + #3** (N2, G6) |
 | Crew surface | Inside VA-106 | Not named | **Next cycle, with the Caio chip** (F17) |
 | Caio states | Full machine | No row | **Minimal; full if Caio uses the crew surface** (B1, B7) |
-| Copilot-in-ACS | P2, incl. CS reply drafts | Not named | **Next cycle, merged with CVP QC; no outbound drafts yet** (F18, B8) |
+| Copilot-in-ACS | P2, incl. CS reply drafts | Not named | **Next cycle, merged with CVP QC; no outbound drafts yet** (F18). B8 resolved: vault-history intent. |
 | Money | Promote CVP demo proposals | Same job, Bailey says bill | **CCO authority, shown on the job, Bailey says bill** |
 | Proof | Artifact on the live surface | Live proof + Latch negative | **Both, on every row** |
 
@@ -107,19 +107,21 @@ H1–H5). New this round:
 | B7 | **Does Caio (or the crew) actually open the crew surface in the van?** If yes, the full job states go on row 7. |
 | B2 | Does Madeline's sheet carry money as a core column? |
 
-**For Blaze and Latch (fact checks, not Bailey decisions):**
+B7 is still waiting on Bailey.
 
-| # | Check |
-|---|---|
-| F1 | On M2 live, does a signed-in client on client.contentco-op paint the film? If not, land PR #27 before row 1 closes. |
-| F2 | Keep PR #25 in draft until row 6. Its VA-019 duplicates PR #36. |
-| B8 | Is "Copilot-in-ACS" part of Bailey's brief? It's not in the text this seat received. |
+**Fact checks for Blaze and Latch (all closed):**
+
+| # | Check | Result |
+|---|---|---|
+| F1 | On M2 live, does a signed-in client on client.contentco-op paint the film? | **Closed (Latch).** Yes: the stage is visible on `46a256f2`, El Paso, CC signed-in. The PR #27 contingency is struck. |
+| F2 | Keep PR #25 in draft until row 6 (its VA-019 duplicates PR #36) | **Confirmed (Reel).** PR #25 is a draft with a freeze comment. |
+| B8 | Is "Copilot-in-ACS" part of Bailey's brief? | **Resolved (Blaze).** It's vault-history intent, not in this seat's brief. Row 13 stays narrowed as written. |
 
 ## 6. Master delta (rev 4 → rev 5)
 
 | Row | Change |
 |---|---|
-| **1** | PR #36 is the only tap-comment Land. Proof runs on M2 on top of `46a256f2`. The negative proof covers the anonymous guest **and** the signed-in client. |
+| **1** | PR #36 is the only tap-comment Land. Proof runs on M2 on top of `46a256f2`. The negative proof covers the anonymous guest **and** the signed-in client, as a regression check (F1 closed; no PR #27 contingency). |
 | **2** | Wording: "Latch after → Clip". |
 | **6** | Share modes = reconcile PR #25's VA-018 onto the picked nav and store the posture durably. PR #25 stays frozen until then. |
 | **7** | Caio chip + crew today-list (van-legible). Full states only if B7 says yes. |

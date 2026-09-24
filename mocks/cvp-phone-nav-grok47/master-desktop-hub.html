@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Master desktop — Projects hub</title>
+  <link rel="stylesheet" href="./styles.css" />
+  <link rel="stylesheet" href="./desktop.css" />
+  <link rel="stylesheet" href="./master.css" />
+</head>
+<body class="shot">
+  <main class="desk-stage"><div data-desk="hub"></div></main>
+  <script src="./desktop.js"></script>
+  <script>
+    const canvas = document.querySelector(".canvas");
+    const head = canvas.querySelector(".canvas-head");
+    const chips = document.createElement("div");
+    chips.className = "chips";
+    chips.setAttribute("aria-label", "Filter projects by stage");
+    chips.innerHTML = ["All","Brief","Shoot","Cut","Delivery"].map((name, i) =>
+      `<button type="button" ${i === 0 ? 'aria-pressed="true"' : 'aria-pressed="false"'}>${name}</button>`).join("");
+    head.after(chips);
+  </script>
+</body>
+</html>

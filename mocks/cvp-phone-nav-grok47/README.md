@@ -2,6 +2,10 @@
 
 Static HTML/CSS only. The live shell, player, auth, and review UI are unchanged.
 
+How the nav **operates** is in `DEBATE.md`. Short version: Projects is the only cross-project home; Brief, Shoot, Cut, and Delivery are that job’s steps; the phone drawer is Library, Team, Settings, and Admin; the app bottom bar hides on the film; desktop keeps a thin tools rail and does not copy the phone bar. Peer comps (Fable, Opus 5.5) are argued there, not scored on looks.
+
+Master frames, workflow first: `master-phone-projects.png`, `master-phone-player.png`, `master-desktop-hub.png`, `master-desktop-project.png`.
+
 Open `index.html` for both 390×844 states. `state-a.html` and `state-b.html` are the screenshot frames. On the gallery page, the header menu toggles the drawer.
 
 - After login the phone lands on a **Projects** list. There is no widget dashboard on this surface.

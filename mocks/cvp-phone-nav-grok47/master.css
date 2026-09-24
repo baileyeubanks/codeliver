@@ -1,0 +1,102 @@
+/* Master comps. Operating rules live in DEBATE.md. */
+
+.chips {
+  display: flex;
+  gap: 6px;
+  margin: 0 0 12px;
+}
+
+.chips button {
+  height: 28px;
+  padding: 0 10px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--soft);
+  font-size: 12px;
+  font-weight: 650;
+  cursor: pointer;
+}
+
+.chips button[aria-pressed="true"] {
+  border-color: transparent;
+  background: var(--ice);
+  color: var(--deep);
+}
+
+.film {
+  height: 100%;
+  display: grid;
+  grid-template-rows: 47px 48px 1fr 72px;
+  background: #071018;
+  color: #eaf2ff;
+}
+
+.film .status { background: transparent; color: #eaf2ff; }
+
+.film-top {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 10px;
+}
+
+.film-top button {
+  height: 36px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: #eaf2ff;
+  font-size: 14px;
+  font-weight: 650;
+}
+
+.stage-fill {
+  position: relative;
+  margin: 0 12px;
+  border-radius: 12px;
+  background:
+    linear-gradient(180deg, rgb(4 15 28 / 0.05), rgb(4 15 28 / 0.45)),
+    #12304f;
+}
+
+.tap {
+  position: absolute;
+  left: 16px;
+  bottom: 14px;
+  color: #d5e4f5;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.transport {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 16px 18px;
+  color: #c5d5e6;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+.transport .play { flex: none; }
+
+.transport .track {
+  flex: 1;
+  height: 3px;
+  border-radius: 999px;
+  background: #2a455f;
+}
+
+.transport .track i {
+  display: block;
+  width: 28%;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--blue);
+}
+
+.desk .chips { margin-bottom: 14px; }

@@ -196,17 +196,18 @@ Observation for the debate: **north star 1 (kill Excel) is a data-model problem,
 
 ### 4.3 Shared definition of Land
 
-Land = live on M4/M2, **with proof**: a screen recording or screenshots taken on the live surface (phone for ACS admin/crew and CVP client; desktop where the item has a desktop half), the don't-break list checked, the surface PASS checked against the ledger with the VA sweep result attached, and Clip/Latch confirmation. A green PR is a *candidate*, not a Land. A Land without artifact proof is not a Land. A Land whose workflow works but whose surface is still OPEN is logged as *half-Landed* and stays the open item for that product.
+Land = live on M4/M2, **with proof**: a screen recording or screenshots taken on the live surface (phone for ACS admin/crew and CVP client; desktop where the item has a desktop half), the don't-break list checked, the surface PASS checked against the ledger with the VA sweep result attached, **the negative proved by Latch** (guest path still plays; no client/crew send fired; crew not paged; `compress:false` still set), and Clip/Latch confirmation. A green PR is a *candidate*, not a Land. A Land without artifact proof is not a Land. A Land whose workflow works but whose surface is still OPEN is logged as *half-Landed* and stays the open item for that product.
 
 ### 4.4 Visual surface ledger (Bailey's scoreboard, carried on every spine item)
 
 | Surface outcome | State | Funded by spine item |
 |---|---|---|
-| Player (thin on-film, tip `46a256f2`) | **PASS** — hold, don't-break | every CVP Land gate |
+| Player (thin on-film, mobile overlay ~6%, tip `46a256f2`) | **PASS** — hold, don't-break | every CVP Land gate |
 | Logo / sapphire blue-long transparent mark | **PASS** — hold | every CVP Land gate |
+| Auth door quiet (`c9804e1`, `5da6aed`) | **PASS** — hold | every CVP Land gate |
 | Tap-comment (click-film dialog, under-deck killed, quiet surround) | **OPEN** | #1 |
-| Nav master (phone = bottom pipeline + Claude drawer; desktop = **thin left**) | **OPEN** — Council mock → Bailey pick → Land | #3 → #9 |
-| ACS quiet admin (VA sweep clean: roster, dispatch, job create) + crew list legible in a van | **OPEN** | #2, #4 |
+| Nav master (phone = bottom pipeline + Claude drawer; desktop = **thin left**; shows Login → Projects and where Review/Approve/Preview sit) | **OPEN** — Council mock → Bailey pick → Land | #3 → #10 |
+| ACS quiet admin (VA sweep clean: roster #2, dispatch #4) + crew list legible in a van (#7) | **OPEN** | #2 → #4 → #7 |
 
 The ledger is not a separate track. Each OPEN row is the surface half of a spine item that already holds the workflow half.
 
@@ -253,12 +254,13 @@ Legend: **G** = Grok 4.7 Land (scarce) · **K** = Kimi pack (abundant) · **C** 
 | #1 CVP tap-comment | frame-bound comment persists on exact version | click-film comment dialog; under-deck gone; quiet surround; player + logo PASS held |
 | #2 ACS PR#5 roster | delete/merge without data loss | confirmation + toasts that don't storm; ACS-VA quiet on roster |
 | #3 nav master | — (Council/Bailey) | one phone master (bottom pipeline + Claude drawer) and one desktop master (**thin left**), mock-only until picked |
-| #4 ACS dispatch | tomorrow's Jobs by crew load reliably; **crew surface** shows today's list | no dead loading state; one-handed phone read on admin; van-legible crew list; ACS-VA quiet on dispatch and job create |
-| #5 CVP review shell | share modes + finish reviewing + version-bound approval | Wipster ritual feel: film first, thin controls, approve as a deliberate act, guest film-first |
-| #6 ACS Caio loop | job state from Continuity (`+15048581959` only) | state chips on crew + admin surfaces; no modal traps |
-| #7 CVP Deliverable status | derived status per deliverable per client | status rendered in existing cockpit with no new chrome; reads as a strip, not a table |
-| #8 ACS evening close | notes + invoice state on Job | close flow in ≤3 taps on phone; ACS-VA quiet |
-| #9 CVP Projects home | **login lands on Projects**; every project shows its deliverable strip (#7) | the picked nav master Landed: phone bottom pipeline + drawer, desktop thin left; logo PASS; no left+bottom on phone |
+| #4 ACS VA-106 (alone) | the `First L. Service` job loads for crew assignment; assignment sticks after refresh | no dead loading state; one-handed phone read; ACS-VA quiet on dispatch; crew not paged |
+| #5 KIMI-01 Madeline columns | — (pack) | names the field #6 writes and #8 renders |
+| #6 CVP share modes | Review/Approve/Preview stored as posture; finish writes the #5 status onto the exact version | control lives where the #3 master says; film first, thin controls, approve as a deliberate act |
+| #7 ACS Caio loop + crew list | job state from a human tap after the Continuity call (`+15048581959` only) | state chips on crew + admin; crew today-list van-legible; no modal traps |
+| #8 CVP one-client status | derived per-deliverable status for Madeline's client | strip on existing cockpit, no new chrome |
+| #9 ACS evening close | notes + invoice state on Job; Lupe fields only when blocking | close flow in ≤3 taps on phone; ACS-VA quiet |
+| #10 CVP Projects home | **login lands on Projects**; every project shows its deliverable strip (#8) | the picked nav master Landed: phone bottom pipeline + drawer, desktop thin left; logo PASS; no left+bottom on phone |
 
 ## 6. What to defer (named drops — "a dropped thing you named is a decision")
 
@@ -347,15 +349,9 @@ Template lives in `REBUTTAL_TEMPLATE.md`. Two slots are pre-cut below. Order of 
 - **Credit impact (G / K / C):** _(…)_
 - **Open question only Bailey can answer (one pick for Blaze):** _(…)_
 
-### 9.2 Rebuttal → Grok 4.7 DEBATE.md
+### 9.2 Rebuttal → Grok 4.7 DEBATE.md — **filed**: `REBUTTAL_TO_GROK.md`
 
-- **Peer's core claim:** _(paste)_
-- **Adopted as-is (peer right on operations):** _(…)_ → spine edits: _(#, action)_
-- **Adopted with modification:** _(…)_ → spine edits: _(#, action)_
-- **Contested — operating reason only:** _(…)_
-- **Surface ledger impact (PASS/OPEN rows touched):** _(…)_
-- **Credit impact (G / K / C):** _(…)_
-- **Open question only Bailey can answer (one pick for Blaze):** _(…)_
+Summary: 11 points adopted as-is (unbundle VA-106; Madeline column harvest as its own row; finish-reviewing writes the status; share modes wait on the nav pick; proof text with the negative; Auth quiet PASS; migration is a Bailey gate; El Paso is past so creative AI starts with QC-vs-brief/chase list; cycle acceptance; "Bailey says bill" gate). 4 adopted with modification (enrichment is human, close/notes/invoice is the Land; one-client status first; Projects home P1→P2 with owner kept; VA-106 failure note yes, "KIMI-01 only" no). 4 held with operating evidence (Caio write-back as Job state; crew surface; Copilot-in-ACS as named intent; Kimi one slice ahead). Spine renumbered; see change log.
 
 ### 9.3 Where Opus and Grok disagree with each other
 

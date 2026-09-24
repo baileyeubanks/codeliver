@@ -29,6 +29,9 @@ test("C1 the permanent under-stage comment row is gone", () => {
   assert.doesNotMatch(page, /composer:/);
   assert.doesNotMatch(workspace, /rail\.composer/);
   assert.match(page, /guestFilmAllowsComments\(token, permissions\)/);
+  assert.throws(() => source("components/review/InternalReviewComposer.tsx"));
+  assert.match(globals, /data-client-film="true"\] \{\s*grid-template-columns: minmax\(0, 1fr\) !important/);
+  assert.match(globals, /\.cockpit-review-stage:has\(\.review-inline-comment\)/);
 });
 
 test("C2 a film tap pauses and opens a playhead composer with a marker", () => {

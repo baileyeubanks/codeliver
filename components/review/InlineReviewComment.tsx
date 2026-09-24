@@ -267,6 +267,7 @@ export default function InlineReviewComment({
       className="review-inline-comment"
       data-horizontal={horizontalSide}
       data-vertical={verticalSide}
+      data-phone-sheet={phoneSheet ? "true" : undefined}
       style={{ left: `${pin.x}%`, top: `${pin.y}%`, "--callout-drag-x": `${offset.x}px`, "--callout-drag-y": `${offset.y}px` } as CSSProperties}
       onClick={(event) => event.stopPropagation()}
       onMouseDown={(event) => event.stopPropagation()}

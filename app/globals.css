@@ -2455,20 +2455,33 @@ a { color: inherit; text-decoration: none; }
   bottom: max(8px, env(safe-area-inset-bottom));
   top: auto;
   width: auto;
+  min-height: 148px;
   max-width: none;
   max-height: calc(100dvh - 16px);
   margin: 0;
   box-sizing: border-box;
-  transform: none;
-  z-index: 80;
+  transform: none !important;
+  z-index: 200;
+  pointer-events: auto;
 }
 
 .cockpit-shell[data-client-film="true"] .cockpit-sidebar,
 .cockpit-shell[data-client-film="true"] .cockpit-mobile-nav,
 .cockpit-shell[data-client-film="true"] .cockpit-mobile-menu,
 .cockpit-shell[data-client-film="true"] .cockpit-action-primary,
-.cockpit-shell[data-client-film="true"] .cockpit-empty-upload {
+.cockpit-shell[data-client-film="true"] .cockpit-empty-upload,
+.cockpit-shell[data-client-film="true"] [aria-label="Expand project rail"],
+.cockpit-shell[data-client-film="true"] [aria-label="Compact project rail"] {
   display: none !important;
+}
+
+.cockpit-shell[data-client-film="true"] {
+  grid-template-columns: minmax(0, 1fr) !important;
+}
+
+.cockpit-review-stage:has(.review-inline-comment),
+.cockpit-video-frame:has(.review-inline-comment) {
+  overflow: visible;
 }
 
 .review-inline-comment-leader,.review-anchored-comment-leader { position:absolute; inset:0; width:1px; height:1px; overflow:visible; pointer-events:none; }

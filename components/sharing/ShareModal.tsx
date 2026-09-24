@@ -21,6 +21,7 @@ import NotificationAuthorityControl, {
   type NotificationAuthorityValue,
 } from "@/components/notifications/NotificationAuthorityControl";
 import NotificationPreview from "@/components/notifications/NotificationPreview";
+import { KNOWN_GUEST_FILM_URL } from "@/lib/sharing/guest-film";
 import {
   SHARE_INTENTS,
   getShareIntentDefinition,
@@ -543,7 +544,7 @@ function ShareModalContent({
           <a
             className={styles.openLink}
             data-guest-preview
-            href={link || `/review/demo?demo=1&intent=${encodeURIComponent(shareIntent)}`}
+            href={link || KNOWN_GUEST_FILM_URL}
             target="_blank"
             rel="noopener noreferrer"
           >

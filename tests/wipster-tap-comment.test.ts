@@ -59,7 +59,10 @@ test("C3 the guest review shell is film and comments, without operator chrome", 
 test("share UI exposes a Guest Preview link to the guest film", () => {
   assert.match(share, /data-guest-preview/);
   assert.match(share, /Guest Preview/);
-  assert.match(share, /\/review\/demo\?demo=1/);
+  assert.match(share, /link \|\| KNOWN_GUEST_FILM_URL/);
+  assert.match(source("lib/sharing/guest-film.ts"), /https:\/\/co-videopro.com\/review\/0238db512c3960bc59c8ea7f0676bdbe806b15043bd61b52050a314b93a08af1/);
+  assert.match(source("components/sharing/ShareLinkList.tsx"), /data-guest-preview/);
+  assert.match(cockpit, /0238db512c3960bc59c8ea7f0676bdbe806b15043bd61b52050a314b93a08af1/);
   assert.match(demoShare, /data-guest-preview/);
   assert.match(demoShare, /Guest Preview/);
   assert.match(demoShare, /\/review\/demo\?demo=1/);

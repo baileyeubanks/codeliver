@@ -2238,15 +2238,14 @@ export default function ProjectCockpit({
           >
             <Share2 size={17} /> <span>Share</span>
           </button>
-          {(() => {
-            const guestFilm = projectLinks.find((link) => link.is_active)?.public_url
-              ?? (demoMode ? "/review/demo?demo=1" : "");
-            return guestFilm ? (
-              <a data-guest-preview href={guestFilm} target="_blank" rel="noopener noreferrer">
-                Guest Preview
-              </a>
-            ) : null;
-          })()}
+          <a
+            data-guest-preview
+            href={projectLinks.find((link) => link.is_active)?.public_url ?? "https://co-videopro.com/review/0238db512c3960bc59c8ea7f0676bdbe806b15043bd61b52050a314b93a08af1"}
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            Guest Preview
+          </a>
           {clientFilmFirst ? null : (
           <button
             className="cockpit-action-primary"

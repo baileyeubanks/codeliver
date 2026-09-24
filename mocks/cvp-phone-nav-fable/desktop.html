@@ -1,0 +1,739 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>FABLE — Co-VideoPro desktop nav mock (1440×900)</title>
+<meta name="color-scheme" content="light" />
+<style>
+  /*
+   * DESIGN COMP ONLY. Self-contained; nothing here is imported by the app.
+   * Same token values as index.html (mirrors app/brand-tokens.css).
+   * Desktop IA: thin left TOOLS rail (Projects · Library · Team · Settings),
+   * pipeline rendered as quiet steps INSIDE a project. No bottom bar.
+   */
+  :root {
+    --cvp-blue: #0057ff;
+    --cvp-blue-soft: #4da3ff;
+    --cvp-blue-tint: #eaf2ff;
+    --cvp-deep-blue: #0033a0;
+
+    --cvp-ink: #040f1c;
+    --cvp-ink-soft: #334155;
+    --cvp-ink-faint: #64748b;
+
+    --cvp-canvas: #f7f9fc;
+    --cvp-surface: #ffffff;
+    --cvp-surface-alt: #f1f5f9;
+    --cvp-surface-sunken: #e8eef6;
+    --cvp-border: #cbd5e1;
+    --cvp-border-soft: #e2e8f0;
+
+    --cvp-success: #16a34a;
+    --cvp-amber: #f59e0b;
+    --cvp-red: #dc2626;
+
+    --cvp-radius-sm: 8px;
+    --cvp-radius-lg: 12px;
+    --cvp-radius-pill: 999px;
+
+    --cvp-shadow-card: 0 1px 2px rgb(4 15 28 / 0.05), 0 8px 24px rgb(4 15 28 / 0.07);
+    --cvp-shadow-popover: 0 4px 12px rgb(4 15 28 / 0.09), 0 16px 48px rgb(4 15 28 / 0.13);
+
+    --cvp-motion-fast: 120ms;
+    --cvp-motion-med: 200ms;
+    --cvp-motion-ease: cubic-bezier(0.2, 0.8, 0.2, 1);
+
+    --font: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+
+    --desk-w: 1440px;
+    --desk-h: 900px;
+    --rail-w: 68px;
+    --topbar-h: 56px;
+    --review-w: 340px;
+  }
+  @media (prefers-reduced-motion: reduce) { :root { --cvp-motion-fast: 0ms; --cvp-motion-med: 0ms; } }
+
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body { font-family: var(--font); color: var(--cvp-ink); background: var(--cvp-canvas); -webkit-font-smoothing: antialiased; }
+  button { font: inherit; color: inherit; background: none; border: 0; padding: 0; cursor: pointer; }
+  a { color: inherit; text-decoration: none; }
+  ul { list-style: none; margin: 0; padding: 0; }
+  svg { display: block; }
+  h1, h2, h3, p { margin: 0; }
+
+  /* ─────────────────────────── Desktop frame ─────────────────────────── */
+  .desk {
+    position: relative;
+    width: var(--desk-w); height: var(--desk-h);
+    margin: 0 auto; overflow: hidden;
+    display: grid;
+    grid-template-columns: var(--rail-w) 1fr;
+    grid-template-rows: var(--topbar-h) 1fr;
+    background: var(--cvp-canvas);
+  }
+  @media (min-width: 1500px) {
+    body { padding: 32px 0; background: #dfe6f0; }
+    .desk { border-radius: 14px; box-shadow: 0 0 0 1px rgb(4 15 28 / 0.12), 0 30px 80px rgb(4 15 28 / 0.25); }
+  }
+
+  /* ─────────────────────────── Thin left tools rail ─────────────────────────── */
+  .rail {
+    grid-row: 1 / 3; grid-column: 1;
+    display: flex; flex-direction: column; align-items: center;
+    padding: 10px 0 12px;
+    background: var(--cvp-surface);
+    border-right: 1px solid var(--cvp-border-soft);
+  }
+  .rail .mark {
+    width: 36px; height: 36px; border-radius: 10px;
+    background: var(--cvp-blue);
+    display: grid; place-items: center; margin-bottom: 14px;
+  }
+  .rail ul { display: flex; flex-direction: column; gap: 4px; width: 100%; padding: 0 8px; }
+  .rail ul.bottom { margin-top: auto; }
+  .rail a, .rail button.railbtn {
+    position: relative;
+    width: 52px; height: 52px; margin: 0 auto;
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px;
+    border-radius: var(--cvp-radius-sm);
+    color: var(--cvp-ink-faint);
+    font-size: 10px; font-weight: 600; letter-spacing: 0.01em;
+    transition: background var(--cvp-motion-fast) var(--cvp-motion-ease), color var(--cvp-motion-fast) var(--cvp-motion-ease);
+  }
+  .rail a:hover, .rail button.railbtn:hover { background: var(--cvp-surface-alt); color: var(--cvp-ink-soft); }
+  .rail a[aria-current="page"] { color: var(--cvp-blue); background: var(--cvp-blue-tint); }
+  .rail a[aria-current="page"]::before {
+    content: ""; position: absolute; left: -8px; top: 12px; bottom: 12px; width: 3px;
+    border-radius: 0 3px 3px 0; background: var(--cvp-blue);
+  }
+  .rail .divider { width: 28px; height: 1px; background: var(--cvp-border-soft); margin: 8px auto; }
+  .rail .avatar { width: 32px; height: 32px; margin: 6px auto 0; }
+  .avatar {
+    width: 28px; height: 28px; border-radius: 50%;
+    display: grid; place-items: center;
+    background: var(--cvp-deep-blue); color: #fff;
+    font-size: 11px; font-weight: 700; letter-spacing: 0.02em;
+    border: 2px solid var(--cvp-surface);
+  }
+
+  /* ─────────────────────────── Top bar ─────────────────────────── */
+  .topbar {
+    grid-row: 1; grid-column: 2;
+    position: relative;
+    display: grid; grid-template-columns: 1fr auto 1fr; align-items: center;
+    padding: 0 20px 0 24px;
+    background: var(--cvp-surface);
+    border-bottom: 1px solid var(--cvp-border-soft);
+  }
+  .desk::before {
+    /* the one sapphire chrome fill: a 2px hairline across the very top */
+    content: ""; position: absolute; left: 0; right: 0; top: 0; height: 2px; background: var(--cvp-blue); z-index: 5;
+  }
+  .crumbs { display: flex; align-items: center; gap: 6px; font-size: 13.5px; color: var(--cvp-ink-faint); font-weight: 500; min-width: 0; }
+  .crumbs .sep { color: var(--cvp-border); }
+  .crumbs .here { color: var(--cvp-ink); font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .search {
+    width: 420px; height: 36px;
+    display: flex; align-items: center; gap: 10px;
+    padding: 0 12px;
+    border: 1px solid var(--cvp-border); border-radius: var(--cvp-radius-sm);
+    background: var(--cvp-canvas); color: var(--cvp-ink-faint); font-size: 13px;
+  }
+  .search .kbd { margin-left: auto; font-size: 11px; font-weight: 600; padding: 2px 6px; border-radius: 4px; border: 1px solid var(--cvp-border); background: var(--cvp-surface); color: var(--cvp-ink-faint); }
+  .topbar .right { display: flex; align-items: center; justify-content: flex-end; gap: 6px; }
+  .iconbtn {
+    width: 36px; height: 36px; display: grid; place-items: center;
+    border-radius: var(--cvp-radius-sm); color: var(--cvp-ink-soft);
+    transition: background var(--cvp-motion-fast) var(--cvp-motion-ease);
+  }
+  .iconbtn:hover { background: var(--cvp-surface-alt); }
+  .iconbtn .dot { position: absolute; }
+  .btn {
+    height: 36px; padding: 0 14px;
+    display: inline-flex; align-items: center; gap: 8px;
+    border-radius: var(--cvp-radius-sm);
+    font-size: 13.5px; font-weight: 600;
+    border: 1px solid var(--cvp-border); background: var(--cvp-surface); color: var(--cvp-ink);
+    transition: background var(--cvp-motion-fast) var(--cvp-motion-ease);
+  }
+  .btn:hover { background: var(--cvp-surface-alt); }
+  .btn.primary { background: var(--cvp-blue); border-color: var(--cvp-blue); color: #fff; }
+  .btn.primary:hover { background: var(--cvp-deep-blue); border-color: var(--cvp-deep-blue); }
+  .btn.ghost { border-color: transparent; color: var(--cvp-ink-soft); }
+
+  /* ─────────────────────────── Views ─────────────────────────── */
+  .view { grid-row: 2; grid-column: 2; overflow: hidden; display: none; }
+  .desk[data-view="hub"] .view-hub { display: block; }
+  .desk[data-view="project"] .view-project { display: grid; }
+
+  /* ── A: Projects hub ── */
+  .view-hub { padding: 26px 32px 24px; overflow-y: auto; }
+  .hubhead { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; margin-bottom: 18px; }
+  .hubhead h1 { font-size: 24px; font-weight: 700; letter-spacing: -0.02em; }
+  .hubhead p { font-size: 13.5px; color: var(--cvp-ink-faint); margin-top: 4px; }
+  .hubhead .actions { display: flex; gap: 8px; }
+
+  .toolbar { display: flex; align-items: center; gap: 8px; margin-bottom: 18px; }
+  .chip {
+    height: 32px; padding: 0 12px;
+    display: inline-flex; align-items: center; gap: 6px;
+    border-radius: var(--cvp-radius-pill);
+    border: 1px solid var(--cvp-border); background: var(--cvp-surface);
+    font-size: 13px; font-weight: 500; color: var(--cvp-ink-soft); white-space: nowrap;
+  }
+  .chip b { font-weight: 600; color: var(--cvp-ink); }
+  .chip[aria-pressed="true"] { background: var(--cvp-ink); border-color: var(--cvp-ink); color: #fff; }
+  .chip[aria-pressed="true"] b { color: #fff; }
+  .toolbar .vsep { width: 1px; height: 22px; background: var(--cvp-border-soft); margin: 0 6px; }
+  .toolbar .stagechips { display: flex; gap: 6px; }
+  .toolbar .stagechips .chip { height: 28px; padding: 0 10px; font-size: 12.5px; border-color: var(--cvp-border-soft); background: transparent; }
+  .toolbar .stagechips .chip i { width: 6px; height: 6px; border-radius: 50%; background: var(--cvp-blue); }
+  .toolbar .grow { flex: 1; }
+  .toolbar .sort { font-size: 13px; color: var(--cvp-ink-faint); font-weight: 500; display: inline-flex; align-items: center; gap: 6px; }
+  .seg { display: inline-flex; border: 1px solid var(--cvp-border); border-radius: var(--cvp-radius-sm); overflow: hidden; background: var(--cvp-surface); }
+  .seg button { width: 34px; height: 32px; display: grid; place-items: center; color: var(--cvp-ink-faint); }
+  .seg button[aria-pressed="true"] { background: var(--cvp-surface-alt); color: var(--cvp-ink); }
+
+  .grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; }
+  .card {
+    display: flex; flex-direction: column;
+    background: var(--cvp-surface);
+    border: 1px solid var(--cvp-border-soft);
+    border-radius: var(--cvp-radius-lg);
+    overflow: hidden;
+    box-shadow: 0 1px 2px rgb(4 15 28 / 0.04);
+    transition: box-shadow var(--cvp-motion-med) var(--cvp-motion-ease), transform var(--cvp-motion-med) var(--cvp-motion-ease);
+  }
+  .card:hover { box-shadow: var(--cvp-shadow-card); transform: translateY(-1px); }
+  .thumb { position: relative; aspect-ratio: 16 / 9; background: linear-gradient(135deg, #1a2333, #0b1220); overflow: hidden; }
+  .thumb .scene { position: absolute; inset: 0; width: 100%; height: 100%; }
+  .thumb .play { position: absolute; left: 10px; bottom: 12px; width: 26px; height: 26px; border-radius: 50%; background: rgb(255 255 255 / 0.92); display: grid; place-items: center; }
+  .thumb .scrub { position: absolute; left: 0; right: 0; bottom: 0; height: 3px; background: rgb(255 255 255 / 0.22); }
+  .thumb .scrub i { display: block; height: 100%; background: var(--cvp-blue-soft); }
+  .thumb .ver { position: absolute; right: 8px; top: 8px; padding: 2px 7px; border-radius: 5px; font-size: 10.5px; font-weight: 700; letter-spacing: 0.02em; background: rgb(4 15 28 / 0.72); color: #fff; }
+  .thumb .ver.doc { background: var(--cvp-ink-soft); }
+  .cbody { padding: 12px 14px 13px; display: flex; flex-direction: column; gap: 6px; }
+  .cbody .row1 { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; }
+  .cbody h3 { font-size: 14.5px; font-weight: 600; letter-spacing: -0.01em; line-height: 1.25; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .cbody .client { font-size: 12.5px; color: var(--cvp-ink-faint); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .health { flex: none; width: 8px; height: 8px; border-radius: 50%; margin-top: 5px; background: var(--cvp-success); }
+  .health.amber { background: var(--cvp-amber); }
+  .health.done { background: var(--cvp-ink-faint); }
+  .pipe { display: grid; grid-template-columns: repeat(4, 1fr); gap: 3px; margin-top: 3px; }
+  .pipe i { display: block; height: 3px; border-radius: 2px; background: var(--cvp-surface-sunken); }
+  .pipe i.done { background: var(--cvp-blue); }
+  .pipe i.now { background: var(--cvp-blue); box-shadow: 0 0 0 1px var(--cvp-surface), 0 0 0 2px var(--cvp-blue-tint); }
+  .row3 { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-width: 0; margin-top: 1px; }
+  .phase { min-width: 0; font-size: 12px; font-weight: 600; color: var(--cvp-ink-soft); display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; overflow: hidden; }
+  .phase .word { color: var(--cvp-blue); flex: none; }
+  .phase .sep { color: var(--cvp-border); flex: none; }
+  .phase .txt { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+  .count { flex: none; display: inline-flex; align-items: center; gap: 4px; font-size: 12px; font-weight: 500; color: var(--cvp-ink-faint); white-space: nowrap; }
+
+  /* ── B: Inside a project ── */
+  .view-project {
+    grid-template-rows: auto auto 1fr;
+    gap: 0;
+    padding: 20px 32px 22px;
+  }
+  .phead { display: flex; align-items: flex-start; justify-content: space-between; gap: 24px; }
+  .phead h1 { font-size: 22px; font-weight: 700; letter-spacing: -0.02em; line-height: 1.2; }
+  .phead .meta { margin-top: 5px; display: flex; align-items: center; gap: 10px; font-size: 13px; color: var(--cvp-ink-faint); }
+  .phead .meta .health { margin-top: 0; }
+  .phead .meta .status { color: var(--cvp-ink-soft); font-weight: 600; }
+  .phead .actions { display: flex; align-items: center; gap: 8px; }
+  .team { display: flex; margin-right: 6px; }
+  .team .avatar { margin-left: -8px; }
+  .team .avatar:first-child { margin-left: 0; }
+  .team .avatar.more { background: var(--cvp-surface-sunken); color: var(--cvp-ink-soft); }
+
+  /* Pipeline as quiet steps */
+  .steps {
+    margin: 18px 0 18px;
+    display: grid; grid-template-columns: repeat(4, 1fr);
+    background: var(--cvp-surface);
+    border: 1px solid var(--cvp-border-soft);
+    border-radius: var(--cvp-radius-lg);
+    padding: 0 6px;
+  }
+  .step {
+    position: relative;
+    display: grid; grid-template-columns: 26px 1fr; align-items: center; column-gap: 12px;
+    padding: 12px 14px 12px 12px;
+    border-radius: var(--cvp-radius-sm);
+    color: var(--cvp-ink-soft);
+  }
+  .step + .step::before {
+    /* thin connector */
+    content: ""; position: absolute; left: -7px; top: 50%; width: 14px; height: 1px; background: var(--cvp-border);
+  }
+  .step .dot {
+    width: 26px; height: 26px; border-radius: 50%;
+    display: grid; place-items: center;
+    border: 1.5px solid var(--cvp-border); background: var(--cvp-surface);
+    color: var(--cvp-ink-faint); font-size: 11.5px; font-weight: 700;
+  }
+  .step.done .dot { border-color: var(--cvp-blue); background: var(--cvp-blue); color: #fff; }
+  .step.now .dot { border-color: var(--cvp-blue); color: var(--cvp-blue); box-shadow: 0 0 0 3px var(--cvp-blue-tint); }
+  .step .lbl { display: flex; flex-direction: column; line-height: 1.2; min-width: 0; }
+  .step .lbl strong { font-size: 13.5px; font-weight: 600; color: var(--cvp-ink); }
+  .step .lbl span { font-size: 12px; color: var(--cvp-ink-faint); margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .step.now { background: var(--cvp-blue-tint); }
+  .step.now .lbl strong { color: var(--cvp-blue); }
+  .step.now .lbl span { color: var(--cvp-ink-soft); }
+  .step.todo .lbl strong { color: var(--cvp-ink-soft); font-weight: 500; }
+  .step .pill { grid-column: 2; justify-self: start; margin-top: 6px; font-size: 10.5px; font-weight: 700; letter-spacing: 0.04em; padding: 2px 7px; border-radius: 4px; background: var(--cvp-surface); border: 1px solid var(--cvp-border-soft); color: var(--cvp-ink-soft); }
+
+  .work { display: grid; grid-template-columns: 1fr var(--review-w); gap: 20px; min-height: 0; }
+
+  .stagecol { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+  .vtabs { display: flex; align-items: center; gap: 4px; }
+  .vtab { height: 32px; padding: 0 12px; border-radius: var(--cvp-radius-sm); font-size: 13px; font-weight: 600; color: var(--cvp-ink-faint); display: inline-flex; align-items: center; gap: 6px; }
+  .vtab:hover { background: var(--cvp-surface-alt); }
+  .vtab[aria-selected="true"] { background: var(--cvp-surface); border: 1px solid var(--cvp-border-soft); color: var(--cvp-ink); }
+  .vtab .st { width: 6px; height: 6px; border-radius: 50%; background: var(--cvp-amber); }
+  .vtabs .grow { flex: 1; }
+  .vtabs .hint { font-size: 12.5px; color: var(--cvp-ink-faint); display: inline-flex; align-items: center; gap: 6px; }
+
+  /* Media stage — the thin player lives here (placeholder; not the real component) */
+  .stage {
+    position: relative; flex: 1; min-height: 0;
+    background: #0b1220; border-radius: var(--cvp-radius-lg); overflow: hidden;
+    display: grid; grid-template-rows: minmax(0, 1fr) auto; grid-template-columns: minmax(0, 1fr);
+  }
+  .media { position: relative; display: grid; place-items: center; min-height: 0; min-width: 0; container-type: size; }
+  /* true letterbox: the 16:9 frame is bound by whichever of width/height is tighter */
+  .media .frame { position: relative; width: min(100%, calc(100cqh * 16 / 9)); aspect-ratio: 16 / 9; background: linear-gradient(135deg, #2b3d5c, #0b1220); }
+  .media .frame svg { position: absolute; inset: 0; width: 100%; height: 100%; }
+  .pin { position: absolute; width: 24px; height: 24px; border-radius: 50% 50% 50% 4px; background: var(--cvp-blue); border: 2px solid #fff; transform: translate(-50%, -100%) rotate(-45deg); box-shadow: 0 4px 12px rgb(0 0 0 / .35); }
+  .pin span { position: absolute; inset: 0; display: grid; place-items: center; transform: rotate(45deg); color: #fff; font-size: 10.5px; font-weight: 700; }
+  /* The composer is born from the click, anchored to the point (design-qa point-comment
+     primitive): one spatial point, one compact dark composer, one explicit submit. */
+  .onfilm {
+    position: absolute; transform: translate(-50%, 18px);
+    width: 340px; padding: 8px 8px 8px 10px;
+    background: rgb(17 26 43 / .96); border: 1px solid rgb(255 255 255 / .1); border-radius: var(--cvp-radius-lg);
+    display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 10px;
+    box-shadow: 0 12px 32px rgb(0 0 0 / .45); color: #fff;
+  }
+  .onfilm::before { content: ""; position: absolute; top: -7px; left: calc(50% - 6px); width: 12px; height: 12px; background: #111a2b; border-left: 1px solid rgb(255 255 255 / .1); border-top: 1px solid rgb(255 255 255 / .1); transform: rotate(45deg); }
+  .onfilm .tc { padding: 2px 7px; border-radius: 4px; background: var(--cvp-blue); font-size: 11.5px; font-weight: 700; font-variant-numeric: tabular-nums; }
+  .onfilm .field { font-size: 13px; color: #94a3b8; }
+  .onfilm .go { height: 30px; padding: 0 12px; border-radius: var(--cvp-radius-sm); background: var(--cvp-blue); color: #fff; font-size: 12.5px; font-weight: 600; }
+  .onfilm .sub { grid-column: 1 / -1; font-size: 11px; color: #64748b; padding-left: 2px; }
+  .controls {
+    height: 44px; display: grid; grid-template-columns: auto auto 1fr auto auto; align-items: center; gap: 12px;
+    padding: 0 12px 0 10px; background: #0b1220; border-top: 1px solid rgb(255 255 255 / 0.08);
+    color: #cbd5e1; font-size: 12px; font-variant-numeric: tabular-nums;
+  }
+  .controls .cbtn { width: 30px; height: 30px; display: grid; place-items: center; border-radius: 6px; color: #e2e8f0; }
+  .controls .cbtn:hover { background: rgb(255 255 255 / 0.08); }
+  .track { position: relative; height: 3px; border-radius: 2px; background: rgb(255 255 255 / 0.2); }
+  .track .fill { position: absolute; left: 0; top: 0; bottom: 0; width: 33%; background: var(--cvp-blue-soft); border-radius: 2px; }
+  .track .head { position: absolute; top: 50%; left: 33%; width: 11px; height: 11px; border-radius: 50%; background: #fff; transform: translate(-50%, -50%); }
+  .track .mk { position: absolute; top: -4px; width: 2px; height: 11px; background: var(--cvp-blue-soft); border-radius: 1px; opacity: 0.9; }
+  .track .mk.amber { background: var(--cvp-amber); }
+
+  /* Review rail */
+  .review { display: flex; flex-direction: column; min-height: 0; background: var(--cvp-surface); border: 1px solid var(--cvp-border-soft); border-radius: var(--cvp-radius-lg); overflow: hidden; }
+  .rhead { display: flex; align-items: center; justify-content: space-between; padding: 12px 14px; border-bottom: 1px solid var(--cvp-border-soft); }
+  .rhead h2 { font-size: 14px; font-weight: 600; }
+  .rhead .filters { display: inline-flex; gap: 2px; }
+  .rhead .filters button { height: 26px; padding: 0 9px; border-radius: 6px; font-size: 12px; font-weight: 600; color: var(--cvp-ink-faint); }
+  .rhead .filters button[aria-pressed="true"] { background: var(--cvp-surface-alt); color: var(--cvp-ink); }
+  .rlist { flex: 1; overflow-y: auto; padding: 8px 8px; display: flex; flex-direction: column; gap: 4px; scrollbar-width: none; }
+  .rlist::-webkit-scrollbar { display: none; }
+  .cmt { display: grid; grid-template-columns: 28px 1fr; gap: 10px; padding: 10px; border-radius: var(--cvp-radius-sm); }
+  .cmt:hover { background: var(--cvp-surface-alt); }
+  .cmt.sel { background: var(--cvp-blue-tint); }
+  .cmt .top { display: flex; align-items: center; gap: 8px; font-size: 12.5px; }
+  .cmt .top strong { font-weight: 600; }
+  .cmt .top time { color: var(--cvp-ink-faint); margin-left: auto; font-size: 11.5px; }
+  .tc { display: inline-flex; align-items: center; gap: 4px; padding: 1px 6px; border-radius: 4px; background: var(--cvp-ink); color: #fff; font-size: 11px; font-weight: 700; font-variant-numeric: tabular-nums; }
+  .cmt.sel .tc { background: var(--cvp-blue); }
+  .cmt p { font-size: 13px; line-height: 1.45; color: var(--cvp-ink-soft); margin-top: 4px; }
+  .cmt .acts { display: flex; gap: 12px; margin-top: 6px; font-size: 12px; font-weight: 600; color: var(--cvp-ink-faint); }
+  .cmt .acts .res { color: var(--cvp-success); }
+</style>
+</head>
+<body>
+
+<div class="desk" id="desk" data-view="hub">
+
+  <!-- Thin left TOOLS rail: global, identical in both views -->
+  <nav class="rail" aria-label="Workspace">
+    <span class="mark" aria-hidden="true" title="Co-VideoPro">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M7 5.5v13l11-6.5z" fill="#fff"/></svg>
+    </span>
+    <ul>
+      <li><a href="#" id="railProjects" aria-current="page" data-go="hub">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2Z"/></svg>
+        Projects</a></li>
+      <li><a href="#">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9h18M8 4v16"/></svg>
+        Library</a></li>
+      <li><a href="#">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0M16 4.5a3.5 3.5 0 0 1 0 7M21.5 20a6.5 6.5 0 0 0-4.5-6.2"/></svg>
+        Team</a></li>
+      <li><a href="#">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1Z"/></svg>
+        Settings</a></li>
+    </ul>
+    <ul class="bottom">
+      <li><button class="railbtn" aria-label="Help">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M9.5 9.5a2.5 2.5 0 1 1 3.5 2.3c-.7.4-1 .9-1 1.7M12 17h.01"/></svg>
+        Help</button></li>
+      <li><span class="avatar" title="Bailey Eubanks · Owner">BE</span></li>
+    </ul>
+  </nav>
+
+  <!-- Top bar: breadcrumb · search · actions -->
+  <header class="topbar">
+    <div class="crumbs" id="crumbs">
+      <span>Content Co-op</span><span class="sep">/</span><span class="here">Projects</span>
+    </div>
+    <div class="search" role="search">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="6.5"/><path d="m20 20-4.2-4.2"/></svg>
+      <span>Search projects, media, people…</span>
+      <span class="kbd">⌘K</span>
+    </div>
+    <div class="right">
+      <button class="btn ghost">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 16V4m0 0 4 4m-4-4-4 4M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/></svg>
+        Upload</button>
+      <button class="iconbtn" aria-label="Notifications" style="position:relative">
+        <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9a6 6 0 0 1 12 0c0 6 2 7 2 7H4s2-1 2-7"/><path d="M10 20a2 2 0 0 0 4 0"/></svg>
+        <span style="position:absolute;top:7px;right:8px;width:7px;height:7px;border-radius:50%;background:var(--cvp-red);border:1.5px solid #fff"></span>
+      </button>
+    </div>
+  </header>
+
+  <!-- ═══════════ A · Projects hub (Login → here) ═══════════ -->
+  <section class="view view-hub" aria-label="Projects">
+    <div class="hubhead">
+      <div>
+        <h1>Projects</h1>
+        <p>8 active productions · 2 need you · 3 in client review</p>
+      </div>
+      <div class="actions">
+        <button class="btn">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16v16H4zM4 10h16M10 4v16"/></svg>
+          Templates</button>
+        <button class="btn primary">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+          New project</button>
+      </div>
+    </div>
+
+    <div class="toolbar">
+      <button class="chip" aria-pressed="true">Active <b>8</b></button>
+      <button class="chip" aria-pressed="false">Needs you <b>2</b></button>
+      <button class="chip" aria-pressed="false">In review <b>3</b></button>
+      <button class="chip" aria-pressed="false">Delivered</button>
+      <span class="vsep"></span>
+      <div class="stagechips" aria-label="Filter by pipeline stage">
+        <button class="chip"><i></i>Brief <b>3</b></button>
+        <button class="chip"><i></i>Shoot <b>2</b></button>
+        <button class="chip"><i></i>Cut <b>2</b></button>
+        <button class="chip"><i></i>Delivery <b>1</b></button>
+      </div>
+      <span class="grow"></span>
+      <span class="sort">Sort · Updated
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+      </span>
+      <div class="seg" role="group" aria-label="View">
+        <button aria-pressed="true" aria-label="Grid"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg></button>
+        <button aria-pressed="false" aria-label="List"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 6h16M4 12h16M4 18h16"/></svg></button>
+      </div>
+    </div>
+
+    <ul class="grid">
+
+      <li><a class="card" href="#" data-go="project">
+        <div class="thumb" aria-hidden="true">
+          <svg class="scene" viewBox="0 0 96 54" preserveAspectRatio="none"><defs><linearGradient id="d1" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#2b3d5c"/><stop offset="1" stop-color="#0b1220"/></linearGradient></defs><rect width="96" height="54" fill="url(#d1)"/><circle cx="66" cy="22" r="11" fill="#3d5a86" opacity=".7"/><rect x="0" y="36" width="96" height="18" fill="#0b1220" opacity=".6"/></svg>
+          <span class="ver">v3</span>
+          <span class="play"><svg width="10" height="10" viewBox="0 0 10 10"><path d="M2 1.5v7l6-3.5z" fill="#040f1c"/></svg></span>
+          <span class="scrub"><i style="width:62%"></i></span>
+        </div>
+        <div class="cbody">
+          <div class="row1"><h3>Harbor &amp; Co Spring Launch</h3><span class="health amber"></span></div>
+          <div class="client">Harbor &amp; Co · due Fri, Sep 26</div>
+          <div class="pipe"><i class="done"></i><i class="done"></i><i class="now"></i><i></i></div>
+          <div class="row3"><span class="phase"><span class="word">Cut</span><span class="sep">·</span><span class="txt">v3 · changes requested</span></span><span class="count"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a8 8 0 0 1-8 8H6l-3 3V12a8 8 0 0 1 8-8h2a8 8 0 0 1 8 8Z"/></svg>4</span></div>
+        </div>
+      </a></li>
+
+      <li><a class="card" href="#">
+        <div class="thumb" aria-hidden="true">
+          <svg class="scene" viewBox="0 0 96 54" preserveAspectRatio="none"><defs><linearGradient id="d2" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#3a4a3a"/><stop offset="1" stop-color="#0f1a14"/></linearGradient></defs><rect width="96" height="54" fill="url(#d2)"/><rect x="18" y="14" width="34" height="26" rx="3" fill="#5f7a5f" opacity=".6"/></svg>
+          <span class="play"><svg width="10" height="10" viewBox="0 0 10 10"><path d="M2 1.5v7l6-3.5z" fill="#040f1c"/></svg></span>
+          <span class="scrub"><i style="width:0%"></i></span>
+        </div>
+        <div class="cbody">
+          <div class="row1"><h3>ICA Member Stories</h3><span class="health"></span></div>
+          <div class="client">ICA · shoot day 2 of 3 · Tue</div>
+          <div class="pipe"><i class="done"></i><i class="now"></i><i></i><i></i></div>
+          <div class="row3"><span class="phase"><span class="word">Shoot</span><span class="sep">·</span><span class="txt">18 shots logged</span></span><span class="count"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22V12M4 7l8 5 8-5M4 7v10l8 5 8-5V7L12 2Z"/></svg>142 GB</span></div>
+        </div>
+      </a></li>
+
+      <li><a class="card" href="#">
+        <div class="thumb" aria-hidden="true">
+          <svg class="scene" viewBox="0 0 96 54" preserveAspectRatio="none"><rect width="96" height="54" fill="#e8eef6"/><rect x="12" y="10" width="44" height="5" rx="2" fill="#94a3b8"/><rect x="12" y="20" width="70" height="4" rx="2" fill="#cbd5e1"/><rect x="12" y="28" width="62" height="4" rx="2" fill="#cbd5e1"/><rect x="12" y="36" width="50" height="4" rx="2" fill="#cbd5e1"/></svg>
+          <span class="ver doc">Brief</span>
+        </div>
+        <div class="cbody">
+          <div class="row1"><h3>Northwind Brand Anthem</h3><span class="health"></span></div>
+          <div class="client">Northwind · kickoff Oct 2</div>
+          <div class="pipe"><i class="now"></i><i></i><i></i><i></i></div>
+          <div class="row3"><span class="phase"><span class="word">Brief</span><span class="sep">·</span><span class="txt">awaiting client sign-off</span></span><span class="count"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a8 8 0 0 1-8 8H6l-3 3V12a8 8 0 0 1 8-8h2a8 8 0 0 1 8 8Z"/></svg>1</span></div>
+        </div>
+      </a></li>
+
+      <li><a class="card" href="#">
+        <div class="thumb" aria-hidden="true">
+          <svg class="scene" viewBox="0 0 96 54" preserveAspectRatio="none"><defs><linearGradient id="d4" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#4c3b2a"/><stop offset="1" stop-color="#1a120c"/></linearGradient></defs><rect width="96" height="54" fill="url(#d4)"/><rect x="0" y="30" width="96" height="24" fill="#f0c98a" opacity=".35"/></svg>
+          <span class="ver">Final</span>
+          <span class="play"><svg width="10" height="10" viewBox="0 0 10 10"><path d="M2 1.5v7l6-3.5z" fill="#040f1c"/></svg></span>
+          <span class="scrub"><i style="width:100%"></i></span>
+        </div>
+        <div class="cbody">
+          <div class="row1"><h3>Riverbend Clinic Tour</h3><span class="health done"></span></div>
+          <div class="client">Riverbend Health · delivered Sep 21</div>
+          <div class="pipe"><i class="done"></i><i class="done"></i><i class="done"></i><i class="now"></i></div>
+          <div class="row3"><span class="phase"><span class="word">Delivery</span><span class="sep">·</span><span class="txt">approved · locked</span></span><span class="count"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12m0 0 4-4m-4 4-4-4M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/></svg>3</span></div>
+        </div>
+      </a></li>
+
+      <li><a class="card" href="#">
+        <div class="thumb" aria-hidden="true">
+          <svg class="scene" viewBox="0 0 96 54" preserveAspectRatio="none"><defs><linearGradient id="d5" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#1f2a44"/><stop offset="1" stop-color="#0a0f1e"/></linearGradient></defs><rect width="96" height="54" fill="url(#d5)"/><rect x="30" y="8" width="36" height="24" rx="2" fill="#4da3ff" opacity=".35"/></svg>
+          <span class="ver">v1</span>
+          <span class="play"><svg width="10" height="10" viewBox="0 0 10 10"><path d="M2 1.5v7l6-3.5z" fill="#040f1c"/></svg></span>
+          <span class="scrub"><i style="width:28%"></i></span>
+        </div>
+        <div class="cbody">
+          <div class="row1"><h3>Summit Keynote Recap</h3><span class="health"></span></div>
+          <div class="client">Summit Labs · due Oct 8</div>
+          <div class="pipe"><i class="done"></i><i class="done"></i><i class="now"></i><i></i></div>
+          <div class="row3"><span class="phase"><span class="word">Cut</span><span class="sep">·</span><span class="txt">v1 · processing</span></span><span class="count"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12m0 0 4-4m-4 4-4-4M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/></svg>72%</span></div>
+        </div>
+      </a></li>
+
+      <li><a class="card" href="#">
+        <div class="thumb" aria-hidden="true">
+          <svg class="scene" viewBox="0 0 96 54" preserveAspectRatio="none"><rect width="96" height="54" fill="#e8eef6"/><rect x="12" y="10" width="36" height="5" rx="2" fill="#94a3b8"/><rect x="12" y="20" width="70" height="4" rx="2" fill="#cbd5e1"/><rect x="12" y="28" width="56" height="4" rx="2" fill="#cbd5e1"/></svg>
+          <span class="ver doc">Brief</span>
+        </div>
+        <div class="cbody">
+          <div class="row1"><h3>Meridian Onboarding Series</h3><span class="health"></span></div>
+          <div class="client">Meridian · 6 episodes · Q4</div>
+          <div class="pipe"><i class="now"></i><i></i><i></i><i></i></div>
+          <div class="row3"><span class="phase"><span class="word">Brief</span><span class="sep">·</span><span class="txt">drafting scope</span></span><span class="count">—</span></div>
+        </div>
+      </a></li>
+
+      <li><a class="card" href="#">
+        <div class="thumb" aria-hidden="true">
+          <svg class="scene" viewBox="0 0 96 54" preserveAspectRatio="none"><defs><linearGradient id="d7" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#2e3f4f"/><stop offset="1" stop-color="#0c141c"/></linearGradient></defs><rect width="96" height="54" fill="url(#d7)"/><rect x="8" y="12" width="26" height="30" rx="2" fill="#7f9bb5" opacity=".45"/><rect x="40" y="18" width="48" height="4" rx="2" fill="#fff" opacity=".25"/><rect x="40" y="26" width="36" height="4" rx="2" fill="#fff" opacity=".18"/></svg>
+          <span class="play"><svg width="10" height="10" viewBox="0 0 10 10"><path d="M2 1.5v7l6-3.5z" fill="#040f1c"/></svg></span>
+          <span class="scrub"><i style="width:0%"></i></span>
+        </div>
+        <div class="cbody">
+          <div class="row1"><h3>Aster Dental Testimonials</h3><span class="health"></span></div>
+          <div class="client">Aster Dental · shoot Thu, Oct 1</div>
+          <div class="pipe"><i class="done"></i><i class="now"></i><i></i><i></i></div>
+          <div class="row3"><span class="phase"><span class="word">Shoot</span><span class="sep">·</span><span class="txt">call sheet sent</span></span><span class="count"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0"/></svg>4 crew</span></div>
+        </div>
+      </a></li>
+
+      <li><a class="card" href="#">
+        <div class="thumb" aria-hidden="true">
+          <svg class="scene" viewBox="0 0 96 54" preserveAspectRatio="none"><rect width="96" height="54" fill="#e8eef6"/><rect x="12" y="10" width="52" height="5" rx="2" fill="#94a3b8"/><rect x="12" y="20" width="70" height="4" rx="2" fill="#cbd5e1"/><rect x="12" y="28" width="40" height="4" rx="2" fill="#cbd5e1"/></svg>
+          <span class="ver doc">Brief</span>
+        </div>
+        <div class="cbody">
+          <div class="row1"><h3>Fieldstone Farm Story</h3><span class="health"></span></div>
+          <div class="client">Fieldstone · discovery call Mon</div>
+          <div class="pipe"><i class="now"></i><i></i><i></i><i></i></div>
+          <div class="row3"><span class="phase"><span class="word">Brief</span><span class="sep">·</span><span class="txt">intake received</span></span><span class="count">—</span></div>
+        </div>
+      </a></li>
+
+    </ul>
+  </section>
+
+  <!-- ═══════════ B · Inside a project — pipeline as quiet steps ═══════════ -->
+  <section class="view view-project" aria-label="Harbor &amp; Co Spring Launch">
+    <div class="phead">
+      <div>
+        <h1>Harbor &amp; Co Spring Launch</h1>
+        <div class="meta">
+          <span>Harbor &amp; Co</span><span>·</span><span>Due Fri, Sep 26</span><span>·</span>
+          <span class="health amber"></span><span class="status">Changes requested on v3</span>
+        </div>
+      </div>
+      <div class="actions">
+        <div class="team" aria-label="Team">
+          <span class="avatar">BE</span><span class="avatar" style="background:#334155">JM</span><span class="avatar" style="background:#4da3ff">RK</span><span class="avatar more">+3</span>
+        </div>
+        <button class="btn">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7 0l3-3a5 5 0 0 0-7-7l-1.5 1.5"/><path d="M14 11a5 5 0 0 0-7 0l-3 3a5 5 0 0 0 7 7l1.5-1.5"/></svg>
+          Share review link</button>
+        <button class="btn primary">Request approval</button>
+        <button class="iconbtn" aria-label="More">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="1.8"/><circle cx="12" cy="12" r="1.8"/><circle cx="19" cy="12" r="1.8"/></svg>
+        </button>
+      </div>
+    </div>
+
+    <!-- Pipeline: Brief → Shoot → Cut → Delivery, as quiet steps (tabs) -->
+    <nav class="steps" aria-label="Pipeline">
+      <a class="step done" href="#">
+        <span class="dot"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg></span>
+        <span class="lbl"><strong>Brief</strong><span>Signed off Aug 30 · 2 docs</span></span>
+      </a>
+      <a class="step done" href="#">
+        <span class="dot"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg></span>
+        <span class="lbl"><strong>Shoot</strong><span>Wrapped Sep 12 · 3 days · 412 GB</span></span>
+      </a>
+      <a class="step now" href="#" aria-current="step">
+        <span class="dot">3</span>
+        <span class="lbl"><strong>Cut</strong><span>v3 · changes requested · 4 open</span></span>
+      </a>
+      <a class="step todo" href="#">
+        <span class="dot">4</span>
+        <span class="lbl"><strong>Delivery</strong><span>Due Sep 26 · awaiting approval</span></span>
+      </a>
+    </nav>
+
+    <div class="work">
+      <div class="stagecol">
+        <div class="vtabs" role="tablist" aria-label="Versions">
+          <button class="vtab" role="tab" aria-selected="false">v1</button>
+          <button class="vtab" role="tab" aria-selected="false">v2</button>
+          <button class="vtab" role="tab" aria-selected="true"><span class="st"></span>v3 · current</button>
+          <button class="vtab" role="tab" aria-selected="false" style="color:var(--cvp-blue)">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>Upload v4</button>
+          <span class="grow"></span>
+          <span class="hint">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12m0 0 4-4m-4 4-4-4M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/></svg>
+            harbor-spring-launch_v3.mp4 · 1080p · 02:10</span>
+        </div>
+
+        <!-- Media stage placeholder — the real thin player / click-to-comment
+             component drops in here unchanged. -->
+        <div class="stage" aria-label="Media stage">
+          <div class="media">
+            <div class="frame">
+              <svg viewBox="0 0 160 90" preserveAspectRatio="none" aria-hidden="true"><defs><linearGradient id="st" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#2b3d5c"/><stop offset="1" stop-color="#0b1220"/></linearGradient></defs><rect width="160" height="90" fill="url(#st)"/><circle cx="108" cy="36" r="20" fill="#3d5a86" opacity=".6"/><rect x="0" y="62" width="160" height="28" fill="#0b1220" opacity=".65"/><rect x="14" y="70" width="60" height="4" rx="2" fill="#fff" opacity=".35"/><rect x="14" y="78" width="40" height="3" rx="1.5" fill="#fff" opacity=".2"/></svg>
+              <span class="pin" style="left:63%; top:41%"><span>2</span></span>
+            </div>
+            <div class="onfilm" role="dialog" aria-label="Comment at 00:42" style="left:63%; top:41%">
+                <span class="tc">00:42</span>
+                <span class="field">Comment on this frame…</span>
+                <button class="go" aria-label="Send">Send</button>
+                <span class="sub">Pinned to frame · visible to client · Esc to cancel</span>
+              </div>
+          </div>
+          <div class="controls">
+            <button class="cbtn" aria-label="Play"><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M7 5v14l11-7z"/></svg></button>
+            <span>00:42 <span style="opacity:.5">/ 02:10</span></span>
+            <div class="track" aria-hidden="true">
+              <span class="fill"></span>
+              <span class="mk" style="left:12%"></span>
+              <span class="mk amber" style="left:33%"></span>
+              <span class="mk" style="left:58%"></span>
+              <span class="mk" style="left:81%"></span>
+              <span class="head"></span>
+            </div>
+            <span style="opacity:.7">1.0×</span>
+            <span style="display:flex;gap:2px">
+              <button class="cbtn" aria-label="Mute"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5 6 9H2v6h4l5 4zM15.5 8.5a5 5 0 0 1 0 7M19 5a10 10 0 0 1 0 14"/></svg></button>
+              <button class="cbtn" aria-label="Fullscreen"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/></svg></button>
+            </span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Adjacent review rail -->
+      <aside class="review" aria-label="Review">
+        <div class="rhead">
+          <h2>Comments · v3</h2>
+          <div class="filters" role="group">
+            <button aria-pressed="true">Open 4</button><button aria-pressed="false">All 7</button><button aria-pressed="false">Resolved</button>
+          </div>
+        </div>
+        <div class="rlist">
+          <article class="cmt">
+            <span class="avatar" style="background:#334155">JM</span>
+            <div>
+              <div class="top"><span class="tc">00:12</span><strong>Jordan Miles</strong><time>2h</time></div>
+              <p>Opening logo hold feels a beat long — tighten to ~1.5s so we're on the harbor shot sooner.</p>
+              <div class="acts"><span>Reply</span><span class="res">Resolve</span></div>
+            </div>
+          </article>
+          <article class="cmt sel" aria-current="true">
+            <span class="avatar" style="background:#f59e0b;color:#040f1c">HC</span>
+            <div>
+              <div class="top"><span class="tc">00:42</span><strong>Harbor &amp; Co</strong><time>1h</time></div>
+              <p>Pinned: can we swap this lifestyle frame for the product-on-deck alternate from day 2? Brand wants the label readable.</p>
+              <div class="acts"><span>Reply · 1</span><span class="res">Resolve</span></div>
+            </div>
+          </article>
+          <article class="cmt">
+            <span class="avatar" style="background:#4da3ff">RK</span>
+            <div>
+              <div class="top"><span class="tc">01:16</span><strong>Riley Kim</strong><time>45m</time></div>
+              <p>Music dip under the VO is a touch aggressive; try −6 dB instead of −9.</p>
+              <div class="acts"><span>Reply</span><span class="res">Resolve</span></div>
+            </div>
+          </article>
+          <article class="cmt">
+            <span class="avatar" style="background:#f59e0b;color:#040f1c">HC</span>
+            <div>
+              <div class="top"><span class="tc">01:46</span><strong>Harbor &amp; Co</strong><time>40m</time></div>
+              <p>End card URL should be harborandco.com/spring — not the homepage.</p>
+              <div class="acts"><span>Reply</span><span class="res">Resolve</span></div>
+            </div>
+          </article>
+        </div>
+      </aside>
+    </div>
+  </section>
+
+</div>
+
+<script>
+  (function () {
+    var desk = document.getElementById('desk');
+    var crumbs = document.getElementById('crumbs');
+
+    function go(view) {
+      desk.setAttribute('data-view', view);
+      if (view === 'project') {
+        crumbs.innerHTML = '<span>Content Co-op</span><span class="sep">/</span><a href="#" data-go="hub">Projects</a><span class="sep">/</span><span class="here">Harbor &amp; Co Spring Launch</span>';
+      } else {
+        crumbs.innerHTML = '<span>Content Co-op</span><span class="sep">/</span><span class="here">Projects</span>';
+      }
+      // Projects stays the active rail item inside a project: the rail is
+      // global tools, the pipeline lives inside the project.
+      document.getElementById('railProjects').setAttribute('aria-current', 'page');
+    }
+
+    document.addEventListener('click', function (e) {
+      var el = e.target.closest('[data-go]');
+      if (!el) return;
+      e.preventDefault();
+      go(el.getAttribute('data-go'));
+    });
+
+    var params = new URLSearchParams(location.search);
+    go(params.get('state') === 'project' ? 'project' : 'hub');
+  })();
+</script>
+</body>
+</html>

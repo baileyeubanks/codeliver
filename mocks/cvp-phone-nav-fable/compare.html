@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>FABLE — phone nav mock, states A and B side by side</title>
+<style>
+  :root { --ink: #040f1c; --faint: #64748b; --border: #e2e8f0; }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; padding: 40px 32px 56px;
+    font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    color: var(--ink); background: #dfe6f0;
+    -webkit-font-smoothing: antialiased;
+  }
+  header { max-width: 1000px; margin: 0 auto 28px; }
+  header h1 { margin: 0 0 6px; font-size: 20px; font-weight: 700; letter-spacing: -0.01em; }
+  header p { margin: 0; font-size: 14px; color: var(--faint); max-width: 70ch; }
+  .frames {
+    display: flex; gap: 48px; justify-content: center; flex-wrap: wrap;
+  }
+  figure { margin: 0; display: flex; flex-direction: column; gap: 14px; align-items: center; }
+  .frame {
+    width: 390px; height: 844px;
+    border-radius: 44px; overflow: hidden;
+    box-shadow: 0 0 0 10px #0b1220, 0 0 0 12px #1f2a3b, 0 30px 80px rgb(4 15 28 / 0.35);
+    background: #f7f9fc;
+  }
+  iframe { width: 390px; height: 844px; border: 0; display: block; }
+  figcaption { font-size: 13.5px; color: var(--ink); text-align: center; max-width: 390px; line-height: 1.45; }
+  figcaption b { display: block; font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; color: #0057ff; margin-bottom: 4px; }
+
+  h2 { max-width: 1000px; margin: 56px auto 18px; font-size: 13px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--faint); }
+  .desks { display: flex; flex-direction: column; gap: 40px; align-items: center; }
+  .desks figcaption { max-width: 900px; }
+  /* 1440×900 desktop frames scaled to fit a ~1000px review column */
+  .deskframe { width: 1008px; height: 630px; border-radius: 10px; overflow: hidden; box-shadow: 0 0 0 1px rgb(4 15 28 / 0.12), 0 24px 60px rgb(4 15 28 / 0.22); background: #f7f9fc; }
+  .deskframe iframe { width: 1440px; height: 900px; transform: scale(0.7); transform-origin: 0 0; }
+</style>
+</head>
+<body>
+  <header>
+    <h1>Co-VideoPro · phone navigation (FABLE mock)</h1>
+    <p>Hybrid: one thin bottom rail for the everyday pipeline, and a transient Claude Code–style left drawer for deep tools. No permanent left column on the phone. All frames are live — tap ☰ in A for the drawer, or a card's thumbnail for the film route.</p>
+  </header>
+  <div class="frames">
+    <figure>
+      <div class="frame"><iframe src="index.html" title="State A — Projects home with bottom rail"></iframe></div>
+      <figcaption><b>A · Default</b>After login → Projects. Bottom rail only: Projects · Brief · Shoot · Cut · Delivery.</figcaption>
+    </figure>
+    <figure>
+      <div class="frame"><iframe src="index.html?state=drawer" title="State B — Drawer open"></iframe></div>
+      <figcaption><b>B · Drawer open</b>☰ / More → left drawer slides in over the list: Library, Team, Settings, Admin. Rail stays put underneath.</figcaption>
+    </figure>
+    <figure>
+      <div class="frame"><iframe src="index.html?state=film" title="State C — Film route, no rail"></iframe></div>
+      <figcaption><b>C · Film route</b>Opened from Cut or a card's frame. No rail, no app bar. Transport inside the frame, comments beneath, composer owns the bottom edge.</figcaption>
+    </figure>
+  </div>
+
+  <h2>Desktop · 1440 × 900 — same IA, thin left tools rail, no bottom bar</h2>
+  <div class="desks">
+    <figure>
+      <div class="deskframe"><iframe src="desktop.html" title="Desktop A — Projects hub"></iframe></div>
+      <figcaption><b>Desktop A · Projects hub</b>Login lands here. Thin left rail = Projects · Library · Team · Settings. Pipeline stages appear only as quiet filter chips, not as navigation.</figcaption>
+    </figure>
+    <figure>
+      <div class="deskframe"><iframe src="desktop.html?state=project" title="Desktop B — inside a project"></iframe></div>
+      <figcaption><b>Desktop B · Inside a project</b>Same rail. Brief → Shoot → Cut → Delivery become quiet steps under the project header; the player-first review workspace sits beneath, untouched.</figcaption>
+    </figure>
+  </div>
+</body>
+</html>

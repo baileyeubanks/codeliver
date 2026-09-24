@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>FABLE — phone nav mock, states A and B side by side</title>
+<style>
+  :root { --ink: #040f1c; --faint: #64748b; --border: #e2e8f0; }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; padding: 40px 32px 56px;
+    font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    color: var(--ink); background: #dfe6f0;
+    -webkit-font-smoothing: antialiased;
+  }
+  header { max-width: 1000px; margin: 0 auto 28px; }
+  header h1 { margin: 0 0 6px; font-size: 20px; font-weight: 700; letter-spacing: -0.01em; }
+  header p { margin: 0; font-size: 14px; color: var(--faint); max-width: 70ch; }
+  .frames {
+    display: flex; gap: 48px; justify-content: center; flex-wrap: wrap;
+  }
+  figure { margin: 0; display: flex; flex-direction: column; gap: 14px; align-items: center; }
+  .frame {
+    width: 390px; height: 844px;
+    border-radius: 44px; overflow: hidden;
+    box-shadow: 0 0 0 10px #0b1220, 0 0 0 12px #1f2a3b, 0 30px 80px rgb(4 15 28 / 0.35);
+    background: #f7f9fc;
+  }
+  iframe { width: 390px; height: 844px; border: 0; display: block; }
+  figcaption { font-size: 13.5px; color: var(--ink); text-align: center; max-width: 390px; line-height: 1.45; }
+  figcaption b { display: block; font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; color: #0057ff; margin-bottom: 4px; }
+</style>
+</head>
+<body>
+  <header>
+    <h1>Co-VideoPro · phone navigation (FABLE mock)</h1>
+    <p>Hybrid: one thin bottom rail for the everyday pipeline, and a transient Claude Code–style left drawer for deep tools. No permanent left column on the phone. Both frames are live — tap the ☰ in A to see the drawer slide in.</p>
+  </header>
+  <div class="frames">
+    <figure>
+      <div class="frame"><iframe src="index.html" title="State A — Projects home with bottom rail"></iframe></div>
+      <figcaption><b>A · Default</b>After login → Projects. Bottom rail only: Projects · Brief · Shoot · Cut · Delivery.</figcaption>
+    </figure>
+    <figure>
+      <div class="frame"><iframe src="index.html?state=drawer" title="State B — Drawer open"></iframe></div>
+      <figcaption><b>B · Drawer open</b>☰ / More → left drawer slides in over the list: Library, Team, Settings, Admin. Rail stays put underneath.</figcaption>
+    </figure>
+  </div>
+</body>
+</html>

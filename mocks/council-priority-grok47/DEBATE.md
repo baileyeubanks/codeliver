@@ -3,7 +3,62 @@
 **Scope:** How the two businesses operate day to day. The surface the operator sees and the state the business writes are one funded item.
 **Credit:** Cursor Grok Lands ~11% (the only builder). Other/Kimi ~64% (packs). Council mixes both and writes no product code.
 
-**Revision 2026-09-24, Bailey.** The first draft treated chrome as fashion, parked nav at the back, and inserted job-create in front of VA-106. That was pride. Bailey is right on operations: visual and OS fund together. Live PASS already stands (do not re-spend): CVP mobile overlay ~6% and the sapphire logo on `46a256f2`, plus auth quiet. Still open, in this order: tap-comment + surround (in flight), nav masters (Council), then Wipster share modes. ACS is PR #5 delete, then VA-106. No peer `DEBATE.md` is pasted yet. When Blaze pastes one, this seat changes the spine where the peer is right on operations.
+**Revision 2026-09-24, Bailey.** The first draft treated chrome as fashion, parked nav at the back, and inserted job-create in front of VA-106. That was pride. Visual and OS fund together. Already live, do not re-spend: CVP mobile overlay ~6% and the sapphire logo on `46a256f2`, plus auth quiet. Still open: tap-comment + surround (in flight), nav masters (Council), then Wipster share modes. ACS is PR #5 delete, then VA-106.
+
+**Ground truth from Blaze, same day.** Bailey asked for the system, not grades. ACS and CVP are siblings under one Commander. A Land is finished only with proof on the live train. Fable and Opus are not pasted yet. When they are, change the spine where they are right on operations.
+
+---
+
+## 0. Ground truth
+
+One Commander. Two sibling businesses. They do not share customers, crews, or films. They share one priority spine, one rule that the screen and the write fund together, and one rule that nothing goes out unless Bailey says so.
+
+### ACS OS — Astro Cleanings
+
+Surfaces: admin, clients, crew, public. Quiet admin. The live train is the admin Land on M4.
+
+The day is this chain and nothing else:
+
+lead → real enriched client → job titled `First L. Service` → dispatch → Caio-only Continuity → complete / roster.
+
+Caio's Continuity rail is **+1 504 858 1959**. Field truth comes from that number on Continuity / FaceTime. Never Twilio. Never Kyle. Never a bot. Ring does not open that rail unless Bailey asks or the routine already exists.
+
+Proof, not a grade: a delete is done when the row is gone after refresh and the toast matches, with no outbound message. Dispatch is done when that job loads for crew assignment on the phone and the assignment is still there after refresh.
+
+### CVP — production OS
+
+Surfaces: co-videopro.com, client.contentco-op.com, admin OS, marketing. Login goes to Projects. The film is the content.
+
+Tools of record, still: Wistia (play), Wipster (review host), Sandcastles (script assist). CVP replaces the operating job of each one at a time. It does not clone all three this cycle.
+
+North star, in march order, not this-cycle order:
+
+1. Kill Madeline's Excel with per-deliverable, per-client status on the job.
+2. Native Wipster-class review, approve, and versioning against the brief. Leave Wipster hosting.
+3. Creative AI inside Brief → Shoot → Cut → Delivery. Not a bolted chat.
+4. Proposals and invoices on the same job.
+5. WEFTEC-scale multi-client, multi-stakeholder orchestration.
+
+Visual contract, already decided:
+
+- Tap the film to comment. No under-deck.
+- Phone nav is bottom pipeline plus one drawer. Not a left rail plus a bottom bar.
+- Desktop nav is a thin left column.
+- Sapphire logo. Overlay ~6% on tip `46a256f2` already holds. Do not redo it.
+
+Proof, not a grade: tap-comment is done when a guest on the phone taps the picture, the note sticks to that version and time, and the deck is gone, on the build that already passed overlay and logo.
+
+### What a Grok Land can finish on ~11%
+
+Two in-flight proofs, then one ACS proof if the bucket remains:
+
+| Land | Proof this cycle | Not this cycle |
+| --- | --- | --- |
+| CVP-01, in flight | Tap-film comment, no under-deck, quiet surround, passed tip untouched | Share modes, Excel, AI, invoice, WEFTEC |
+| ACS-01, in flight | Roster delete persists, toast true, no send to client or crew | Enrichment, bot, auto-invoice |
+| ACS-02, next if 01 lands | VA-106: the job loads on dispatch | A new dispatch product |
+| Council nav | Phone bottom+drawer, desktop thin left, share modes marked on it | A Grok implementation of that nav |
+| CVP-02 | Only if CVP-01 is proved and the nav master is picked, and only the three share modes plus one status write | The rest of the north star |
 
 ---
 
@@ -17,7 +72,7 @@ A day that works:
 2. It becomes a **client who is a person**: full name and a contact record enriched enough to book. No nickname-only rows.
 3. A **job persists**. The title the crew and the office both read is `First L. Service`. If that write fails, the company has a conversation, not a booking.
 4. **Dispatch loads that job** and puts crew on it. If dispatch does not load, the morning does not start. This is the daily failure mode named VA-106.
-5. **On-site truth is Caio**, on Continuity / FaceTime. Not Twilio. Not Kyle. Not a bot. Caio confirms arrival and completion. Bailey authorizes any send.
+5. **On-site truth is Caio** at +1 504 858 1959, Continuity / FaceTime only. Never Twilio. Never Kyle. Never a bot. He confirms arrival and completion. Bailey authorizes any send.
 6. **Complete** writes notes the office can invoice from. The invoice is a closeout of that same job, not a second system.
 7. **Roster hygiene** removes people who should not be there, and the operator sees whether the delete stuck.
 
@@ -139,7 +194,7 @@ P0 is what is in flight or already named as the next open step. Each P0/P1 row f
 | --- | --- | --- | --- |
 | CVP-01 | Tap-comment, kill under-deck, quiet surround (`bc-ec6df537`). | Guest sees the film and taps a moment. The note persists on that version and time. Tip, overlay, compression, and approval binding stay. | Reel / Cut, Latch |
 | ACS-01 | PR #5 roster delete. | The row leaves the roster and stays gone. Toast matches the write. No send. | Forge / Clip, Latch |
-| COUNCIL-01 | Phone + desktop nav masters. | The master shows the pipeline the business actually runs, including where Review, Approve, and Preview live. Bailey picks. No implementation branch. | Council |
+| COUNCIL-01 | Nav masters locked to the decided chrome: phone bottom pipeline + one drawer, desktop thin left, sapphire mark. | The master shows Login → Projects and where Review, Approve, and Preview sit. Bailey confirms the drawing. No implementation branch. | Council |
 
 ### P1 — next, after the matching P0
 

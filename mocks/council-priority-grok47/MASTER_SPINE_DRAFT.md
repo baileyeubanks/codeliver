@@ -1,6 +1,6 @@
 # Master spine draft — Grok 4.7
-**Date:** 2026-09-24 · **Seat:** GROK 4.7 · **Status:** revised after Bailey. Peer debates not pasted yet.
-**Rule:** One ordered backlog. Max 15. Visual and the operating step fund together. Change a row when a peer is right on operations.
+**Date:** 2026-09-24 · **Seat:** GROK 4.7 · **Status:** ground truth from Blaze. Peer debates not pasted yet.
+**Rule:** Siblings, one Commander. One backlog, max 15. A row is done only with live proof. Visual and the write fund together. Change a row when Fable or Opus is right on operations.
 
 ## What moved
 
@@ -20,8 +20,8 @@ Bailey's open order is the spine: tap-comment + surround, nav masters, then Wips
 | --- | --- | --- | --- | --- | --- | --- |
 | 1 | CVP-01 | P0 | Finish tap-comment and quiet surround (`bc-ec6df537`). Do not retouch the passed overlay, sapphire logo, `compress:false`, or version-bound approval. | Guest sees the film, taps a moment, comment persists on that version and time, deck is gone. | Reel / Cut · Latch | Yes, in flight |
 | 2 | ACS-01 | P0 | Finish admin PR #5 roster delete. | The row leaves the list and is gone after refresh. Toast matches the write. No send. | Forge / Clip · Latch | Yes, in flight |
-| 3 | COUNCIL-01 | P0 | Phone + desktop nav masters. | The master shows the pipeline, including Review, Approve, and Preview. Bailey picks. No implementation branch. | Council | Yes, mock |
-| 4 | ACS-02 | P1 | VA-106 dispatch loading. | The booked job loads for crew assignment on the phone, and the assignment persists. | Forge / Clip | Yes, when 2 is done |
+| 3 | COUNCIL-01 | P0 | Nav masters: phone bottom pipeline + one drawer, desktop thin left, sapphire mark, Login → Projects. | Drawing shows where Review, Approve, and Preview sit. Bailey confirms. No implementation branch. | Council | Yes, mock |
+| 4 | ACS-02 | P1 | VA-106 dispatch loading. Field confirm stays Caio at +1 504 858 1959 on Continuity. Never Twilio, never Kyle. | The `First L. Service` job loads for crew assignment on the phone, and the assignment is still there after refresh. No send. | Forge / Clip | Yes, when 2 is done |
 | 5 | KIMI-01 | P1 | Madeline column harvest for one live client. | Written list: column, who changes it, what done means. | Frame / Scout | Yes, pack in parallel |
 | 6 | CVP-02 | P1 | Wipster share modes on the picked nav. | Review / Approve / Preview is the control the guest uses and the posture stored on the share. Finish writes the status field from item 5 onto that version. Hosting stays at Wipster. | Reel / Cut | After 1 and 3. Not ahead of the pick. |
 | 7 | CVP-03 | P2 | Per-deliverable status for that one client on the existing project. | Madeline does not retype that client's rows. | Reel | No |

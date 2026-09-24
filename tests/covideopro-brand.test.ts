@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
 import { existsSync, readFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import test from "node:test";
@@ -11,31 +12,34 @@ const componentSource = readFileSync(
   "utf8",
 );
 
-test("the Co‑VideoPro lockup renders one supplied transparent ribbon", () => {
+test("the Co‑VideoPro lockup renders the transparent blue long mark", () => {
   assert.match(componentSource, /const DEFAULT_LABEL = "Co‑VideoPro by Content Co-op"/);
   assert.match(componentSource, /role="img"/);
   assert.match(componentSource, /aria-label=\{label\}/);
   assert.match(componentSource, /by Content Co-op/);
-  assert.match(componentSource, /src="\/brand\/cvp-ribbon-transparent\.png"/);
+  assert.match(componentSource, /src="\/brand\/cvp-mark-safe-pad\.png"/);
   assert.match(componentSource, /unoptimized/);
-  assert.doesNotMatch(componentSource, /cvp-sapphire-mark\.png/);
+  assert.doesNotMatch(componentSource, /cvp-sapphire-mark\.png|cvp-ribbon-transparent\.png|CVPLOGO2/);
   assert.doesNotMatch(componentSource, /Co-Production Pro|Co-Deliver/);
 });
 
-test("the login ribbon is a padded transparent PNG", () => {
-  const file = resolve(repositoryRoot, "public/brand/cvp-ribbon-transparent.png");
+test("the login mark is the padded transparent blue long artwork", () => {
+  const file = resolve(repositoryRoot, "public/brand/cvp-mark-safe-pad.png");
+  const registered = resolve(repositoryRoot, "public/brand/cvp-long.png");
   assert.ok(existsSync(file));
   const bytes = readFileSync(file);
   assert.equal(bytes.subarray(0, 8).toString("hex"), "89504e470d0a1a0a");
   assert.equal(bytes.subarray(12, 16).toString("ascii"), "IHDR");
-  assert.equal(bytes.readUInt32BE(16), 965);
-  assert.equal(bytes.readUInt32BE(20), 534);
+  assert.equal(bytes.readUInt32BE(16), 730);
+  assert.equal(bytes.readUInt32BE(20), 187);
   assert.equal(bytes[24], 8, "8-bit depth");
   assert.equal(bytes[25], 6, "RGBA so the page shows through the ribbon");
+  const hash = (path: string) => createHash("sha256").update(readFileSync(path)).digest("hex");
+  assert.equal(hash(file), hash(registered), "login mark stays the registered blue long file");
 });
 
 test("variants share one supplied source artwork", () => {
-  assert.equal(componentSource.match(/cvp-ribbon-transparent\.png/g)?.length, 1, "one registration mark reference");
+  assert.equal(componentSource.match(/cvp-mark-safe-pad\.png/g)?.length, 1, "one registration mark reference");
 });
 
 test("brand layout contains the ribbon and does not crop it", () => {

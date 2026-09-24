@@ -16,7 +16,7 @@ export interface CoProductionBrandProps {
 
 const DEFAULT_LABEL = "Co‑VideoPro by Content Co-op";
 
-/** Supplied sapphire CVP ribbon with the white matte removed.
+/** Bailey's sapphire blue long lockup, already transparent, with padding in the file.
  * Layout contains the full artwork. It never crops, redraws, or recolors it. */
 export function CoProductionBrand({
   variant = "horizontal",
@@ -32,10 +32,10 @@ export function CoProductionBrand({
     <span className={rootClassName} data-brand-variant={variant} role="img" aria-label={label}>
       <Image
         className={styles.mark}
-        src="/brand/cvp-ribbon-transparent.png"
+        src="/brand/cvp-mark-safe-pad.png"
         alt=""
-        width={965}
-        height={534}
+        width={730}
+        height={187}
         priority={priority}
         unoptimized
         draggable={false}

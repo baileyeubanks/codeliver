@@ -75,7 +75,7 @@
 }
 
 .column .brandLockup {
-  --co-production-brand-width: 232px;
+  --co-production-brand-width: min(340px, 100%);
   height: auto;
   overflow: visible;
   background: transparent;
